@@ -1264,8 +1264,12 @@ dependencies = [
 name = "curator-desktop"
 version = "0.3.3"
 dependencies = [
+ "anyhow",
  "curator",
+ "dunce",
  "rfd",
+ "rusqlite",
+ "serde",
  "serde_json",
  "slint",
  "slint-build",

@@ -48,6 +48,40 @@ pub struct Config {
     pub phar_runtime: Option<String>,
 }
 
+/// Resolve an external helper binary with install-relative lookup first:
+/// `<exe-dir>/tools/<file>` is where the Windows bundle stashes ffmpeg,
+/// ffprobe, mpv and the isolated gallery-dl. After that, an explicit
+/// `CURATOR_<ENV_KEY>` override wins, then the configured value, then the
+/// plain PATH name as a last resort.
+pub fn resolve_tool_bin(configured: Option<&str>, env_key: &str, file_name: &str) -> String {
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            let bundled = dir.join("tools").join(file_name);
+            if bundled.is_file() {
+                return bundled.to_string_lossy().into_owned();
+            }
+        }
+    }
+    if let Ok(value) = std::env::var(format!("CURATOR_{env_key}")) {
+        if !value.trim().is_empty() {
+            return value;
+        }
+    }
+    if let Some(value) = configured.filter(|s| !s.trim().is_empty()) {
+        return value.to_string();
+    }
+    file_name.to_string()
+}
+
+/// Platform-appropriate bundled file name for a tool (`.exe` on Windows).
+pub fn tool_file_name(base: &str) -> String {
+    if cfg!(windows) {
+        format!("{base}.exe")
+    } else {
+        base.to_string()
+    }
+}
+
 /// Historical releases kept `config.json` next to the running executable.
 /// Keep that as a current-user read fallback so upgrades retain a library,
 /// but never use it for an all-users Server installation.
@@ -197,6 +231,31 @@ pub fn ensure_config_json_for(scope: InstallScope, data_dir: &Path) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn resolve_tool_bin_prefers_env_override() {
+        // The bundled <exe-dir>/tools check looks next to the test binary,
+        // where no tools dir exists, so the env override wins here.
+        // Unique env key: sibling tests must not share process env.
+        std::env::set_var("CURATOR_TEST_TOOL_XYZa", "/tmp/custom-tool");
+        let got = resolve_tool_bin(Some("/cfg/tool"), "TEST_TOOL_XYZa", "tool");
+        std::env::remove_var("CURATOR_TEST_TOOL_XYZa");
+        assert_eq!(got, "/tmp/custom-tool");
+    }
+
+    #[test]
+    fn resolve_tool_bin_falls_back_to_config_then_path_name() {
+        std::env::remove_var("CURATOR_TEST_TOOL_XYZb");
+        assert_eq!(
+            resolve_tool_bin(Some("/cfg/tool"), "TEST_TOOL_XYZb", "tool"),
+            "/cfg/tool"
+        );
+        assert_eq!(resolve_tool_bin(None, "TEST_TOOL_XYZb", "tool"), "tool");
+        assert_eq!(
+            resolve_tool_bin(Some("  "), "TEST_TOOL_XYZb", "tool"),
+            "tool"
+        );
+    }
 
     #[test]
     fn resolve_data_dir_prefers_env_var_over_config() {

@@ -1,0 +1,10 @@
+Package: curator-viewer
+Version: @CURATOR_VERSION@
+Section: graphics
+Priority: optional
+Architecture: amd64
+Maintainer: Curator
+Recommends: mpv
+Description: Curator Viewer native remote media app
+ Curator Viewer is the native desktop edition that streams a library from a
+ Curator Host or Server over LAN or Tailnet. It keeps no library of its own.

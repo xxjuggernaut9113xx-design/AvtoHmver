@@ -18,7 +18,15 @@ use std::{
 
 #[derive(Debug, Clone)]
 pub enum PlayerCommand {
-    Load { source: String },
+    /// (Re)loads media. Volume/speed/loop ride along so the first play
+    /// honors the persisted Host settings instead of mpv's defaults; they
+    /// are pushed over IPC before the loadfile command.
+    Load {
+        source: String,
+        volume: f64,
+        speed: f64,
+        looping: bool,
+    },
     SetPaused(bool),
     Seek(f64),
     SetVolume(f64),
@@ -143,7 +151,11 @@ impl NativePlayer {
     }
 
     fn start(&mut self) -> Result<(), String> {
-        if self.child.is_some() && self.writer.is_some() {
+        // A present writer means the IPC endpoint is already available. In
+        // production the writer is only ever set together with the child;
+        // tests inject a writer directly to capture IPC traffic without a
+        // real mpv process.
+        if self.writer.is_some() {
             return Ok(());
         }
         self.teardown();
@@ -233,7 +245,12 @@ impl NativePlayer {
 
     pub fn apply(&mut self, command: PlayerCommand) -> PlayerStatus {
         let result = match command {
-            PlayerCommand::Load { source } => {
+            PlayerCommand::Load {
+                source,
+                volume,
+                speed,
+                looping,
+            } => {
                 // A fresh load resets every per-file flag first. mpv reports
                 // the previous file's end-file before the new file-loaded,
                 // so ended must be cleared here and not only on file-loaded.
@@ -241,8 +258,20 @@ impl NativePlayer {
                 // unmistakable even if it arrives after the new load.
                 self.mark_loading();
                 self.status = PlayerStatus::loading();
-                self.start()
-                    .and_then(|_| self.send(json!({"command":["loadfile", source, "replace"]})))
+                // Persisted playback settings are part of the load: they
+                // reach the status the UI mirrors and are pushed to mpv
+                // before playback starts, so the first play honors them.
+                let volume = volume.clamp(0.0, 100.0);
+                let speed = speed.clamp(0.25, 4.0);
+                self.status.volume = volume;
+                self.status.speed = speed;
+                self.status.looping = looping;
+                self.start().and_then(|_| {
+                    self.send(json!({"command":["set_property", "volume", volume]}))?;
+                    self.send(json!({"command":["set_property", "speed", speed]}))?;
+                    self.send(json!({"command":["set_property", "loop-file", if looping { "inf" } else { "no" }]}))?;
+                    self.send(json!({"command":["loadfile", source, "replace"]}))
+                })
             }
             PlayerCommand::SetPaused(paused) => {
                 self.status.paused = paused;
@@ -404,6 +433,9 @@ mod tests {
         std::env::set_var("CURATOR_MPV_BIN", "/nonexistent/curator-test-mpv");
         let status = player.apply(PlayerCommand::Load {
             source: "clip.mp4".into(),
+            volume: 100.0,
+            speed: 1.0,
+            looping: false,
         });
         std::env::remove_var("CURATOR_MPV_BIN");
         assert!(!status.ended, "Load must clear a stale ended flag");
@@ -476,6 +508,9 @@ mod tests {
         let mut player = NativePlayer::default();
         player.apply(PlayerCommand::Load {
             source: "a.mp4".into(),
+            volume: 100.0,
+            speed: 1.0,
+            looping: false,
         });
         let tx = inject_events(&mut player);
         tx.send(json!({"event": "file-loaded"})).unwrap();
@@ -485,6 +520,9 @@ mod tests {
         // either way.
         player.apply(PlayerCommand::Load {
             source: "b.mp4".into(),
+            volume: 100.0,
+            speed: 1.0,
+            looping: false,
         });
         assert!(
             !player.loaded,
@@ -499,6 +537,78 @@ mod tests {
             "stop closes the gate until the next file-loaded"
         );
         std::env::remove_var("CURATOR_MPV_BIN");
+    }
+
+    #[test]
+    fn load_pushes_persisted_settings_to_mpv_before_playback() {
+        // The injected writer stands in for the mpv IPC pipe: `start()`
+        // treats a present writer as an available endpoint, so every JSON
+        // command `apply` emits lands in this file without a real mpv.
+        let path =
+            std::env::temp_dir().join(format!("curator-test-ipc-{}.jsonl", std::process::id()));
+        let mut player = NativePlayer::default();
+        player.writer = Some(File::create(&path).unwrap());
+        let status = player.apply(PlayerCommand::Load {
+            source: "movie.mp4".into(),
+            volume: 42.0,
+            speed: 1.5,
+            looping: true,
+        });
+        // The mirrored status carries the settings too, so the Slint
+        // sliders keep showing the persisted values after a load.
+        assert_eq!(status.volume, 42.0);
+        assert_eq!(status.speed, 1.5);
+        assert!(status.looping);
+        drop(player);
+        let text = std::fs::read_to_string(&path).unwrap();
+        let _ = std::fs::remove_file(&path);
+        let commands: Vec<Value> = text
+            .lines()
+            .filter(|line| !line.trim().is_empty())
+            .map(|line| serde_json::from_str(line).expect("one JSON command per line"))
+            .collect();
+        assert_eq!(
+            commands
+                .iter()
+                .map(|command| command["command"].clone())
+                .collect::<Vec<_>>(),
+            vec![
+                json!(["set_property", "volume", 42.0]),
+                json!(["set_property", "speed", 1.5]),
+                json!(["set_property", "loop-file", "inf"]),
+                json!(["loadfile", "movie.mp4", "replace"]),
+            ],
+            "settings must reach mpv before the loadfile command"
+        );
+    }
+
+    #[test]
+    fn load_clamps_settings_before_sending_them() {
+        let path = std::env::temp_dir().join(format!(
+            "curator-test-ipc-clamp-{}.jsonl",
+            std::process::id()
+        ));
+        let mut player = NativePlayer::default();
+        player.writer = Some(File::create(&path).unwrap());
+        let status = player.apply(PlayerCommand::Load {
+            source: "movie.mp4".into(),
+            volume: 999.0,
+            speed: 0.01,
+            looping: false,
+        });
+        assert_eq!(status.volume, 100.0);
+        assert_eq!(status.speed, 0.25);
+        drop(player);
+        let text = std::fs::read_to_string(&path).unwrap();
+        let _ = std::fs::remove_file(&path);
+        assert!(
+            text.contains(r#""command":["set_property","volume",100.0]"#),
+            "volume is clamped before it reaches mpv: {text}"
+        );
+        assert!(
+            text.contains(r#""command":["set_property","loop-file","no"]"#),
+            "loop off reaches mpv as loop-file=no: {text}"
+        );
     }
 
     #[test]

@@ -2,6 +2,14 @@
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let runtime = tokio::runtime::Runtime::new()?;
+    // A data-directory move scheduled from the UI lands here, before the
+    // database pool, directory lock, or any worker exists — the only safe
+    // moment to rename or copy the whole tree.
+    if let Err(error) = curator_desktop::datadir::apply_pending_move() {
+        eprintln!(
+            "scheduled data directory move failed: {error:#}; starting with the previous location"
+        );
+    }
     let state = runtime.block_on(curator::initialize_host())?;
     let arguments: Vec<String> = std::env::args().collect();
     let background = arguments.iter().any(|argument| argument == "--background");
@@ -15,8 +23,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
     let client = curator::native::LocalClient::new(state.clone())?;
-    let result =
-        curator_desktop::run_ui(&runtime, curator::native::Client::Local(client), background);
-    runtime.block_on(curator::shutdown(&state));
+    let shared = std::sync::Arc::new(state);
+    let result = curator_desktop::run_ui_host(
+        &runtime,
+        curator::native::Client::Local(client),
+        background,
+        shared.clone(),
+    );
+    runtime.block_on(curator::shutdown(&shared));
     result
 }

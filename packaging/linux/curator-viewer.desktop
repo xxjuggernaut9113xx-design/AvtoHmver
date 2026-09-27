@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Curator Viewer
+Comment=Curator remote media viewer
+Exec=/usr/lib/curator-viewer/curator-viewer
+Icon=curator-viewer
+Terminal=false
+Type=Application
+Categories=Graphics;AudioVideo;
+StartupWMClass=curator-viewer

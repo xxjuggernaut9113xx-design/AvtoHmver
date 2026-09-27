@@ -3,7 +3,7 @@
 use std::{collections::HashSet, sync::atomic::Ordering};
 
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::Value;
 use std::sync::Arc;
 
 use crate::AppState;
@@ -57,11 +57,18 @@ pub async fn status(state: &AppState) -> DownloadStatus {
         .collect();
     paused_source_ids.sort_unstable();
     let rows = state.pool.get().ok().and_then(|conn| {
+        // The per-source indexed count is aggregated in a single grouped
+        // join instead of a correlated subquery per source row: one pass
+        // over media via idx_media_source rather than N index lookups.
         let mut statement = conn.prepare(
             "SELECT s.id,s.name,s.status,s.item_count,s.known_total,
-                    (SELECT COUNT(*) FROM media m WHERE m.source_id=s.id AND m.downloaded=1 AND m.missing=0) AS indexed_count,
+                    COALESCE(m.indexed_count,0) AS indexed_count,
                     s.completed_count,s.current_filename,s.retry_at,s.error_message,s.queued_at,s.started_at,s.completed_at,s.progress_updated_at
-             FROM sources s ORDER BY COALESCE(s.queued_at,s.added_at),s.id",
+             FROM sources s
+             LEFT JOIN (SELECT source_id,COUNT(*) AS indexed_count FROM media
+                        WHERE downloaded=1 AND missing=0 GROUP BY source_id) m
+               ON m.source_id=s.id
+             ORDER BY COALESCE(s.queued_at,s.added_at),s.id",
         ).ok()?;
         let mapped = statement.query_map([], |row| Ok((
             row.get::<_, i64>(0)?, row.get::<_, String>(1)?, row.get::<_, String>(2)?,
@@ -157,28 +164,99 @@ pub async fn status(state: &AppState) -> DownloadStatus {
     }
 }
 
+// ─── Typed download controls ─────────────────────────────────────────────────
+// The `*_typed` ops are the canonical service API: every outcome and
+// rejection is a struct, so HTTP and native callers share one contract.
+// The `Value`-returning wrappers exist only for the pre-existing callers in
+// `downloader`, `maintenance`, and `native`, which index the legacy JSON
+// shapes directly.
+
+/// Outcome of pausing every download source: `{"paused":true}`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub struct PauseOutcome {
+    pub paused: bool,
+}
+
+/// Outcome of resuming downloads: `{"paused":false,"requeued":N}`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub struct ResumeOutcome {
+    pub paused: bool,
+    pub requeued: usize,
+}
+
+/// Outcome of pausing one source: `{"id":N,"paused":true}`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub struct SourcePauseOutcome {
+    pub id: i64,
+    pub paused: bool,
+}
+
+/// Outcome of resuming one source: `{"id":N,"paused":false,"status":"queued"}`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub struct SourceResumeOutcome {
+    pub id: i64,
+    pub paused: bool,
+    pub status: &'static str,
+}
+
+/// Typed rejection. Serializes to the exact legacy shapes: `{"error":...}`
+/// for global controls, `{"id":N,"error":...}` for per-source controls (the
+/// "Source not found" rejection keeps its legacy id-less shape).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub struct ControlError {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<i64>,
+    pub error: &'static str,
+}
+
+impl ControlError {
+    fn global(error: &'static str) -> Self {
+        Self { id: None, error }
+    }
+
+    fn source(id: i64, error: &'static str) -> Self {
+        Self {
+            id: Some(id),
+            error,
+        }
+    }
+}
+
+fn control_value<T: Serialize>(result: Result<T, ControlError>) -> Value {
+    match result {
+        Ok(outcome) => serde_json::to_value(outcome).unwrap_or(Value::Null),
+        Err(error) => serde_json::to_value(error).unwrap_or(Value::Null),
+    }
+}
+
 /// Pause all download sources with service-level maintenance and shutdown
 /// admission, independent of whether the caller used HTTP or the native UI.
-pub async fn pause(state: &Arc<AppState>) -> Value {
+pub async fn pause_typed(state: &Arc<AppState>) -> Result<PauseOutcome, ControlError> {
     if state.shutdown.is_cancelled() {
-        return json!({"error":"Curator is shutting down"});
+        return Err(ControlError::global("Curator is shutting down"));
     }
     let Some(_lease) = state.maintenance.try_acquire_background_worker() else {
-        return json!({"error":"A local maintenance job is active"});
+        return Err(ControlError::global("A local maintenance job is active"));
     };
     if state.shutdown.is_cancelled() {
-        return json!({"error":"Curator is shutting down"});
+        return Err(ControlError::global("Curator is shutting down"));
     }
-    pause_unchecked(state).await
+    Ok(pause_unchecked(state).await)
+}
+
+/// Legacy `Value` shape kept for the pre-existing callers in `downloader`,
+/// `maintenance`, and `native`.
+pub async fn pause(state: &Arc<AppState>) -> Value {
+    control_value(pause_typed(state).await)
 }
 
 /// Maintenance has already closed normal admission and must pause workers as
 /// part of establishing quiescence.
 pub(crate) async fn pause_for_maintenance(state: &Arc<AppState>) -> Value {
-    pause_unchecked(state).await
+    control_value(Ok(pause_unchecked(state).await))
 }
 
-async fn pause_unchecked(state: &Arc<AppState>) -> Value {
+async fn pause_unchecked(state: &Arc<AppState>) -> PauseOutcome {
     let _control = state.download_control.lock().await;
     state.downloads_paused.store(true, Ordering::SeqCst);
 
@@ -208,12 +286,15 @@ async fn pause_unchecked(state: &Arc<AppState>) -> Value {
         }
         crate::downloader::kill_pid(pid).await;
     }
+    // Index the active source ids once instead of scanning the pid vec for
+    // every cancellation entry.
+    let active_ids: HashSet<i64> = procs.iter().map(|(id, _)| *id).collect();
     let cancellations: Vec<(i64, tokio_util::sync::CancellationToken)> = state
         .source_cancellations
         .lock()
         .await
         .iter()
-        .filter(|(source_id, _)| !procs.iter().any(|(id, _)| id == *source_id))
+        .filter(|(source_id, _)| !active_ids.contains(source_id))
         .map(|(source_id, token)| (*source_id, token.clone()))
         .collect();
     for (source_id, cancel) in cancellations {
@@ -226,27 +307,33 @@ async fn pause_unchecked(state: &Arc<AppState>) -> Value {
             );
         }
     }
-    json!({"paused":true})
+    PauseOutcome { paused: true }
 }
 
-pub async fn resume(state: Arc<AppState>) -> Value {
+pub async fn resume_typed(state: Arc<AppState>) -> Result<ResumeOutcome, ControlError> {
     if state.shutdown.is_cancelled() {
-        return json!({"error":"Curator is shutting down"});
+        return Err(ControlError::global("Curator is shutting down"));
     }
     let Some(_lease) = state.maintenance.try_acquire_background_worker() else {
-        return json!({"error":"A local maintenance job is active"});
+        return Err(ControlError::global("A local maintenance job is active"));
     };
     if state.shutdown.is_cancelled() {
-        return json!({"error":"Curator is shutting down"});
+        return Err(ControlError::global("Curator is shutting down"));
     }
     resume_unchecked(state).await
+}
+
+/// Legacy `Value` shape kept for the pre-existing callers in `downloader`
+/// and `native`.
+pub async fn resume(state: Arc<AppState>) -> Value {
+    control_value(resume_typed(state).await)
 }
 
 pub(crate) async fn resume_after_maintenance(state: Arc<AppState>) -> Value {
-    resume_unchecked(state).await
+    control_value(resume_unchecked(state).await)
 }
 
-async fn resume_unchecked(state: Arc<AppState>) -> Value {
+async fn resume_unchecked(state: Arc<AppState>) -> Result<ResumeOutcome, ControlError> {
     let _control = state.download_control.lock().await;
     while state.downloads_paused.load(Ordering::SeqCst) {
         if state.running_sources.lock().await.is_empty() {
@@ -257,11 +344,11 @@ async fn resume_unchecked(state: Arc<AppState>) -> Value {
     let paused_ids: Vec<i64> = {
         let conn = match state.pool.get() {
             Ok(conn) => conn,
-            Err(_) => return json!({"error":"Database unavailable"}),
+            Err(_) => return Err(ControlError::global("Database unavailable")),
         };
         let mut statement = match conn.prepare("SELECT id FROM sources WHERE status='paused'") {
             Ok(statement) => statement,
-            Err(_) => return json!({"error":"Database unavailable"}),
+            Err(_) => return Err(ControlError::global("Database unavailable")),
         };
         statement
             .query_map([], |row| row.get(0))
@@ -271,11 +358,11 @@ async fn resume_unchecked(state: Arc<AppState>) -> Value {
     if !paused_ids.is_empty() {
         let conn = match state.pool.get() {
             Ok(conn) => conn,
-            Err(_) => return json!({"error":"Database unavailable"}),
+            Err(_) => return Err(ControlError::global("Database unavailable")),
         };
         let transaction = match conn.unchecked_transaction() {
             Ok(transaction) => transaction,
-            Err(_) => return json!({"error":"Database unavailable"}),
+            Err(_) => return Err(ControlError::global("Database unavailable")),
         };
         for id in &paused_ids {
             if transaction
@@ -285,11 +372,11 @@ async fn resume_unchecked(state: Arc<AppState>) -> Value {
                 )
                 .is_err()
             {
-                return json!({"error":"Database unavailable"});
+                return Err(ControlError::global("Database unavailable"));
             }
         }
         if transaction.commit().is_err() {
-            return json!({"error":"Database unavailable"});
+            return Err(ControlError::global("Database unavailable"));
         }
     }
     state.paused_source_ids.lock().await.clear();
@@ -299,18 +386,27 @@ async fn resume_unchecked(state: Arc<AppState>) -> Value {
             .download_tasks
             .spawn(crate::downloader::run_download(Arc::clone(&state), *id));
     }
-    json!({"paused":false,"requeued":paused_ids.len()})
+    Ok(ResumeOutcome {
+        paused: false,
+        requeued: paused_ids.len(),
+    })
 }
 
-pub async fn pause_source(state: &Arc<AppState>, id: i64) -> Value {
+pub async fn pause_source_typed(
+    state: &Arc<AppState>,
+    id: i64,
+) -> Result<SourcePauseOutcome, ControlError> {
     if let Some(error) = admission_error(state) {
-        return json!({"id":id,"error":error});
+        return Err(ControlError::source(id, error));
     }
     let Some(_lease) = state.maintenance.try_acquire_background_worker() else {
-        return json!({"id":id,"error":"A local maintenance job is active"});
+        return Err(ControlError::source(
+            id,
+            "A local maintenance job is active",
+        ));
     };
     if state.shutdown.is_cancelled() {
-        return json!({"id":id,"error":"Curator is shutting down"});
+        return Err(ControlError::source(id, "Curator is shutting down"));
     }
     let _control = state.download_control.lock().await;
     let exists = state
@@ -327,7 +423,7 @@ pub async fn pause_source(state: &Arc<AppState>, id: i64) -> Value {
         })
         .unwrap_or(false);
     if !exists {
-        return json!({"error":"Source not found"});
+        return Err(ControlError::global("Source not found"));
     }
     state.paused_source_ids.lock().await.insert(id);
     if let Some(cancel) = state.source_cancellations.lock().await.get(&id).cloned() {
@@ -342,35 +438,55 @@ pub async fn pause_source(state: &Arc<AppState>, id: i64) -> Value {
             rusqlite::params![crate::db::now_iso(), id],
         );
     }
-    json!({"id":id,"paused":true})
+    Ok(SourcePauseOutcome { id, paused: true })
 }
 
-pub async fn resume_source(state: Arc<AppState>, id: i64) -> Value {
+/// Legacy `Value` shape kept for the pre-existing callers in `native`.
+pub async fn pause_source(state: &Arc<AppState>, id: i64) -> Value {
+    control_value(pause_source_typed(state, id).await)
+}
+
+pub async fn resume_source_typed(
+    state: Arc<AppState>,
+    id: i64,
+) -> Result<SourceResumeOutcome, ControlError> {
     if let Some(error) = admission_error(&state) {
-        return json!({"id":id,"error":error});
+        return Err(ControlError::source(id, error));
     }
     let Some(_lease) = state.maintenance.try_acquire_background_worker() else {
-        return json!({"id":id,"error":"A local maintenance job is active"});
+        return Err(ControlError::source(
+            id,
+            "A local maintenance job is active",
+        ));
     };
     if state.shutdown.is_cancelled() {
-        return json!({"id":id,"error":"Curator is shutting down"});
+        return Err(ControlError::source(id, "Curator is shutting down"));
     }
     let _control = state.download_control.lock().await;
     if state.downloads_paused.load(Ordering::SeqCst) {
-        return json!({"id":id,"error":"Downloads are globally paused"});
+        return Err(ControlError::source(id, "Downloads are globally paused"));
     }
     let changed = state.pool.get().ok().and_then(|conn| conn.execute(
         "UPDATE sources SET status='pending',queued_at=?1,progress_updated_at=?1,current_filename=NULL WHERE id=?2 AND status IN ('paused','storage_limit','low_disk','error','done','retrying')",
         rusqlite::params![crate::db::now_iso(),id],
     ).ok()).unwrap_or(0);
     if changed == 0 {
-        return json!({"id":id,"error":"Source is not resumable"});
+        return Err(ControlError::source(id, "Source is not resumable"));
     }
     state.paused_source_ids.lock().await.remove(&id);
     state
         .download_tasks
         .spawn(crate::downloader::run_download(Arc::clone(&state), id));
-    json!({"id":id,"paused":false,"status":"queued"})
+    Ok(SourceResumeOutcome {
+        id,
+        paused: false,
+        status: "queued",
+    })
+}
+
+/// Legacy `Value` shape kept for the pre-existing callers in `native`.
+pub async fn resume_source(state: Arc<AppState>, id: i64) -> Value {
+    control_value(resume_source_typed(state, id).await)
 }
 
 fn admission_error(state: &AppState) -> Option<&'static str> {
@@ -390,6 +506,7 @@ mod tests {
         body::{to_bytes, Body},
         http::Request,
     };
+    use serde_json::json;
     use tower::ServiceExt;
 
     async fn http_control(state: &AppState, path: &str) -> serde_json::Value {
@@ -452,23 +569,33 @@ mod tests {
     async fn global_controls_keep_http_payloads_and_deny_shutdown() {
         let root = tempfile::tempdir().unwrap();
         let state = crate::test_support::state(root.path());
-        let direct_pause = pause(&state).await;
+        let direct_pause = pause_typed(&state).await;
+        assert_eq!(direct_pause, Ok(PauseOutcome { paused: true }));
         assert_eq!(
-            direct_pause,
+            serde_json::to_value(direct_pause.unwrap()).unwrap(),
             http_control(&state, "/api/downloads/pause").await
         );
-        let direct_resume = resume(state.clone()).await;
+        let direct_resume = resume_typed(state.clone()).await;
         assert_eq!(
             direct_resume,
+            Ok(ResumeOutcome {
+                paused: false,
+                requeued: 0
+            })
+        );
+        assert_eq!(
+            serde_json::to_value(direct_resume.unwrap()).unwrap(),
             http_control(&state, "/api/downloads/resume").await
         );
-        assert_eq!(direct_resume, json!({"paused":false,"requeued":0}));
 
         state.shutdown.cancel();
-        assert_eq!(pause(&state).await["error"], "Curator is shutting down");
         assert_eq!(
-            resume(state.clone()).await["error"],
-            "Curator is shutting down"
+            pause_typed(&state).await,
+            Err(ControlError::global("Curator is shutting down"))
+        );
+        assert_eq!(
+            resume_typed(state.clone()).await,
+            Err(ControlError::global("Curator is shutting down"))
         );
     }
 
@@ -478,28 +605,81 @@ mod tests {
         let state = crate::test_support::state(root.path());
         crate::test_support::source(&state);
         state.downloads_paused.store(true, Ordering::SeqCst);
-        let direct_pause = pause_source(&state, 1).await;
+        let direct_pause = pause_source_typed(&state, 1).await;
         assert_eq!(
             direct_pause,
+            Ok(SourcePauseOutcome {
+                id: 1,
+                paused: true
+            })
+        );
+        assert_eq!(
+            serde_json::to_value(direct_pause.unwrap()).unwrap(),
             http_control(&state, "/api/downloads/sources/1/pause").await
         );
-        assert_eq!(direct_pause, json!({"id":1,"paused":true}));
-        let direct_resume = resume_source(state.clone(), 1).await;
+        let direct_resume = resume_source_typed(state.clone(), 1).await;
         assert_eq!(
             direct_resume,
+            Err(ControlError::source(1, "Downloads are globally paused"))
+        );
+        assert_eq!(
+            serde_json::to_value(direct_resume.unwrap_err()).unwrap(),
             http_control(&state, "/api/downloads/sources/1/resume").await
         );
-        assert_eq!(direct_resume["error"], "Downloads are globally paused");
-        assert_eq!(pause_source(&state, 999).await["error"], "Source not found");
+        assert_eq!(
+            pause_source_typed(&state, 999).await,
+            Err(ControlError::global("Source not found"))
+        );
 
         state.shutdown.cancel();
         assert_eq!(
-            pause_source(&state, 1).await["error"],
-            "Curator is shutting down"
+            pause_source_typed(&state, 1).await,
+            Err(ControlError::source(1, "Curator is shutting down"))
         );
         assert_eq!(
-            resume_source(state.clone(), 1).await["error"],
-            "Curator is shutting down"
+            resume_source_typed(state.clone(), 1).await,
+            Err(ControlError::source(1, "Curator is shutting down"))
+        );
+    }
+
+    #[test]
+    fn typed_outcomes_serialize_to_the_legacy_http_shapes() {
+        assert_eq!(
+            serde_json::to_value(PauseOutcome { paused: true }).unwrap(),
+            json!({"paused": true})
+        );
+        assert_eq!(
+            serde_json::to_value(ResumeOutcome {
+                paused: false,
+                requeued: 3
+            })
+            .unwrap(),
+            json!({"paused": false, "requeued": 3})
+        );
+        assert_eq!(
+            serde_json::to_value(SourcePauseOutcome {
+                id: 7,
+                paused: true
+            })
+            .unwrap(),
+            json!({"id": 7, "paused": true})
+        );
+        assert_eq!(
+            serde_json::to_value(SourceResumeOutcome {
+                id: 7,
+                paused: false,
+                status: "queued"
+            })
+            .unwrap(),
+            json!({"id": 7, "paused": false, "status": "queued"})
+        );
+        assert_eq!(
+            serde_json::to_value(ControlError::global("nope")).unwrap(),
+            json!({"error": "nope"})
+        );
+        assert_eq!(
+            serde_json::to_value(ControlError::source(7, "nope")).unwrap(),
+            json!({"id": 7, "error": "nope"})
         );
     }
 

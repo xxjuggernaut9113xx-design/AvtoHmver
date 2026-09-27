@@ -32,16 +32,6 @@ use axum::{
 use serde_json::json;
 use std::{net::SocketAddr, sync::Arc};
 
-pub(crate) fn actor_for_peer(
-    peer: Option<ConnectInfo<SocketAddr>>,
-) -> crate::services::access::Actor {
-    if peer.is_some_and(|peer| !peer.0.ip().is_loopback()) {
-        crate::services::access::Actor::RemoteViewer
-    } else {
-        crate::services::access::Actor::LocalOwner
-    }
-}
-
 /// Maintenance owns the library exclusively while it takes a safety backup
 /// and applies a recovery transaction.  Individual download routes also
 /// cooperate with that mode, but this router-level gate keeps tags, groups,
@@ -182,6 +172,10 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route("/api/sources/:id/group", patch(sources::set_group))
         .route("/api/sources/:id/resync", post(sources::resync))
         .route("/api/sources/:id/log", get(misc::source_log))
+        // ── Cock Hero ──────────────────────────────────────────────────────
+        .route("/api/ch/playlist", get(ch::get_playlist))
+        .route("/api/ch/session", post(ch::log_session))
+        .route("/api/ch/sessions", get(ch::get_sessions))
         // ── Unified discovery ───────────────────────────────────────────────
         .route("/api/search/providers", get(search::providers))
         .route("/api/search", get(search::search))

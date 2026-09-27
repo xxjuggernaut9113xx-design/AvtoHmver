@@ -281,3 +281,30 @@ fn legacy_size_migration_and_interruptible_backfill() {
         None
     );
 }
+
+#[tokio::test]
+async fn ch_routes_are_wired_and_respond() {
+    let root = tempfile::tempdir().unwrap();
+    let state = test_support::state(root.path());
+    // Playlist on an empty library returns a valid payload, not 404.
+    let (status, body) = request(&state, "GET", "/api/ch/playlist", json!({})).await;
+    assert_eq!(status, 200);
+    assert!(body.get("items").and_then(|v| v.as_array()).is_some());
+    // Session logging round-trips when enabled.
+    let (status, logged) = request(
+        &state,
+        "POST",
+        "/api/ch/session",
+        json!({"duration_s": 60, "item_count": 5}),
+    )
+    .await;
+    assert_eq!(status, 200);
+    // ch_log_sessions defaults off in test fixtures; either way the shape holds.
+    assert!(logged.get("logged").is_some());
+    let (status, sessions) = request(&state, "GET", "/api/ch/sessions", json!({})).await;
+    assert_eq!(status, 200);
+    assert!(sessions
+        .get("sessions")
+        .and_then(|v| v.as_array())
+        .is_some());
+}

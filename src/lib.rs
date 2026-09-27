@@ -292,11 +292,12 @@ pub async fn initialize_with_options(options: InitializeOptions) -> Result<AppSt
     config::ensure_config_json_for(options.install_scope, &data_dir);
     let instance_id = load_or_create_instance_id(&data_dir)?;
 
-    // gallery-dl binary (PATH default or config override)
-    let gallery_dl_bin = cfg
-        .gallery_dl_bin
-        .filter(|s| !s.is_empty())
-        .unwrap_or_else(|| "gallery-dl".to_string());
+    // gallery-dl binary: bundled tools dir, CURATOR_GALLERY_DL, config, PATH.
+    let gallery_dl_bin = config::resolve_tool_bin(
+        cfg.gallery_dl_bin.as_deref(),
+        "GALLERY_DL",
+        &config::tool_file_name("gallery-dl"),
+    );
 
     let python_bin = cfg.python_bin.filter(|s| !s.is_empty()).unwrap_or_else(|| {
         if cfg!(windows) {
@@ -306,14 +307,16 @@ pub async fn initialize_with_options(options: InitializeOptions) -> Result<AppSt
         }
     });
 
-    let ffprobe_bin = cfg
-        .ffprobe_bin
-        .filter(|s| !s.is_empty())
-        .unwrap_or_else(|| "ffprobe".to_string());
-    let ffmpeg_bin = cfg
-        .ffmpeg_bin
-        .filter(|s| !s.is_empty())
-        .unwrap_or_else(|| "ffmpeg".to_string());
+    let ffprobe_bin = config::resolve_tool_bin(
+        cfg.ffprobe_bin.as_deref(),
+        "FFPROBE",
+        &config::tool_file_name("ffprobe"),
+    );
+    let ffmpeg_bin = config::resolve_tool_bin(
+        cfg.ffmpeg_bin.as_deref(),
+        "FFMPEG",
+        &config::tool_file_name("ffmpeg"),
+    );
     let legacy_action_model_path = cfg
         .action_model_path
         .clone()

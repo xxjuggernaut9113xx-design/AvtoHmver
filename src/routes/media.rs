@@ -1,6 +1,9 @@
 use std::collections::{HashMap, HashSet};
 use std::net::SocketAddr;
+use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::{Mutex, OnceLock};
+use std::time::SystemTime;
 
 use axum::{
     body::Body,
@@ -14,45 +17,132 @@ use serde_json::{json, Value};
 
 use crate::db::now_iso;
 use crate::provenance;
+use crate::services::access::Caller;
 use crate::AppState;
+
+/// Resolve the caller's authenticated authority for this request. A loopback
+/// peer — or no peer, as on the Host-direct path — resolves to the Host
+/// itself; any other address is a remote Viewer carrying the capability set
+/// the Host advertises for its viewers.
+fn caller_for_peer(peer: Option<ConnectInfo<SocketAddr>>) -> Caller {
+    Caller::for_peer(
+        peer.map(|peer| peer.0),
+        crate::native::ViewerPermissions::default(),
+    )
+}
+
+/// Explicit service-boundary edit check for the mutation handlers. The
+/// router middleware already blocks remote mutating methods, but every
+/// handler re-verifies the caller's authority so a future route registration
+/// cannot silently bypass it.
+fn deny_edit(caller: Caller) -> Option<(StatusCode, Json<Value>)> {
+    if caller.can_edit_library() {
+        None
+    } else {
+        Some((
+            StatusCode::FORBIDDEN,
+            Json(json!({"error":"Viewer role does not permit this operation"})),
+        ))
+    }
+}
+
+/// Hot-path metadata for one streamable file: the resolved path plus the
+/// length and modification time it was resolved at. A range-heavy video seek
+/// otherwise pays a database lookup plus two path canonicalizations on every
+/// single range request.
+#[derive(Clone)]
+struct StreamMeta {
+    path: PathBuf,
+    len: u64,
+    modified: Option<SystemTime>,
+}
+
+static STREAM_META_CACHE: OnceLock<Mutex<HashMap<(PathBuf, i64), StreamMeta>>> = OnceLock::new();
+const STREAM_META_CACHE_LIMIT: usize = 1024;
+
+fn stream_meta_cache() -> &'static Mutex<HashMap<(PathBuf, i64), StreamMeta>> {
+    STREAM_META_CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+/// Open the media file for `id`, reusing the cached resolution when the file
+/// on disk still matches it. Any mismatch (moved, replaced, resized, or
+/// deleted file) falls back to the full database-backed resolution.
+async fn resolve_stream_target(
+    state: &AppState,
+    id: i64,
+) -> Option<(tokio::fs::File, u64, PathBuf)> {
+    let key = (state.library_dir.clone(), id);
+    if let Some(cached) = stream_meta_cache()
+        .lock()
+        .ok()
+        .and_then(|cache| cache.get(&key).cloned())
+    {
+        if let Ok(file) = tokio::fs::File::open(&cached.path).await {
+            if let Ok(metadata) = file.metadata().await {
+                if metadata.is_file()
+                    && metadata.len() == cached.len
+                    && metadata.modified().ok() == cached.modified
+                {
+                    return Some((file, cached.len, cached.path));
+                }
+            }
+        }
+        // Stale entry: fall through and refresh it below.
+    }
+    let path = crate::media_path(state, id).ok()?;
+    let file = tokio::fs::File::open(&path).await.ok()?;
+    let metadata = file.metadata().await.ok()?;
+    if !metadata.is_file() {
+        return None;
+    }
+    let meta = StreamMeta {
+        path: path.clone(),
+        len: metadata.len(),
+        modified: metadata.modified().ok(),
+    };
+    if let Ok(mut cache) = stream_meta_cache().lock() {
+        if cache.len() >= STREAM_META_CACHE_LIMIT {
+            cache.clear();
+        }
+        cache.insert(key, meta);
+    }
+    Some((file, metadata.len(), path))
+}
 
 /// Native clients address media by ID. The file resolver confines the path to
 /// the library and the shared range plan accepts only a single byte interval.
+/// Viewers need the negotiated `playback` capability; the Host and Server
+/// always pass.
 pub async fn stream(
     State(state): State<Arc<AppState>>,
     Path(id): Path<i64>,
     headers: HeaderMap,
     method: Method,
+    peer: Option<ConnectInfo<SocketAddr>>,
 ) -> Response {
-    let path = match crate::media_path(&state, id) {
-        Ok(path) => path,
-        Err(_) => {
-            return (
-                StatusCode::NOT_FOUND,
-                Json(json!({"error":"Media not found"})),
-            )
-                .into_response()
-        }
-    };
-    let mut file = match tokio::fs::File::open(&path).await {
-        Ok(file) => file,
-        Err(_) => {
-            return (
-                StatusCode::NOT_FOUND,
-                Json(json!({"error":"Media not found"})),
-            )
-                .into_response()
-        }
-    };
-    let total = match file.metadata().await {
-        Ok(metadata) if metadata.is_file() => metadata.len(),
-        _ => {
-            return (
-                StatusCode::NOT_FOUND,
-                Json(json!({"error":"Media not found"})),
-            )
-                .into_response()
-        }
+    serve_stream(&state, id, headers, method, caller_for_peer(peer)).await
+}
+
+async fn serve_stream(
+    state: &AppState,
+    id: i64,
+    headers: HeaderMap,
+    method: Method,
+    caller: Caller,
+) -> Response {
+    // HEAD responses must carry headers but no body, including errors.
+    let head_only = method == Method::HEAD;
+    if !caller.can_stream_media() {
+        return stream_error(
+            StatusCode::FORBIDDEN,
+            "Viewer role cannot stream media",
+            head_only,
+            None,
+        );
+    }
+    let (mut file, total, path) = match resolve_stream_target(state, id).await {
+        Some(target) => target,
+        None => return stream_error(StatusCode::NOT_FOUND, "Media not found", head_only, None),
     };
     let range = headers.get(header::RANGE).map(HeaderValue::to_str);
     let plan = match range {
@@ -63,16 +153,12 @@ pub async fn stream(
     let plan = match plan {
         Ok(plan) => plan,
         Err(_) => {
-            let mut response = (
+            return stream_error(
                 StatusCode::RANGE_NOT_SATISFIABLE,
-                Json(json!({"error":"Invalid or unsatisfiable byte range"})),
-            )
-                .into_response();
-            response.headers_mut().insert(
-                header::CONTENT_RANGE,
-                HeaderValue::from_str(&format!("bytes */{total}")).unwrap(),
+                "Invalid or unsatisfiable byte range",
+                head_only,
+                Some(total),
             );
-            return response;
         }
     };
     let mut response_headers = HeaderMap::new();
@@ -100,7 +186,7 @@ pub async fn stream(
     } else {
         StatusCode::OK
     };
-    if method == Method::HEAD {
+    if head_only {
         return (status, response_headers, Body::empty()).into_response();
     }
     use tokio::io::{AsyncReadExt, AsyncSeekExt};
@@ -113,6 +199,34 @@ pub async fn stream(
     }
     let body = Body::from_stream(tokio_util::io::ReaderStream::new(file.take(plan.length)));
     (status, response_headers, body).into_response()
+}
+
+/// Error responses from the stream endpoint. Every one advertises byte
+/// ranges, 416 carries the `bytes */total` marker, and HEAD omits the body.
+fn stream_error(
+    status: StatusCode,
+    message: &str,
+    head_only: bool,
+    total: Option<u64>,
+) -> Response {
+    let mut headers = HeaderMap::new();
+    headers.insert(header::ACCEPT_RANGES, HeaderValue::from_static("bytes"));
+    headers.insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("application/json"),
+    );
+    if let Some(total) = total {
+        headers.insert(
+            header::CONTENT_RANGE,
+            HeaderValue::from_str(&format!("bytes */{total}")).unwrap(),
+        );
+    }
+    let body = if head_only {
+        Body::empty()
+    } else {
+        Body::from(format!(r#"{{"error":"{message}"}}"#))
+    };
+    (status, headers, body).into_response()
 }
 
 fn media_content_type(path: &std::path::Path) -> &'static str {
@@ -180,7 +294,7 @@ pub async fn set_rating(
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     review_response(crate::services::media::review(
         &state,
-        super::actor_for_peer(peer),
+        caller_for_peer(peer),
         id,
         Some(body.rating),
     ))
@@ -193,7 +307,7 @@ pub async fn approve_rating(
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     review_response(crate::services::media::review(
         &state,
-        super::actor_for_peer(peer),
+        caller_for_peer(peer),
         id,
         None,
     ))
@@ -231,9 +345,13 @@ pub struct DurationBody {
 
 pub async fn set_duration(
     State(state): State<Arc<AppState>>,
+    peer: Option<ConnectInfo<SocketAddr>>,
     Path(id): Path<i64>,
     Json(body): Json<DurationBody>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    if let Some(denied) = deny_edit(caller_for_peer(peer)) {
+        return Err(denied);
+    }
     if !body.duration_secs.is_finite() || body.duration_secs <= 0.0 || body.duration_secs > 604800.0
     {
         return Err((
@@ -259,7 +377,7 @@ pub async fn undo_rating(
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     review_response(crate::services::media::undo_review(
         &state,
-        super::actor_for_peer(peer),
+        caller_for_peer(peer),
         id,
         &body.rating_reviewed_at,
     ))
@@ -272,9 +390,13 @@ pub struct TagBody {
 
 pub async fn add_tag(
     State(state): State<Arc<AppState>>,
+    peer: Option<ConnectInfo<SocketAddr>>,
     Path(id): Path<i64>,
     Json(body): Json<TagBody>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    if let Some(denied) = deny_edit(caller_for_peer(peer)) {
+        return Err(denied);
+    }
     let conn = state.pool.get().map_err(db_err)?;
     let exists: bool = conn
         .query_row("SELECT COUNT(*) FROM media WHERE id=?1", [id], |r| {
@@ -308,8 +430,12 @@ pub async fn add_tag(
 
 pub async fn remove_tag(
     State(state): State<Arc<AppState>>,
+    peer: Option<ConnectInfo<SocketAddr>>,
     Path((id, tag_id)): Path<(i64, i64)>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    if let Some(denied) = deny_edit(caller_for_peer(peer)) {
+        return Err(denied);
+    }
     let conn = state.pool.get().map_err(db_err)?;
     conn.execute(
         "DELETE FROM media_tags WHERE media_id=?1 AND tag_id=?2",
@@ -348,21 +474,17 @@ pub async fn bulk(
             Json(json!({"error":"Select between one and 500 valid media items"})),
         ));
     }
+    // Every bulk action mutates the library, so the caller's authority is
+    // verified once up front instead of per arm.
+    let caller = caller_for_peer(peer);
+    if let Some(denied) = deny_edit(caller) {
+        return Err(denied);
+    }
     let (updated, failed) = match body.action.as_str() {
         "add_group" | "move" => bulk_groups(&state, &ids, &body).await?,
-        "add_tag" => bulk_add_tag(
-            &state,
-            super::actor_for_peer(peer),
-            &ids,
-            body.tag.as_deref(),
-        )?,
-        "remove_tag" => bulk_remove_tag(
-            &state,
-            super::actor_for_peer(peer),
-            &ids,
-            body.tag.as_deref(),
-        )?,
-        "set_rating" => bulk_set_rating(&state, super::actor_for_peer(peer), &ids, body.rating)?,
+        "add_tag" => bulk_add_tag(&state, caller, &ids, body.tag.as_deref())?,
+        "remove_tag" => bulk_remove_tag(&state, caller, &ids, body.tag.as_deref())?,
+        "set_rating" => bulk_set_rating(&state, caller, &ids, body.rating)?,
         "refresh_metadata" => {
             let worker_state = Arc::clone(&state);
             let worker_ids = ids.clone();
@@ -442,30 +564,30 @@ async fn bulk_groups(
 
 fn bulk_add_tag(
     state: &AppState,
-    actor: crate::services::access::Actor,
+    caller: Caller,
     ids: &[i64],
     name: Option<&str>,
 ) -> Result<(usize, Vec<Value>), (StatusCode, Json<Value>)> {
-    let result = crate::services::media::add_tag_many(state, actor, ids, name.unwrap_or_default())
+    let result = crate::services::media::add_tag_many(state, caller, ids, name.unwrap_or_default())
         .map_err(review_error)?;
     Ok((result.updated, result.failed))
 }
 
 fn bulk_remove_tag(
     state: &AppState,
-    actor: crate::services::access::Actor,
+    caller: Caller,
     ids: &[i64],
     name: Option<&str>,
 ) -> Result<(usize, Vec<Value>), (StatusCode, Json<Value>)> {
     let result =
-        crate::services::media::remove_tag_many(state, actor, ids, name.unwrap_or_default())
+        crate::services::media::remove_tag_many(state, caller, ids, name.unwrap_or_default())
             .map_err(review_error)?;
     Ok((result.updated, result.failed))
 }
 
 fn bulk_set_rating(
     state: &AppState,
-    actor: crate::services::access::Actor,
+    caller: Caller,
     ids: &[i64],
     rating: Option<i64>,
 ) -> Result<(usize, Vec<Value>), (StatusCode, Json<Value>)> {
@@ -476,7 +598,7 @@ fn bulk_set_rating(
         )
     })?;
     let updated =
-        crate::services::media::rate_many(state, actor, ids, rating).map_err(review_error)?;
+        crate::services::media::rate_many(state, caller, ids, rating).map_err(review_error)?;
     Ok((updated, Vec::new()))
 }
 
@@ -643,6 +765,7 @@ mod tests {
         assert_eq!(videos["media"].as_array().unwrap().len(), 1);
         let _ = set_duration(
             State(state.clone()),
+            None,
             Path(1),
             Json(DurationBody {
                 duration_secs: 45.0,
@@ -675,6 +798,7 @@ mod tests {
         assert_eq!(
             set_duration(
                 State(state),
+                None,
                 Path(1),
                 Json(DurationBody {
                     duration_secs: -1.0
@@ -1094,5 +1218,277 @@ mod tests {
         let cache1 = effective_tags(&state).await.unwrap();
         let cache2 = effective_tags(&state).await.unwrap();
         assert!(Arc::ptr_eq(&cache1, &cache2));
+    }
+
+    fn range_headers(value: &str) -> HeaderMap {
+        let mut headers = HeaderMap::new();
+        headers.insert(header::RANGE, HeaderValue::from_str(value).unwrap());
+        headers
+    }
+
+    fn remote_peer() -> Option<ConnectInfo<SocketAddr>> {
+        Some(ConnectInfo(SocketAddr::new(
+            std::net::IpAddr::V4(std::net::Ipv4Addr::new(100, 64, 0, 2)),
+            42168,
+        )))
+    }
+
+    /// A ten-byte video file registered as downloaded and present.
+    fn streamable_state(root: &tempfile::TempDir) -> (Arc<crate::AppState>, std::path::PathBuf) {
+        let state = crate::test_support::state(root.path());
+        crate::test_support::source(&state);
+        let file = state.library_dir.join("range.bin");
+        std::fs::write(&file, b"0123456789").unwrap();
+        state
+            .pool
+            .get()
+            .unwrap()
+            .execute(
+                "INSERT INTO media(id,source_id,filepath,filename,type,added_at,downloaded,missing)
+                 VALUES(1,1,'range.bin','range.bin','video','2026',1,0)",
+                [],
+            )
+            .unwrap();
+        (state, file)
+    }
+
+    #[tokio::test]
+    async fn stream_range_edge_cases_match_rfc_9110() {
+        let root = tempfile::tempdir().unwrap();
+        let (state, _file) = streamable_state(&root);
+        let host = Caller::host();
+
+        // No Range: the whole file with 200.
+        let response = serve_stream(&state, 1, HeaderMap::new(), Method::GET, host).await;
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.headers()[header::ACCEPT_RANGES], "bytes");
+        assert!(response.headers().get(header::CONTENT_RANGE).is_none());
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        assert_eq!(&body[..], b"0123456789");
+
+        // Suffix range: the last three bytes with 206.
+        let response = serve_stream(&state, 1, range_headers("bytes=-3"), Method::GET, host).await;
+        assert_eq!(response.status(), StatusCode::PARTIAL_CONTENT);
+        assert_eq!(response.headers()[header::CONTENT_RANGE], "bytes 7-9/10");
+        assert_eq!(response.headers()[header::CONTENT_LENGTH], "3");
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        assert_eq!(&body[..], b"789");
+
+        // Open-ended range past the midpoint.
+        let response = serve_stream(&state, 1, range_headers("bytes=8-"), Method::GET, host).await;
+        assert_eq!(response.headers()[header::CONTENT_RANGE], "bytes 8-9/10");
+
+        // Unsatisfiable: starts past the end of the file.
+        let response = serve_stream(&state, 1, range_headers("bytes=99-"), Method::GET, host).await;
+        assert_eq!(response.status(), StatusCode::RANGE_NOT_SATISFIABLE);
+        assert_eq!(response.headers()[header::CONTENT_RANGE], "bytes */10");
+        assert_eq!(response.headers()[header::ACCEPT_RANGES], "bytes");
+
+        // HEAD on an unsatisfiable range: 416 headers, no body.
+        let response =
+            serve_stream(&state, 1, range_headers("bytes=99-"), Method::HEAD, host).await;
+        assert_eq!(response.status(), StatusCode::RANGE_NOT_SATISFIABLE);
+        assert_eq!(response.headers()[header::CONTENT_RANGE], "bytes */10");
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        assert!(body.is_empty());
+
+        // Multi-range requests are rejected: the player asks for one region.
+        let response =
+            serve_stream(&state, 1, range_headers("bytes=0-1,4-5"), Method::GET, host).await;
+        assert_eq!(response.status(), StatusCode::RANGE_NOT_SATISFIABLE);
+
+        // Malformed ranges are rejected rather than served whole.
+        for bad in ["bytes=abc", "bytes=5-2", "bytes=-0", "items=0-3"] {
+            let response = serve_stream(&state, 1, range_headers(bad), Method::GET, host).await;
+            assert_eq!(
+                response.status(),
+                StatusCode::RANGE_NOT_SATISFIABLE,
+                "{bad}"
+            );
+        }
+
+        // HEAD answers with headers only, including for ranges.
+        let response =
+            serve_stream(&state, 1, range_headers("bytes=2-5"), Method::HEAD, host).await;
+        assert_eq!(response.status(), StatusCode::PARTIAL_CONTENT);
+        assert_eq!(response.headers()[header::CONTENT_RANGE], "bytes 2-5/10");
+        assert_eq!(response.headers()[header::CONTENT_LENGTH], "4");
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        assert!(body.is_empty());
+
+        // Unknown media is still a 404.
+        let response = serve_stream(&state, 999, HeaderMap::new(), Method::GET, host).await;
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn stream_denies_viewer_without_playback_capability() {
+        let root = tempfile::tempdir().unwrap();
+        let (state, _file) = streamable_state(&root);
+        let denied = Caller::viewer(crate::native::ViewerPermissions {
+            playback: false,
+            ..crate::native::ViewerPermissions::default()
+        });
+        let response = serve_stream(&state, 1, HeaderMap::new(), Method::GET, denied).await;
+        assert_eq!(response.status(), StatusCode::FORBIDDEN);
+
+        // The default Viewer keeps streaming: behavior is unchanged.
+        let allowed = Caller::viewer(crate::native::ViewerPermissions::default());
+        let response = serve_stream(&state, 1, HeaderMap::new(), Method::GET, allowed).await;
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn stream_caches_resolution_and_detects_replaced_files() {
+        let root = tempfile::tempdir().unwrap();
+        let (state, file) = streamable_state(&root);
+        let host = Caller::host();
+
+        let response = serve_stream(&state, 1, HeaderMap::new(), Method::GET, host).await;
+        assert_eq!(response.status(), StatusCode::OK);
+        let key = (state.library_dir.clone(), 1);
+        assert!(stream_meta_cache().lock().unwrap().contains_key(&key));
+
+        // Replacing the file with a different length invalidates the entry:
+        // the next request re-resolves instead of serving stale bytes.
+        std::fs::write(&file, b"0123456789abcdef").unwrap();
+        let response = serve_stream(&state, 1, range_headers("bytes=0-"), Method::GET, host).await;
+        assert_eq!(response.status(), StatusCode::PARTIAL_CONTENT);
+        assert_eq!(response.headers()[header::CONTENT_RANGE], "bytes 0-15/16");
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        assert_eq!(body.len(), 16);
+
+        // Deleting the file drops back to 404 instead of serving the cache.
+        std::fs::remove_file(&file).unwrap();
+        let response = serve_stream(&state, 1, HeaderMap::new(), Method::GET, host).await;
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn viewer_mutations_are_rejected_at_the_http_boundary() {
+        let root = tempfile::tempdir().unwrap();
+        let state = crate::test_support::state(root.path());
+        crate::test_support::source(&state);
+        state.pool.get().unwrap().execute_batch("INSERT INTO media(id,source_id,filepath,filename,type,added_at) VALUES(1,1,'a','a','image','2026');").unwrap();
+        let peer = remote_peer();
+
+        assert_eq!(
+            set_rating(
+                State(state.clone()),
+                peer,
+                Path(1),
+                Json(RatingBody { rating: 4 }),
+            )
+            .await
+            .unwrap_err()
+            .0,
+            StatusCode::FORBIDDEN
+        );
+        assert_eq!(
+            approve_rating(State(state.clone()), peer, Path(1))
+                .await
+                .unwrap_err()
+                .0,
+            StatusCode::FORBIDDEN
+        );
+        assert_eq!(
+            undo_rating(
+                State(state.clone()),
+                peer,
+                Path(1),
+                Json(UndoRatingBody {
+                    rating_reviewed_at: "token".into()
+                }),
+            )
+            .await
+            .unwrap_err()
+            .0,
+            StatusCode::FORBIDDEN
+        );
+        assert_eq!(
+            add_tag(
+                State(state.clone()),
+                peer,
+                Path(1),
+                Json(TagBody {
+                    name: "nope".into()
+                }),
+            )
+            .await
+            .unwrap_err()
+            .0,
+            StatusCode::FORBIDDEN
+        );
+        assert_eq!(
+            remove_tag(State(state.clone()), peer, Path((1, 1)),)
+                .await
+                .unwrap_err()
+                .0,
+            StatusCode::FORBIDDEN
+        );
+        assert_eq!(
+            set_duration(
+                State(state.clone()),
+                peer,
+                Path(1),
+                Json(DurationBody {
+                    duration_secs: 12.0
+                }),
+            )
+            .await
+            .unwrap_err()
+            .0,
+            StatusCode::FORBIDDEN
+        );
+        assert_eq!(
+            bulk(
+                State(state.clone()),
+                peer,
+                Json(BulkMediaBody {
+                    ids: vec![1],
+                    action: "set_rating".into(),
+                    group_id: None,
+                    tag: None,
+                    rating: Some(3),
+                }),
+            )
+            .await
+            .unwrap_err()
+            .0,
+            StatusCode::FORBIDDEN
+        );
+
+        // The Host itself is unaffected: the same calls succeed locally.
+        let _ = set_rating(
+            State(state.clone()),
+            None,
+            Path(1),
+            Json(RatingBody { rating: 4 }),
+        )
+        .await
+        .unwrap();
+        let _ = bulk(
+            State(state),
+            None,
+            Json(BulkMediaBody {
+                ids: vec![1],
+                action: "set_rating".into(),
+                group_id: None,
+                tag: None,
+                rating: Some(3),
+            }),
+        )
+        .await
+        .unwrap();
     }
 }

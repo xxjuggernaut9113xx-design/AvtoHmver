@@ -1,6 +1,6 @@
 //! Shared media review mutations and validated native streaming ranges.
 
-use super::access::Actor;
+use super::access::Caller;
 use crate::{db::now_iso, provenance, AppState};
 use rusqlite::OptionalExtension;
 use serde::Serialize;
@@ -58,9 +58,9 @@ fn db_err(error: impl std::fmt::Display) -> MediaError {
 
 fn edit_lease(
     state: &AppState,
-    actor: Actor,
+    caller: Caller,
 ) -> Result<crate::maintenance::BackgroundWorkerLease, MediaError> {
-    if !actor.can_edit_library() || !state.edition.owns_library() {
+    if !caller.can_edit_library() || !state.edition.owns_library() {
         return Err(MediaError::Forbidden);
     }
     if state.shutdown.is_cancelled() {
@@ -78,11 +78,11 @@ fn edit_lease(
 
 pub fn review(
     state: &AppState,
-    actor: Actor,
+    caller: Caller,
     id: i64,
     rating: Option<i64>,
 ) -> Result<RatingReview, MediaError> {
-    let _lease = edit_lease(state, actor)?;
+    let _lease = edit_lease(state, caller)?;
     if rating.is_some_and(|rating| !(1..=5).contains(&rating)) {
         return Err(MediaError::InvalidRating);
     }
@@ -131,11 +131,11 @@ pub fn review(
 
 pub fn undo_review(
     state: &AppState,
-    actor: Actor,
+    caller: Caller,
     id: i64,
     reviewed_at: &str,
 ) -> Result<RatingReview, MediaError> {
-    let _lease = edit_lease(state, actor)?;
+    let _lease = edit_lease(state, caller)?;
     let conn = state.pool.get().map_err(db_err)?;
     conn.query_row("UPDATE media SET human_rating=NULL,rating=COALESCE(NULLIF(action_rating,0),auto_rating),
         rating_source=CASE WHEN action_rating=4 THEN 'auto_action' WHEN auto_rating>0 THEN 'auto' ELSE 'none' END,rating_reviewed=0,rating_reviewed_at=NULL
@@ -163,11 +163,11 @@ pub fn undo_review(
 
 pub fn rate_many(
     state: &AppState,
-    actor: Actor,
+    caller: Caller,
     ids: &[i64],
     rating: i64,
 ) -> Result<usize, MediaError> {
-    let _lease = edit_lease(state, actor)?;
+    let _lease = edit_lease(state, caller)?;
     if ids.is_empty() || ids.len() > 500 || ids.iter().any(|id| *id <= 0) {
         return Err(MediaError::InvalidSelection);
     }
@@ -199,11 +199,11 @@ pub struct BulkTagResult {
 
 pub fn add_tag_many(
     state: &AppState,
-    actor: Actor,
+    caller: Caller,
     ids: &[i64],
     name: &str,
 ) -> Result<BulkTagResult, MediaError> {
-    let _lease = edit_lease(state, actor)?;
+    let _lease = edit_lease(state, caller)?;
     if ids.is_empty() || ids.len() > 500 || ids.iter().any(|id| *id <= 0) {
         return Err(MediaError::InvalidSelection);
     }
@@ -239,11 +239,11 @@ pub fn add_tag_many(
 /// rather than silently doing nothing.
 pub fn remove_tag_many(
     state: &AppState,
-    actor: Actor,
+    caller: Caller,
     ids: &[i64],
     name: &str,
 ) -> Result<BulkTagResult, MediaError> {
-    let _lease = edit_lease(state, actor)?;
+    let _lease = edit_lease(state, caller)?;
     if ids.is_empty() || ids.len() > 500 || ids.iter().any(|id| *id <= 0) {
         return Err(MediaError::InvalidSelection);
     }
@@ -361,6 +361,12 @@ mod tests {
     };
     use tower::ServiceExt;
 
+    /// A remote Viewer with default (deny-by-default) capabilities: reads and
+    /// plays back, but may not edit the library.
+    fn denied_viewer() -> Caller {
+        Caller::viewer(crate::native::ViewerPermissions::default())
+    }
+
     #[tokio::test]
     async fn review_service_matches_http_and_rejects_stale_undo() {
         let root = tempfile::tempdir().unwrap();
@@ -376,7 +382,7 @@ mod tests {
             )
             .unwrap();
 
-        let direct = review(&state, Actor::LocalOwner, 1, Some(4)).unwrap();
+        let direct = review(&state, Caller::host(), 1, Some(4)).unwrap();
         let response = crate::routes::media::set_rating(
             axum::extract::State(state.clone()),
             None,
@@ -392,16 +398,16 @@ mod tests {
         );
         assert_eq!(response["pace_label"], "fast");
         assert_eq!(
-            undo_review(&state, Actor::LocalOwner, 1, "stale"),
+            undo_review(&state, Caller::host(), 1, "stale"),
             Err(MediaError::ChangedReview)
         );
         let current_token = response["rating_reviewed_at"].as_str().unwrap();
         assert!(
-            !undo_review(&state, Actor::LocalOwner, 1, current_token)
+            !undo_review(&state, Caller::host(), 1, current_token)
                 .unwrap()
                 .rating_reviewed
         );
-        assert_eq!(rate_many(&state, Actor::LocalOwner, &[1, 1], 5).unwrap(), 1);
+        assert_eq!(rate_many(&state, Caller::host(), &[1, 1], 5).unwrap(), 1);
     }
 
     #[test]
@@ -411,32 +417,32 @@ mod tests {
         let mut viewer = (*state).clone();
         viewer.edition = crate::edition::Edition::Viewer;
         assert_eq!(
-            review(&viewer, Actor::LocalOwner, 1, Some(4)),
+            review(&viewer, Caller::host(), 1, Some(4)),
             Err(MediaError::Forbidden)
         );
         assert_eq!(
-            undo_review(&viewer, Actor::LocalOwner, 1, "token"),
+            undo_review(&viewer, Caller::host(), 1, "token"),
             Err(MediaError::Forbidden)
         );
         assert_eq!(
-            rate_many(&viewer, Actor::LocalOwner, &[1], 4),
+            rate_many(&viewer, Caller::host(), &[1], 4),
             Err(MediaError::Forbidden)
         );
         assert_eq!(
-            review(&state, Actor::RemoteViewer, 1, Some(4)),
+            review(&state, denied_viewer(), 1, Some(4)),
             Err(MediaError::Forbidden)
         );
         assert_eq!(
-            undo_review(&state, Actor::RemoteViewer, 1, "token"),
+            undo_review(&state, denied_viewer(), 1, "token"),
             Err(MediaError::Forbidden)
         );
         assert_eq!(
-            rate_many(&state, Actor::RemoteViewer, &[1], 4),
+            rate_many(&state, denied_viewer(), &[1], 4),
             Err(MediaError::Forbidden)
         );
         state.shutdown.cancel();
         assert_eq!(
-            review(&state, Actor::LocalOwner, 1, Some(4)),
+            review(&state, Caller::host(), 1, Some(4)),
             Err(MediaError::ShuttingDown)
         );
     }
@@ -459,15 +465,15 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(
-            review(&state, Actor::LocalOwner, 1, Some(4)),
+            review(&state, Caller::host(), 1, Some(4)),
             Err(MediaError::Maintenance)
         );
         assert_eq!(
-            undo_review(&state, Actor::LocalOwner, 1, "token"),
+            undo_review(&state, Caller::host(), 1, "token"),
             Err(MediaError::Maintenance)
         );
         assert_eq!(
-            rate_many(&state, Actor::LocalOwner, &[1], 4),
+            rate_many(&state, Caller::host(), &[1], 4),
             Err(MediaError::Maintenance)
         );
         drop(lease);
@@ -489,7 +495,7 @@ mod tests {
              VALUES(1,1,'one.jpg','one.jpg','image','now');",
             )
             .unwrap();
-        let direct = add_tag_many(&state, Actor::LocalOwner, &[1, 1, 2], "reviewed").unwrap();
+        let direct = add_tag_many(&state, Caller::host(), &[1, 1, 2], "reviewed").unwrap();
         let http = crate::routes::media::bulk(
             axum::extract::State(state.clone()),
             None,
@@ -507,17 +513,17 @@ mod tests {
         assert_eq!(http["updated"], direct.updated);
         assert_eq!(http["failed"], json!(direct.failed));
         assert!(matches!(
-            add_tag_many(&state, Actor::LocalOwner, &[1], "  "),
+            add_tag_many(&state, Caller::host(), &[1], "  "),
             Err(MediaError::InvalidTag)
         ));
         let mut viewer = (*state).clone();
         viewer.edition = crate::edition::Edition::Viewer;
         assert_eq!(
-            add_tag_many(&viewer, Actor::LocalOwner, &[1], "reviewed"),
+            add_tag_many(&viewer, Caller::host(), &[1], "reviewed"),
             Err(MediaError::Forbidden)
         );
         assert_eq!(
-            add_tag_many(&state, Actor::RemoteViewer, &[1], "reviewed"),
+            add_tag_many(&state, denied_viewer(), &[1], "reviewed"),
             Err(MediaError::Forbidden)
         );
     }

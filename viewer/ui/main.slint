@@ -5,8 +5,11 @@ export component CuratorViewerWindow inherits Window {
     in-out property <string> endpoint: "http://";
     in-out property <string> status: "Choose a Tailnet host.";
     in-out property <bool> busy;
+    in-out property <int> retry-count: 0;
+    in-out property <string> last-error: "";
     in-out property <[string]> saved-hosts;
     callback connect(string, string);
+    callback retry(string, string);
     callback select-saved(int);
     callback remove-saved(int);
     title: "Curator Viewer";
@@ -29,7 +32,10 @@ export component CuratorViewerWindow inherits Window {
         LineEdit { text <=> root.host-name; }
         Text { text: "Tailnet origin"; }
         LineEdit { text <=> root.endpoint; }
-        Button { text: "Validate and connect"; enabled: !root.busy; clicked => { root.connect(root.host-name, root.endpoint); } }
+        Button { text: "Validate and connect"; enabled: !root.busy; clicked => { root.retry-count = 0; root.last-error = ""; root.connect(root.host-name, root.endpoint); } }
+        Button { text: "Retry"; enabled: !root.busy && root.retry-count > 0; clicked => { root.retry(root.host-name, root.endpoint); } }
+        if root.retry-count > 0: Text { text: "Connection attempts: " + root.retry-count; color: #aeb8cc; }
+        if root.last-error != "": Text { text: "Last error: " + root.last-error; color: #e08a8a; wrap: word-wrap; }
         Rectangle { vertical-stretch: 1; horizontal-stretch: 1; border-width: 1px; border-color: #5b6474; border-radius: 8px;
             Text { text: root.status; color: #d5dced; wrap: word-wrap; horizontal-alignment: center; vertical-alignment: center; }
         }

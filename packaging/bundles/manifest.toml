@@ -1,0 +1,64 @@
+# Curator helper-tool bundle manifest.
+#
+# These are the third-party executables the Windows Host installer stages
+# under <install>/tools, which the app resolves install-relative first
+# (see config::resolve_tool_bin), then CURATOR_<ENV> overrides, then
+# config.json, then PATH.
+#
+# Checksums are NOT hand-written here. Run packaging/bundles/fetch-tools.sh
+# once: it downloads each URL, records the real SHA-256 into bundles.lock,
+# and every later run (including CI packaging) verifies against that lock.
+# Packaging fails if a download is missing or a checksum mismatches.
+# Update `version` + `url` together when bumping a tool, delete the tool's
+# lock entry, and re-run the fetch script to re-pin.
+#
+# NOTE: all URLs below were verified live on 2026-09-26 (HTTP 200, correct
+# versioned artifacts). mpv-player/mpv's own GitHub releases ship no
+# Windows binaries, so mpv/mpv-dev point at shinchiro/mpv-winbuild-cmake,
+# the build farm mpv.io recommends for Windows.
+
+[ffmpeg]
+version = "8.0"
+url = "https://github.com/GyanD/codexffmpeg/releases/download/8.0/ffmpeg-8.0-essentials_build.zip"
+kind = "zip"
+# Relative paths inside the archive that get staged into tools/.
+stage = ["ffmpeg-8.0-essentials_build/bin/ffmpeg.exe", "ffmpeg-8.0-essentials_build/bin/ffprobe.exe"]
+license = "GPL-3.0-or-later (gyan.dev essentials build)"
+homepage = "https://ffmpeg.org"
+
+[mpv]
+version = "20260927-git-a1bf4b6559"
+url = "https://github.com/shinchiro/mpv-winbuild-cmake/releases/download/20260927/mpv-x86_64-20260927-git-a1bf4b6559.7z"
+kind = "7z"
+# Only the player binary is staged from the main archive; the full mpv
+# release ships many files Curator never invokes. libmpv comes from the
+# [mpv-dev] archive below (needed for the P-01 embedded renderer work).
+# d3dcompiler_43.dll is deliberately omitted: mpv falls back to other
+# video outputs without it.
+stage = ["mpv.exe"]
+license = "GPL-2.0-or-later"
+homepage = "https://mpv.io"
+
+[mpv-dev]
+version = "20260927-git-a1bf4b6559"
+url = "https://github.com/shinchiro/mpv-winbuild-cmake/releases/download/20260927/mpv-dev-x86_64-20260927-git-a1bf4b6559.7z"
+kind = "7z"
+# libmpv shared library for the future P-01 embedded renderer. Staged under
+# its real filename; nothing links it yet.
+stage = ["libmpv-2.dll"]
+license = "LGPL-2.1-or-later (libmpv)"
+homepage = "https://mpv.io"
+
+[gallery-dl]
+version = "1.27.7"
+url = "https://github.com/mikf/gallery-dl/releases/download/v1.27.7/gallery-dl.exe"
+kind = "exe"
+stage = ["gallery-dl.exe"]
+license = "GPL-2.0-only"
+homepage = "https://github.com/mikf/gallery-dl"
+
+[notes]
+# Linux packages do NOT bundle these: the .deb Recommends mpv/ffmpeg from
+# the distro and gallery-dl stays a PATH/config concern there. Only the
+# Windows Host installer stages a tools directory.
+linux = "distro packages via Recommends"

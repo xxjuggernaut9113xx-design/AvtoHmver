@@ -546,6 +546,17 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
         seconds INTEGER NOT NULL, status TEXT NOT NULL, clip_count INTEGER NOT NULL DEFAULT 0,
         error TEXT, added_at TEXT NOT NULL);
         UPDATE clip_jobs SET status='failed',error='Interrupted by restart; original preserved' WHERE status='running';")?;
+    // Progress reporting landed after the table did; backfill the column for
+    // existing databases the same way media columns are migrated above.
+    let clip_cols: Vec<String> = conn
+        .prepare("PRAGMA table_info(clip_jobs)")?
+        .query_map([], |row| row.get::<_, String>(1))?
+        .collect::<Result<_, _>>()?;
+    if !clip_cols.iter().any(|name| name == "progress_percent") {
+        conn.execute_batch(
+            "ALTER TABLE clip_jobs ADD COLUMN progress_percent INTEGER NOT NULL DEFAULT 0;",
+        )?;
+    }
     conn.execute_batch(
         "CREATE INDEX IF NOT EXISTS idx_media_review ON media(rating_reviewed, auto_rating, id);
          CREATE INDEX IF NOT EXISTS idx_media_size ON media(file_size_bytes, id);",
@@ -1301,6 +1312,16 @@ mod tests {
 
 #[cfg(test)]
 mod rating_migration_tests {
+    /// Seeds the source/media rows the clip_jobs FOREIGN KEYs require, so
+    /// clip-job tests can reference media id 7 like the Host clip service.
+    fn seed_clip_media(conn: &rusqlite::Connection) {
+        conn.execute_batch(
+            "INSERT INTO sources(id,name,url,slug,added_at) VALUES(1,'test','test','test','2026');
+             INSERT INTO media(id,source_id,filepath,filename,type,added_at) VALUES(7,1,'v','v','video','2026');",
+        )
+        .unwrap();
+    }
+
     #[test]
     fn existing_human_provenance_survives_legacy_normalization() {
         let conn = rusqlite::Connection::open_in_memory().unwrap();
@@ -1370,5 +1391,112 @@ mod rating_migration_tests {
             )
             .unwrap();
         assert_eq!(five, (5, 5, None));
+    }
+
+    #[test]
+    fn clip_job_lifecycle_tracks_progress_and_terminal_states() {
+        // Exercises the same SQL the native Host clip service runs, through
+        // the migrated schema: progress pins while running, terminal states
+        // are sticky and never resurrect.
+        let conn = rusqlite::Connection::open_in_memory().unwrap();
+        super::run_migrations(&conn).unwrap();
+        seed_clip_media(&conn);
+        conn.execute(
+            "INSERT INTO clip_jobs(media_id,seconds,status,added_at) VALUES(7,30,'running','2026')",
+            [],
+        )
+        .unwrap();
+        let id = conn.last_insert_rowid();
+        let status_of = |conn: &rusqlite::Connection| {
+            conn.query_row(
+                "SELECT status,progress_percent,clip_count FROM clip_jobs WHERE id=?1",
+                [id],
+                |row| {
+                    Ok((
+                        row.get::<_, String>(0).unwrap(),
+                        row.get::<_, i64>(1).unwrap(),
+                        row.get::<_, i64>(2).unwrap(),
+                    ))
+                },
+            )
+            .unwrap()
+        };
+        assert_eq!(status_of(&conn), ("running".into(), 0, 0));
+        conn.execute(
+            "UPDATE clip_jobs SET progress_percent=?1 WHERE id=?2 AND status='running'",
+            rusqlite::params![42, id],
+        )
+        .unwrap();
+        assert_eq!(status_of(&conn).1, 42);
+        conn.execute(
+            "UPDATE clip_jobs SET status='done',clip_count=?1,progress_percent=100 WHERE id=?2 AND status='running'",
+            rusqlite::params![3, id],
+        )
+        .unwrap();
+        assert_eq!(status_of(&conn), ("done".into(), 100, 3));
+        // Terminal rows are sticky: progress and completion never resurrect.
+        conn.execute(
+            "UPDATE clip_jobs SET progress_percent=10 WHERE id=?1 AND status='running'",
+            [id],
+        )
+        .unwrap();
+        conn.execute(
+            "UPDATE clip_jobs SET status='failed' WHERE id=?1 AND status='running'",
+            [id],
+        )
+        .unwrap();
+        assert_eq!(status_of(&conn), ("done".into(), 100, 3));
+    }
+
+    #[test]
+    fn clip_job_cancel_only_cancels_running_jobs() {
+        let conn = rusqlite::Connection::open_in_memory().unwrap();
+        super::run_migrations(&conn).unwrap();
+        seed_clip_media(&conn);
+        let cancel = |conn: &rusqlite::Connection, job_id: i64| {
+            conn.execute(
+                "UPDATE clip_jobs SET status='cancelled',error='Cancelled by the user; original preserved' WHERE id=?1 AND status='running'",
+                [job_id],
+            )
+            .unwrap()
+        };
+        assert_eq!(cancel(&conn, 999), 0);
+        conn.execute(
+            "INSERT INTO clip_jobs(media_id,seconds,status,added_at) VALUES(7,30,'running','2026')",
+            [],
+        )
+        .unwrap();
+        let id = conn.last_insert_rowid();
+        assert_eq!(cancel(&conn, id), 1);
+        let (status, error): (String, Option<String>) = conn
+            .query_row(
+                "SELECT status,error FROM clip_jobs WHERE id=?1",
+                [id],
+                |row| Ok((row.get(0).unwrap(), row.get(1).unwrap())),
+            )
+            .unwrap();
+        assert_eq!(status, "cancelled");
+        assert!(error.unwrap_or_default().contains("Cancelled by the user"));
+        // A second cancel (or a cancel racing a finished encode) changes nothing.
+        assert_eq!(cancel(&conn, id), 0);
+    }
+
+    #[test]
+    fn clip_job_progress_column_backfills_on_legacy_databases() {
+        let conn = rusqlite::Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "CREATE TABLE clip_jobs (id INTEGER PRIMARY KEY AUTOINCREMENT, media_id INTEGER NOT NULL,
+             seconds INTEGER NOT NULL, status TEXT NOT NULL, clip_count INTEGER NOT NULL DEFAULT 0,
+             error TEXT, added_at TEXT NOT NULL);
+             INSERT INTO clip_jobs(media_id,seconds,status,added_at) VALUES(1,30,'running','2026');",
+        )
+        .unwrap();
+        super::run_migrations(&conn).unwrap();
+        // The migration must not wipe the legacy row, and the new column
+        // defaults to zero progress.
+        let percent: i64 = conn
+            .query_row("SELECT progress_percent FROM clip_jobs", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(percent, 0);
     }
 }

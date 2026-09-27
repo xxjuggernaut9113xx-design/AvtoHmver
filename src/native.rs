@@ -77,6 +77,8 @@ pub enum Command {
     Session(crate::session::SessionControl),
     CreateGroup(String),
     MoveToGroup(Vec<i64>, Option<i64>),
+    /// Browser "add to group": membership without removing other groups.
+    AddToGroup(Vec<i64>, Option<i64>),
     ImportFolder(std::path::PathBuf),
     Rate(Vec<i64>, i64),
     /// Single-item human rating that returns the review record (including
@@ -95,6 +97,11 @@ pub enum Command {
     ResumeSource(i64),
     AddSources(String),
     ResyncAll,
+    RenameSource(i64, String),
+    ResyncSource(i64),
+    DeleteSource(i64, bool),
+    RenameGroup(i64, String),
+    DeleteGroup(i64),
     DeleteMedia(Vec<i64>),
     RefreshMetadata(Vec<i64>),
     CreateClips {
@@ -133,10 +140,97 @@ pub enum Client {
 
 #[derive(Clone)]
 pub struct RemoteClient {
-    origin: reqwest::Url,
+    /// Shared across clones so every handle to one Viewer session follows a
+    /// moved Host to its new Tailnet address together.
+    origin: Arc<std::sync::RwLock<reqwest::Url>>,
     http: reqwest::Client,
     permissions: ViewerPermissions,
     instance_id: Option<String>,
+}
+
+/// Default Curator Tailnet port, used when a saved origin carries no explicit
+/// port.
+pub const CURATOR_PORT: u16 = 42168;
+
+/// Numeric Tailnet addresses only: 100.64.0.0/10 for IPv4 and
+/// fd7a:115c:a1e0::/48 for IPv6. Anything else is never a Curator peer.
+fn is_tailnet_ip(ip: &std::net::IpAddr) -> bool {
+    match ip {
+        std::net::IpAddr::V4(ip) => {
+            let bytes = ip.octets();
+            bytes[0] == 100 && bytes[1] & 0xc0 == 0x40
+        }
+        std::net::IpAddr::V6(ip) => ip.segments()[..3] == [0xfd7a, 0x115c, 0xa1e0],
+    }
+}
+
+#[derive(Deserialize)]
+struct TailscaleStatus {
+    #[serde(rename = "BackendState")]
+    backend_state: Option<String>,
+    #[serde(rename = "Peer", default)]
+    peers: std::collections::HashMap<String, TailscaleNode>,
+    #[serde(rename = "Self")]
+    self_node: Option<TailscaleNode>,
+}
+
+#[derive(Deserialize)]
+struct TailscaleNode {
+    #[serde(rename = "TailscaleIPs", default)]
+    tailscale_ips: Vec<String>,
+}
+
+/// Numeric addresses from the local Tailscale peer inventory, deduplicated
+/// and sorted. Used to find a Host that moved to a new Tailnet address
+/// mid-session.
+async fn tailnet_peer_ips() -> Result<Vec<std::net::IpAddr>, String> {
+    let output = tokio::time::timeout(
+        std::time::Duration::from_secs(3),
+        crate::process::command("tailscale")
+            .args(["status", "--json"])
+            .output(),
+    )
+    .await
+    .map_err(|_| "Timed out waiting for Tailscale.".to_owned())?
+    .map_err(|_| "Tailscale is not available on this device.".to_owned())?;
+    if !output.status.success() {
+        return Err("Tailscale did not return a connected peer inventory.".into());
+    }
+    let status: TailscaleStatus = serde_json::from_slice(&output.stdout)
+        .map_err(|_| "Tailscale returned unreadable peer data.".to_owned())?;
+    if !status
+        .backend_state
+        .as_deref()
+        .is_some_and(|state| state.eq_ignore_ascii_case("running"))
+    {
+        return Err("Tailscale is not connected.".into());
+    }
+    let mut nodes: Vec<_> = status.peers.into_values().collect();
+    if let Some(node) = status.self_node {
+        nodes.push(node);
+    }
+    let mut ips = std::collections::BTreeSet::new();
+    for node in nodes {
+        for ip in node.tailscale_ips {
+            if let Ok(ip) = ip.parse() {
+                ips.insert(ip);
+            }
+        }
+    }
+    Ok(ips.into_iter().collect())
+}
+
+/// Build a candidate Curator origin for a peer address. Non-Tailnet
+/// addresses are refused outright.
+fn candidate_origin(ip: std::net::IpAddr, port: u16) -> Option<reqwest::Url> {
+    if !is_tailnet_ip(&ip) {
+        return None;
+    }
+    let origin = match ip {
+        std::net::IpAddr::V4(ip) => format!("http://{ip}:{port}/"),
+        std::net::IpAddr::V6(ip) => format!("http://[{ip}]:{port}/"),
+    };
+    reqwest::Url::parse(&origin).ok()
 }
 
 enum ReconnectError {
@@ -186,14 +280,7 @@ impl RemoteClient {
             .trim_matches(['[', ']'])
             .parse::<std::net::IpAddr>()
             .map_err(|_| "Expected a validated numeric peer address")?;
-        let tailnet = match ip {
-            std::net::IpAddr::V4(ip) => {
-                let bytes = ip.octets();
-                bytes[0] == 100 && bytes[1] & 0xc0 == 0x40
-            }
-            std::net::IpAddr::V6(ip) => ip.segments()[..3] == [0xfd7a, 0x115c, 0xa1e0],
-        };
-        if !tailnet
+        if !is_tailnet_ip(&ip)
             || origin.scheme() != "http"
             || origin.path() != "/"
             || origin.query().is_some()
@@ -210,7 +297,7 @@ impl RemoteClient {
             .build()
             .map_err(|e| e.to_string())?;
         Ok(Self {
-            origin,
+            origin: Arc::new(std::sync::RwLock::new(origin)),
             http,
             permissions,
             instance_id: None,
@@ -234,9 +321,29 @@ impl RemoteClient {
         self.permissions
     }
 
+    /// Current pinned origin as a string. Follows the Host when a mid-session
+    /// reconnect discovers it at a new Tailnet address.
+    pub fn origin_string(&self) -> String {
+        self.read_origin()
+            .map(|origin| origin.to_string())
+            .unwrap_or_default()
+    }
+
+    fn read_origin(&self) -> Result<reqwest::Url, String> {
+        self.origin
+            .read()
+            .map(|origin| origin.clone())
+            .map_err(|_| "Viewer origin lock poisoned".to_owned())
+    }
+
     fn url(&self, path: &str) -> Result<reqwest::Url, String> {
-        let url = self.origin.join(path).map_err(|e| e.to_string())?;
-        if url.origin() != self.origin.origin()
+        let origin = self.read_origin()?;
+        Self::url_for(&origin, path)
+    }
+
+    fn url_for(origin: &reqwest::Url, path: &str) -> Result<reqwest::Url, String> {
+        let url = origin.join(path).map_err(|e| e.to_string())?;
+        if url.origin() != origin.origin()
             || !(url.path().starts_with("/api/") || url.path().starts_with("/library/"))
             || !url.username().is_empty()
             || url.password().is_some()
@@ -344,9 +451,25 @@ impl RemoteClient {
     }
 
     async fn verify_reconnected_host(&self) -> Result<(), ReconnectError> {
-        let url = self
-            .url("/api/system/info")
-            .map_err(ReconnectError::Changed)?;
+        let origin = self.read_origin().map_err(ReconnectError::Changed)?;
+        match self.probe_origin(&origin).await {
+            Ok(()) => return Ok(()),
+            // The pinned origin answered with a different identity or
+            // protocol: never silently follow that, surface it.
+            Err(ReconnectError::Changed(reason)) => return Err(ReconnectError::Changed(reason)),
+            Err(ReconnectError::Unavailable(_)) => {}
+        }
+        // The pinned origin stopped answering. The Host may have moved to a
+        // new Tailnet address mid-session: sweep the peer inventory for the
+        // same library identity and follow it there instead of dying on the
+        // stale address.
+        self.follow_moved_host(&origin).await
+    }
+
+    /// One `/api/system/info` handshake against `origin`, validating the
+    /// pinned library identity, protocol, edition, and Viewer permissions.
+    async fn probe_origin(&self, origin: &reqwest::Url) -> Result<(), ReconnectError> {
+        let url = Self::url_for(origin, "/api/system/info").map_err(ReconnectError::Changed)?;
         let mut response = self
             .http
             .get(url)
@@ -381,6 +504,59 @@ impl RemoteClient {
             .map_err(|error| ReconnectError::Changed(error.to_string()))?;
         self.validate_reconnected_info(&info)
             .map_err(ReconnectError::Changed)
+    }
+
+    /// Sweep the Tailnet peer inventory for the pinned library identity and
+    /// re-pin the shared origin wherever it answers. Capped at 12 probes so
+    /// a large Tailnet cannot stall the session; a peer answering with a
+    /// *different* library is skipped, never followed.
+    async fn follow_moved_host(&self, stale: &reqwest::Url) -> Result<(), ReconnectError> {
+        if self.instance_id.is_none() {
+            return Err(ReconnectError::Changed(
+                "Viewer has no pinned library identity. Switch Host to reconnect safely.".into(),
+            ));
+        }
+        let port = stale.port_or_known_default().unwrap_or(CURATOR_PORT);
+        let peers = tailnet_peer_ips()
+            .await
+            .map_err(ReconnectError::Unavailable)?;
+        let mut seen = std::collections::BTreeSet::new();
+        let mut attempts = 0u32;
+        let mut failures = Vec::new();
+        for ip in peers {
+            if !seen.insert(ip) {
+                continue;
+            }
+            let Some(candidate) = candidate_origin(ip, port) else {
+                continue;
+            };
+            if candidate == *stale {
+                continue;
+            }
+            attempts += 1;
+            match self.probe_origin(&candidate).await {
+                Ok(()) => {
+                    *self.origin.write().map_err(|_| {
+                        ReconnectError::Changed("Viewer origin lock poisoned".into())
+                    })? = candidate.clone();
+                    return Ok(());
+                }
+                Err(ReconnectError::Changed(_)) => {
+                    // A different library (or garbage) answered here; it is
+                    // not ours, keep looking.
+                }
+                Err(ReconnectError::Unavailable(error)) => {
+                    failures.push(format!("{ip}: {error}"));
+                }
+            }
+            if attempts >= 12 {
+                break;
+            }
+        }
+        Err(ReconnectError::Unavailable(format!(
+            "Host not found at its saved address or elsewhere on the Tailnet ({}); switch Host to reconnect",
+            failures.join("; ")
+        )))
     }
 
     async fn request_method(
@@ -419,6 +595,8 @@ pub struct NavigationItem {
     pub group: bool,
     pub media_count: Option<i64>,
     pub depth: usize,
+    /// Parent group id for tree placement; `None` for top-level entries.
+    pub parent_id: Option<i64>,
 }
 
 fn navigation_items(sources: &Value, groups: &Value, summary: &Value) -> Vec<NavigationItem> {
@@ -476,6 +654,7 @@ fn navigation_items(sources: &Value, groups: &Value, summary: &Value) -> Vec<Nav
             id: node.id,
             name: node.name.clone(),
             group: node.group,
+            parent_id: node.parent_id,
             media_count: summary[key]
                 .as_array()
                 .and_then(|counts| counts.iter().find(|entry| entry["id"] == node.id))
@@ -579,6 +758,30 @@ impl Default for NativePreferences {
     }
 }
 
+/// Converts one `GET /api/ch/playlist` item into a [`MediaItem`] the shared
+/// player can start directly. Items without a positive id are dropped.
+fn ch_playlist_item(item: &serde_json::Value) -> Option<MediaItem> {
+    let media = MediaItem {
+        id: item["id"].as_i64().unwrap_or(0),
+        filename: item["filename"].as_str().unwrap_or("").to_string(),
+        kind: item["type"].as_str().unwrap_or("image").to_string(),
+        rating: item["rating"].as_i64().unwrap_or(0),
+        source: String::new(),
+        filepath: item["filepath"].as_str().unwrap_or("").to_string(),
+        playback_filepath: None,
+        tags: item["tags"]
+            .as_array()
+            .map(|tags| {
+                tags.iter()
+                    .filter_map(|tag| tag.as_str().map(|tag| tag.to_string()))
+                    .collect()
+            })
+            .unwrap_or_default(),
+        ..Default::default()
+    };
+    (media.id > 0).then_some(media)
+}
+
 impl Client {
     pub fn can_edit_library(&self) -> bool {
         match self {
@@ -661,7 +864,47 @@ impl Client {
         }
     }
 
-    pub async fn discover(&self, query: String, provider: Option<String>) -> Result<Value, String> {
+    /// Source record for the native inspect panel. Host-only for local
+    /// libraries; remote Viewers need the library-edit grant.
+    pub async fn source_detail(&self, id: i64) -> Result<Value, String> {
+        match self {
+            Self::Local(client) => {
+                response(routes::sources::get(State(client.state.clone()), Path(id)).await)
+            }
+            Self::Remote(client) => {
+                if !client.permissions.library_edit {
+                    return Err("Viewer role cannot inspect sources".into());
+                }
+                client.request(&format!("/api/sources/{id}"), None).await
+            }
+        }
+    }
+
+    /// Recent source log tail for the native log panel. Same gating as
+    /// [`Self::source_detail`].
+    pub async fn source_log(&self, id: i64) -> Result<Value, String> {
+        match self {
+            Self::Local(client) => {
+                response(routes::misc::source_log(State(client.state.clone()), Path(id)).await)
+            }
+            Self::Remote(client) => {
+                if !client.permissions.library_edit {
+                    return Err("Viewer role cannot read source logs".into());
+                }
+                client
+                    .request(&format!("/api/sources/{id}/log"), None)
+                    .await
+            }
+        }
+    }
+
+    pub async fn discover(
+        &self,
+        query: String,
+        provider: Option<String>,
+        result_type: Option<String>,
+        sort: Option<String>,
+    ) -> Result<Value, String> {
         if let Self::Remote(client) = self {
             if !client.permissions.discovery {
                 return Err("Viewer role cannot use discovery".into());
@@ -674,6 +917,8 @@ impl Client {
                     Query(routes::search::SearchQuery {
                         query: Some(query),
                         provider,
+                        result_type,
+                        sort,
                         ..Default::default()
                     }),
                 )
@@ -689,18 +934,118 @@ impl Client {
                     {
                         pairs.append_pair("provider", provider);
                     }
+                    if let Some(result_type) = result_type
+                        .as_deref()
+                        .filter(|value| !value.trim().is_empty())
+                    {
+                        pairs.append_pair("result_type", result_type);
+                    }
+                    if let Some(sort) = sort.as_deref().filter(|value| !value.trim().is_empty()) {
+                        pairs.append_pair("sort", sort);
+                    }
                 }
                 let bytes = client.bytes(reqwest::Method::GET, url, None).await?;
                 serde_json::from_slice(&bytes).map_err(|error| error.to_string())
             }
         }
     }
+}
+
+impl Client {
+    /// Cock Hero playlist for the native session UI. Mirrors
+    /// `GET /api/ch/playlist`; the returned items carry the same `id`,
+    /// `filepath`, `filename`, `type`, `rating` and `tags` shape the
+    /// browser frontend consumes, converted to [`MediaItem`] so the shared
+    /// player can start them directly. Requires the playback permission
+    /// for remote Viewers.
+    pub async fn ch_playlist(
+        &self,
+        limit: u32,
+        shuffle: bool,
+        media_type: &str,
+    ) -> Result<Vec<MediaItem>, String> {
+        if let Self::Remote(client) = self {
+            if !client.permissions.playback {
+                return Err("Viewer role cannot stream media".into());
+            }
+        }
+        let query: routes::ch::PlaylistQuery = serde_json::from_value(json!({
+            "limit": limit,
+            "shuffle": shuffle,
+            "media_type": media_type,
+        }))
+        .map_err(|error| error.to_string())?;
+        let value = match self {
+            Self::Local(client) => {
+                response(routes::ch::get_playlist(State(client.state.clone()), Query(query)).await)?
+            }
+            Self::Remote(client) => {
+                let mut url = client.url("/api/ch/playlist")?;
+                {
+                    let mut pairs = url.query_pairs_mut();
+                    pairs.append_pair("limit", &limit.to_string());
+                    pairs.append_pair("shuffle", if shuffle { "true" } else { "false" });
+                    pairs.append_pair("media_type", media_type);
+                }
+                let bytes = client.bytes(reqwest::Method::GET, url, None).await?;
+                serde_json::from_slice(&bytes).map_err(|error| error.to_string())?
+            }
+        };
+        let items = value["items"]
+            .as_array()
+            .cloned()
+            .unwrap_or_default()
+            .iter()
+            .filter_map(ch_playlist_item)
+            .collect();
+        Ok(items)
+    }
+
+    /// Logs a finished Cock Hero session. Mirrors `POST /api/ch/session`.
+    /// Returns whether the session was recorded (false when session
+    /// logging is disabled in settings).
+    pub async fn ch_log_session(
+        &self,
+        duration_s: i64,
+        item_count: i64,
+        filters: Option<String>,
+    ) -> Result<bool, String> {
+        if let Self::Remote(client) = self {
+            if !client.permissions.playback {
+                return Err("Viewer role cannot stream media".into());
+            }
+        }
+        let body: routes::ch::LogSessionBody = serde_json::from_value(json!({
+            "duration_s": duration_s,
+            "item_count": item_count,
+            "filters": filters,
+        }))
+        .map_err(|error| error.to_string())?;
+        let value = match self {
+            Self::Local(client) => {
+                response(routes::ch::log_session(State(client.state.clone()), Json(body)).await)?
+            }
+            Self::Remote(client) => {
+                client
+                    .request(
+                        "/api/ch/session",
+                        Some(json!({
+                            "duration_s": duration_s,
+                            "item_count": item_count,
+                            "filters": filters,
+                        })),
+                    )
+                    .await?
+            }
+        };
+        Ok(value["logged"].as_bool().unwrap_or(false))
+    }
 
     fn preferences_path(&self) -> Result<std::path::PathBuf, String> {
         use sha1::{Digest, Sha1};
         let key = match self {
             Self::Local(client) => format!("host-{}", client.state.instance_id),
-            Self::Remote(client) => format!("viewer-{}", client.origin),
+            Self::Remote(client) => format!("viewer-{}", client.origin_string()),
         };
         let key = hex::encode(Sha1::digest(key.as_bytes()));
         let directory = if let Some(override_dir) = std::env::var_os("CURATOR_NATIVE_PREFS_DIR") {
@@ -738,6 +1083,21 @@ impl Client {
 }
 
 impl Client {
+    /// Mirrors `GET /api/clip-jobs/:id`. Server keeps the existing route;
+    /// read-only, so any connected remote role may poll its own job.
+    pub async fn clip_status(&self, job_id: i64) -> Result<serde_json::Value, String> {
+        match self {
+            Client::Local(local) => {
+                response(routes::clips::status(State(local.state.clone()), Path(job_id)).await)
+            }
+            Client::Remote(remote) => {
+                let url = remote.url(&format!("/api/clip-jobs/{job_id}"))?;
+                let bytes = remote.bytes(reqwest::Method::GET, url, None).await?;
+                serde_json::from_slice(&bytes).map_err(|error| error.to_string())?
+            }
+        }
+    }
+
     pub async fn export_source_list(&self) -> Result<crate::services::export::SourceList, String> {
         let Self::Local(client) = self else {
             return Err("Source-list export is available only on the Host device".into());
@@ -766,6 +1126,23 @@ impl Client {
         crate::services::backup::snapshot(&client.state)
             .await
             .map_err(|error| error.message().to_owned())
+    }
+
+    /// Human-readable classifier (P-HAR) status for the Local Admin panel.
+    /// Host-only; the service is opt-in and this never performs network I/O.
+    pub fn classifier_status(&self) -> Result<String, String> {
+        let Self::Local(client) = self else {
+            return Err("Classifier status is available only on the Host device".into());
+        };
+        let status = crate::phar::status(&client.state.data_dir, client.state.install_scope);
+        let mut text = format!("{:?}: {}", status.phase, status.message);
+        if let Some(error) = status.actionable_error {
+            text.push_str(&format!(" — {error}"));
+        }
+        if status.repair_required {
+            text.push_str(" (repair available in the browser admin panel)");
+        }
+        Ok(text)
     }
 
     /// Best-effort cached thumbnail for a library item. Generates the
@@ -890,6 +1267,7 @@ impl Client {
                     }
                     Command::CreateGroup(_)
                     | Command::MoveToGroup(_, _)
+                    | Command::AddToGroup(_, _)
                     | Command::Rate(_, _)
                     | Command::RateOne(_, _)
                     | Command::Tag(_, _)
@@ -897,6 +1275,11 @@ impl Client {
                     | Command::Approve(_)
                     | Command::UndoRating(_, _)
                     | Command::CreateClips { .. } => client.permissions.library_edit,
+                    Command::RenameSource(_, _)
+                    | Command::ResyncSource(_)
+                    | Command::DeleteSource(_, _)
+                    | Command::RenameGroup(_, _)
+                    | Command::DeleteGroup(_) => client.permissions.library_edit,
                     // These operations enqueue or control downloads on the
                     // remote library. The read-only Viewer role never gains
                     // them from a local UI affordance.
@@ -915,6 +1298,56 @@ impl Client {
                 if !permitted {
                     return Err("Viewer role does not permit this operation".into());
                 }
+                // Source and group management need PATCH/DELETE verbs, which
+                // the generic (path, body) POST mapping below cannot express.
+                match &command {
+                    Command::RenameSource(id, name) => {
+                        return client
+                            .request_method(
+                                reqwest::Method::PATCH,
+                                &format!("/api/sources/{id}"),
+                                Some(json!({"name": name})),
+                            )
+                            .await;
+                    }
+                    Command::ResyncSource(id) => {
+                        return client
+                            .request_method(
+                                reqwest::Method::POST,
+                                &format!("/api/sources/{id}/resync"),
+                                Some(json!({})),
+                            )
+                            .await;
+                    }
+                    Command::DeleteSource(id, delete_files) => {
+                        return client
+                            .request_method(
+                                reqwest::Method::DELETE,
+                                &format!("/api/sources/{id}?delete_files={delete_files}"),
+                                None,
+                            )
+                            .await;
+                    }
+                    Command::RenameGroup(id, name) => {
+                        return client
+                            .request_method(
+                                reqwest::Method::PATCH,
+                                &format!("/api/groups/{id}"),
+                                Some(json!({"name": name})),
+                            )
+                            .await;
+                    }
+                    Command::DeleteGroup(id) => {
+                        return client
+                            .request_method(
+                                reqwest::Method::DELETE,
+                                &format!("/api/groups/{id}"),
+                                None,
+                            )
+                            .await;
+                    }
+                    _ => {}
+                }
                 let (path, body) = match command {
                     Command::StartSession => (
                         "/api/session/start".into(),
@@ -929,6 +1362,10 @@ impl Client {
                     Command::MoveToGroup(ids, group) => (
                         "/api/media/bulk".into(),
                         json!({"ids":ids,"action":"move","group_id":group}),
+                    ),
+                    Command::AddToGroup(ids, group) => (
+                        "/api/media/bulk".into(),
+                        json!({"ids":ids,"action":"add_group","group_id":group}),
                     ),
                     Command::ImportFolder(_) => {
                         return Err("Folder import is available only on Host".into())
@@ -979,6 +1416,14 @@ impl Client {
                     }
                     Command::QueueSearchResults(results) => {
                         ("/api/search/download".into(), json!({"results":results}))
+                    }
+                    // Handled by the method-specific early returns above.
+                    Command::RenameSource(_, _)
+                    | Command::ResyncSource(_)
+                    | Command::DeleteSource(_, _)
+                    | Command::RenameGroup(_, _)
+                    | Command::DeleteGroup(_) => {
+                        unreachable!("source/group management returns early")
                     }
                 };
                 client.request(&path, Some(body)).await
@@ -1065,6 +1510,50 @@ fn response(
     })
 }
 
+/// Open a file with the OS default application (Windows: `start`,
+/// other platforms: `xdg-open`).
+fn open_with_default_app(path: &std::path::Path) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("cmd")
+            .args(["/c", "start", "", &path.to_string_lossy()])
+            .spawn()
+            .map_err(|error| format!("Could not open file: {error}"))?;
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(path)
+            .spawn()
+            .map_err(|error| format!("Could not open file: {error}"))?;
+    }
+    Ok(())
+}
+
+/// Reveal a file in the OS file manager (Windows: select it in Explorer,
+/// other platforms: open the containing folder).
+fn reveal_in_file_manager(path: &std::path::Path) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        let argument = format!("/select,{}", path.to_string_lossy());
+        std::process::Command::new("explorer")
+            .arg(argument)
+            .spawn()
+            .map_err(|error| format!("Could not reveal file: {error}"))?;
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let parent = path
+            .parent()
+            .ok_or_else(|| "File has no parent folder".to_string())?;
+        std::process::Command::new("xdg-open")
+            .arg(parent)
+            .spawn()
+            .map_err(|error| format!("Could not reveal file: {error}"))?;
+    }
+    Ok(())
+}
+
 impl LocalClient {
     pub fn new(state: AppState) -> Result<Self, String> {
         if !state.edition.owns_library() {
@@ -1073,6 +1562,37 @@ impl LocalClient {
         Ok(Self {
             state: Arc::new(state),
         })
+    }
+
+    /// Absolute library path for a media item's stored relative filepath.
+    /// Refuses paths that escape the library directory.
+    pub fn absolute_filepath(&self, relative: &str) -> Result<std::path::PathBuf, String> {
+        let library = self
+            .state
+            .library_dir
+            .canonicalize()
+            .map_err(|error| format!("Library unavailable: {error}"))?;
+        let candidate = library.join(relative);
+        let resolved = candidate
+            .canonicalize()
+            .map_err(|_| "File is missing from the library".to_string())?;
+        if !resolved.starts_with(&library) {
+            return Err("File is outside the library".into());
+        }
+        Ok(resolved)
+    }
+
+    /// Host-only: open a library file with the OS default application.
+    /// Remote Viewers never reach this; the UI hides the affordance.
+    pub fn open_filepath(&self, relative: &str) -> Result<(), String> {
+        let path = self.absolute_filepath(relative)?;
+        open_with_default_app(&path)
+    }
+
+    /// Host-only: reveal a library file in the OS file manager.
+    pub fn reveal_filepath(&self, relative: &str) -> Result<(), String> {
+        let path = self.absolute_filepath(relative)?;
+        reveal_in_file_manager(&path)
     }
 
     pub async fn library(&self, query: LibraryQuery) -> Result<MediaPage, String> {
@@ -1147,6 +1667,20 @@ impl LocalClient {
                 )
                 .await,
             ),
+            Command::AddToGroup(ids, group_id) => response(
+                routes::media::bulk(
+                    state,
+                    None,
+                    Json(routes::media::BulkMediaBody {
+                        ids,
+                        action: "add_group".into(),
+                        group_id,
+                        tag: None,
+                        rating: None,
+                    }),
+                )
+                .await,
+            ),
             Command::ImportFolder(path) => {
                 crate::local_import::import_folder(&self.state, &path, None)
                     .map(|id| json!({"id":id}))
@@ -1156,7 +1690,7 @@ impl LocalClient {
                 if ids.is_empty() || ids.len() > 500 || ids.iter().any(|id| *id <= 0) {
                     return Err("Select between one and 500 valid media items".into());
                 }
-                crate::services::media::rate_many(&self.state, crate::services::access::Actor::LocalOwner, &ids, rating)
+                crate::services::media::rate_many(&self.state, crate::services::access::Caller::host(), &ids, rating)
                     .map(|updated| json!({"action":"set_rating","updated":updated,"failed":[]}))
                     .map_err(|error| error.message().to_owned())
             }
@@ -1164,7 +1698,7 @@ impl LocalClient {
                 if id <= 0 {
                     return Err("Media ID must be positive".into());
                 }
-                crate::services::media::review(&self.state, crate::services::access::Actor::LocalOwner, id, Some(rating))
+                crate::services::media::review(&self.state, crate::services::access::Caller::host(), id, Some(rating))
                     .and_then(|review| {
                         serde_json::to_value(review).map_err(|error| {
                             crate::services::media::MediaError::Database(error.to_string())
@@ -1172,13 +1706,13 @@ impl LocalClient {
                     })
                     .map_err(|error| error.message().to_owned())
             }
-            Command::Tag(ids, tag) => crate::services::media::add_tag_many(&self.state, crate::services::access::Actor::LocalOwner, &ids, &tag)
+            Command::Tag(ids, tag) => crate::services::media::add_tag_many(&self.state, crate::services::access::Caller::host(), &ids, &tag)
                 .map(|result| json!({"action":"add_tag","updated":result.updated,"failed":result.failed}))
                 .map_err(|error| error.message().to_owned()),
-            Command::Untag(ids, tag) => crate::services::media::remove_tag_many(&self.state, crate::services::access::Actor::LocalOwner, &ids, &tag)
+            Command::Untag(ids, tag) => crate::services::media::remove_tag_many(&self.state, crate::services::access::Caller::host(), &ids, &tag)
                 .map(|result| json!({"action":"remove_tag","updated":result.updated,"failed":result.failed}))
                 .map_err(|error| error.message().to_owned()),
-            Command::Approve(id) => crate::services::media::review(&self.state, crate::services::access::Actor::LocalOwner, id, None)
+            Command::Approve(id) => crate::services::media::review(&self.state, crate::services::access::Caller::host(), id, None)
                 .and_then(|review| {
                     serde_json::to_value(review).map_err(|error| {
                         crate::services::media::MediaError::Database(error.to_string())
@@ -1186,7 +1720,7 @@ impl LocalClient {
                 })
                 .map_err(|error| error.message().to_owned()),
             Command::UndoRating(id, reviewed_at) => {
-                crate::services::media::undo_review(&self.state, crate::services::access::Actor::LocalOwner, id, &reviewed_at)
+                crate::services::media::undo_review(&self.state, crate::services::access::Caller::host(), id, &reviewed_at)
                     .and_then(|review| {
                         serde_json::to_value(review).map_err(|error| {
                             crate::services::media::MediaError::Database(error.to_string())
@@ -1233,6 +1767,45 @@ impl LocalClient {
                 serde_json::to_value(result).map_err(|error| error.to_string())
             }
             Command::ResyncAll => Ok(routes::sources::resync_all(state).await.0),
+            Command::RenameSource(id, name) => response(
+                routes::sources::patch(
+                    state,
+                    Path(id),
+                    Json(routes::sources::PatchSourceBody {
+                        name: Some(name),
+                        included: None,
+                        retention_keep_newest: None,
+                        retention_confirmation: None,
+                    }),
+                )
+                .await,
+            ),
+            Command::ResyncSource(id) => {
+                response(routes::sources::resync(state, Path(id)).await)
+            }
+            Command::DeleteSource(id, delete_files) => response(
+                routes::sources::delete(
+                    state,
+                    Path(id),
+                    Query(routes::sources::DeleteQuery { delete_files }),
+                )
+                .await,
+            ),
+            Command::RenameGroup(id, name) => response(
+                routes::groups::update(
+                    state,
+                    Path(id),
+                    Json(routes::groups::UpdateGroupBody {
+                        name: Some(name),
+                        parent_id: None,
+                        clear_parent: false,
+                    }),
+                )
+                .await,
+            ),
+            Command::DeleteGroup(id) => {
+                response(routes::groups::delete(state, Path(id)).await)
+            }
             Command::DeleteMedia(ids) => response(
                 routes::media::bulk(
                     state,
@@ -1291,6 +1864,24 @@ impl LocalClient {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn absolute_filepath_refuses_library_escape() {
+        let root = tempfile::tempdir().unwrap();
+        let state = crate::test_support::state(root.path());
+        let client = LocalClient::new((*state).clone()).unwrap();
+        // Missing files are refused without touching the filesystem.
+        assert!(client.absolute_filepath("nope.jpg").is_err());
+        // Present file inside the library resolves.
+        std::fs::create_dir_all(state.library_dir.join("test")).unwrap();
+        std::fs::write(state.library_dir.join("test/ok.jpg"), b"x").unwrap();
+        let resolved = client.absolute_filepath("test/ok.jpg").unwrap();
+        assert!(resolved.ends_with("test/ok.jpg"));
+        // Traversal that would escape the library is refused even when the
+        // target exists on disk.
+        std::fs::write(root.path().join("outside.jpg"), b"x").unwrap();
+        assert!(client.absolute_filepath("../outside.jpg").is_err());
+    }
 
     #[test]
     fn legacy_media_items_deserialize_without_enriched_metadata() {
@@ -1623,6 +2214,123 @@ mod tests {
         .is_err());
     }
 
+    #[test]
+    fn moved_host_candidates_require_tailnet_addresses() {
+        // 100.64.0.0/10 boundaries.
+        for ip in ["100.64.0.1", "100.127.255.255"] {
+            let ip: std::net::IpAddr = ip.parse().unwrap();
+            assert!(is_tailnet_ip(&ip));
+            assert_eq!(
+                candidate_origin(ip, 42168).unwrap().as_str(),
+                format!("http://{ip}:42168/")
+            );
+        }
+        for ip in ["100.63.255.255", "100.128.0.1", "127.0.0.1", "8.8.8.8"] {
+            let ip: std::net::IpAddr = ip.parse().unwrap();
+            assert!(!is_tailnet_ip(&ip));
+            assert!(candidate_origin(ip, 42168).is_none());
+        }
+        // fd7a:115c:a1e0::/48.
+        let v6: std::net::IpAddr = "fd7a:115c:a1e0::2".parse().unwrap();
+        assert!(is_tailnet_ip(&v6));
+        assert_eq!(
+            candidate_origin(v6, 42168).unwrap().as_str(),
+            "http://[fd7a:115c:a1e0::2]:42168/"
+        );
+        let other_v6: std::net::IpAddr = "fd7a:115c:a1e1::2".parse().unwrap();
+        assert!(!is_tailnet_ip(&other_v6));
+        assert!(candidate_origin(other_v6, 42168).is_none());
+    }
+
+    /// Serve one canned `/api/system/info` response on loopback so the
+    /// reconnect probe is testable without Tailscale.
+    async fn serve_system_info(body: serde_json::Value) -> std::net::SocketAddr {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            let mut buf = vec![0u8; 8192];
+            let mut read = 0;
+            while read < buf.len() {
+                let n = stream.read(&mut buf[read..]).await.unwrap();
+                if n == 0 {
+                    break;
+                }
+                read += n;
+                if buf[..read].windows(4).any(|w| w == b"\r\n\r\n") {
+                    break;
+                }
+            }
+            let body = serde_json::to_string(&body).unwrap();
+            let response = format!(
+                "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
+                body.len(),
+                body
+            );
+            stream.write_all(response.as_bytes()).await.unwrap();
+        });
+        addr
+    }
+
+    fn probe_client() -> RemoteClient {
+        RemoteClient::from_validated_peer_with_identity(
+            "http://100.64.1.2:42168",
+            ViewerPermissions::default(),
+            "library-a".into(),
+        )
+        .unwrap()
+    }
+
+    #[tokio::test]
+    async fn reconnect_probe_accepts_the_pinned_library_identity() {
+        let addr = serve_system_info(serde_json::json!({
+            "instance_id": "library-a",
+            "api_protocol": crate::API_PROTOCOL,
+            "edition": "host",
+            "tailnet_only": true,
+        }))
+        .await;
+        let origin = reqwest::Url::parse(&format!("http://{addr}/")).unwrap();
+        assert!(probe_client().probe_origin(&origin).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn reconnect_probe_rejects_a_different_library() {
+        let addr = serve_system_info(serde_json::json!({
+            "instance_id": "library-b",
+            "api_protocol": crate::API_PROTOCOL,
+            "edition": "host",
+            "tailnet_only": true,
+        }))
+        .await;
+        let origin = reqwest::Url::parse(&format!("http://{addr}/")).unwrap();
+        assert!(matches!(
+            probe_client().probe_origin(&origin).await,
+            Err(ReconnectError::Changed(_))
+        ));
+    }
+
+    #[tokio::test]
+    async fn reconnect_probe_reports_unreachable_origins() {
+        // Nothing listens on this loopback port: connection refused.
+        let origin = reqwest::Url::parse("http://127.0.0.1:1/").unwrap();
+        assert!(matches!(
+            probe_client().probe_origin(&origin).await,
+            Err(ReconnectError::Unavailable(_))
+        ));
+    }
+
+    #[test]
+    fn repinned_origin_is_visible_to_cloned_clients() {
+        let client = probe_client();
+        let moved = reqwest::Url::parse("http://100.64.9.9:42168/").unwrap();
+        *client.origin.write().unwrap() = moved.clone();
+        assert_eq!(client.origin_string(), moved.as_str());
+        // Clones share the origin: every handle follows the moved Host.
+        assert_eq!(client.clone().origin_string(), moved.as_str());
+    }
+
     #[tokio::test]
     async fn remote_recovery_is_rejected_without_network_access() {
         let client =
@@ -1716,6 +2424,11 @@ mod tests {
             Command::CreateGroup("test".into()),
             Command::AddSources("https://example.com".into()),
             Command::StartSession,
+            Command::RenameSource(1, "renamed".into()),
+            Command::ResyncSource(1),
+            Command::DeleteSource(1, false),
+            Command::RenameGroup(1, "renamed".into()),
+            Command::DeleteGroup(1),
         ] {
             assert!(client
                 .execute(command)
@@ -1723,6 +2436,69 @@ mod tests {
                 .unwrap_err()
                 .contains("Viewer role"));
         }
+        assert!(client
+            .source_detail(1)
+            .await
+            .unwrap_err()
+            .contains("Viewer role"));
+        assert!(client
+            .source_log(1)
+            .await
+            .unwrap_err()
+            .contains("Viewer role"));
+    }
+
+    #[tokio::test]
+    async fn local_source_and_group_management_round_trip() {
+        let root = tempfile::tempdir().unwrap();
+        let state = crate::test_support::state(root.path());
+        crate::test_support::source(&state);
+        let client = Client::Local(LocalClient::new((*state).clone()).unwrap());
+
+        // Inspect the seeded source.
+        let detail = client.source_detail(1).await.unwrap();
+        assert_eq!(detail["name"].as_str().unwrap(), "test");
+
+        // Rename it.
+        client
+            .execute(Command::RenameSource(1, "renamed".into()))
+            .await
+            .unwrap();
+        let detail = client.source_detail(1).await.unwrap();
+        assert_eq!(detail["name"].as_str().unwrap(), "renamed");
+
+        // The log endpoint returns a redacted payload, not an error.
+        let log = client.source_log(1).await.unwrap();
+        assert!(log.get("log").is_some());
+
+        // Group rename + delete round-trip.
+        client
+            .execute(Command::CreateGroup("g1".into()))
+            .await
+            .unwrap();
+        let groups = response(crate::routes::groups::list(State(state.clone())).await).unwrap();
+        let id = groups["groups"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|group| group["name"] == "g1")
+            .unwrap()["id"]
+            .as_i64()
+            .unwrap();
+        client
+            .execute(Command::RenameGroup(id, "g2".into()))
+            .await
+            .unwrap();
+        let detail = client.source_detail(1).await.unwrap();
+        assert!(detail.get("name").is_some());
+        client.execute(Command::DeleteGroup(id)).await.unwrap();
+
+        // Deleting the source removes it.
+        client
+            .execute(Command::DeleteSource(1, false))
+            .await
+            .unwrap();
+        assert!(client.source_detail(1).await.is_err());
     }
 
     #[tokio::test]
@@ -1745,7 +2521,10 @@ mod tests {
         assert!(client.manage_snapshot().await.is_err());
         assert!(client.downloads().await.is_err());
         assert!(client.session().await.is_err());
-        assert!(client.discover("test".into(), None).await.is_err());
+        assert!(client
+            .discover("test".into(), None, None, None)
+            .await
+            .is_err());
     }
 
     #[tokio::test]
@@ -1814,5 +2593,85 @@ mod tests {
                 );
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod classifier_status_tests {
+    use super::*;
+
+    #[test]
+    fn local_classifier_status_reports_phar_phase() {
+        let root = tempfile::tempdir().unwrap();
+        let state = crate::test_support::state(root.path());
+        let client = Client::Local(LocalClient::new((*state).clone()).unwrap());
+        let status = client.classifier_status().unwrap();
+        // Opt-in and disabled by default in a fresh disposable library.
+        assert!(status.contains("Disabled"), "unexpected status: {status}");
+    }
+}
+
+#[cfg(test)]
+mod ch_native_tests {
+    use super::*;
+
+    #[test]
+    fn ch_playlist_item_converts_browser_shape() {
+        let item = ch_playlist_item(&json!({
+            "id": 42,
+            "filename": "shot.jpg",
+            "type": "image",
+            "rating": 4,
+            "filepath": "/data/shot.jpg",
+            "tags": ["a", "b"],
+        }))
+        .unwrap();
+        assert_eq!(item.id, 42);
+        assert_eq!(item.filename, "shot.jpg");
+        assert_eq!(item.kind, "image");
+        assert_eq!(item.rating, 4);
+        assert_eq!(item.filepath, "/data/shot.jpg");
+        assert_eq!(item.tags, vec!["a".to_string(), "b".to_string()]);
+        // Missing id → dropped.
+        assert!(ch_playlist_item(&json!({"filename": "x.jpg"})).is_none());
+    }
+
+    #[tokio::test]
+    async fn ch_playlist_and_session_log_local_round_trip() {
+        let root = tempfile::tempdir().unwrap();
+        let state = crate::test_support::state(root.path());
+        let client = Client::Local(LocalClient::new((*state).clone()).unwrap());
+        // Empty library → empty playlist, no error.
+        let items = client.ch_playlist(50, true, "image").await.unwrap();
+        assert!(items.is_empty());
+        // Session logging is disabled by default → not recorded.
+        let logged = client
+            .ch_log_session(60, 10, Some("media_type=image".into()))
+            .await
+            .unwrap();
+        assert!(!logged);
+    }
+
+    #[tokio::test]
+    async fn ch_native_denied_for_viewer_without_playback() {
+        let permissions = ViewerPermissions {
+            playback: false,
+            ..ViewerPermissions::default()
+        };
+        let client = Client::Remote(
+            RemoteClient::from_validated_peer_with_permissions(
+                "http://100.64.1.2:42168",
+                permissions,
+            )
+            .unwrap(),
+        );
+        assert!(matches!(
+            client.ch_playlist(50, true, "image").await,
+            Err(error) if error.contains("Viewer role")
+        ));
+        assert!(matches!(
+            client.ch_log_session(60, 10, None).await,
+            Err(error) if error.contains("Viewer role")
+        ));
     }
 }

@@ -1,3 +1,6 @@
+//! HTTP adapter for settings. Auth and local-client admission stay here;
+//! the mutation logic lives in the typed [`crate::services::settings`] ops.
+
 use std::sync::Arc;
 
 use axum::{
@@ -5,12 +8,10 @@ use axum::{
     http::StatusCode,
     Json,
 };
-use serde::{Deserialize, Deserializer};
 use serde_json::{json, Value};
 use std::net::SocketAddr;
-use tokio::sync::Semaphore;
 
-use crate::db::save_settings;
+use crate::services::settings::{apply_settings_patch, SettingsAudience, SettingsPatchError};
 use crate::AppState;
 
 fn is_local_client(peer: &Option<ConnectInfo<SocketAddr>>) -> bool {
@@ -26,96 +27,9 @@ fn host_integrations_available(state: &AppState, peer: &Option<ConnectInfo<Socke
 /// conflicting configuration systems" in the OOBE build notes.
 pub(crate) use crate::services::settings::VALID_THEMES;
 
-// `Option<Option<T>>` normally cannot distinguish a missing JSON property
-// from an explicit `null`. Settings uses that distinction for optional byte
-// limits: null means "Unlimited", while omission means "leave unchanged".
-fn deserialize_nullable_u64<'de, D>(deserializer: D) -> Result<Option<Option<u64>>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    Ok(Some(Option::<u64>::deserialize(deserializer)?))
-}
-
-fn deserialize_nullable_u32<'de, D>(deserializer: D) -> Result<Option<Option<u32>>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    Ok(Some(Option::<u32>::deserialize(deserializer)?))
-}
-
-fn normalize_optional_bytes(value: Option<u64>) -> Option<u64> {
-    value.filter(|value| *value > 0)
-}
-
-fn normalize_optional_days(value: Option<u32>) -> Result<Option<u32>, &'static str> {
-    match value {
-        None | Some(0) => Ok(None),
-        Some(value) if value <= 36_500 => Ok(Some(value)),
-        Some(_) => Err("Archive retention must be at most 36,500 days"),
-    }
-}
-
-#[derive(Deserialize)]
-pub struct PatchSettingsBody {
-    pub start_with_windows: Option<bool>,
-    pub keep_running_in_tray: Option<bool>,
-    /// Opt-in LAN wildcard listener; takes effect on the next listener
-    /// refresh (within seconds) without a restart.
-    pub lan_access_enabled: Option<bool>,
-    pub max_clip_length_secs: Option<u32>,
-    pub goon_default_limit: Option<u32>,
-    pub goon_log_sessions: Option<bool>,
-    pub max_concurrent: Option<u32>,
-    #[serde(default, deserialize_with = "deserialize_nullable_u64")]
-    pub max_download_file_size_bytes: Option<Option<u64>>,
-    #[serde(default, deserialize_with = "deserialize_nullable_u64")]
-    pub max_source_storage_bytes: Option<Option<u64>>,
-    #[serde(default, deserialize_with = "deserialize_nullable_u64")]
-    pub minimum_free_disk_bytes: Option<Option<u64>>,
-    #[serde(default, deserialize_with = "deserialize_nullable_u64")]
-    pub thumbnail_cache_max_bytes: Option<Option<u64>>,
-    pub apply_download_limits_to_local_imports: Option<bool>,
-    pub automatic_cleanup_mode: Option<String>,
-    /// A browser confirmation is repeated at the API boundary so a direct
-    /// PATCH cannot silently arm deletion of existing originals.
-    pub automatic_cleanup_confirmation: Option<String>,
-    #[serde(default, deserialize_with = "deserialize_nullable_u64")]
-    pub automatic_cleanup_low_disk_bytes: Option<Option<u64>>,
-    #[serde(default, deserialize_with = "deserialize_nullable_u32")]
-    pub archive_retention_days: Option<Option<u32>>,
-    /// Archive deletion is separately acknowledged because clearing the
-    /// gallery-dl archive can make old posts eligible on a later sync.
-    pub archive_retention_confirmation: Option<String>,
-    pub default_slideshow_speed: Option<f64>,
-    pub default_slideshow_loop: Option<bool>,
-    pub default_slideshow_shuffle: Option<bool>,
-    pub theme: Option<String>,
-    pub export_reminder_days: Option<u32>,
-    pub export_reminder_snoozed_until: Option<String>,
-    // Cock Hero settings
-    pub ch_log_sessions: Option<bool>,
-    pub ch_default_interval: Option<f64>,
-    pub ch_default_limit: Option<u32>,
-    pub ch_default_shuffle: Option<bool>,
-    pub ch_default_media_type: Option<String>,
-    // NSFW auto-rating
-    pub nsfw_filter_enabled: Option<bool>,
-    pub library_layout: Option<String>,
-    pub last_play_mode: Option<String>,
-    pub search_providers: Option<Vec<String>>,
-    pub metronome_enabled: Option<bool>,
-    pub metronome_volume: Option<f64>,
-    pub goon_persona: Option<String>,
-    pub tts_voice: Option<String>,
-    pub tts_rate: Option<f64>,
-    pub tts_pitch: Option<f64>,
-    pub tts_volume: Option<f64>,
-    pub soundtrack_provider: Option<String>,
-    /// Bootstrap settings live in config.json because they are consumed
-    /// before the database is opened. They are exposed here for the normal
-    /// Settings UI but intentionally take effect on the next launch.
-    pub ffmpeg_bin: Option<String>,
-}
+/// Backwards-compatible name for the PATCH payload; the struct itself moved
+/// to the settings service.
+pub use crate::services::settings::SettingsPatch as PatchSettingsBody;
 
 // ─── GET /api/settings ───────────────────────────────────────────────────────
 
@@ -126,23 +40,12 @@ pub async fn get(
     Json(crate::services::settings::read(&state, settings_audience(&peer)).await)
 }
 
-fn settings_audience(
-    peer: &Option<ConnectInfo<SocketAddr>>,
-) -> crate::services::settings::SettingsAudience {
+fn settings_audience(peer: &Option<ConnectInfo<SocketAddr>>) -> SettingsAudience {
     if is_local_client(peer) {
-        crate::services::settings::SettingsAudience::Local
+        SettingsAudience::Local
     } else {
-        crate::services::settings::SettingsAudience::Remote
+        SettingsAudience::Remote
     }
-}
-
-fn settings_response(
-    state: &AppState,
-    peer: &Option<ConnectInfo<SocketAddr>>,
-    settings: &crate::db::Settings,
-    startup: Option<crate::StartupRegistration>,
-) -> Value {
-    crate::services::settings::response(state, settings_audience(peer), settings, startup)
 }
 
 // ─── PATCH /api/settings ─────────────────────────────────────────────────────
@@ -152,8 +55,7 @@ pub async fn patch(
     peer: Option<ConnectInfo<SocketAddr>>,
     Json(body): Json<PatchSettingsBody>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
-    let local = is_local_client(&peer);
-    if !local
+    if !is_local_client(&peer)
         && (body.ffmpeg_bin.is_some()
             || body.start_with_windows.is_some()
             || body.keep_running_in_tray.is_some()
@@ -178,458 +80,18 @@ pub async fn patch(
             ),
         ));
     }
-    // Validate the complete request before changing the Windows Run entry,
-    // config.json, or the in-memory settings value. This keeps a malformed
-    // multi-control PATCH from partially applying the controls that happened
-    // to appear before its invalid field.
-    if let Some(value) = body.ffmpeg_bin.as_deref() {
-        let value = value.trim();
-        if value.is_empty() || value.len() > 4096 || value.contains('\0') {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                Json(json!({"error":"Invalid ffmpeg executable"})),
-            ));
-        }
-    }
-    if let Some(value) = body.automatic_cleanup_mode.as_deref() {
-        if !["never", "low_disk", "weekly"].contains(&value) {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                Json(json!({"error":"Automatic cleanup must be Never, low disk, or weekly"})),
-            ));
-        }
-    }
-    if let Some(value) = body.archive_retention_days.flatten() {
-        normalize_optional_days(Some(value))
-            .map_err(|error| (StatusCode::BAD_REQUEST, Json(json!({"error": error}))))?;
-    }
-    if let Some(value) = body.theme.as_deref() {
-        if !VALID_THEMES.contains(&value) {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                Json(json!({"error": format!("Unknown theme: {value}")})),
-            ));
-        }
-    }
-    if let Some(value) = body.library_layout.as_deref() {
-        if !["grid", "table"].contains(&value) {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                Json(json!({"error":"Library layout must be grid or table"})),
-            ));
-        }
-    }
-    if let Some(value) = body.last_play_mode.as_deref() {
-        if !matches!(
-            value,
-            "feed" | "mobile-feed" | "slideshow" | "portrait" | "portrait-wall" | "review" | "goon"
-        ) {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                Json(json!({"error":"Unknown playback mode"})),
-            ));
-        }
-    }
-    if let Some(values) = body.search_providers.as_ref() {
-        if values.len() > 64
-            || values.iter().any(|raw| {
-                let provider = raw.trim().to_ascii_lowercase();
-                provider.is_empty()
-                    || provider.len() > 80
-                    || !provider.bytes().all(|b| {
-                        b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-' || b == b'_'
-                    })
-            })
-        {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                Json(json!({"error":"Invalid search provider selection"})),
-            ));
-        }
-    }
-    if let Some(value) = body.metronome_volume {
-        if !value.is_finite() {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                Json(json!({"error":"Invalid metronome volume"})),
-            ));
-        }
-    }
-    if let Some(value) = body.goon_persona.as_deref() {
-        if !["neutral", "mommy", "dom", "brat"].contains(&value) {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                Json(json!({"error":"Unknown GOON persona"})),
-            ));
-        }
-    }
-    if let Some(value) = body.tts_rate {
-        if !value.is_finite() || !(0.1..=3.0).contains(&value) {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                Json(json!({"error":"TTS rate must be between 0.1 and 3.0"})),
-            ));
-        }
-    }
-    if let Some(value) = body.tts_pitch {
-        if !value.is_finite() || !(0.0..=2.0).contains(&value) {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                Json(json!({"error":"TTS pitch must be between 0 and 2.0"})),
-            ));
-        }
-    }
-    if let Some(value) = body.tts_volume {
-        if !value.is_finite() || !(0.0..=1.0).contains(&value) {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                Json(json!({"error":"TTS volume must be between 0 and 1.0"})),
-            ));
-        }
-    }
-    if let Some(value) = body.soundtrack_provider.as_deref() {
-        if !["local", "youtube", "soundcloud", "apple_music", "spotify"].contains(&value) {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                Json(json!({"error":"Unknown soundtrack provider"})),
-            ));
-        }
-    }
-    let thumbnail_cache_limit_changed = body.thumbnail_cache_max_bytes.is_some();
-    let current_settings = state.settings.read().await.clone();
-    let cleanup_mode = body
-        .automatic_cleanup_mode
-        .as_deref()
-        .unwrap_or(&current_settings.automatic_cleanup_mode);
-    let cleanup_threshold = body
-        .automatic_cleanup_low_disk_bytes
-        .map(normalize_optional_bytes)
-        .unwrap_or(current_settings.automatic_cleanup_low_disk_bytes);
-    if cleanup_mode == "low_disk" && cleanup_threshold.is_none() {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            Json(
-                json!({"error":"Choose a low-disk cleanup threshold before enabling automatic cleanup"}),
-            ),
-        ));
-    }
-    if current_settings.automatic_cleanup_mode == "never"
-        && cleanup_mode != "never"
-        && body.automatic_cleanup_confirmation.as_deref() != Some("ENABLE AUTOMATIC CLEANUP")
-    {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            Json(json!({
-                "error":"Type ENABLE AUTOMATIC CLEANUP before enabling automatic cleanup."
-            })),
-        ));
-    }
-    if current_settings.archive_retention_days.is_none()
-        && body
-            .archive_retention_days
-            .flatten()
-            .is_some_and(|days| days > 0)
-        && body.archive_retention_confirmation.as_deref() != Some("ENABLE ARCHIVE RETENTION")
-    {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            Json(json!({
-                "error":"Type ENABLE ARCHIVE RETENTION before enabling archive age cleanup."
-            })),
-        ));
-    }
-    let mut ffmpeg_changed = false;
-    if body.ffmpeg_bin.is_some() {
-        let mut config = crate::config::load_config_for(state.install_scope);
-        if let Some(value) = body.ffmpeg_bin.as_deref() {
-            let value = value.trim();
-            if value.is_empty() || value.len() > 4096 || value.contains('\0') {
-                return Err((
-                    StatusCode::BAD_REQUEST,
-                    Json(json!({"error":"Invalid ffmpeg executable"})),
-                ));
-            }
-            ffmpeg_changed = config.ffmpeg_bin.as_deref().unwrap_or("ffmpeg") != value;
-            config.ffmpeg_bin = Some(value.to_string());
-        }
-        crate::config::save_config_for(state.install_scope, &config).map_err(|error| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({"error":format!("Could not save external tool settings: {error}")})),
-            )
-        })?;
-    }
-    if let Some(enabled) = body.start_with_windows {
-        crate::set_start_with_windows_preference(&state, enabled)
-            .await
-            .map_err(|error| (StatusCode::BAD_REQUEST, Json(json!({"error": error}))))?;
-    }
-
-    let mut settings = state.settings.write().await;
-    let lan_mode_before = settings.lan_access_enabled;
-
-    if let Some(v) = body.max_clip_length_secs {
-        settings.max_clip_length_secs = v.clamp(5, 3600);
-    }
-    if let Some(v) = body.goon_default_limit {
-        settings.goon_default_limit = v.clamp(1, 10_000);
-    }
-    if let Some(v) = body.goon_log_sessions {
-        settings.goon_log_sessions = v;
-    }
-    if let Some(v) = body.keep_running_in_tray {
-        settings.keep_running_in_tray = v;
-    }
-    if let Some(v) = body.lan_access_enabled {
-        settings.lan_access_enabled = v;
-    }
-    if let Some(v) = body.max_concurrent {
-        let v = v.clamp(1, 20);
-        settings.max_concurrent = v;
-        // Swap the semaphore so future downloads use the new limit
-        let mut sem_guard = state.download_semaphore.lock().await;
-        *sem_guard = Arc::new(Semaphore::new(v as usize));
-    }
-    if let Some(value) = body.max_download_file_size_bytes {
-        settings.max_download_file_size_bytes = normalize_optional_bytes(value);
-    }
-    if let Some(value) = body.max_source_storage_bytes {
-        settings.max_source_storage_bytes = normalize_optional_bytes(value);
-    }
-    if let Some(value) = body.minimum_free_disk_bytes {
-        settings.minimum_free_disk_bytes = normalize_optional_bytes(value);
-    }
-    if let Some(value) = body.thumbnail_cache_max_bytes {
-        settings.thumbnail_cache_max_bytes = normalize_optional_bytes(value);
-    }
-    if let Some(value) = body.apply_download_limits_to_local_imports {
-        settings.apply_download_limits_to_local_imports = value;
-    }
-    if let Some(value) = body.automatic_cleanup_mode {
-        if !["never", "low_disk", "weekly"].contains(&value.as_str()) {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                Json(json!({"error":"Automatic cleanup must be Never, low disk, or weekly"})),
-            ));
-        }
-        settings.automatic_cleanup_mode = value;
-    }
-    if let Some(value) = body.automatic_cleanup_low_disk_bytes {
-        settings.automatic_cleanup_low_disk_bytes = normalize_optional_bytes(value);
-    }
-    if let Some(value) = body.archive_retention_days {
-        settings.archive_retention_days = normalize_optional_days(value)
-            .map_err(|error| (StatusCode::BAD_REQUEST, Json(json!({"error": error}))))?;
-    }
-    if settings.automatic_cleanup_mode == "low_disk"
-        && settings.automatic_cleanup_low_disk_bytes.is_none()
-    {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            Json(
-                json!({"error":"Choose a low-disk cleanup threshold before enabling automatic cleanup"}),
-            ),
-        ));
-    }
-    if let Some(v) = body.default_slideshow_speed {
-        settings.default_slideshow_speed = v.clamp(500.0, 60000.0);
-    }
-    if let Some(v) = body.default_slideshow_loop {
-        settings.default_slideshow_loop = v;
-    }
-    if let Some(v) = body.default_slideshow_shuffle {
-        settings.default_slideshow_shuffle = v;
-    }
-    if let Some(ref theme) = body.theme {
-        if !VALID_THEMES.contains(&theme.as_str()) {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                Json(json!({"error": format!("Unknown theme: {}", theme)})),
-            ));
-        }
-        settings.theme = theme.clone();
-    }
-    if let Some(v) = body.export_reminder_days {
-        settings.export_reminder_days = v.clamp(1, 365);
-    }
-    if let Some(v) = body.export_reminder_snoozed_until {
-        settings.export_reminder_snoozed_until = if v.is_empty() { None } else { Some(v) };
-    }
-    if let Some(v) = body.ch_log_sessions {
-        settings.ch_log_sessions = v;
-    }
-    if let Some(v) = body.ch_default_interval {
-        settings.ch_default_interval = v;
-    }
-    if let Some(v) = body.ch_default_limit {
-        settings.ch_default_limit = v;
-    }
-    if let Some(v) = body.ch_default_shuffle {
-        settings.ch_default_shuffle = v;
-    }
-    if let Some(v) = body.ch_default_media_type {
-        settings.ch_default_media_type = v;
-    }
-    if let Some(v) = body.nsfw_filter_enabled {
-        if settings.nsfw_filter_enabled != v {
-            settings.nsfw_restart_required = true;
-        }
-        settings.nsfw_filter_enabled = v;
-    }
-    if let Some(v) = body.library_layout {
-        if !["grid", "table"].contains(&v.as_str()) {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                Json(json!({"error":"Library layout must be grid or table"})),
-            ));
-        }
-        settings.library_layout = v;
-    }
-    if let Some(v) = body.last_play_mode {
-        let normalized = match v.as_str() {
-            "feed" | "mobile-feed" => "feed",
-            "slideshow" | "portrait" | "portrait-wall" | "review" | "goon" => v.as_str(),
-            _ => {
-                return Err((
-                    StatusCode::BAD_REQUEST,
-                    Json(json!({"error":"Unknown playback mode"})),
-                ));
-            }
-        };
-        settings.last_play_mode = normalized.to_string();
-    }
-    if let Some(values) = body.search_providers {
-        if values.len() > 64 {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                Json(json!({"error":"Choose at most 64 search providers"})),
-            ));
-        }
-        let mut providers = Vec::new();
-        for raw in values {
-            let provider = raw.trim().to_ascii_lowercase();
-            if provider.is_empty()
-                || provider.len() > 80
-                || !provider
-                    .bytes()
-                    .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-' || b == b'_')
-            {
-                return Err((
-                    StatusCode::BAD_REQUEST,
-                    Json(json!({"error":"Invalid search provider id"})),
-                ));
-            }
-            if !providers.contains(&provider) {
-                providers.push(provider);
-            }
-        }
-        // A local catalog is always available.  Keeping it in the durable
-        // list makes the selection explicit while still avoiding an empty
-        // search experience after a user unticks every remote provider.
-        if !providers.iter().any(|id| id == "local") {
-            providers.insert(0, "local".to_string());
-        }
-        settings.search_providers = providers;
-    }
-    if let Some(v) = body.metronome_enabled {
-        settings.metronome_enabled = v;
-    }
-    if let Some(v) = body.metronome_volume {
-        if !v.is_finite() {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                Json(json!({"error":"Invalid metronome volume"})),
-            ));
-        }
-        settings.metronome_volume = v.clamp(0.0, 1.0);
-    }
-    if let Some(v) = body.goon_persona {
-        if !["neutral", "mommy", "dom", "brat"].contains(&v.as_str()) {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                Json(json!({"error":"Unknown GOON persona"})),
-            ));
-        }
-        settings.goon_persona = v;
-    }
-    if let Some(v) = body.tts_voice {
-        let voice = v.trim();
-        settings.tts_voice = if voice.is_empty() {
-            None
-        } else {
-            Some(voice.chars().take(160).collect())
-        };
-    }
-    if let Some(value) = body.tts_rate {
-        if !value.is_finite() || !(0.1..=3.0).contains(&value) {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                Json(json!({"error":"TTS rate must be between 0.1 and 3.0"})),
-            ));
-        }
-        settings.tts_rate = value;
-    }
-    if let Some(value) = body.tts_pitch {
-        if !value.is_finite() || !(0.0..=2.0).contains(&value) {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                Json(json!({"error":"TTS pitch must be between 0 and 2.0"})),
-            ));
-        }
-        settings.tts_pitch = value;
-    }
-    if let Some(value) = body.tts_volume {
-        if !value.is_finite() || !(0.0..=1.0).contains(&value) {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                Json(json!({"error":"TTS volume must be between 0 and 1.0"})),
-            ));
-        }
-        settings.tts_volume = value;
-    }
-    if let Some(v) = body.soundtrack_provider {
-        if !["local", "youtube", "soundcloud", "apple_music", "spotify"].contains(&v.as_str()) {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                Json(json!({"error":"Unknown soundtrack provider"})),
-            ));
-        }
-        settings.soundtrack_provider = v;
-    }
-
-    if ffmpeg_changed {
-        settings.ffmpeg_restart_required = true;
-    }
-    // A cache limit is an explicit opt-in to evict derived artifacts. Apply
-    // it before confirming the PATCH so Settings does not misleadingly show
-    // a ceiling that will only be enforced on some later thumbnail request
-    // or automatic-cleanup timer tick. Removing the limit remains
-    // non-destructive and therefore does not trim anything.
-    let thumbnail_cache_limit_to_enforce = if thumbnail_cache_limit_changed {
-        settings.thumbnail_cache_max_bytes
-    } else {
-        None
-    };
-    let response = settings_response(&state, &peer, &settings, None);
-    let lan_mode_changed = lan_mode_before != settings.lan_access_enabled;
-    save_settings(&state.data_dir, &settings);
-    drop(settings);
-    if lan_mode_changed {
-        crate::remote::refresh_lan_listener(&state).await;
-    }
-    if let Some(limit) = thumbnail_cache_limit_to_enforce {
-        let thumbs_dir = state.thumbs_dir.clone();
-        match tokio::task::spawn_blocking(move || {
-            crate::storage::trim_thumbnail_cache(&thumbs_dir, limit)
-        })
+    apply_settings_patch(&state, settings_audience(&peer), body)
         .await
-        {
-            Ok(Ok(_)) => {}
-            Ok(Err(error)) => tracing::warn!("Could not enforce thumbnail cache limit: {error}"),
-            Err(error) => tracing::warn!("Thumbnail cache limiter did not complete: {error}"),
-        }
-    }
-    Ok(Json(response))
+        .map(Json)
+        .map_err(|error| match error {
+            SettingsPatchError::BadRequest(message) => {
+                (StatusCode::BAD_REQUEST, Json(json!({"error": message})))
+            }
+            SettingsPatchError::Internal(message) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": message})),
+            ),
+        })
 }
 
 #[cfg(test)]
@@ -686,9 +148,9 @@ mod tests {
         let root = tempfile::tempdir().unwrap();
         let state = crate::test_support::state(root.path());
         let settings = state.settings.read().await;
-        let value = settings_response(
+        let value = crate::services::settings::response(
             &state,
-            &None,
+            SettingsAudience::Local,
             &settings,
             Some(crate::StartupRegistration {
                 supported: true,
@@ -943,5 +405,17 @@ mod tests {
             let body: PatchSettingsBody = serde_json::from_value(payload).unwrap();
             assert!(patch(State(state.clone()), None, Json(body)).await.is_ok());
         }
+    }
+
+    #[tokio::test]
+    async fn service_errors_map_to_the_legacy_status_codes_and_shapes() {
+        let root = tempfile::tempdir().unwrap();
+        let state = crate::test_support::state(root.path());
+        let body: PatchSettingsBody = serde_json::from_value(json!({"theme": "bogus"})).unwrap();
+        let Err((status, Json(value))) = patch(State(state), None, Json(body)).await else {
+            panic!("invalid theme must be rejected");
+        };
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert_eq!(value, json!({"error": "Unknown theme: bogus"}));
     }
 }

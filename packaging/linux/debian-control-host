@@ -1,0 +1,10 @@
+Package: curator-host
+Version: @CURATOR_VERSION@
+Section: graphics
+Priority: optional
+Architecture: amd64
+Maintainer: Curator
+Recommends: mpv, ffmpeg
+Description: Curator Host native media library app
+ Curator Host is the native desktop edition that owns and manages a local
+ media library, served to remote Viewers over LAN or Tailnet.

@@ -1,0 +1,854 @@
+import { Button, CheckBox, ComboBox, LineEdit, ScrollView, HorizontalBox, VerticalBox, Palette, Slider, ProgressIndicator } from "std-widgets.slint";
+
+export struct MediaRow { title: string, detail: string, selected: bool, thumbnail: image, has-thumbnail: bool }
+export struct DownloadRow { label: string, phase: string, detail: string }
+export struct DiscoveryRow { title: string, detail: string, selected: bool }
+
+export component CuratorTray inherits SystemTrayIcon {
+    icon: @image-url("../icons/icon.png");
+    tooltip: "Curator Host";
+    Menu {
+        MenuItem { title: "Show Curator"; activated => { root.show-window(); } }
+        MenuSeparator {}
+        MenuItem { title: "Quit Curator"; activated => { root.quit(); } }
+    }
+    callback show-window();
+    callback quit();
+}
+
+export component CuratorNativeWindow inherits Window {
+    title: (root.local-host ? "Curator Host" : "Curator Viewer") + " — " + (root.workspace == 0 ? root.location-title : root.workspace == 1 ? "Player" : root.workspace == 2 ? "Feed" : root.workspace == 3 ? "Review" : root.workspace == 4 ? "GOON" : root.workspace == 5 ? "Slideshow" : root.workspace == 6 ? "Portrait wall" : root.workspace == 7 ? "Cock Hero" : "Manage");
+    preferred-width: 1200px; preferred-height: 800px;
+    min-width: 800px; min-height: 560px;
+    in-out property <int> workspace: 0;
+    in-out property <[MediaRow]> media;
+    in-out property <[string]> queue;
+    in-out property <[string]> navigation;
+    in-out property <[string]> groups;
+    in-out property <string> status;
+      in-out property <string> inspector;
+      in-out property <bool> can-undo-rating: false;
+    in-out property <string> location-title: "All sources and groups";
+    in-out property <string> download-status;
+    in-out property <[DownloadRow]> download-sources;
+    in-out property <image> preview;
+    in-out property <string> playing;
+    in-out property <string> player-status: "Choose media to play";
+    in-out property <float> player-progress: 0;
+    in-out property <float> player-duration: 0;
+    in-out property <float> player-volume: 100;
+    in-out property <float> player-speed: 1;
+    in-out property <bool> player-paused: false;
+    in-out property <bool> player-looping: false;
+    callback player-control(string, float);
+    callback feed-control(string);
+    in-out property <string> feed-status: "Start the feed to browse media continuously.";
+    in-out property <string> review-status: "Start review to rate unreviewed media";
+    callback review-control(string, int);
+    in-out property <string> goon-status: "Use the existing session controls to run a rating-paced GOON session.";
+    callback goon-media(bool);
+    in-out property <bool> goon-media-enabled: false;
+    in-out property <string> session-status;
+    callback session-control(string);
+    // Slideshow: auto-advancing images from the library.
+    callback slideshow-control(string);
+    in-out property <string> slideshow-status: "Start the slideshow to auto-advance images.";
+    // Portrait wall: three panes cycling images independently.
+    callback wall-control(string);
+    in-out property <bool> wall-active: false;
+    in-out property <image> wall-preview-0;
+    in-out property <image> wall-preview-1;
+    in-out property <image> wall-preview-2;
+    in-out property <string> wall-status: "Start the portrait wall to cycle three image panes.";
+    // Cock Hero: beat-paced session from the /api/ch playlist.
+    callback cockhero-control(string);
+    in-out property <string> cockhero-status: "Start a Cock Hero session to play the configured playlist.";
+    in-out property <string> cockhero-beats: "";
+    callback fullscreen();
+    callback switch-host();
+    in-out property <bool> busy;
+    in-out property <bool> has-more;
+    in-out property <bool> has-previous;
+    in-out property <bool> local-host;
+    in-out property <bool> can-edit-library;
+    in-out property <bool> can-control-sessions;
+    in-out property <bool> can-playback;
+    in-out property <bool> can-discover;
+    callback browse(bool);
+    callback previous-page();
+    callback import-folder();
+    callback export-sources();
+    callback import-sources();
+    callback navigate(int);
+    callback create-group(string);
+    callback move-to-group(int);
+    callback add-to-group(int);
+    callback open-selected();
+    callback reveal-selected();
+    in-out property <string> clip-status: "";
+    in-out property <bool> clip-job-pending: false;
+    in-out property <float> clip-progress: 0;
+    callback cancel-clip();
+    in-out property <string> connection-status: "";
+    in-out property <bool> setup-required: false;
+    in-out property <string> setup-data-dir: "";
+    in-out property <string> setup-status: "";
+    callback complete-setup();
+    in-out property <string> data-dir-current: "";
+    in-out property <string> data-dir-target: "";
+    in-out property <string> data-dir-confirmation: "";
+    in-out property <string> data-dir-status: "";
+    callback move-data-dir();
+    callback select-item(int, bool);
+    callback select-all();
+    callback clear-selection();
+    callback sort-library(string);
+    callback rate(int);
+    callback tag(string);
+    callback untag(string);
+      callback approve();
+      callback undo-rating();
+    callback enqueue(bool);
+    callback play(int);
+    callback remove-queued(int);
+    callback queue-move(int, int);
+    callback queue-shuffle();
+    callback queue-set-repeat(bool);
+    in-out property <bool> queue-repeat;
+    callback add-sources(string);
+    callback downloads(bool);
+    callback source-download(int, bool);
+    callback resync-all();
+    callback source-manage(int, string);
+    callback rename-source(int, string);
+    callback rename-group(int, string);
+    callback delete-group(int);
+    callback refresh-manage();
+    callback refresh-diagnostic-log();
+    in-out property <[string]> discovery-providers: ["All providers"];
+    callback discover(string, int, string, string);
+    callback cancel-discover();
+    callback queue-discovery();
+    callback discovery-provider-changed(int);
+    in-out property <[DiscoveryRow]> discovery-results;
+    in-out property <int> discovery-selected-count: 0;
+    in-out property <string> discovery-provider-info;
+    in-out property <string> discovery-result-type;
+    in-out property <string> discovery-sort: "relevance";
+    in-out property <bool> discovery-searching: false;
+    callback select-discovery(int, bool);
+    callback select-all-discovery(bool);
+    callback save-theme(string);
+    callback delete-selected();
+    callback refresh-selected();
+    callback clip-selected(int);
+    in-out property <string> recovery-status;
+    in-out property <string> classifier-status;
+    callback classifier(string);
+    callback recovery(string, string, string);
+    in-out property <string> manage-status;
+    in-out property <string> diagnostic-log;
+    in-out property <string> discovery-status;
+    in-out property <int> selected-count;
+    in-out property <bool> settings-open: false;
+    in-out property <bool> settings-loaded: false;
+    in-out property <bool> settings-saving: false;
+    in-out property <string> settings-error;
+    in-out property <int> settings-page: 0;
+    in-out property <string> settings-draft-theme: "system";
+    in-out property <bool> settings-draft-tray: true;
+    in-out property <bool> settings-draft-lan: false;
+    in-out property <string> settings-draft-layout: "grid";
+    in-out property <string> settings-draft-concurrent: "4";
+    in-out property <string> settings-draft-max-file-bytes;
+    in-out property <string> settings-draft-max-source-bytes;
+    in-out property <string> settings-draft-min-free-bytes;
+    in-out property <string> settings-draft-cache-bytes;
+    in-out property <string> settings-draft-max-clip-seconds: "60";
+    in-out property <bool> settings-draft-metronome: false;
+    in-out property <string> settings-draft-reminder-days: "30";
+    in-out property <bool> settings-draft-start-windows: false;
+    in-out property <bool> settings-draft-apply-limits-imports: false;
+    in-out property <string> settings-draft-cleanup-mode: "never";
+    in-out property <string> settings-draft-cleanup-low-bytes;
+    in-out property <string> settings-draft-archive-days;
+    in-out property <string> settings-draft-ffmpeg-bin;
+    in-out property <string> settings-draft-slideshow-speed: "3000";
+    in-out property <bool> settings-draft-slideshow-loop: true;
+    in-out property <bool> settings-draft-slideshow-shuffle: true;
+    in-out property <string> settings-draft-goon-limit: "200";
+    in-out property <bool> settings-draft-goon-log: false;
+    in-out property <string> settings-draft-goon-persona: "neutral";
+    in-out property <string> settings-draft-metronome-volume: "0.55";
+    in-out property <string> settings-draft-tts-voice;
+    in-out property <string> settings-draft-tts-rate: "1.0";
+    in-out property <string> settings-draft-tts-pitch: "1.0";
+    in-out property <string> settings-draft-tts-volume: "1.0";
+    in-out property <string> settings-draft-soundtrack: "local";
+    in-out property <bool> settings-draft-nsfw: false;
+    in-out property <bool> settings-draft-ch-log: false;
+    in-out property <string> settings-draft-ch-interval: "3.0";
+    in-out property <string> settings-draft-ch-limit: "200";
+    in-out property <bool> settings-draft-ch-shuffle: true;
+    in-out property <string> settings-draft-ch-media-type: "image";
+    in-out property <string> settings-draft-search-providers;
+    in-out property <length> settings-general-scroll-y: 0px;
+    in-out property <length> settings-media-scroll-y: 0px;
+    in-out property <length> settings-appearance-scroll-y: 0px;
+    in-out property <length> settings-playback-scroll-y: 0px;
+    in-out property <length> settings-automation-scroll-y: 0px;
+    in-out property <length> settings-admin-scroll-y: 0px;
+    in-out property <int> manage-page: 0;
+    callback manage-destination(int);
+    in-out property <string> manage-source-url;
+    in-out property <string> manage-source-rename;
+    in-out property <string> manage-group-rename;
+    in-out property <string> source-detail;
+    in-out property <string> manage-group-name;
+    in-out property <string> manage-tag-draft;
+    in-out property <string> manage-untag-draft;
+    in-out property <int> manage-target-group;
+    in-out property <string> manage-discovery-query;
+    in-out property <int> manage-discovery-provider;
+    in-out property <string> manage-theme: "system";
+    in-out property <[string]> recovery-backups;
+    in-out property <int> recovery-selected-backup: 0;
+    in-out property <bool> recovery-has-backups: false;
+    in-out property <string> manage-confirmation;
+    in-out property <string> maintenance-action: "Reconcile library";
+    in-out property <string> maintenance-confirmation;
+    private property <string> maintenance-required-phrase:
+        root.maintenance-action == "Clear human ratings" ? "CLEAR HUMAN RATINGS" :
+        root.maintenance-action == "Reset ratings and evidence" ? "RESET RATINGS" :
+        root.maintenance-action == "Flatten groups" ? "FLATTEN GROUPS" :
+        root.maintenance-action == "Delete groups" ? "DELETE GROUPS" :
+        root.maintenance-action == "Clear tag assignments" ? "CLEAR TAG ASSIGNMENTS" :
+        root.maintenance-action == "Clear session history" ? "CLEAR SESSION HISTORY" :
+        root.maintenance-action == "Rebuild caches" ? "REBUILD CACHES" :
+        root.maintenance-action == "Factory reset" ? "RESET CURATOR" :
+        root.maintenance-action == "Remove P-HAR" ? "DELETE P-HAR" :
+        root.maintenance-action == "Remove archives" ? "DELETE ARCHIVES" : "";
+    in-out property <length> manage-discover-scroll-y: 0px;
+    in-out property <length> manage-activity-scroll-y: 0px;
+    in-out property <length> manage-sources-scroll-y: 0px;
+    in-out property <length> manage-settings-scroll-y: 0px;
+    in-out property <length> manage-log-scroll-y: 0px;
+    in-out property <length> manage-recovery-scroll-y: 0px;
+    in-out property <string> settings-theme: "system";
+    in-out property <color> custom-background: #121214;
+    in-out property <color> custom-panel: #19191c;
+    in-out property <color> custom-elevated: #201f23;
+    in-out property <color> custom-text: #edebe6;
+    in-out property <color> custom-muted: #8c8a85;
+    in-out property <color> custom-line: #353438;
+    in-out property <color> custom-accent: #e8a33d;
+    in-out property <color> custom-selection: #6b4e1e;
+    in-out property <color> custom-selection-text: #ffffff;
+    private property <brush> theme-background: root.settings-theme == "system" ? Palette.background : root.custom-background;
+    private property <brush> theme-panel: root.settings-theme == "system" ? Palette.background : root.custom-panel;
+    private property <brush> theme-elevated: root.settings-theme == "system" ? Palette.alternate-background : root.custom-elevated;
+    private property <brush> theme-text: root.settings-theme == "system" ? Palette.foreground : root.custom-text;
+    private property <brush> theme-muted: root.settings-theme == "system" ? Palette.alternate-foreground : root.custom-muted;
+    private property <brush> theme-line: root.settings-theme == "system" ? Palette.border : root.custom-line;
+    private property <brush> theme-accent: root.settings-theme == "system" ? Palette.accent-background : root.custom-accent;
+    private property <brush> theme-selection: root.settings-theme == "system" ? Palette.selection-background : root.custom-selection;
+    private property <brush> theme-selection-text: root.settings-theme == "system" ? Palette.selection-foreground : root.custom-selection-text;
+    in-out property <ColorScheme> palette-scheme <=> Palette.color-scheme;
+    changed settings-theme => {
+        root.palette-scheme = root.settings-theme == "linen" || root.settings-theme == "sage"
+            || root.settings-theme == "adwaita-light" || root.settings-theme == "yaru-light"
+            || root.settings-theme == "arc-light" || root.settings-theme == "breeze-light"
+            ? ColorScheme.light
+            : root.settings-theme == "system" ? ColorScheme.unknown : ColorScheme.dark;
+    }
+    in-out property <bool> settings-tray: true;
+    in-out property <bool> settings-lan: false;
+    in-out property <string> remote-access-status: "Remote access: not started.";
+    in-out property <string> settings-layout: "grid";
+    in-out property <length> library-scroll-y: 0px;
+    in-out property <length> inspector-scroll-y: 0px;
+    in-out property <length> manage-organization-scroll-y: 0px;
+    in-out property <string> filter-kind: "All media";
+    in-out property <string> filter-sort: "date_desc";
+    in-out property <string> filter-review: "all";
+    in-out property <string> filter-search;
+    in-out property <string> filter-tag;
+    in-out property <string> filter-all-tags;
+    in-out property <string> filter-any-tags;
+    in-out property <string> filter-exclude-tags;
+    in-out property <string> filter-creator;
+    in-out property <string> filter-rating: "Any rating";
+    in-out property <string> filter-min-size;
+    in-out property <string> filter-max-size;
+    in-out property <bool> filter-unknown-size;
+    private property <int> grid-columns: root.width >= 1400px ? 4 : root.width >= 1000px ? 3 : 2;
+    callback open-settings();
+    callback save-settings() -> bool;
+    background: root.theme-background;
+
+    VerticalBox {
+        padding: 16px; spacing: 12px;
+        HorizontalBox {
+            Text { text: root.local-host ? "Curator Host" : "Curator Viewer"; font-size: 28px; font-weight: 700; }
+            if !root.local-host: Button { text: "Switch Host"; clicked => { root.switch-host(); } }
+            for label[index] in ["Library", "Player", "Feed", "Review", "GOON", "Slideshow", "Wall", "Cock Hero", "Manage"]: Button {
+                text: label; primary: root.workspace == index;
+                clicked => { root.workspace = index; }
+            }
+        }
+        if root.connection-status != "": Text { text: root.connection-status; wrap: word-wrap; color: #ff8a80; font-size: 12px; }
+        if root.workspace == 0: VerticalBox {
+            HorizontalBox {
+                ComboBox { model: ["All media", "image", "clip", "video"]; current-value <=> root.filter-kind; }
+                ComboBox { model: ["date_desc", "date_asc", "filename_asc", "filename_desc", "rating_desc", "rating_asc", "size_desc", "size_asc", "shuffle"]; current-value <=> root.filter-sort; }
+                ComboBox { model: ["all", "unrated", "auto", "needs_review", "reviewed"]; current-value <=> root.filter-review; }
+                ComboBox { model: ["Any rating", "0", "1", "2", "3", "4", "5"]; current-value <=> root.filter-rating; }
+            }
+            HorizontalBox {
+                LineEdit { placeholder-text: "Search filename, source, or creator"; text <=> root.filter-search; }
+                LineEdit { placeholder-text: "Tag"; text <=> root.filter-tag; }
+                LineEdit { placeholder-text: "Creator"; text <=> root.filter-creator; }
+            }
+            HorizontalBox {
+                LineEdit { placeholder-text: "All tags (comma separated)"; text <=> root.filter-all-tags; }
+                LineEdit { placeholder-text: "Any tags"; text <=> root.filter-any-tags; }
+                LineEdit { placeholder-text: "Exclude tags"; text <=> root.filter-exclude-tags; }
+            }
+            HorizontalBox {
+                LineEdit { placeholder-text: "Minimum bytes"; text <=> root.filter-min-size; }
+                LineEdit { placeholder-text: "Maximum bytes"; text <=> root.filter-max-size; }
+                CheckBox { text: "Unknown size"; checked <=> root.filter-unknown-size; }
+                Button { text: "Search / refresh"; enabled: !root.busy; clicked => { root.browse(false); } }
+                Button { text: "Previous page"; enabled: !root.busy && root.has-previous; clicked => { root.previous-page(); } }
+                Button { text: "Next page"; enabled: !root.busy && root.has-more; clicked => { root.browse(true); } }
+            }
+            HorizontalBox {
+                ScrollView { horizontal-stretch: 1; VerticalBox {
+                    Button { text: "All sources and groups"; clicked => { root.navigate(-1); } }
+                    for name[index] in root.navigation: Button { text: name; clicked => { root.navigate(index); } }
+                } }
+                VerticalBox {
+                    vertical-stretch: 1; horizontal-stretch: 2;
+                    HorizontalBox {
+                        Text { text: "Library"; font-size: 20px; horizontal-stretch: 1; }
+                        Button { text: "Select all"; enabled: !root.busy; clicked => { root.select-all(); } }
+                        Button { text: "Clear"; enabled: !root.busy && root.selected-count > 0; clicked => { root.clear-selection(); } }
+                        Button { text: "Grid"; primary: root.settings-layout == "grid"; clicked => { root.settings-layout = "grid"; } }
+                        Button { text: "Table"; primary: root.settings-layout == "table"; clicked => { root.settings-layout = "table"; } }
+                    }
+                    if root.settings-layout == "table": HorizontalBox {
+                        Text { text: "Select"; font-weight: 700; min-width: 60px; }
+                        Button { text: root.filter-sort == "filename_asc" ? "Filename ▲" : root.filter-sort == "filename_desc" ? "Filename ▼" : "Filename"; horizontal-stretch: 2; clicked => { root.sort-library("filename"); } }
+                        Button { text: "Source · Type"; enabled: false; horizontal-stretch: 1; }
+                        Button { text: root.filter-sort == "rating_desc" ? "Rating ▲" : root.filter-sort == "rating_asc" ? "Rating ▼" : "Rating"; clicked => { root.sort-library("rating"); } }
+                        Button { text: root.filter-sort == "date_desc" ? "Added ▲" : root.filter-sort == "date_asc" ? "Added ▼" : "Added"; clicked => { root.sort-library("date"); } }
+                        Button { text: root.filter-sort == "size_desc" ? "Size ▲" : root.filter-sort == "size_asc" ? "Size ▼" : "Size"; clicked => { root.sort-library("size"); } }
+                    }
+                    ScrollView {
+                        vertical-stretch: 1;
+                        content-y <=> root.library-scroll-y;
+                        if root.settings-layout == "table": VerticalBox {
+                            for entry[index] in root.media: HorizontalBox {
+                                CheckBox { checked: entry.selected; toggled => { root.select-item(index, self.checked); } }
+                                Button { text: entry.title; clicked => { root.select-item(index, !entry.selected); } }
+                                Text { text: entry.detail; overflow: elide; horizontal-stretch: 1; }
+                            }
+                        }
+                        if root.settings-layout == "grid": GridLayout {
+                            spacing: 8px;
+                            for entry[index] in root.media: Rectangle {
+                                row: index / root.grid-columns;
+                                col: Math.mod(index, root.grid-columns);
+                                min-width: 160px; height: 168px;
+                                background: entry.selected ? root.theme-selection : root.theme-elevated;
+                                border-width: 1px;
+                                border-color: entry.selected ? root.theme-accent : root.theme-line;
+                                VerticalBox {
+                                    padding: 8px; spacing: 5px;
+                                    Image { source: entry.thumbnail; height: 64px; visible: entry.has-thumbnail; image-fit: contain; }
+                                    CheckBox { text: "Select"; checked: entry.selected; toggled => { root.select-item(index, self.checked); } }
+                                    Button { text: entry.title; clicked => { root.select-item(index, !entry.selected); } }
+                                    Text { text: entry.detail; color: entry.selected ? root.theme-selection-text : root.theme-text; overflow: elide; }
+                                }
+                            }
+                        }
+                    }
+                }
+                ScrollView {
+                    horizontal-stretch: 2;
+                    content-y <=> root.inspector-scroll-y;
+                    VerticalBox {
+                    Text { text: "Selection (" + root.selected-count + ")"; font-size: 20px; }
+                    Text { text: root.inspector; wrap: word-wrap; }
+                    if root.can-edit-library: HorizontalBox {
+                        for stars in [1, 2, 3, 4, 5]: Button { text: stars + " ★"; enabled: !root.busy; clicked => { root.rate(stars); } }
+                    }
+                    if root.can-edit-library: LineEdit { placeholder-text: "Tag for selected items"; text <=> root.manage-tag-draft; }
+                    if root.can-edit-library: Button { text: "Add tag"; enabled: !root.busy; clicked => { root.tag(root.manage-tag-draft); } }
+                    if root.can-edit-library: LineEdit { placeholder-text: "Tag to remove from selected items"; text <=> root.manage-untag-draft; }
+                    if root.can-edit-library: Button { text: "Remove tag"; enabled: !root.busy; clicked => { root.untag(root.manage-untag-draft); } }
+                     if root.can-edit-library: Button { text: "Approve suggestions"; enabled: !root.busy; clicked => { root.approve(); } }
+                     if root.can-edit-library: Button { text: "Undo rating review"; enabled: !root.busy && root.can-undo-rating; clicked => { root.undo-rating(); } }
+                    if root.local-host: Button { text: "Refresh metadata"; enabled: !root.busy; clicked => { root.refresh-selected(); } }
+                    if root.local-host: VerticalBox {
+                        delete-confirmation := LineEdit { placeholder-text: "Type DELETE " + root.selected-count + " to remove files"; }
+                        Button { text: "Delete " + root.selected-count + " selected media"; enabled: !root.busy && root.selected-count > 0 && delete-confirmation.text == "DELETE " + root.selected-count; clicked => { root.delete-selected(); delete-confirmation.text = ""; } }
+                    }
+                    if root.can-edit-library: Button { text: "Split selected video into 60-second clips"; enabled: !root.busy && !root.clip-job-pending; clicked => { root.clip-selected(60); } }
+                    if root.clip-job-pending: HorizontalBox {
+                        vertical-stretch: 0;
+                        ProgressIndicator { progress: root.clip-progress; horizontal-stretch: 1; }
+                        if root.local-host: Button { text: "Cancel clip job"; clicked => { root.cancel-clip(); } }
+                    }
+                    if root.clip-status != "": Text { text: root.clip-status; wrap: word-wrap; color: root.theme-text; font-size: 12px; }
+                    if root.can-edit-library: ComboBox { model: root.groups; current-index <=> root.manage-target-group; }
+                    if root.can-edit-library: Button { text: "Move selection to group"; enabled: !root.busy; clicked => { root.move-to-group(root.manage-target-group); } }
+                    if root.can-edit-library: Button { text: "Add selection to group"; enabled: !root.busy; clicked => { root.add-to-group(root.manage-target-group); } }
+                    if root.local-host: Button { text: "Open file"; enabled: !root.busy; clicked => { root.open-selected(); } }
+                    if root.local-host: Button { text: "Reveal in folder"; enabled: !root.busy; clicked => { root.reveal-selected(); } }
+                    if root.can-playback: Button { text: "Play selection"; clicked => { root.enqueue(true); root.workspace = 1; } }
+                    if root.can-playback: Button { text: "Append to queue"; clicked => { root.enqueue(false); } }
+                    }
+                }
+            }
+        }
+        if root.workspace == 1: HorizontalBox {
+            VerticalBox {
+                horizontal-stretch: 3;
+                Text { text: root.playing; wrap: word-wrap; }
+                Text { text: root.player-status; wrap: word-wrap; color: root.theme-muted; }
+                HorizontalBox {
+                    Button { text: root.player-paused ? "Resume" : "Pause"; clicked => { root.player-control(root.player-paused ? "resume" : "pause", 0); } }
+                    Button { text: "−10s"; clicked => { root.player-control("seek-relative", -10); } }
+                    Button { text: "+10s"; clicked => { root.player-control("seek-relative", 10); } }
+                    Button { text: "0.75×"; clicked => { root.player-control("speed", 0.75); } }
+                    Button { text: "1×"; clicked => { root.player-control("speed", 1); } }
+                    Button { text: "1.5×"; clicked => { root.player-control("speed", 1.5); } }
+                    Button { text: "2×"; clicked => { root.player-control("speed", 2); } }
+                    Button { text: "Fullscreen"; clicked => { root.fullscreen(); } }
+                }
+                HorizontalBox {
+                    Text { text: "Progress"; }
+                    Slider { minimum: 0; maximum: root.player-duration > 0 ? root.player-duration : 1; value <=> root.player-progress; changed value => { root.player-control("seek", self.value); } }
+                    Text { text: root.player-progress + " / " + root.player-duration + " sec"; }
+                }
+                HorizontalBox {
+                    Text { text: "Volume"; }
+                    Slider { minimum: 0; maximum: 100; value <=> root.player-volume; changed value => { root.player-control("volume", self.value); } }
+                    CheckBox { text: "Loop"; checked <=> root.player-looping; toggled => { root.player-control("loop", self.checked ? 1 : 0); } }
+                }
+                Image { source: root.preview; image-fit: contain; vertical-stretch: 1; }
+                Text { text: root.session-status; wrap: word-wrap; }
+                if root.can-control-sessions: HorizontalBox {
+                    for command in ["Start", "Pause", "Resume", "End"]: Button { text: command + " session"; clicked => { root.session-control(command); } }
+                }
+            }
+            ScrollView {
+                horizontal-stretch: 1;
+                VerticalBox {
+                    Text { text: "Player queue"; font-size: 20px; }
+                    HorizontalBox {
+                        Button { text: "Shuffle queue"; enabled: !root.busy; clicked => { root.queue-shuffle(); } }
+                        Button { text: root.queue-repeat ? "Repeat: on" : "Repeat: off"; clicked => { root.queue-set-repeat(!root.queue-repeat); } }
+                    }
+                    for title[index] in root.queue: HorizontalBox {
+                        Button { text: title; clicked => { root.play(index); } }
+                        Button { text: "↑"; enabled: index > 0; clicked => { root.queue-move(index, index - 1); } }
+                        Button { text: "↓"; enabled: index < root.queue.length - 1; clicked => { root.queue-move(index, index + 1); } }
+                        Button { text: "Remove"; clicked => { root.remove-queued(index); } }
+                    }
+                }
+            }
+        }
+        if root.workspace == 2: VerticalBox {
+            Text { text: "Feed"; font-size: 22px; }
+            Text { text: "Continuous native playback uses the current library order and never repeats the current item."; wrap: word-wrap; color: root.theme-muted; }
+            Text { text: root.feed-status; wrap: word-wrap; color: root.theme-muted; }
+            Text { text: root.playing; wrap: word-wrap; }
+            Text { text: root.player-status; wrap: word-wrap; }
+            HorizontalBox {
+                Button { text: "Start / restart feed"; enabled: root.can-playback; clicked => { root.feed-control("start"); } }
+                Button { text: "Next ready item"; enabled: root.can-playback; clicked => { root.feed-control("next"); } }
+                Button { text: root.player-paused ? "Resume" : "Pause"; clicked => { root.player-control(root.player-paused ? "resume" : "pause", 0); } }
+                Button { text: "Fullscreen"; clicked => { root.fullscreen(); } }
+            }
+            Image { source: root.preview; image-fit: contain; vertical-stretch: 1; }
+        }
+        if root.workspace == 3: VerticalBox {
+            Text { text: "Review"; font-size: 22px; }
+            Text { text: root.review-status; wrap: word-wrap; color: root.theme-muted; }
+            Text { text: root.playing; wrap: word-wrap; }
+            HorizontalBox {
+                Button { text: "Start review"; enabled: root.can-edit-library; clicked => { root.review-control("start", 0); } }
+                Button { text: "Skip"; enabled: root.can-edit-library; clicked => { root.review-control("skip", 0); } }
+                Button { text: "Approve"; enabled: root.can-edit-library; clicked => { root.review-control("approve", 0); } }
+                for stars in [1, 2, 3, 4, 5]: Button { text: stars + " ★"; enabled: root.can-edit-library; clicked => { root.review-control("rate", stars); } }
+                Button { text: "Undo"; enabled: root.can-edit-library; clicked => { root.review-control("undo", 0); } }
+            }
+            Image { source: root.preview; image-fit: contain; vertical-stretch: 1; }
+        }
+        if root.workspace == 4: VerticalBox {
+            Text { text: "GOON"; font-size: 22px; }
+            Text { text: root.goon-status; wrap: word-wrap; color: root.theme-muted; }
+            Text { text: root.session-status; wrap: word-wrap; }
+            CheckBox {
+                text: "Play rating-matched media during the session";
+                enabled: root.can-playback;
+                checked <=> root.goon-media-enabled;
+                toggled => { root.goon-media(self.checked); }
+            }
+            HorizontalBox {
+                Button { text: "Start GOON session"; enabled: root.can-control-sessions; clicked => { root.session-control("Start"); } }
+                Button { text: "Pause"; enabled: root.can-control-sessions; clicked => { root.session-control("Pause"); } }
+                Button { text: "Resume"; enabled: root.can-control-sessions; clicked => { root.session-control("Resume"); } }
+                Button { text: "End"; enabled: root.can-control-sessions; clicked => { root.session-control("End"); } }
+            }
+            Text { text: "GOON uses the existing Rust session timing and media ratings: slow, medium, fast, cum, and succubus phases map to their media ratings."; wrap: word-wrap; }
+        }
+        if root.workspace == 5: VerticalBox {
+            Text { text: "Slideshow"; font-size: 22px; }
+            Text { text: "Auto-advancing images from the library, using the slideshow speed, loop, and shuffle settings."; wrap: word-wrap; color: root.theme-muted; }
+            Text { text: root.slideshow-status; wrap: word-wrap; color: root.theme-muted; }
+            Text { text: root.playing; wrap: word-wrap; }
+            HorizontalBox {
+                Button { text: "Start / restart slideshow"; enabled: root.can-playback; clicked => { root.slideshow-control("start"); } }
+                Button { text: "Next image"; enabled: root.can-playback; clicked => { root.slideshow-control("next"); } }
+                Button { text: "Stop"; clicked => { root.slideshow-control("stop"); } }
+            }
+            Image { source: root.preview; image-fit: contain; vertical-stretch: 1; }
+        }
+        if root.workspace == 6: VerticalBox {
+            Text { text: "Portrait wall"; font-size: 22px; }
+            Text { text: "Three panes cycle images independently, like the browser edition."; wrap: word-wrap; color: root.theme-muted; }
+            Text { text: root.wall-status; wrap: word-wrap; color: root.theme-muted; }
+            HorizontalBox {
+                Button { text: "Start / restart wall"; enabled: root.can-playback; clicked => { root.wall-control("start"); } }
+                Button { text: "Stop"; clicked => { root.wall-control("stop"); } }
+            }
+            if root.wall-active: HorizontalBox {
+                Image { source: root.wall-preview-0; image-fit: contain; horizontal-stretch: 1; vertical-stretch: 1; }
+                Image { source: root.wall-preview-1; image-fit: contain; horizontal-stretch: 1; vertical-stretch: 1; }
+                Image { source: root.wall-preview-2; image-fit: contain; horizontal-stretch: 1; vertical-stretch: 1; }
+            }
+        }
+        if root.workspace == 7: VerticalBox {
+            Text { text: "Cock Hero"; font-size: 22px; }
+            Text { text: "Beat-paced session from the Cock Hero playlist, following the browser pace schedule (slow to furious, edging, cum). Metronome audio and speech cues are not implemented in the native shell yet."; wrap: word-wrap; color: root.theme-muted; }
+            Text { text: root.cockhero-status; wrap: word-wrap; color: root.theme-muted; }
+            Text { text: root.cockhero-beats; wrap: word-wrap; color: root.theme-muted; }
+            Text { text: root.playing; wrap: word-wrap; }
+            HorizontalBox {
+                Button { text: "Start session"; enabled: root.can-playback; clicked => { root.cockhero-control("start"); } }
+                Button { text: "Stop"; clicked => { root.cockhero-control("stop"); } }
+            }
+            Image { source: root.preview; image-fit: contain; vertical-stretch: 1; }
+        }
+        if root.workspace == 8: VerticalBox {
+            HorizontalBox {
+                for destination[index] in ["Discover", "Organization", "Activity", "Settings"]: Button {
+                    text: destination; primary: root.manage-page == index;
+                    clicked => { root.manage-destination(index); }
+                }
+            }
+            if root.manage-page == 1: ScrollView {
+            vertical-stretch: 1;
+            content-y <=> root.manage-organization-scroll-y;
+            VerticalBox {
+            Text { text: "Sources and downloads"; font-size: 22px; }
+            if root.local-host: LineEdit { placeholder-text: "Source URL"; text <=> root.manage-source-url; }
+            if root.local-host: Button { text: "Add source"; enabled: !root.busy; clicked => { root.add-sources(root.manage-source-url); } }
+            if root.local-host: Button { text: "Export source list"; enabled: !root.busy; clicked => { root.export-sources(); } }
+            if root.local-host: Button { text: "Import source list"; enabled: !root.busy; clicked => { root.import-sources(); } }
+            if root.local-host: Button { text: "Import local folder…"; enabled: !root.busy; clicked => { root.import-folder(); } }
+            if root.local-host: HorizontalBox {
+                group-name := LineEdit { placeholder-text: "New group name"; text <=> root.manage-group-name; }
+                Button { text: "Create group"; enabled: !root.busy; clicked => { root.create-group(root.manage-group-name); } }
+            }
+            if root.local-host: Button { text: "Resync all sources"; enabled: !root.busy; clicked => { root.resync-all(); } }
+            Text { text: "Manage sources"; font-size: 18px; }
+            if root.can-edit-library: HorizontalBox {
+                LineEdit { placeholder-text: "New name (for Rename)"; text <=> root.manage-source-rename; horizontal-stretch: 1; }
+            }
+            for entry[index] in root.download-sources: HorizontalBox {
+                Text { text: entry.label + " — " + entry.phase; overflow: elide; horizontal-stretch: 1; }
+                if root.can-edit-library: Button { text: "Inspect"; clicked => { root.source-manage(index, "inspect"); } }
+                if root.can-edit-library: Button { text: "Resync"; clicked => { root.source-manage(index, "resync"); } }
+                if root.can-edit-library: Button { text: "Log"; clicked => { root.source-manage(index, "log"); } }
+                if root.can-edit-library: Button { text: "Rename"; enabled: root.manage-source-rename != ""; clicked => { root.rename-source(index, root.manage-source-rename); } }
+                if root.can-edit-library: Button { text: "Delete"; clicked => { root.source-manage(index, "delete"); } }
+            }
+            if root.source-detail != "": Text { text: root.source-detail; wrap: word-wrap; color: root.theme-muted; }
+            Text { text: "Manage groups"; font-size: 18px; }
+            if root.can-edit-library: HorizontalBox {
+                LineEdit { placeholder-text: "New name (for Rename)"; text <=> root.manage-group-rename; horizontal-stretch: 1; }
+            }
+            for name[gindex] in root.groups: HorizontalBox {
+                Text { text: name; overflow: elide; horizontal-stretch: 1; }
+                if root.can-edit-library: Button { text: "Rename"; enabled: root.manage-group-rename != ""; clicked => { root.rename-group(gindex, root.manage-group-rename); } }
+                if root.can-edit-library: Button { text: "Delete"; clicked => { root.delete-group(gindex); } }
+            }
+            Rectangle { vertical-stretch: 1; }
+            }
+            }
+            if root.manage-page == 2: VerticalBox {
+            vertical-stretch: 1;
+            if root.local-host: HorizontalBox {
+                Button { text: "Pause downloads"; enabled: !root.busy; clicked => { root.downloads(true); } }
+                Button { text: "Resume downloads"; enabled: !root.busy; clicked => { root.downloads(false); } }
+            }
+            ScrollView { content-y <=> root.manage-activity-scroll-y; VerticalBox { Text { text: root.download-status; wrap: word-wrap; } Rectangle { vertical-stretch: 1; } } }
+            if root.local-host: ScrollView {
+                min-height: 100px;
+                content-y <=> root.manage-sources-scroll-y;
+                VerticalBox {
+                    for entry[index] in root.download-sources: HorizontalBox {
+                        VerticalBox { horizontal-stretch: 1; Text { text: entry.label + " — " + entry.phase; overflow: elide; } Text { text: entry.detail; color: root.theme-muted; overflow: elide; visible: entry.detail != ""; } }
+                        Button { text: "Pause"; enabled: entry.phase == "active" || entry.phase == "queued" || entry.phase == "indexing" || entry.phase == "retrying"; clicked => { root.source-download(index, true); } }
+                        Button { text: "Resume"; enabled: entry.phase == "paused" || entry.phase == "failed" || entry.phase == "completed" || entry.phase == "storage_limit" || entry.phase == "low_disk"; clicked => { root.source-download(index, false); } }
+                    }
+                }
+            }
+            }
+            if root.manage-page == 0: VerticalBox {
+            vertical-stretch: 1;
+            Text { text: "Discovery"; font-size: 22px; }
+            HorizontalBox {
+                discovery-provider := ComboBox { model: root.discovery-providers; current-index <=> root.manage-discovery-provider; selected => { root.discovery-provider-changed(self.current-index); } }
+                discovery-query := LineEdit { placeholder-text: "Find collections, creators, or a page URL"; text <=> root.manage-discovery-query; }
+                ComboBox { model: ["Any type", "album", "creator", "collection", "post"]; current-index: 0; selected => { root.discovery-result-type = self.current-index == 0 ? "" : self.current-value; } }
+                ComboBox { model: ["relevance", "date_desc", "date_asc"]; current-index: 0; selected => { root.discovery-sort = self.current-value; } }
+                Button { text: "Search"; enabled: root.can-discover && !root.busy && !root.discovery-searching; clicked => { root.discover(root.manage-discovery-query, root.manage-discovery-provider, root.discovery-result-type, root.discovery-sort); } }
+                if root.discovery-searching: Button { text: "Cancel"; clicked => { root.cancel-discover(); } }
+                if root.local-host: Button { text: "Queue selected results (" + root.discovery-selected-count + ")"; enabled: !root.busy && root.discovery-selected-count > 0; clicked => { root.queue-discovery(); } }
+            }
+            HorizontalBox {
+                Button { text: "Select all"; enabled: !root.discovery-searching; clicked => { root.select-all-discovery(true); } }
+                Button { text: "Clear selection"; enabled: !root.discovery-searching; clicked => { root.select-all-discovery(false); } }
+                Text { text: root.discovery-provider-info; color: root.theme-muted; wrap: word-wrap; horizontal-stretch: 1; overflow: elide; }
+            }
+            ScrollView { min-height: 100px; content-y <=> root.manage-discover-scroll-y; VerticalBox {
+                Text { text: root.discovery-status; wrap: word-wrap; }
+                for result[index] in root.discovery-results: HorizontalBox {
+                    CheckBox { checked: result.selected; toggled => { root.select-discovery(index, self.checked); } }
+                    VerticalBox { Text { text: result.title; } Text { text: result.detail; color: root.theme-muted; wrap: word-wrap; } }
+                }
+            } }
+            }
+            if root.manage-page == 3: VerticalBox {
+            vertical-stretch: 1;
+            Text { text: "Settings and diagnostics"; font-size: 22px; }
+            HorizontalBox {
+                theme := ComboBox { model: ["system", "gtk-system", "adwaita-light", "adwaita-dark", "yaru-light", "yaru-dark", "arc-light", "arc-dark", "breeze-light", "breeze-dark", "atelier-dark", "midnight", "ember", "linen", "sage", "aurora", "oled"]; current-value <=> root.manage-theme; }
+                Button { text: "Save native theme"; enabled: !root.busy; clicked => { root.save-theme(root.manage-theme); } }
+                Button { text: "Settings…"; enabled: !root.busy && (!root.local-host || root.settings-loaded); clicked => { root.open-settings(); } }
+                Button { text: "Refresh diagnostics"; clicked => { root.refresh-manage(); } }
+                if root.local-host: Button { text: "View diagnostic log"; clicked => { root.refresh-diagnostic-log(); } }
+            }
+            ScrollView { min-height: 100px; content-y <=> root.manage-settings-scroll-y; VerticalBox { Text { text: root.manage-status; wrap: word-wrap; } Rectangle { vertical-stretch: 1; } } }
+            ScrollView { min-height: 100px; content-y <=> root.manage-log-scroll-y; VerticalBox { Text { text: root.diagnostic-log; wrap: word-wrap; } Rectangle { vertical-stretch: 1; } } }
+            }
+        }
+        Text { text: root.status; wrap: word-wrap; }
+    }
+
+    // Settings has its own scroll area and a footer kept outside that area,
+    // so Save and Cancel stay reachable on compact displays.
+    if root.settings-open: Rectangle {
+        x: 32px; y: 32px; width: parent.width - 64px; height: parent.height - 64px;
+        background: root.theme-panel; border-radius: 10px; border-width: 1px; border-color: root.theme-line;
+        VerticalBox {
+            padding: 18px; spacing: 10px;
+            Text { text: "Settings"; font-size: 24px; font-weight: 700; color: root.theme-text; }
+            HorizontalBox {
+                vertical-stretch: 1; spacing: 12px;
+                VerticalBox {
+                    width: 178px; spacing: 5px;
+                    for section[index] in ["General", "Media & Storage", "Appearance", "Playback & GOON", "Automation", "Local Admin"]: Button {
+                        text: section;
+                        visible: index != 5 || root.local-host;
+                        primary: root.settings-page == index;
+                        clicked => { root.settings-page = index; }
+                    }
+                    Rectangle { vertical-stretch: 1; }
+                }
+                if root.settings-page == 0: ScrollView {
+                    horizontal-stretch: 1; content-y <=> root.settings-general-scroll-y;
+                    VerticalBox {
+                        spacing: 10px; alignment: start;
+                        Text { vertical-stretch: 0; text: "General"; font-size: 18px; color: root.theme-text; }
+                        if root.local-host: CheckBox { height: 36px; vertical-stretch: 0; text: "Keep Curator running in the tray"; checked <=> root.settings-draft-tray; }
+                        if root.local-host: CheckBox { height: 36px; vertical-stretch: 0; text: "Start Curator with Windows"; checked <=> root.settings-draft-start-windows; }
+                        if root.local-host: CheckBox { height: 36px; vertical-stretch: 0; text: "Allow access from the local network (LAN)"; checked <=> root.settings-draft-lan; }
+                        if root.local-host: Text { vertical-stretch: 0; text: "LAN access binds the HTTP port on every local interface. Only enable it on networks you trust."; wrap: word-wrap; color: root.theme-muted; }
+                        if root.local-host: Text { vertical-stretch: 0; text: root.remote-access-status; wrap: word-wrap; color: root.theme-muted; }
+                        if root.local-host: Text { vertical-stretch: 0; text: "Concurrent downloads (1–20)"; color: root.theme-text; }
+                        if root.local-host: LineEdit { height: 36px; vertical-stretch: 0; text <=> root.settings-draft-concurrent; placeholder-text: "1–20"; }
+                        if !root.local-host: Text { vertical-stretch: 0; text: "Viewer device preferences are saved here. Host settings remain on the Host."; wrap: word-wrap; color: root.theme-muted; }
+                    }
+                }
+                if root.settings-page == 1: ScrollView {
+                    horizontal-stretch: 1; content-y <=> root.settings-media-scroll-y;
+                    VerticalBox {
+                        spacing: 10px; alignment: start;
+                        Text { vertical-stretch: 0; text: "Media & Storage"; font-size: 18px; color: root.theme-text; }
+                        if root.local-host: Text { vertical-stretch: 0; text: "Maximum download file size in bytes (blank: unlimited)"; wrap: word-wrap; color: root.theme-text; }
+                        if root.local-host: LineEdit { height: 36px; vertical-stretch: 0; text <=> root.settings-draft-max-file-bytes; placeholder-text: "Unlimited"; }
+                        if root.local-host: Text { vertical-stretch: 0; text: "Maximum source storage in bytes (blank: unlimited)"; wrap: word-wrap; color: root.theme-text; }
+                        if root.local-host: LineEdit { height: 36px; vertical-stretch: 0; text <=> root.settings-draft-max-source-bytes; placeholder-text: "Unlimited"; }
+                        if root.local-host: Text { vertical-stretch: 0; text: "Minimum free disk bytes before syncing (blank: disabled)"; wrap: word-wrap; color: root.theme-text; }
+                        if root.local-host: LineEdit { height: 36px; vertical-stretch: 0; text <=> root.settings-draft-min-free-bytes; placeholder-text: "Disabled"; }
+                        if root.local-host: Text { vertical-stretch: 0; text: "Thumbnail cache limit in bytes (blank: unlimited)"; wrap: word-wrap; color: root.theme-text; }
+                        if root.local-host: LineEdit { height: 36px; vertical-stretch: 0; text <=> root.settings-draft-cache-bytes; placeholder-text: "Unlimited"; }
+                        if root.local-host: CheckBox { height: 36px; vertical-stretch: 0; text: "Apply download limits to local folder imports"; checked <=> root.settings-draft-apply-limits-imports; }
+                        if root.local-host: Text { vertical-stretch: 0; text: "Automatic cleanup"; wrap: word-wrap; color: root.theme-text; }
+                        if root.local-host: ComboBox { height: 36px; vertical-stretch: 0; model: ["never", "low_disk", "weekly"]; current-value <=> root.settings-draft-cleanup-mode; }
+                        if root.local-host: Text { vertical-stretch: 0; text: "Low-disk cleanup threshold in bytes (required when cleanup is low_disk; blank: disabled)"; wrap: word-wrap; color: root.theme-text; }
+                        if root.local-host: LineEdit { height: 36px; vertical-stretch: 0; text <=> root.settings-draft-cleanup-low-bytes; placeholder-text: "Disabled"; }
+                        if root.local-host: Text { vertical-stretch: 0; text: "Archive retention in days (blank: keep archives)"; wrap: word-wrap; color: root.theme-text; }
+                        if root.local-host: LineEdit { height: 36px; vertical-stretch: 0; text <=> root.settings-draft-archive-days; placeholder-text: "Keep archives"; }
+                        if root.local-host: Text { vertical-stretch: 0; text: "ffmpeg executable path (blank: auto-detect; takes effect on next launch)"; wrap: word-wrap; color: root.theme-text; }
+                        if root.local-host: LineEdit { height: 36px; vertical-stretch: 0; text <=> root.settings-draft-ffmpeg-bin; placeholder-text: "Auto-detect"; }
+                        if !root.local-host: Text { vertical-stretch: 0; text: "Storage limits are managed on the Host."; wrap: word-wrap; color: root.theme-muted; }
+                    }
+                }
+                if root.settings-page == 2: ScrollView {
+                    horizontal-stretch: 1; content-y <=> root.settings-appearance-scroll-y;
+                    VerticalBox {
+                        spacing: 10px; alignment: start;
+                        Text { vertical-stretch: 0; text: "Appearance"; font-size: 18px; color: root.theme-text; }
+                        Text { vertical-stretch: 0; text: "Theme"; color: root.theme-text; }
+                        ComboBox { height: 36px; vertical-stretch: 0; model: ["system", "gtk-system", "adwaita-light", "adwaita-dark", "yaru-light", "yaru-dark", "arc-light", "arc-dark", "breeze-light", "breeze-dark", "atelier-dark", "midnight", "ember", "linen", "sage", "aurora", "oled", "yotsuba", "yotsuba-b", "futaba", "burichan", "tomorrow", "photon", "light", "oled-dark", "dark"]; current-value <=> root.settings-draft-theme; }
+                        Text { vertical-stretch: 0; text: "Library layout"; color: root.theme-text; }
+                        ComboBox { height: 36px; vertical-stretch: 0; model: ["grid", "table"]; current-value <=> root.settings-draft-layout; }
+                    }
+                }
+                if root.settings-page == 3: ScrollView {
+                    horizontal-stretch: 1; content-y <=> root.settings-playback-scroll-y;
+                    VerticalBox {
+                        spacing: 10px; alignment: start;
+                        Text { vertical-stretch: 0; text: "Playback & GOON"; font-size: 18px; color: root.theme-text; }
+                        if root.local-host: Text { vertical-stretch: 0; text: "Maximum clip length in seconds (5–3600)"; wrap: word-wrap; color: root.theme-text; }
+                        if root.local-host: LineEdit { height: 36px; vertical-stretch: 0; text <=> root.settings-draft-max-clip-seconds; placeholder-text: "60"; }
+                        if root.local-host: CheckBox { height: 36px; vertical-stretch: 0; text: "Enable metronome"; checked <=> root.settings-draft-metronome; }
+                        if root.local-host: Text { vertical-stretch: 0; text: "Metronome volume (0–1)"; wrap: word-wrap; color: root.theme-text; }
+                        if root.local-host: LineEdit { height: 36px; vertical-stretch: 0; text <=> root.settings-draft-metronome-volume; placeholder-text: "0.55"; }
+                        Text { vertical-stretch: 0; text: "Feed images advance automatically after the configured dwell interval. Player mode and session controls are available in the Player workspace."; wrap: word-wrap; color: root.theme-muted; }
+                        if root.local-host: Text { vertical-stretch: 0; text: "Slideshow"; font-size: 15px; color: root.theme-text; }
+                        if root.local-host: Text { vertical-stretch: 0; text: "Slideshow speed in milliseconds (500–60000)"; wrap: word-wrap; color: root.theme-text; }
+                        if root.local-host: LineEdit { height: 36px; vertical-stretch: 0; text <=> root.settings-draft-slideshow-speed; placeholder-text: "3000"; }
+                        if root.local-host: CheckBox { height: 36px; vertical-stretch: 0; text: "Loop slideshow"; checked <=> root.settings-draft-slideshow-loop; }
+                        if root.local-host: CheckBox { height: 36px; vertical-stretch: 0; text: "Shuffle slideshow"; checked <=> root.settings-draft-slideshow-shuffle; }
+                        if root.local-host: Text { vertical-stretch: 0; text: "GOON"; font-size: 15px; color: root.theme-text; }
+                        if root.local-host: Text { vertical-stretch: 0; text: "Default GOON item limit (1–10000)"; wrap: word-wrap; color: root.theme-text; }
+                        if root.local-host: LineEdit { height: 36px; vertical-stretch: 0; text <=> root.settings-draft-goon-limit; placeholder-text: "200"; }
+                        if root.local-host: CheckBox { height: 36px; vertical-stretch: 0; text: "Log GOON sessions"; checked <=> root.settings-draft-goon-log; }
+                        if root.local-host: Text { vertical-stretch: 0; text: "GOON persona"; wrap: word-wrap; color: root.theme-text; }
+                        if root.local-host: ComboBox { height: 36px; vertical-stretch: 0; model: ["neutral", "mommy", "dom", "brat"]; current-value <=> root.settings-draft-goon-persona; }
+                        if root.local-host: Text { vertical-stretch: 0; text: "Soundtrack provider"; wrap: word-wrap; color: root.theme-text; }
+                        if root.local-host: ComboBox { height: 36px; vertical-stretch: 0; model: ["local", "youtube", "soundcloud", "apple_music", "spotify"]; current-value <=> root.settings-draft-soundtrack; }
+                        if root.local-host: Text { vertical-stretch: 0; text: "Text to speech"; font-size: 15px; color: root.theme-text; }
+                        if root.local-host: Text { vertical-stretch: 0; text: "TTS voice (blank: system default)"; wrap: word-wrap; color: root.theme-text; }
+                        if root.local-host: LineEdit { height: 36px; vertical-stretch: 0; text <=> root.settings-draft-tts-voice; placeholder-text: "System default"; }
+                        if root.local-host: Text { vertical-stretch: 0; text: "TTS rate (0.1–3.0)"; wrap: word-wrap; color: root.theme-text; }
+                        if root.local-host: LineEdit { height: 36px; vertical-stretch: 0; text <=> root.settings-draft-tts-rate; placeholder-text: "1.0"; }
+                        if root.local-host: Text { vertical-stretch: 0; text: "TTS pitch (0–2.0)"; wrap: word-wrap; color: root.theme-text; }
+                        if root.local-host: LineEdit { height: 36px; vertical-stretch: 0; text <=> root.settings-draft-tts-pitch; placeholder-text: "1.0"; }
+                        if root.local-host: Text { vertical-stretch: 0; text: "TTS volume (0–1)"; wrap: word-wrap; color: root.theme-text; }
+                        if root.local-host: LineEdit { height: 36px; vertical-stretch: 0; text <=> root.settings-draft-tts-volume; placeholder-text: "1.0"; }
+                        if root.local-host: CheckBox { height: 36px; vertical-stretch: 0; text: "Enable NSFW filter (restart required)"; checked <=> root.settings-draft-nsfw; }
+                        if root.local-host: Text { vertical-stretch: 0; text: "Cock Hero"; font-size: 15px; color: root.theme-text; }
+                        if root.local-host: CheckBox { height: 36px; vertical-stretch: 0; text: "Log Cock Hero sessions"; checked <=> root.settings-draft-ch-log; }
+                        if root.local-host: Text { vertical-stretch: 0; text: "Default beat interval in seconds"; wrap: word-wrap; color: root.theme-text; }
+                        if root.local-host: LineEdit { height: 36px; vertical-stretch: 0; text <=> root.settings-draft-ch-interval; placeholder-text: "3.0"; }
+                        if root.local-host: Text { vertical-stretch: 0; text: "Default item limit"; wrap: word-wrap; color: root.theme-text; }
+                        if root.local-host: LineEdit { height: 36px; vertical-stretch: 0; text <=> root.settings-draft-ch-limit; placeholder-text: "200"; }
+                        if root.local-host: CheckBox { height: 36px; vertical-stretch: 0; text: "Shuffle by default"; checked <=> root.settings-draft-ch-shuffle; }
+                        if root.local-host: Text { vertical-stretch: 0; text: "Default media type"; wrap: word-wrap; color: root.theme-text; }
+                        if root.local-host: ComboBox { height: 36px; vertical-stretch: 0; model: ["image", "video", "all"]; current-value <=> root.settings-draft-ch-media-type; }
+                    }
+                }
+                if root.settings-page == 4: ScrollView {
+                    horizontal-stretch: 1; content-y <=> root.settings-automation-scroll-y;
+                    VerticalBox {
+                        spacing: 10px; alignment: start;
+                        Text { vertical-stretch: 0; text: "Automation"; font-size: 18px; color: root.theme-text; }
+                        if root.local-host: Text { vertical-stretch: 0; text: "Export reminder interval in days (1–365)"; wrap: word-wrap; color: root.theme-text; }
+                        if root.local-host: LineEdit { height: 36px; vertical-stretch: 0; text <=> root.settings-draft-reminder-days; placeholder-text: "30"; }
+                        if root.local-host: Text { vertical-stretch: 0; text: "Discovery providers, comma-separated (blank: all enabled)"; wrap: word-wrap; color: root.theme-text; }
+                        if root.local-host: LineEdit { height: 36px; vertical-stretch: 0; text <=> root.settings-draft-search-providers; placeholder-text: "All enabled"; }
+                        Text { vertical-stretch: 0; text: "Classification is opt-in. Dependency and model availability are shown in Local Admin."; wrap: word-wrap; color: root.theme-muted; }
+                    }
+                }
+                if root.settings-page == 5 && root.local-host: ScrollView {
+                    horizontal-stretch: 1; content-y <=> root.settings-admin-scroll-y;
+                    VerticalBox {
+                        spacing: 10px; alignment: start;
+                        Text { vertical-stretch: 0; text: "Local Admin"; font-size: 18px; color: root.theme-text; }
+                        Text { vertical-stretch: 0; text: root.manage-status; wrap: word-wrap; color: root.theme-muted; }
+                        Text { vertical-stretch: 0; text: "Backups and recovery"; font-size: 18px; color: root.theme-text; }
+                        HorizontalBox {
+                            vertical-stretch: 0;
+                            Button { text: "Create backup"; enabled: !root.busy; clicked => { root.recovery("Create backup", "", ""); } }
+                            Button { text: "Refresh jobs"; clicked => { root.recovery("Refresh", "", ""); } }
+                        }
+                        ComboBox { height: 36px; vertical-stretch: 0; model: root.recovery-backups; current-index <=> root.recovery-selected-backup; enabled: root.recovery-has-backups; }
+                        HorizontalBox {
+                            vertical-stretch: 0;
+                            Button { text: "Validate selected backup"; enabled: root.recovery-has-backups && !root.busy; clicked => { root.recovery("Validate backup", "", ""); } }
+                            Button { text: "Restore selected backup"; enabled: root.recovery-has-backups && root.manage-confirmation == "RESTORE BACKUP" && !root.busy; clicked => { root.recovery("Restore backup", "", root.manage-confirmation); } }
+                        }
+                        LineEdit { height: 36px; vertical-stretch: 0; placeholder-text: "Type RESTORE BACKUP to restore (restart required)"; text <=> root.manage-confirmation; }
+                        Text { vertical-stretch: 0; text: "Maintenance"; font-size: 18px; color: root.theme-text; }
+                        ComboBox { height: 36px; vertical-stretch: 0; model: ["Reconcile library", "Clear human ratings", "Reset ratings and evidence", "Flatten groups", "Delete groups", "Clear tag assignments", "Clear session history", "Rebuild caches", "Factory reset", "Remove P-HAR", "Remove archives"]; current-value <=> root.maintenance-action; }
+                        Text { vertical-stretch: 0; text: root.maintenance-required-phrase == "" ? "This action needs no confirmation phrase." : "Type " + root.maintenance-required-phrase + " to run this action."; wrap: word-wrap; color: root.theme-muted; }
+                        LineEdit { height: 36px; vertical-stretch: 0; placeholder-text: "Confirmation phrase"; text <=> root.maintenance-confirmation; }
+                        Button { text: "Run maintenance"; enabled: !root.busy && (root.maintenance-required-phrase == "" || root.maintenance-confirmation == root.maintenance-required-phrase); clicked => { root.recovery(root.maintenance-action, "", root.maintenance-confirmation); } }
+                        Text { vertical-stretch: 0; text: root.recovery-status; wrap: word-wrap; color: root.theme-text; }
+                        Text { vertical-stretch: 0; text: "Classifier (P-HAR)"; font-size: 18px; color: root.theme-text; }
+                        Text { vertical-stretch: 0; text: "Classification is opt-in. Installing downloads the P-HAR runtime and models in the background; progress shows below."; wrap: word-wrap; color: root.theme-muted; }
+                        HorizontalBox {
+                            vertical-stretch: 0;
+                            Button { text: "Install P-HAR"; enabled: !root.busy; clicked => { root.classifier("install"); } }
+                            Button { text: "Evaluate / resume"; enabled: !root.busy; clicked => { root.classifier("evaluate"); } }
+                            Button { text: "Repair"; enabled: !root.busy; clicked => { root.classifier("repair"); } }
+                            Button { text: "Self-test"; enabled: !root.busy; clicked => { root.classifier("self-test"); } }
+                            Button { text: "Cancel install"; enabled: !root.busy; clicked => { root.classifier("cancel"); } }
+                            Button { text: "Refresh status"; clicked => { root.classifier("refresh"); } }
+                        }
+                        Text { vertical-stretch: 0; text: root.classifier-status; wrap: word-wrap; color: root.theme-text; }
+                        Text { vertical-stretch: 0; text: "Data directory"; font-size: 18px; color: root.theme-text; }
+                        Text { vertical-stretch: 0; text: root.data-dir-current; wrap: word-wrap; color: root.theme-muted; }
+                        Text { vertical-stretch: 0; text: "Move the whole data directory to a new location. The target is validated for writability first; the move itself happens on the next launch, before anything opens the database, so the app quits once it is scheduled."; wrap: word-wrap; color: root.theme-muted; }
+                        LineEdit { height: 36px; vertical-stretch: 0; placeholder-text: "New data directory path (must be empty)"; text <=> root.data-dir-target; }
+                        LineEdit { height: 36px; vertical-stretch: 0; placeholder-text: "Type MOVE DATA to confirm"; text <=> root.data-dir-confirmation; }
+                        Button { text: "Move data directory"; enabled: !root.busy && root.data-dir-confirmation == "MOVE DATA" && root.data-dir-target != ""; clicked => { root.move-data-dir(); root.data-dir-confirmation = ""; } }
+                        Text { vertical-stretch: 0; text: root.data-dir-status; wrap: word-wrap; color: root.theme-text; }
+                    }
+                }
+            }
+            HorizontalBox {
+                if root.settings-error != "": Text { text: root.settings-error; wrap: word-wrap; color: #ff8a80; horizontal-stretch: 1; }
+                if root.settings-error == "": Rectangle { horizontal-stretch: 1; }
+                Button { text: "Cancel"; enabled: !root.settings-saving; clicked => { root.settings-open = false; } }
+                Button { text: root.settings-saving ? "Saving…" : "Save"; primary: true; enabled: !root.busy && !root.settings-saving; clicked => { if root.save-settings() { root.settings-open = false; } } }
+            }
+        }
+    }
+    // First-run setup gate: covers the whole window until setup is marked
+    // complete, so the library cannot be used half-configured.
+    if root.setup-required: Rectangle {
+        width: 100%; height: 100%;
+        background: root.theme-background;
+        VerticalBox {
+            padding: 48px; spacing: 12px; alignment: center;
+            Text { text: "Welcome to Curator"; font-size: 28px; font-weight: 700; horizontal-alignment: center; color: root.theme-text; }
+            Text { text: "First-run setup is not complete yet. Your library lives in the data directory below; you can move it later from Settings → Local Admin."; wrap: word-wrap; horizontal-alignment: center; color: root.theme-text; }
+            Text { text: "Data directory: " + root.setup-data-dir; wrap: word-wrap; font-size: 12px; horizontal-alignment: center; color: root.theme-muted; }
+            if root.setup-status != "": Text { text: root.setup-status; wrap: word-wrap; color: #ff8a80; horizontal-alignment: center; }
+            HorizontalBox {
+                alignment: center;
+                Button { text: "Complete setup"; primary: true; clicked => { root.complete-setup(); } }
+            }
+        }
+    }
+}
