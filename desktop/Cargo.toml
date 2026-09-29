@@ -2,6 +2,7 @@
 name = "curator-desktop"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 description = "Curator Host native media library"
 default-run = "Curator"
 

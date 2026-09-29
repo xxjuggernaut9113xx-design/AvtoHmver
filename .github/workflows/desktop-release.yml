@@ -28,7 +28,7 @@ jobs:
           node-version: 22
       - name: Native UI libraries
         run: sudo apt-get update && sudo apt-get install -y build-essential libfontconfig1-dev libxkbcommon-dev libwayland-dev libgl1-mesa-dev libfuse2
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.92.0
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
@@ -61,7 +61,7 @@ jobs:
             artifact: curator-viewer.exe
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.92.0
       - uses: Swatinem/rust-cache@v2
       - name: Build Curator ${{ matrix.edition }} with verbose diagnostics
         run: cargo build -vv --release --locked -p ${{ matrix.package }} --bin ${{ matrix.binary }}
@@ -77,7 +77,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Native UI libraries
         run: sudo apt-get update && sudo apt-get install -y build-essential libfontconfig1-dev libxkbcommon-dev libwayland-dev libgl1-mesa-dev libfuse2
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.92.0
       - uses: Swatinem/rust-cache@v2
       - name: Build native editions with verbose diagnostics
         run: cargo build -vv --release --locked --workspace

@@ -2,6 +2,7 @@
 name = "curator-viewer"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 description = "Curator Tailnet Viewer"
 
 [[bin]]
