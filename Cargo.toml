@@ -48,7 +48,7 @@ zip            = { version = "2.2.2", default-features = false, features = ["def
 tempfile       = { version = "3", default-features = false }
 
 # CLI
-clap           = { version = "=4.5.61", features = ["derive"] }
+clap           = { version = "4.5", features = ["derive"] }
 clap_lex       = "=1.0.1"
 
 # Logging / tracing
