@@ -23,6 +23,6 @@ anyhow = "1"
 dunce = "1"
 windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Security", "Win32_System_Threading"] }
 slint = "=1.18.0"
-rfd = "=0.16.0"
+rfd = "0.16"
 tempfile = "3"
 libloading = "0.8"
