@@ -11,6 +11,8 @@ name = "Curator"
 path = "src/main.rs"
 
 [build-dependencies]
+# Build-time compiler and runtime must stay on the same Slint release because
+# generated component ABI is not guaranteed across Slint versions.
 slint-build = "=1.18.0"
 
 [dependencies]
@@ -22,6 +24,7 @@ rusqlite = { version = "0.31", features = ["bundled"] }
 anyhow = "1"
 dunce = "1"
 windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Security", "Win32_System_Threading"] }
+# Keep exactly aligned with slint-build above.
 slint = "=1.18.0"
 rfd = "0.16"
 tempfile = "3"
