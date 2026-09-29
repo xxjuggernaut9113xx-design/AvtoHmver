@@ -32,6 +32,91 @@ use axum::{
 use serde_json::json;
 use std::{net::SocketAddr, sync::Arc};
 
+/// Canonical mutation permission contract. Host and Server own their local
+/// library; a Tailnet Viewer is read/play/discover-only. Keep this list in
+/// sync with `build_router`: tests reject both missing and stale entries and
+/// verify the rendered table in `docs/permissions.md`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct MutationPermission {
+    pub method: &'static str,
+    pub path: &'static str,
+    pub host: bool,
+    pub server: bool,
+    pub viewer: bool,
+}
+
+macro_rules! owner_mutations {
+    ($(($method:literal, $path:literal)),* $(,)?) => {
+        &[$(MutationPermission {
+            method: $method,
+            path: $path,
+            host: true,
+            server: true,
+            viewer: false,
+        }),*]
+    };
+}
+
+pub const MUTATION_PERMISSIONS: &[MutationPermission] = owner_mutations![
+    ("POST", "/api/admin/jobs"),
+    ("POST", "/api/admin/backups"),
+    ("POST", "/api/admin/backups/:id/validate"),
+    ("POST", "/api/admin/backups/:id/restore"),
+    ("POST", "/api/admin/phar"),
+    ("POST", "/api/admin/phar/install"),
+    ("POST", "/api/admin/phar/cancel"),
+    ("POST", "/api/admin/phar/repair"),
+    ("POST", "/api/admin/phar/self-test"),
+    ("POST", "/api/session/start"),
+    ("POST", "/api/session/command"),
+    ("POST", "/api/oobe/validate"),
+    ("POST", "/api/oobe/settings"),
+    ("POST", "/api/oobe/complete"),
+    ("POST", "/api/oobe/reset"),
+    ("POST", "/api/media/bulk"),
+    ("POST", "/api/media/:id/clips"),
+    ("PUT", "/api/media/:id/rating"),
+    ("POST", "/api/media/:id/rating/approve"),
+    ("POST", "/api/media/:id/rating/undo"),
+    ("PUT", "/api/media/:id/duration"),
+    ("POST", "/api/media/:id/tags"),
+    ("DELETE", "/api/media/:id/tags/:tag_id"),
+    ("DELETE", "/api/tags/:id"),
+    ("POST", "/api/source-tags/review"),
+    ("POST", "/api/source-tag-rules"),
+    ("DELETE", "/api/source-tag-rules/:id"),
+    ("POST", "/api/sources"),
+    ("POST", "/api/sources/resync-all"),
+    ("PATCH", "/api/sources/:id"),
+    ("DELETE", "/api/sources/:id"),
+    ("PATCH", "/api/sources/:id/group"),
+    ("POST", "/api/sources/:id/resync"),
+    ("POST", "/api/ch/session"),
+    ("POST", "/api/search/download"),
+    ("POST", "/api/groups"),
+    ("PATCH", "/api/groups/:id"),
+    ("DELETE", "/api/groups/:id"),
+    ("POST", "/api/groups/:id/tags"),
+    ("DELETE", "/api/groups/:id/tags/:tag_id"),
+    ("POST", "/api/downloads/pause"),
+    ("POST", "/api/downloads/resume"),
+    ("POST", "/api/downloads/sources/:id/pause"),
+    ("POST", "/api/downloads/sources/:id/resume"),
+    ("PATCH", "/api/settings"),
+    ("POST", "/api/storage/sources/:id/permit-once"),
+    ("POST", "/api/storage/sources/:id/cleanup"),
+    ("POST", "/api/storage/thumbnails/clear"),
+    ("POST", "/api/storage/archives/cleanup"),
+    ("POST", "/api/export/chpack"),
+    ("POST", "/api/import"),
+    ("POST", "/api/goon/session"),
+    ("POST", "/api/goon/session/complete"),
+    ("POST", "/api/goon/playlists"),
+    ("POST", "/api/goon/beat-maps/analyze"),
+    ("PATCH", "/api/goon/beat-maps/:id"),
+    ("POST", "/api/goon/oauth/callback"),
+];
+
 /// Maintenance owns the library exclusively while it takes a safety backup
 /// and applies a recovery transaction.  Individual download routes also
 /// cooperate with that mode, but this router-level gate keeps tags, groups,
@@ -249,7 +334,166 @@ pub fn build_router(state: Arc<AppState>) -> Router {
 mod tests {
     use super::*;
     use axum::body::Body;
+    use std::collections::BTreeSet;
     use tower::ServiceExt;
+
+    fn router_mutations_from_source() -> BTreeSet<(String, String)> {
+        let source = include_str!("mod.rs");
+        let mut routes = BTreeSet::new();
+        let mut offset = 0;
+        while let Some(relative) = source[offset..].find(".route(") {
+            let start = offset + relative + ".route".len();
+            let mut depth = 0i32;
+            let mut in_string = false;
+            let mut escaped = false;
+            let mut end = start;
+            for (relative_index, character) in source[start..].char_indices() {
+                end = start + relative_index + character.len_utf8();
+                if in_string {
+                    if escaped {
+                        escaped = false;
+                    } else if character == '\\' {
+                        escaped = true;
+                    } else if character == '"' {
+                        in_string = false;
+                    }
+                    continue;
+                }
+                match character {
+                    '"' => in_string = true,
+                    '(' => depth += 1,
+                    ')' => {
+                        depth -= 1;
+                        if depth == 0 {
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            let block = &source[start..end];
+            let first_quote = block.find('"').expect("route path opening quote");
+            let rest = &block[first_quote + 1..];
+            let closing_quote = rest.find('"').expect("route path closing quote");
+            let path = &rest[..closing_quote];
+            for (token, method) in [
+                ("post(", "POST"),
+                ("put(", "PUT"),
+                ("patch(", "PATCH"),
+                ("delete(", "DELETE"),
+            ] {
+                if block.contains(token) {
+                    routes.insert((method.to_owned(), path.to_owned()));
+                }
+            }
+            offset = end;
+        }
+        routes
+    }
+
+    fn documented_mutation_table() -> String {
+        let mut rows = MUTATION_PERMISSIONS.to_vec();
+        rows.sort();
+        let mut output =
+            String::from("| Method | Route | Host | Server | Viewer |\n|---|---|---:|---:|---:|\n");
+        for permission in rows {
+            output.push_str(&format!(
+                "| {} | `{}` | {} | {} | {} |\n",
+                permission.method,
+                permission.path,
+                if permission.host { "Allow" } else { "Deny" },
+                if permission.server { "Allow" } else { "Deny" },
+                if permission.viewer { "Allow" } else { "Deny" },
+            ));
+        }
+        output
+    }
+
+    fn concrete_path(pattern: &str) -> String {
+        pattern.replace(":tag_id", "1").replace(":id", "1")
+    }
+
+    #[test]
+    fn every_router_mutation_has_exactly_one_permission_entry() {
+        let actual = router_mutations_from_source();
+        let declared = MUTATION_PERMISSIONS
+            .iter()
+            .map(|permission| (permission.method.to_owned(), permission.path.to_owned()))
+            .collect::<BTreeSet<_>>();
+        assert_eq!(
+            declared.len(),
+            MUTATION_PERMISSIONS.len(),
+            "duplicate permission entry"
+        );
+        assert_eq!(
+            actual, declared,
+            "router mutations and permission matrix differ"
+        );
+    }
+
+    #[test]
+    fn permission_document_is_generated_from_the_executable_matrix() {
+        let document = include_str!("../../docs/permissions.md");
+        let start_marker = "<!-- BEGIN GENERATED MUTATION MATRIX -->\n";
+        let end_marker = "<!-- END GENERATED MUTATION MATRIX -->";
+        let start = document.find(start_marker).expect("matrix start marker") + start_marker.len();
+        let end = document[start..]
+            .find(end_marker)
+            .map(|offset| start + offset)
+            .expect("matrix end marker");
+        assert_eq!(&document[start..end], documented_mutation_table());
+    }
+
+    #[tokio::test]
+    async fn every_mutating_route_enforces_the_role_matrix() {
+        for (role, peer, edition) in [
+            (
+                crate::services::access::Role::Host,
+                SocketAddr::from(([127, 0, 0, 1], 49150)),
+                crate::edition::Edition::Host,
+            ),
+            (
+                crate::services::access::Role::Server,
+                SocketAddr::from(([127, 0, 0, 1], 49151)),
+                crate::edition::Edition::Server,
+            ),
+            (
+                crate::services::access::Role::Viewer,
+                SocketAddr::from(([100, 64, 1, 2], 49152)),
+                crate::edition::Edition::Host,
+            ),
+        ] {
+            let root = tempfile::tempdir().unwrap();
+            let original = crate::test_support::state(root.path());
+            let mut role_state = (*original).clone();
+            role_state.edition = edition;
+            let app = build_router(Arc::new(role_state));
+            for permission in MUTATION_PERMISSIONS {
+                let expected = match role {
+                    crate::services::access::Role::Host => permission.host,
+                    crate::services::access::Role::Server => permission.server,
+                    crate::services::access::Role::Viewer => permission.viewer,
+                };
+                let mut request = axum::http::Request::builder()
+                    .method(permission.method)
+                    .uri(concrete_path(permission.path))
+                    .header("content-type", "application/json")
+                    .body(Body::from("{}"))
+                    .unwrap();
+                request.extensions_mut().insert(ConnectInfo(peer));
+                let status = app.clone().oneshot(request).await.unwrap().status();
+                assert_eq!(
+                    status != StatusCode::FORBIDDEN,
+                    expected,
+                    "{} {} as {role:?} returned {status}",
+                    permission.method,
+                    permission.path
+                );
+            }
+            original.server_tasks.close();
+            original.server_tasks.wait().await;
+        }
+    }
 
     #[tokio::test]
     async fn tailnet_viewer_cannot_mutate_through_any_http_method() {

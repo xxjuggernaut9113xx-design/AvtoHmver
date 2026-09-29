@@ -55,9 +55,8 @@ Tailscale peer inventory and resolved Tailnet IP before it accepts the
 connection; it also checks `/api/system/info` for the Curator API protocol and
 edition.
 
-Viewer has ordinary library management access—browsing, playback, downloads,
-sources, groups, tags, ratings, and routine settings—but never exposes local
-Admin, OOBE, executable-path, service, or P-HAR installation controls.
+Viewer access follows the canonical [permission matrix](docs/permissions.md).
+That document is generated and tested against every mutating HTTP route.
 
 ## Local Admin and recovery
 
