@@ -80,7 +80,6 @@ tokio-util     = { version = "0.7", features = ["io", "rt"] }
 # Slint's compiler requires indexmap 2.14+. Keep the workspace pin explicit
 # so every desktop/CLI target resolves the same compatible version.
 indexmap       = "=2.14.2"
-compression-codecs = "=0.4.28"
 image-webp     = "=0.2.4"
 
 # Platform kill (non-Windows)
