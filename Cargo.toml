@@ -13,6 +13,7 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 description = "Self-hosted gallery-dl front-end. Organize, view, tag, and rate your collection."
+publish = false
 
 [[bin]]
 name = "curator"
