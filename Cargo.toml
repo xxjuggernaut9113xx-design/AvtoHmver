@@ -40,7 +40,7 @@ serde_json     = "1"
 # transitive dep cpufeatures 0.3.x requires the (still-unstable) edition2024
 # Cargo feature and fails to build. jpeg/png/gif/webp/bmp/tiff are all pure
 # Rust and cover everything gallery-dl actually produces.
-image          = { version = "=0.25.6", default-features = false, features = [
+image          = { version = "0.25", default-features = false, features = [
                    "jpeg", "png", "gif", "webp", "bmp", "tiff"] }
 
 # ZIP / .chpack building
