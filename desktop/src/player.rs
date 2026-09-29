@@ -1,26 +1,27 @@
-//! Windows-native playback bridge.
+//! Embedded libmpv player bridge.
 //!
-//! Curator keeps rendering in the native Host and delegates media decoding to
-//! the bundled-or-installed mpv executable.  mpv's JSON IPC endpoint gives us
-//! one long-lived decoder process, so changing an item replaces the current
-//! file instead of accumulating media windows or decoder threads.
+//! A dedicated worker owns the libmpv handle and its software render context.
+//! The UI sends bounded commands and drains bounded status/frame updates, so
+//! decoding can never run on the Slint event loop or create a second window.
 
-use serde_json::{json, Value};
+use crate::mpv_embed::{MpvInstance, PlayerEvent};
 use std::{
-    fs::{File, OpenOptions},
-    io::{BufRead, BufReader, Write},
-    path::PathBuf,
-    process::{Child, Command, Stdio},
-    sync::mpsc::{self, Receiver},
-    thread,
-    time::Duration,
+    sync::mpsc::{self, Receiver, SyncSender, TryRecvError, TrySendError},
+    thread::{self, JoinHandle},
+    time::{Duration, Instant},
 };
+
+#[cfg(test)]
+use std::sync::Mutex;
+
+const COMMAND_QUEUE_CAPACITY: usize = 32;
+const STATUS_QUEUE_CAPACITY: usize = 32;
+const FRAME_QUEUE_CAPACITY: usize = 1;
+const RENDER_WIDTH: u32 = 960;
+const RENDER_HEIGHT: u32 = 540;
 
 #[derive(Debug, Clone)]
 pub enum PlayerCommand {
-    /// (Re)loads media. Volume/speed/loop ride along so the first play
-    /// honors the persisted Host settings instead of mpv's defaults; they
-    /// are pushed over IPC before the loadfile command.
     Load {
         source: String,
         volume: f64,
@@ -32,7 +33,6 @@ pub enum PlayerCommand {
     SetVolume(f64),
     SetSpeed(f64),
     SetLoop(bool),
-    ToggleFullscreen,
     Stop,
     Shutdown,
 }
@@ -52,7 +52,7 @@ pub struct PlayerStatus {
 impl PlayerStatus {
     fn loading() -> Self {
         Self {
-            message: "Loading native player…".into(),
+            message: "Loading embedded player…".into(),
             volume: 100.0,
             speed: 1.0,
             ..Self::default()
@@ -60,250 +60,194 @@ impl PlayerStatus {
     }
 }
 
+type FrameCallback = Box<dyn Fn(Vec<u8>, u32, u32)>;
+
+enum WorkerEvent {
+    FileLoaded(u64),
+    EndFile {
+        generation: u64,
+        eof: bool,
+        failed: bool,
+    },
+    Progress {
+        generation: u64,
+        position_secs: Option<f64>,
+        duration_secs: Option<f64>,
+        paused: Option<bool>,
+    },
+    Error(u64, String),
+}
+
+struct VideoFrame {
+    generation: u64,
+    pixels: Vec<u8>,
+    width: u32,
+    height: u32,
+}
+
+struct WorkerCommand {
+    generation: u64,
+    command: PlayerCommand,
+}
+
 pub struct NativePlayer {
-    child: Option<Child>,
-    writer: Option<File>,
-    events: Option<Receiver<Value>>,
-    pipe: PathBuf,
+    commands: Option<SyncSender<WorkerCommand>>,
+    statuses: Option<Receiver<WorkerEvent>>,
+    frames: Option<Receiver<VideoFrame>>,
+    worker: Option<JoinHandle<()>>,
+    frame_callback: Option<FrameCallback>,
     status: PlayerStatus,
-    /// True once mpv reported `file-loaded` for the most recent `Load`.
-    /// Every `Load`/`Stop` resets it, so an `end-file` that was queued for
-    /// the previous file but arrives after the replacement is recognized
-    /// as stale and can never mark the new media ended. The mpv event pipe
-    /// is ordered: the old file's `end-file` always precedes the new
-    /// file's `file-loaded`, which makes this gate exact.
+    /// A file must report `file-loaded` before an EOF can advance the queue.
+    /// This drops end events that belong to a file just replaced by Load.
     loaded: bool,
+    /// Incremented whenever the active media is replaced or stopped. Worker
+    /// output from an older generation is discarded on the UI thread.
+    generation: u64,
 }
 
 impl Default for NativePlayer {
     fn default() -> Self {
-        let pipe_name = format!("curator-mpv-{}", std::process::id());
         Self {
-            child: None,
-            writer: None,
-            events: None,
-            // mpv uses a Windows named pipe here. Unix builds retain a local
-            // socket path so workspace checks continue to cover this module.
-            pipe: if cfg!(windows) {
-                PathBuf::from(format!(r"\\.\pipe\{pipe_name}"))
-            } else {
-                std::env::temp_dir().join(format!("{pipe_name}.sock"))
-            },
+            commands: None,
+            statuses: None,
+            frames: None,
+            worker: None,
+            frame_callback: None,
             status: PlayerStatus {
                 message: "Choose media to play".into(),
                 volume: 100.0,
                 speed: 1.0,
-                ..Self::default_status()
+                ..PlayerStatus::default()
             },
             loaded: false,
+            generation: 0,
         }
     }
 }
 
 impl NativePlayer {
-    fn default_status() -> PlayerStatus {
-        PlayerStatus::default()
-    }
-
     pub fn status(&self) -> PlayerStatus {
         self.status.clone()
     }
 
-    /// True once mpv confirmed the most recent `Load` with `file-loaded`.
+    pub fn set_frame_callback(&mut self, callback: FrameCallback) {
+        self.frame_callback = Some(callback);
+    }
+
     fn mark_loading(&mut self) {
         self.loaded = false;
         self.status.ended = false;
     }
 
-    /// Resolves the mpv executable Curator would launch, verifying it
-    /// actually exists so the UI can report a missing player before the
-    /// first playback attempt.
-    pub fn mpv_probe() -> Result<String, String> {
-        let from_env =
-            std::env::var_os("CURATOR_MPV_BIN").map(|value| value.to_string_lossy().into_owned());
-        if let Some(path) = from_env {
-            return if std::path::Path::new(&path).is_file() {
-                Ok(path)
-            } else {
-                Err(format!(
-                    "CURATOR_MPV_BIN points at {path}, which is not a file"
-                ))
-            };
-        }
-        if let Ok(executable) = std::env::current_exe() {
-            let sibling = executable.with_file_name(if cfg!(windows) { "mpv.exe" } else { "mpv" });
-            if sibling.is_file() {
-                return Ok(sibling.to_string_lossy().into_owned());
-            }
-        }
-        let file_name = if cfg!(windows) { "mpv.exe" } else { "mpv" };
-        if let Some(directories) = std::env::var_os("PATH") {
-            for directory in std::env::split_paths(&directories) {
-                let candidate = directory.join(file_name);
-                if candidate.is_file() {
-                    return Ok(candidate.to_string_lossy().into_owned());
-                }
-            }
-        }
-        Err(format!(
-            "No {file_name} found beside Curator or on PATH. Install mpv or set CURATOR_MPV_BIN."
-        ))
-    }
-
     fn start(&mut self) -> Result<(), String> {
-        // A present writer means the IPC endpoint is already available. In
-        // production the writer is only ever set together with the child;
-        // tests inject a writer directly to capture IPC traffic without a
-        // real mpv process.
-        if self.writer.is_some() {
+        if self.commands.is_some() {
             return Ok(());
         }
-        self.teardown();
-        let _ = std::fs::remove_file(&self.pipe);
-        let executable = Self::mpv_probe()?;
-        let mut command = Command::new(executable);
-        command
-            .arg("--idle=yes")
-            .arg("--force-window=yes")
-            .arg("--keep-open=yes")
-            .arg("--osc=yes")
-            .arg("--msg-level=all=warn")
-            .arg("--title=Curator Player")
-            .arg(format!("--input-ipc-server={}", self.pipe.display()))
-            .stdout(Stdio::null())
-            .stderr(Stdio::null());
-        let child = command.spawn().map_err(|error| {
-            format!(
-                "Could not start native media player ({error}). Install mpv beside Curator or set CURATOR_MPV_BIN."
-            )
-        })?;
-        let mut connected = None;
-        for _ in 0..100 {
-            match OpenOptions::new().read(true).write(true).open(&self.pipe) {
-                Ok(file) => {
-                    connected = Some(file);
-                    break;
-                }
-                Err(_) => thread::sleep(Duration::from_millis(30)),
+        let (commands, command_rx) = mpsc::sync_channel(COMMAND_QUEUE_CAPACITY);
+        let (status_tx, statuses) = mpsc::sync_channel(STATUS_QUEUE_CAPACITY);
+        let (frame_tx, frames) = mpsc::sync_channel(FRAME_QUEUE_CAPACITY);
+        let (ready_tx, ready_rx) = mpsc::sync_channel(1);
+        let worker = thread::Builder::new()
+            .name("curator-libmpv".into())
+            .spawn(move || player_worker(command_rx, status_tx, frame_tx, ready_tx))
+            .map_err(|error| format!("Could not start embedded player worker: {error}"))?;
+        match ready_rx.recv_timeout(Duration::from_secs(2)) {
+            Ok(Ok(())) => {
+                self.commands = Some(commands);
+                self.statuses = Some(statuses);
+                self.frames = Some(frames);
+                self.worker = Some(worker);
+                Ok(())
+            }
+            Ok(Err(error)) => {
+                let _ = worker.join();
+                Err(error)
+            }
+            Err(_) => {
+                let _ = commands.try_send(WorkerCommand {
+                    generation: self.generation,
+                    command: PlayerCommand::Shutdown,
+                });
+                drop(commands);
+                let _ = worker.join();
+                Err("Embedded player did not initialize within two seconds".into())
             }
         }
-        let Some(file) = connected else {
-            let mut child = child;
-            let _ = child.kill();
-            let _ = child.wait();
-            return Err("Native media player did not expose its IPC endpoint".into());
-        };
-        let reader = file.try_clone().map_err(|error| error.to_string())?;
-        let (event_send, event_receive) = mpsc::channel();
-        thread::spawn(move || {
-            let mut reader = BufReader::new(reader);
-            let mut line = String::new();
-            loop {
-                line.clear();
-                match reader.read_line(&mut line) {
-                    Ok(0) | Err(_) => break,
-                    Ok(_) => {
-                        if let Ok(event) = serde_json::from_str::<Value>(&line) {
-                            if event_send.send(event).is_err() {
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-        });
-        self.child = Some(child);
-        self.writer = Some(file);
-        self.events = Some(event_receive);
-        // mpv only delivers log-message events to clients that opt in.
-        let _ = self.send(json!({"command":["enable_event","log-message"]}));
-        for (id, property) in [(1, "time-pos"), (2, "duration"), (3, "pause")] {
-            self.send(json!({"command":["observe_property", id, property]}))?;
-        }
-        Ok(())
     }
 
-    fn send(&mut self, command: Value) -> Result<(), String> {
-        let writer = self
-            .writer
-            .as_mut()
-            .ok_or_else(|| "Native media player is unavailable".to_owned())?;
-        serde_json::to_writer(&mut *writer, &command).map_err(|error| error.to_string())?;
-        writer.write_all(b"\n").map_err(|error| error.to_string())?;
-        writer.flush().map_err(|error| error.to_string())
+    fn send(&mut self, command: PlayerCommand) -> Result<(), String> {
+        let sender = self
+            .commands
+            .as_ref()
+            .ok_or_else(|| "Embedded player is unavailable".to_owned())?;
+        match sender.try_send(WorkerCommand {
+            generation: self.generation,
+            command,
+        }) {
+            Ok(()) => Ok(()),
+            Err(TrySendError::Full(_)) => Err("Embedded player is busy; retry shortly".into()),
+            Err(TrySendError::Disconnected(_)) => {
+                Err("Embedded player stopped unexpectedly".into())
+            }
+        }
     }
 
     fn teardown(&mut self) {
-        self.writer.take();
-        self.events.take();
-        if let Some(mut child) = self.child.take() {
-            let _ = child.kill();
-            let _ = child.wait();
+        if let Some(sender) = self.commands.take() {
+            let _ = sender.try_send(WorkerCommand {
+                generation: self.generation,
+                command: PlayerCommand::Shutdown,
+            });
         }
-        let _ = std::fs::remove_file(&self.pipe);
+        self.statuses.take();
+        self.frames.take();
+        if let Some(worker) = self.worker.take() {
+            let _ = worker.join();
+        }
     }
 
     pub fn apply(&mut self, command: PlayerCommand) -> PlayerStatus {
-        let result = match command {
+        let result = match command.clone() {
             PlayerCommand::Load {
-                source,
                 volume,
                 speed,
                 looping,
+                ..
             } => {
-                // A fresh load resets every per-file flag first. mpv reports
-                // the previous file's end-file before the new file-loaded,
-                // so ended must be cleared here and not only on file-loaded.
-                // Resetting the loaded gate makes that stale end-file
-                // unmistakable even if it arrives after the new load.
+                self.generation = self.generation.wrapping_add(1);
                 self.mark_loading();
                 self.status = PlayerStatus::loading();
-                // Persisted playback settings are part of the load: they
-                // reach the status the UI mirrors and are pushed to mpv
-                // before playback starts, so the first play honors them.
-                let volume = volume.clamp(0.0, 100.0);
-                let speed = speed.clamp(0.25, 4.0);
-                self.status.volume = volume;
-                self.status.speed = speed;
+                self.status.volume = volume.clamp(0.0, 100.0);
+                self.status.speed = speed.clamp(0.25, 4.0);
                 self.status.looping = looping;
-                self.start().and_then(|_| {
-                    self.send(json!({"command":["set_property", "volume", volume]}))?;
-                    self.send(json!({"command":["set_property", "speed", speed]}))?;
-                    self.send(json!({"command":["set_property", "loop-file", if looping { "inf" } else { "no" }]}))?;
-                    self.send(json!({"command":["loadfile", source, "replace"]}))
-                })
+                self.start().and_then(|_| self.send(command))
             }
             PlayerCommand::SetPaused(paused) => {
                 self.status.paused = paused;
-                self.send(json!({"command":["set_property", "pause", paused]}))
+                self.send(command)
             }
             PlayerCommand::Seek(position) => {
-                let position = position.max(0.0);
-                self.status.position_secs = position;
-                self.send(json!({"command":["set_property", "time-pos", position]}))
+                self.status.position_secs = position.max(0.0);
+                self.send(command)
             }
             PlayerCommand::SetVolume(volume) => {
-                let volume = volume.clamp(0.0, 100.0);
-                self.status.volume = volume;
-                self.send(json!({"command":["set_property", "volume", volume]}))
+                self.status.volume = volume.clamp(0.0, 100.0);
+                self.send(command)
             }
             PlayerCommand::SetSpeed(speed) => {
-                let speed = speed.clamp(0.25, 4.0);
-                self.status.speed = speed;
-                self.send(json!({"command":["set_property", "speed", speed]}))
+                self.status.speed = speed.clamp(0.25, 4.0);
+                self.send(command)
             }
             PlayerCommand::SetLoop(looping) => {
                 self.status.looping = looping;
-                self.send(json!({"command":["set_property", "loop-file", if looping { "inf" } else { "no" }]}))
-            }
-            PlayerCommand::ToggleFullscreen => {
-                self.send(json!({"command":["cycle", "fullscreen"]}))
+                self.send(command)
             }
             PlayerCommand::Stop => {
+                self.generation = self.generation.wrapping_add(1);
                 self.mark_loading();
                 self.status.message = "Stopped".into();
                 self.status.position_secs = 0.0;
-                self.send(json!({"command":["stop"]}))
+                self.send(command)
             }
             PlayerCommand::Shutdown => {
                 self.teardown();
@@ -317,70 +261,68 @@ impl NativePlayer {
         self.status()
     }
 
+    /// Drains player state and at most one newest frame on the Slint thread.
     pub fn drain_events(&mut self) -> Vec<PlayerStatus> {
         let mut updates = Vec::new();
-        let Some(events) = &self.events else {
-            return updates;
-        };
-        while let Ok(event) = events.try_recv() {
-            match event.get("event").and_then(Value::as_str) {
-                Some("file-loaded") => {
-                    // A stale end-file from a replaced file can only arrive
-                    // before this event on the ordered pipe, so clearing the
-                    // ended flag here keeps rapid switches from advancing the
-                    // wrong queue item. This event also opens the gate: only
-                    // end-files observed after it can mark the media ended.
-                    self.loaded = true;
-                    self.status.ended = false;
-                    self.status.position_secs = 0.0;
-                    self.status.duration_secs = 0.0;
-                    self.status.message = "Playing".into();
-                }
-                Some("end-file") => {
-                    // Only a genuine end-of-file advances the queue or the
-                    // automated modes. Replacing the file (`loadfile`
-                    // `replace`) and explicit stops report reason "stop", and
-                    // acting on those would skip the item that was just
-                    // loaded. A failed decode reports "error": it surfaces
-                    // through the message/log handlers and the user skips
-                    // manually, so a broken file can never silently advance
-                    // past content the user has not seen. An end-file that
-                    // arrives before the current file's file-loaded is stale
-                    // (it belongs to the replaced file) and is ignored.
-                    let reason = event.get("reason").and_then(Value::as_str).unwrap_or("");
-                    if reason == "eof" && self.loaded {
-                        self.status.message = "Finished".into();
-                        self.status.ended = true;
-                    } else if reason == "error" {
-                        self.status.message = "Playback error".into();
+        if let Some(statuses) = &self.statuses {
+            loop {
+                match statuses.try_recv() {
+                    Ok(WorkerEvent::FileLoaded(generation)) if generation == self.generation => {
+                        self.loaded = true;
+                        self.status.ended = false;
+                        self.status.position_secs = 0.0;
+                        self.status.message = "Playing".into();
+                        updates.push(self.status());
                     }
-                }
-                Some("property-change") => {
-                    let property = event
-                        .get("name")
-                        .and_then(Value::as_str)
-                        .unwrap_or_default();
-                    match property {
-                        "time-pos" => {
-                            self.status.position_secs = event["data"].as_f64().unwrap_or(0.0)
+                    Ok(WorkerEvent::EndFile {
+                        generation,
+                        eof,
+                        failed,
+                    }) if generation == self.generation => {
+                        if failed {
+                            self.status.message = "Playback error".into();
+                        } else if eof && self.loaded {
+                            self.status.ended = true;
+                            self.status.message = "Finished".into();
                         }
-                        "duration" => {
-                            self.status.duration_secs = event["data"].as_f64().unwrap_or(0.0)
-                        }
-                        "pause" => self.status.paused = event["data"].as_bool().unwrap_or(false),
-                        _ => continue,
+                        updates.push(self.status());
                     }
+                    Ok(WorkerEvent::Progress {
+                        generation,
+                        position_secs,
+                        duration_secs,
+                        paused,
+                    }) if generation == self.generation => {
+                        if let Some(position_secs) = position_secs {
+                            self.status.position_secs = position_secs;
+                        }
+                        if let Some(duration_secs) = duration_secs {
+                            self.status.duration_secs = duration_secs;
+                        }
+                        if let Some(paused) = paused {
+                            self.status.paused = paused;
+                        }
+                        updates.push(self.status());
+                    }
+                    Ok(WorkerEvent::Error(generation, error)) if generation == self.generation => {
+                        self.status.message = error;
+                        updates.push(self.status());
+                    }
+                    Ok(_) => {}
+                    Err(TryRecvError::Empty | TryRecvError::Disconnected) => break,
                 }
-                Some("log-message") if event["level"].as_str() == Some("error") => {
-                    self.status.message = event["text"]
-                        .as_str()
-                        .unwrap_or("Native player error")
-                        .trim()
-                        .to_owned();
-                }
-                _ => continue,
             }
-            updates.push(self.status());
+        }
+        let mut newest = None;
+        if let Some(frames) = &self.frames {
+            while let Ok(frame) = frames.try_recv() {
+                if frame.generation == self.generation {
+                    newest = Some(frame);
+                }
+            }
+        }
+        if let (Some(callback), Some(frame)) = (&self.frame_callback, newest) {
+            callback(frame.pixels, frame.width, frame.height);
         }
         updates
     }
@@ -392,17 +334,163 @@ impl Drop for NativePlayer {
     }
 }
 
+fn player_worker(
+    commands: Receiver<WorkerCommand>,
+    statuses: SyncSender<WorkerEvent>,
+    frames: SyncSender<VideoFrame>,
+    ready: SyncSender<Result<(), String>>,
+) {
+    let mut instance = match MpvInstance::create() {
+        Ok(instance) => instance,
+        Err(error) => {
+            let _ = ready.send(Err(error));
+            return;
+        }
+    };
+    let mut renderer = match instance.create_renderer(RENDER_WIDTH, RENDER_HEIGHT) {
+        Ok(renderer) => renderer,
+        Err(error) => {
+            let _ = ready.send(Err(error));
+            return;
+        }
+    };
+    if ready.send(Ok(())).is_err() {
+        return;
+    }
+    let mut last_poll = Instant::now() - Duration::from_millis(100);
+    let mut generation = 0;
+    let mut render_ready = false;
+    loop {
+        match commands.recv_timeout(Duration::from_millis(16)) {
+            Ok(WorkerCommand {
+                command: PlayerCommand::Shutdown,
+                ..
+            })
+            | Err(mpsc::RecvTimeoutError::Disconnected) => break,
+            Ok(command) => {
+                generation = command.generation;
+                if matches!(
+                    &command.command,
+                    PlayerCommand::Load { .. } | PlayerCommand::Stop
+                ) {
+                    render_ready = false;
+                }
+                if let Err(error) = apply_worker_command(&mut instance, command.command) {
+                    let _ = statuses.try_send(WorkerEvent::Error(generation, error));
+                }
+            }
+            Err(mpsc::RecvTimeoutError::Timeout) => {}
+        }
+        while let Some(event) = instance.next_event() {
+            match event {
+                PlayerEvent::FileLoaded => {
+                    render_ready = true;
+                    let _ = statuses.try_send(WorkerEvent::FileLoaded(generation));
+                }
+                PlayerEvent::EndFile { eof, failed } => {
+                    let _ = statuses.try_send(WorkerEvent::EndFile {
+                        generation,
+                        eof,
+                        failed,
+                    });
+                }
+                PlayerEvent::Shutdown => return,
+            }
+        }
+        if render_ready && last_poll.elapsed() >= Duration::from_millis(100) {
+            last_poll = Instant::now();
+            let position_secs = instance
+                .property("time-pos")
+                .ok()
+                .and_then(|value| value.parse::<f64>().ok());
+            let duration_secs = instance
+                .property("duration")
+                .ok()
+                .and_then(|value| value.parse::<f64>().ok());
+            let paused = instance
+                .property("pause")
+                .ok()
+                .and_then(|value| match value.as_str() {
+                    "yes" | "true" | "1" => Some(true),
+                    "no" | "false" | "0" => Some(false),
+                    _ => None,
+                });
+            if position_secs.is_some() || duration_secs.is_some() || paused.is_some() {
+                let _ = statuses.try_send(WorkerEvent::Progress {
+                    generation,
+                    position_secs,
+                    duration_secs,
+                    paused,
+                });
+            }
+        }
+        if !render_ready {
+            continue;
+        }
+        match renderer.render() {
+            Ok(true) => {
+                let (pixels, width, height) = renderer.frame();
+                let _ = frames.try_send(VideoFrame {
+                    generation,
+                    pixels: pixels.to_vec(),
+                    width,
+                    height,
+                });
+            }
+            Ok(false) => {}
+            Err(error) => {
+                let _ = statuses.try_send(WorkerEvent::Error(generation, error));
+                break;
+            }
+        }
+    }
+}
+
+fn apply_worker_command(instance: &mut MpvInstance, command: PlayerCommand) -> Result<(), String> {
+    match command {
+        PlayerCommand::Load {
+            source,
+            volume,
+            speed,
+            looping,
+        } => {
+            instance.set_property("volume", &volume.clamp(0.0, 100.0).to_string())?;
+            instance.set_property("speed", &speed.clamp(0.25, 4.0).to_string())?;
+            instance.set_property("loop-file", if looping { "inf" } else { "no" })?;
+            instance.command(&["loadfile", &source, "replace"])
+        }
+        PlayerCommand::SetPaused(paused) => {
+            instance.set_property("pause", if paused { "yes" } else { "no" })
+        }
+        PlayerCommand::Seek(position) => {
+            instance.set_property("time-pos", &position.max(0.0).to_string())
+        }
+        PlayerCommand::SetVolume(volume) => {
+            instance.set_property("volume", &volume.clamp(0.0, 100.0).to_string())
+        }
+        PlayerCommand::SetSpeed(speed) => {
+            instance.set_property("speed", &speed.clamp(0.25, 4.0).to_string())
+        }
+        PlayerCommand::SetLoop(looping) => {
+            instance.set_property("loop-file", if looping { "inf" } else { "no" })
+        }
+        PlayerCommand::Stop => instance.command(&["stop"]),
+        PlayerCommand::Shutdown => Ok(()),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::Mutex;
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    };
 
-    // The probe reads process-wide environment state, so tests that mutate
-    // CURATOR_MPV_BIN serialize on this lock.
-    static ENV_LOCK: Mutex<()> = Mutex::new(());
+    static LIBMPV_ENV: Mutex<()> = Mutex::new(());
 
     #[test]
-    fn status_starts_with_a_safe_idle_state() {
+    fn idle_player_has_safe_defaults() {
         let player = NativePlayer::default();
         assert_eq!(player.status().message, "Choose media to play");
         assert_eq!(player.status().volume, 100.0);
@@ -410,247 +498,133 @@ mod tests {
     }
 
     #[test]
-    fn command_clamps_user_supplied_playback_values() {
+    fn load_clamps_visible_settings_before_worker_admission() {
+        let _environment = LIBMPV_ENV.lock().expect("environment lock");
         let mut player = NativePlayer::default();
-        // The unavailable IPC endpoint still preserves validated UI state and
-        // gives an actionable error instead of panicking.
-        let status = player.apply(PlayerCommand::SetSpeed(99.0));
-        assert_eq!(status.speed, 4.0);
-        let status = player.apply(PlayerCommand::SetVolume(-1.0));
-        assert_eq!(status.volume, 0.0);
-    }
-
-    #[test]
-    fn ended_flag_cannot_survive_a_fresh_load_or_stop() {
-        let _guard = ENV_LOCK.lock().unwrap();
-        let mut player = NativePlayer::default();
-        player.status.ended = true;
-        let status = player.apply(PlayerCommand::Stop);
-        assert!(!status.ended, "Stop must clear a stale ended flag");
-
-        // A failing load still replaces the status wholesale, so a stale
-        // end-file from the previous media cannot leak into the next item.
-        std::env::set_var("CURATOR_MPV_BIN", "/nonexistent/curator-test-mpv");
-        let status = player.apply(PlayerCommand::Load {
-            source: "clip.mp4".into(),
-            volume: 100.0,
-            speed: 1.0,
-            looping: false,
-        });
-        std::env::remove_var("CURATOR_MPV_BIN");
-        assert!(!status.ended, "Load must clear a stale ended flag");
-        assert!(status.message.contains("CURATOR_MPV_BIN"));
-    }
-
-    #[test]
-    fn only_eof_end_file_marks_the_item_ended() {
-        let mut player = NativePlayer::default();
-        let (tx, rx) = mpsc::channel();
-        player.events = Some(rx);
-        // Replacing the file reports reason "stop": it must never advance.
-        tx.send(json!({"event": "end-file", "reason": "stop"}))
-            .unwrap();
-        let statuses = player.drain_events();
-        assert!(
-            !statuses.last().expect("stop event drains").ended,
-            "a replacement load must not end the new item"
-        );
-        // An end-file that arrives before the file-loaded gate opens belongs
-        // to a replaced file and must never advance.
-        tx.send(json!({"event": "end-file", "reason": "eof"}))
-            .unwrap();
-        let statuses = player.drain_events();
-        assert!(
-            !statuses.last().expect("stale eof drains").ended,
-            "an end-file before file-loaded must not end the item"
-        );
-        // A genuine end-of-file for the loaded file advances.
-        tx.send(json!({"event": "file-loaded"})).unwrap();
-        tx.send(json!({"event": "end-file", "reason": "eof"}))
-            .unwrap();
-        let statuses = player.drain_events();
-        assert!(
-            statuses.last().expect("eof event drains").ended,
-            "a genuine end-of-file must mark the item ended"
-        );
-    }
-
-    #[test]
-    fn error_end_file_surfaces_a_message_without_advancing() {
-        let mut player = NativePlayer::default();
-        let (tx, rx) = mpsc::channel();
-        player.events = Some(rx);
-        tx.send(json!({"event": "end-file", "reason": "error"}))
-            .unwrap();
-        let statuses = player.drain_events();
-        let status = statuses.last().expect("error event drains");
-        assert!(!status.ended, "a decode error must not advance the queue");
-        assert!(
-            status.message.to_lowercase().contains("error"),
-            "a decode error must surface in the player message"
-        );
-    }
-
-    /// Injects a fresh mpv event channel. Each `apply(Load|Stop)` tears the
-    /// previous channel down via `start()`/`teardown()`; in production the
-    /// mpv child stays alive across loads so the channel persists, but tests
-    /// without a real mpv must re-inject after every `apply`.
-    fn inject_events(player: &mut NativePlayer) -> mpsc::Sender<Value> {
-        let (tx, rx) = mpsc::channel();
-        player.events = Some(rx);
-        tx
-    }
-
-    #[test]
-    fn load_and_stop_reset_the_loaded_gate() {
-        let _guard = ENV_LOCK.lock().unwrap();
-        std::env::set_var("CURATOR_MPV_BIN", "/nonexistent/curator-test-mpv");
-        let mut player = NativePlayer::default();
-        player.apply(PlayerCommand::Load {
-            source: "a.mp4".into(),
-            volume: 100.0,
-            speed: 1.0,
-            looping: false,
-        });
-        let tx = inject_events(&mut player);
-        tx.send(json!({"event": "file-loaded"})).unwrap();
-        player.drain_events();
-        assert!(player.loaded, "file-loaded opens the end-file gate");
-        // A failing load still resets the gate: the stale media is gone
-        // either way.
-        player.apply(PlayerCommand::Load {
-            source: "b.mp4".into(),
-            volume: 100.0,
-            speed: 1.0,
-            looping: false,
-        });
-        assert!(
-            !player.loaded,
-            "a new load closes the gate until file-loaded"
-        );
-        let tx = inject_events(&mut player);
-        tx.send(json!({"event": "file-loaded"})).unwrap();
-        player.drain_events();
-        player.apply(PlayerCommand::Stop);
-        assert!(
-            !player.loaded,
-            "stop closes the gate until the next file-loaded"
-        );
-        std::env::remove_var("CURATOR_MPV_BIN");
-    }
-
-    #[test]
-    fn load_pushes_persisted_settings_to_mpv_before_playback() {
-        // The injected writer stands in for the mpv IPC pipe: `start()`
-        // treats a present writer as an available endpoint, so every JSON
-        // command `apply` emits lands in this file without a real mpv.
-        let path =
-            std::env::temp_dir().join(format!("curator-test-ipc-{}.jsonl", std::process::id()));
-        let mut player = NativePlayer::default();
-        player.writer = Some(File::create(&path).unwrap());
+        // This intentionally points nowhere, so the test proves status
+        // validation without requiring a media runtime on the test host.
+        std::env::set_var("CURATOR_LIBMPV_PATH", "not-a-real-libmpv-test");
         let status = player.apply(PlayerCommand::Load {
             source: "movie.mp4".into(),
-            volume: 42.0,
-            speed: 1.5,
+            volume: 500.0,
+            speed: 0.01,
             looping: true,
         });
-        // The mirrored status carries the settings too, so the Slint
-        // sliders keep showing the persisted values after a load.
-        assert_eq!(status.volume, 42.0);
-        assert_eq!(status.speed, 1.5);
-        assert!(status.looping);
-        drop(player);
-        let text = std::fs::read_to_string(&path).unwrap();
-        let _ = std::fs::remove_file(&path);
-        let commands: Vec<Value> = text
-            .lines()
-            .filter(|line| !line.trim().is_empty())
-            .map(|line| serde_json::from_str(line).expect("one JSON command per line"))
-            .collect();
-        assert_eq!(
-            commands
-                .iter()
-                .map(|command| command["command"].clone())
-                .collect::<Vec<_>>(),
-            vec![
-                json!(["set_property", "volume", 42.0]),
-                json!(["set_property", "speed", 1.5]),
-                json!(["set_property", "loop-file", "inf"]),
-                json!(["loadfile", "movie.mp4", "replace"]),
-            ],
-            "settings must reach mpv before the loadfile command"
-        );
-    }
-
-    #[test]
-    fn load_clamps_settings_before_sending_them() {
-        let path = std::env::temp_dir().join(format!(
-            "curator-test-ipc-clamp-{}.jsonl",
-            std::process::id()
-        ));
-        let mut player = NativePlayer::default();
-        player.writer = Some(File::create(&path).unwrap());
-        let status = player.apply(PlayerCommand::Load {
-            source: "movie.mp4".into(),
-            volume: 999.0,
-            speed: 0.01,
-            looping: false,
-        });
+        std::env::remove_var("CURATOR_LIBMPV_PATH");
         assert_eq!(status.volume, 100.0);
         assert_eq!(status.speed, 0.25);
-        drop(player);
-        let text = std::fs::read_to_string(&path).unwrap();
-        let _ = std::fs::remove_file(&path);
-        assert!(
-            text.contains(r#""command":["set_property","volume",100.0]"#),
-            "volume is clamped before it reaches mpv: {text}"
-        );
-        assert!(
-            text.contains(r#""command":["set_property","loop-file","no"]"#),
-            "loop off reaches mpv as loop-file=no: {text}"
-        );
+        assert!(status.looping);
+        assert!(status.message.contains("libmpv"));
     }
 
     #[test]
-    fn stale_end_file_after_rapid_replacement_never_advances() {
+    fn stale_worker_output_is_ignored_after_media_switch() {
+        let (status_tx, statuses) = mpsc::channel();
+        let (frame_tx, frames) = mpsc::channel();
+        let received = Arc::new(AtomicUsize::new(0));
+        let received_frame = received.clone();
         let mut player = NativePlayer::default();
-        let tx = inject_events(&mut player);
-        // Item A loads and plays to the end; its end-file is still queued
-        // when the user picks item B.
-        player.mark_loading();
-        tx.send(json!({"event": "file-loaded"})).unwrap();
-        player.drain_events();
-        tx.send(json!({"event": "end-file", "reason": "eof"}))
+        player.statuses = Some(statuses);
+        player.frames = Some(frames);
+        player.generation = 2;
+        player.set_frame_callback(Box::new(move |pixels, _, _| {
+            received_frame.store(pixels[0] as usize, Ordering::SeqCst);
+        }));
+        status_tx.send(WorkerEvent::FileLoaded(1)).unwrap();
+        status_tx
+            .send(WorkerEvent::Progress {
+                generation: 2,
+                position_secs: Some(4.0),
+                duration_secs: Some(10.0),
+                paused: Some(false),
+            })
             .unwrap();
-        // The replacement load closes the gate before anything is drained.
-        // (Through `apply` this is `Load`; here the gate transition is
-        // driven directly because the test has no live mpv child and
-        // `apply` would tear the injected channel down.)
-        player.mark_loading();
-        // The stale end-file arrives after the new load; the ordered pipe
-        // guarantees the new file-loaded follows it.
-        let statuses = player.drain_events();
-        assert!(
-            statuses.iter().all(|status| !status.ended),
-            "a stale end-of-file from the replaced item must never mark the new media ended"
-        );
-        tx.send(json!({"event": "file-loaded"})).unwrap();
-        player.drain_events();
-        tx.send(json!({"event": "end-file", "reason": "eof"}))
+        frame_tx
+            .send(VideoFrame {
+                generation: 1,
+                pixels: vec![1, 0, 0, 255],
+                width: 1,
+                height: 1,
+            })
             .unwrap();
-        let statuses = player.drain_events();
-        assert!(
-            statuses.last().expect("eof event drains").ended,
-            "the new item's own end-of-file still advances"
-        );
+        frame_tx
+            .send(VideoFrame {
+                generation: 2,
+                pixels: vec![2, 0, 0, 255],
+                width: 1,
+                height: 1,
+            })
+            .unwrap();
+
+        let updates = player.drain_events();
+
+        assert_eq!(updates.len(), 1);
+        assert_eq!(updates[0].position_secs, 4.0);
+        assert!(!player.loaded);
+        assert_eq!(received.load(Ordering::SeqCst), 2);
     }
 
+    /// Runs only when a caller provides a verified libmpv and a disposable
+    /// video. It proves the worker can load, decode and hand a software frame
+    /// back to the Slint thread without creating an external player window.
     #[test]
-    fn mpv_probe_reports_a_missing_executable_actionably() {
-        let _guard = ENV_LOCK.lock().unwrap();
-        std::env::set_var("CURATOR_MPV_BIN", "/nonexistent/curator-test-mpv");
-        let error = NativePlayer::mpv_probe().expect_err("missing binary must fail the probe");
-        std::env::remove_var("CURATOR_MPV_BIN");
-        assert!(error.contains("CURATOR_MPV_BIN"), "{error}");
+    #[ignore = "requires CURATOR_LIBMPV_PATH and CURATOR_LIVE_RENDERER_MEDIA"]
+    fn live_renderer_delivers_a_software_frame() {
+        let media = std::env::var("CURATOR_LIVE_RENDERER_MEDIA")
+            .expect("set CURATOR_LIVE_RENDERER_MEDIA to a disposable video");
+        let received = Arc::new(AtomicUsize::new(0));
+        let dimensions = Arc::new(AtomicUsize::new(0));
+        let mut player = NativePlayer::default();
+        let received_frame = received.clone();
+        let frame_dimensions = dimensions.clone();
+        player.set_frame_callback(Box::new(move |pixels, width, height| {
+            assert_eq!(pixels.len(), width as usize * height as usize * 4);
+            assert!(pixels
+                .iter()
+                .skip(3)
+                .step_by(4)
+                .all(|alpha| *alpha == u8::MAX));
+            frame_dimensions.store((width as usize) << 16 | height as usize, Ordering::SeqCst);
+            received_frame.fetch_add(1, Ordering::SeqCst);
+        }));
+        let status = player.apply(PlayerCommand::Load {
+            source: media.clone(),
+            volume: 25.0,
+            speed: 1.0,
+            looping: false,
+        });
+        assert!(
+            !status.message.contains("unavailable"),
+            "libmpv failed to start: {}",
+            status.message
+        );
+        // Replace the active file repeatedly before it finishes loading. The
+        // final generation must still decode and the worker must stay alive.
+        for _ in 0..8 {
+            let status = player.apply(PlayerCommand::Load {
+                source: media.clone(),
+                volume: 25.0,
+                speed: 1.0,
+                looping: false,
+            });
+            assert_ne!(status.message, "Embedded player stopped unexpectedly");
+        }
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let mut status_messages = Vec::new();
+        while Instant::now() < deadline && received.load(Ordering::SeqCst) == 0 {
+            status_messages.extend(
+                player
+                    .drain_events()
+                    .into_iter()
+                    .map(|status| status.message),
+            );
+            thread::sleep(Duration::from_millis(20));
+        }
+        assert!(
+            received.load(Ordering::SeqCst) > 0,
+            "libmpv loaded no frame from the disposable video; statuses: {status_messages:?}"
+        );
+        assert_ne!(dimensions.load(Ordering::SeqCst), 0);
+        player.apply(PlayerCommand::Shutdown);
     }
 }

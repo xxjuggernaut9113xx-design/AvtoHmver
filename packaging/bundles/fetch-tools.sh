@@ -73,29 +73,44 @@ for tool in $tools; do
     exe) cp "$archive" "$extract/$tool.exe" ;;
     *) echo "Unknown kind '$kind' for $tool" >&2; fail=1; continue ;;
   esac
-  # Stage the manifest-listed files by basename.
+  # Stage the manifest-listed files by basename. A wildcard deliberately
+  # brings along libmpv/mpv dependency DLLs; copying only libmpv itself makes
+  # a fresh Windows installation fail during dynamic loading.
   staged=$(awk -v section="[$tool]" '
     $0 == section { in_section=1; next }
     in_section && /^\[/ { exit }
     in_section && /^stage = / {
       line=$0; gsub(/.*\[/, "", line); gsub(/\].*/, "", line); gsub(/"/, "", line); gsub(/, */, "\n", line); print line; exit
     }' "$manifest")
-  # shellcheck disable=SC2086
-  for rel in $staged; do
+  while IFS= read -r rel; do
+    [ -n "$rel" ] || continue
     base=$(basename "$rel")
-    found=$(find "$extract" -name "$base" -type f | head -1)
+    found=$(find "$extract" -name "$base" -type f -print)
     if [ -z "$found" ]; then
-      echo "Staged file '$rel' not found in $tool archive" >&2
+      echo "Staged file pattern '$rel' not found in $tool archive" >&2
       fail=1
       continue
     fi
-    install -m 0755 "$found" "$out/$base"
-  done
+    while IFS= read -r file; do
+      [ -n "$file" ] || continue
+      install -m 0755 "$file" "$out/$(basename "$file")"
+    done <<EOF
+$found
+EOF
+  done <<EOF
+$staged
+EOF
 done
 
 if [ "$fail" -ne 0 ]; then
   echo "Tool bundle is incomplete; refusing to package." >&2
   exit 1
 fi
+for required in ffmpeg.exe ffprobe.exe mpv.exe gallery-dl.exe libmpv-2.dll; do
+  if [ ! -f "$out/$required" ]; then
+    echo "Required bundled runtime '$required' was not staged" >&2
+    exit 1
+  fi
+done
 echo "Tools staged in $out:"
 ls -la "$out"

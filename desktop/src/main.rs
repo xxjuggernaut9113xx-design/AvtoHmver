@@ -13,14 +13,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let state = runtime.block_on(curator::initialize_host())?;
     let arguments: Vec<String> = std::env::args().collect();
     let background = arguments.iter().any(|argument| argument == "--background");
-    // A background launch keeps the host alive in the tray; remote access is
-    // part of that job, so it starts the HTTP service too.
-    let serve = background || arguments.iter().any(|argument| argument == "--serve");
-    // An unavailable optional listener must never prevent local use.
-    if serve {
-        if let Err(error) = runtime.block_on(curator::remote::start_http_server(&state)) {
-            eprintln!("Remote access could not start; local library remains available: {error}");
-        }
+    // The Windows Host always owns its HTTP listener. The phone/browser
+    // client must remain reachable during an ordinary desktop launch and
+    // after the window hides to the tray; LAN exposure itself remains
+    // opt-in, while loopback and detected Tailscale addresses are safe
+    // defaults. Listener failure must never prevent local native use.
+    if let Err(error) = runtime.block_on(curator::remote::start_http_server(&state)) {
+        eprintln!("Remote access could not start; local library remains available: {error}");
     }
     let client = curator::native::LocalClient::new(state.clone())?;
     let shared = std::sync::Arc::new(state);

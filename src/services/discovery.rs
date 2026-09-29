@@ -151,7 +151,7 @@ fn curated_providers() -> Vec<ProviderDescriptor> {
             false,
             "available",
             &["creator", "post"],
-            Some("https://kemono.su/{QUERY}"),
+            Some("https://kemono.cr/{QUERY}"),
         ),
         descriptor(
             "erome",
@@ -320,9 +320,9 @@ fn curated_providers() -> Vec<ProviderDescriptor> {
             "Coomer",
             searchable,
             false,
-            "experimental",
+            "available",
             &["creator", "post"],
-            None,
+            Some("https://coomer.st/{QUERY}"),
         ),
         descriptor(
             "danbooru",
@@ -1147,7 +1147,11 @@ const KEMONO_MAX_PAGES: usize = 2;
 fn kemono_bases(provider: &str) -> &'static [&'static str] {
     match provider {
         "kemono" => &["https://kemono.su", "https://kemono.cr"],
-        "coomer" => &["https://coomer.su", "https://coomer.party"],
+        "coomer" => &[
+            "https://coomer.st",
+            "https://coomer.su",
+            "https://coomer.party",
+        ],
         _ => &[],
     }
 }
@@ -1322,7 +1326,11 @@ async fn search_kemono_like(provider: &str, query: &str) -> Result<Vec<SearchRes
                 }
                 Err(error) => {
                     last_error = error;
-                    failed = true;
+                    // A later page can be rate limited even though earlier
+                    // pages are complete and useful. Keep those validated
+                    // results; only fall back to another host when the first
+                    // page itself failed.
+                    failed = results.is_empty();
                     break;
                 }
             }
@@ -1491,6 +1499,42 @@ mod tests {
         assert!(direct.results[0].gallery_dl_compatible);
         assert_eq!(direct.providers, vec!["local", "balbums"]);
         assert!(direct.provider_errors.is_empty());
+    }
+
+    #[tokio::test]
+    #[ignore = "requires live balbums, Kemono, and Coomer services"]
+    async fn live_required_provider_searches_return_downloadable_results() {
+        let root = tempfile::tempdir().unwrap();
+        let state = crate::test_support::state(root.path());
+        for (provider, query) in [
+            ("balbums", "belladonna"),
+            ("kemono", "test"),
+            ("coomer", "test"),
+        ] {
+            let response = search(
+                &state,
+                SearchQuery {
+                    query: Some(query.into()),
+                    provider: Some(provider.into()),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap_or_else(|error| panic!("{provider} search failed: {error:?}"));
+            assert!(
+                response.provider_errors.is_empty(),
+                "{provider} errors: {:?}",
+                response.provider_errors
+            );
+            assert!(
+                response.results.iter().any(|result| {
+                    result.provider == provider
+                        && result.gallery_dl_compatible
+                        && result.gallery_dl_validated
+                }),
+                "{provider} returned no validated gallery-dl result"
+            );
+        }
     }
 
     #[tokio::test]
@@ -1732,10 +1776,15 @@ mod tests {
     #[test]
     fn kemono_posts_without_ids_are_skipped() {
         let payload = serde_json::json!([{ "title": "no id" }]);
-        assert!(parse_kemono_posts("https://coomer.su", "coomer", &payload).is_empty());
+        assert!(parse_kemono_posts("https://coomer.st", "coomer", &payload).is_empty());
         assert!(
-            parse_kemono_posts("https://coomer.su", "coomer", &serde_json::json!({})).is_empty()
+            parse_kemono_posts("https://coomer.st", "coomer", &serde_json::json!({})).is_empty()
         );
+    }
+
+    #[test]
+    fn coomer_prefers_the_current_live_host() {
+        assert_eq!(kemono_bases("coomer")[0], "https://coomer.st");
     }
 
     #[test]

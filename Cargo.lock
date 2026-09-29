@@ -1267,6 +1267,7 @@ dependencies = [
  "anyhow",
  "curator",
  "dunce",
+ "libloading",
  "rfd",
  "rusqlite",
  "serde",

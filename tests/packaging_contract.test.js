@@ -32,6 +32,23 @@ test('Windows Server installer has explicit user and machine scope plus opt-in P
   assert.match(build, /NSIS\\makensis\.exe/);
 });
 
+test('Host and Viewer installers require the media runtime needed by native playback', () => {
+  const manifest = read('packaging/bundles/manifest.toml');
+  const fetch = read('packaging/bundles/fetch-tools.sh');
+  const build = read('packaging/windows/build-desktop-installers.ps1');
+  const host = read('packaging/windows/curator-host.nsi');
+  const viewer = read('packaging/windows/curator-viewer.nsi');
+  assert.match(manifest, /\[mpv\][\s\S]*stage = \["mpv\.exe", "\*\.dll"\]/);
+  assert.match(manifest, /\[mpv-dev\][\s\S]*stage = \["\*\.dll"\]/);
+  assert.match(fetch, /ffmpeg\.exe ffprobe\.exe mpv\.exe gallery-dl\.exe libmpv-2\.dll/);
+  assert.match(build, /ToolsDirectory is required/);
+  assert.match(build, /ToolMode = 'libraries'/);
+  assert.match(host, /File \/r "\$\{CURATOR_STAGE\}\\tools\\\*\.\*"/);
+  assert.doesNotMatch(host, /File \/nonfatal \/r "\$\{CURATOR_STAGE\}\\tools/);
+  assert.match(viewer, /File \/r "\$\{CURATOR_STAGE\}\\tools\\\*\.\*"/);
+  assert.match(viewer, /THIRD_PARTY_NOTICES\.md/);
+});
+
 test('Linux scope packages carry appropriate service definitions', () => {
   const systemd = read('packaging/linux/curator-server.service');
   const userSystemd = read('packaging/linux/curator-server-user.service');

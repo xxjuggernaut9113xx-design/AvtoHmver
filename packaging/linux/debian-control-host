@@ -3,6 +3,7 @@ Version: @CURATOR_VERSION@
 Section: graphics
 Priority: optional
 Architecture: amd64
+Depends: libmpv2
 Maintainer: Curator
 Recommends: mpv, ffmpeg
 Description: Curator Host native media library app

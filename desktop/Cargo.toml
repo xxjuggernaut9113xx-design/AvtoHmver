@@ -24,3 +24,4 @@ windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Securit
 slint = "=1.18.0"
 rfd = "=0.16.0"
 tempfile = "3"
+libloading = "0.8"

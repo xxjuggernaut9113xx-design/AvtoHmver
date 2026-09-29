@@ -60,10 +60,14 @@ pub async fn import_sources(
                 SourceError::ShuttingDown | SourceError::MaintenanceActive => {
                     StatusCode::SERVICE_UNAVAILABLE
                 }
-                SourceError::InvalidInput(_) | SourceError::InvalidUrl(_) => {
-                    StatusCode::BAD_REQUEST
-                }
+                SourceError::InvalidInput(_)
+                | SourceError::InvalidUrl(_)
+                | SourceError::NothingToUpdate
+                | SourceError::RetentionLimit
+                | SourceError::RetentionConfirmation => StatusCode::BAD_REQUEST,
                 SourceError::Database(_) => StatusCode::INTERNAL_SERVER_ERROR,
+                SourceError::Missing => StatusCode::NOT_FOUND,
+                SourceError::MissingGroup => StatusCode::BAD_REQUEST,
             };
             (status, Json(json!({"error": error.message()})))
         })?;

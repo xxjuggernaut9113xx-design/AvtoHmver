@@ -19,7 +19,7 @@ pub const SOURCE_APPROVED: &str = "source_approved";
 pub const AUTOMATIC: &str = "automatic";
 pub const LEGACY: &str = "legacy";
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SourceTagCandidate {
     pub id: i64,
     pub media_id: i64,

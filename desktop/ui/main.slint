@@ -37,6 +37,8 @@ export component CuratorNativeWindow inherits Window {
     in-out property <string> download-status;
     in-out property <[DownloadRow]> download-sources;
     in-out property <image> preview;
+    in-out property <image> video-frame;
+    in-out property <bool> video-active: false;
     in-out property <string> playing;
     in-out property <string> player-status: "Choose media to play";
     in-out property <float> player-progress: 0;
@@ -86,6 +88,12 @@ export component CuratorNativeWindow inherits Window {
     callback import-sources();
     callback navigate(int);
     callback create-group(string);
+    callback create-child-group(int, string);
+    callback choose-group-to-move(int);
+    callback move-group-under(int);
+    callback move-group-to-top();
+    callback cancel-group-move();
+    in-out property <string> moving-group-label: "";
     callback move-to-group(int);
     callback add-to-group(int);
     callback open-selected();
@@ -125,7 +133,27 @@ export component CuratorNativeWindow inherits Window {
     callback source-download(int, bool);
     callback resync-all();
     callback source-manage(int, string);
+    callback choose-source-group(int);
+    callback assign-source-group(int);
+    callback ungroup-source();
+    callback cancel-source-group();
+    in-out property <string> source-group-target: "";
+    callback confirm-source-delete(bool);
+    callback cancel-source-delete();
+    in-out property <string> source-delete-target: "";
+    in-out property <string> source-delete-confirmation: "";
     callback rename-source(int, string);
+    callback save-source-edit();
+    callback cancel-source-edit();
+    in-out property <string> source-edit-target: "";
+    in-out property <string> source-edit-name: "";
+    in-out property <bool> source-edit-included: true;
+    in-out property <string> source-edit-retention: "";
+    in-out property <string> source-edit-confirmation: "";
+    in-out property <[string]> source-tag-candidates;
+    in-out property <string> source-tag-edit-name: "";
+    callback refresh-source-tags();
+    callback review-source-tag(int, string, string);
     callback rename-group(int, string);
     callback delete-group(int);
     callback refresh-manage();
@@ -525,13 +553,19 @@ export component CuratorNativeWindow inherits Window {
                                         HorizontalBox { spacing: 6px;
                                             Button { text: "Browse"; clicked => { root.browse-group(gindex); } }
                                             if root.can-edit-library: Button { text: "+ Add to group…"; enabled: root.selected-count > 0; clicked => { root.add-to-group(gindex); } }
+                                            if root.can-edit-library: Button { text: "Add child"; enabled: root.manage-group-name != ""; clicked => { root.create-child-group(gindex, root.manage-group-name); } }
                                         }
                                     }
                                 }
                             }
                             if root.local-host: HorizontalBox { spacing: 8px;
                                 LineEdit { placeholder-text: "New group name"; text <=> root.manage-group-name; horizontal-stretch: 1; }
-                                Button { text: "Create group"; enabled: !root.busy; clicked => { root.create-group(root.manage-group-name); } }
+                                Button { text: "Create group"; enabled: !root.busy && root.manage-group-name != ""; clicked => { root.create-group(root.manage-group-name); } }
+                            }
+                            if root.can-edit-library && root.moving-group-label != "": HorizontalBox { spacing: 8px;
+                                Text { text: "Move " + root.moving-group-label + " under a group below, or to top level."; color: root.theme-muted; vertical-alignment: center; }
+                                Button { text: "Move to top level"; clicked => { root.move-group-to-top(); } }
+                                Button { text: "Cancel"; clicked => { root.cancel-group-move(); } }
                             }
                             Text { text: "Sources"; font-size: 18px; font-weight: 700; color: root.theme-text; }
                             if root.local-host: HorizontalBox { spacing: 8px;
@@ -554,13 +588,62 @@ export component CuratorNativeWindow inherits Window {
                                 if root.can-edit-library: Button { text: "Inspect"; clicked => { root.source-manage(index, "inspect"); } }
                                 if root.can-edit-library: Button { text: "Resync"; clicked => { root.source-manage(index, "resync"); } }
                                 if root.can-edit-library: Button { text: "Log"; clicked => { root.source-manage(index, "log"); } }
+                                if root.can-edit-library: Button { text: "Group…"; clicked => { root.choose-source-group(index); } }
                                 if root.can-edit-library: Button { text: "Rename"; enabled: root.manage-source-rename != ""; clicked => { root.rename-source(index, root.manage-source-rename); } }
-                                if root.can-edit-library: Button { text: "Delete"; clicked => { root.source-manage(index, "delete"); } }
+                                if root.can-edit-library: Button { text: "Remove…"; clicked => { root.source-manage(index, "delete"); } }
+                            }
+                            if root.can-edit-library && root.source-delete-target != "": Rectangle {
+                                background: root.theme-elevated; border-width: 1px; border-color: root.theme-line; border-radius: 8px;
+                                VerticalBox { padding: 12px; spacing: 8px;
+                                    Text { text: "Remove " + root.source-delete-target + "?"; font-weight: 700; color: root.theme-text; }
+                                    Text { text: "Removing the source keeps downloaded media on disk. Deleting source files also removes its library folder and archive."; wrap: word-wrap; color: root.theme-muted; }
+                                    LineEdit { placeholder-text: "Type REMOVE SOURCE or DELETE SOURCE FILES"; text <=> root.source-delete-confirmation; }
+                                    HorizontalBox { spacing: 8px;
+                                        Button { text: "Remove source, keep files"; enabled: !root.busy && root.source-delete-confirmation == "REMOVE SOURCE"; clicked => { root.confirm-source-delete(false); } }
+                                        Button { text: "Delete source and files"; enabled: !root.busy && root.source-delete-confirmation == "DELETE SOURCE FILES"; clicked => { root.confirm-source-delete(true); } }
+                                        Button { text: "Cancel"; clicked => { root.cancel-source-delete(); } }
+                                    }
+                                }
                             }
                             if root.source-detail != "": Text { text: root.source-detail; wrap: word-wrap; color: root.theme-muted; }
+                            if root.can-edit-library && root.source-edit-target != "": Rectangle {
+                                background: root.theme-elevated; border-width: 1px; border-color: root.theme-line; border-radius: 8px;
+                                VerticalBox { padding: 12px; spacing: 8px;
+                                    Text { text: "Edit " + root.source-edit-target; font-weight: 700; color: root.theme-text; }
+                                    LineEdit { placeholder-text: "Source name"; text <=> root.source-edit-name; }
+                                    CheckBox { text: "Include source in downloads"; checked <=> root.source-edit-included; }
+                                    LineEdit { placeholder-text: "Keep newest items (blank disables retention)"; text <=> root.source-edit-retention; }
+                                    Text { text: "When automatic cleanup is enabled, type ENABLE RETENTION to add a retention rule."; wrap: word-wrap; color: root.theme-muted; }
+                                    LineEdit { placeholder-text: "Retention confirmation, if needed"; text <=> root.source-edit-confirmation; }
+                                    HorizontalBox { spacing: 8px;
+                                        Button { text: "Save source"; enabled: !root.busy && root.source-edit-name != ""; clicked => { root.save-source-edit(); } }
+                                        Button { text: "Cancel"; clicked => { root.cancel-source-edit(); } }
+                                    }
+                                }
+                            }
+                            Text { text: "Source tag review"; font-size: 18px; font-weight: 700; color: root.theme-text; }
+                            Text { text: "Source metadata stays proposed until you add, edit, or reject it. Human tag choices are preserved."; wrap: word-wrap; color: root.theme-muted; }
+                            if root.can-edit-library: HorizontalBox { spacing: 8px;
+                                LineEdit { placeholder-text: "Edited tag name"; text <=> root.source-tag-edit-name; horizontal-stretch: 1; }
+                                Button { text: "Refresh proposals"; enabled: !root.busy; clicked => { root.refresh-source-tags(); } }
+                            }
+                            for candidate[tag-index] in root.source-tag-candidates: HorizontalBox { spacing: 8px;
+                                Text { text: candidate; wrap: word-wrap; horizontal-stretch: 1; color: root.theme-text; }
+                                Button { text: "Add"; enabled: !root.busy; clicked => { root.review-source-tag(tag-index, "add", ""); } }
+                                Button { text: "Edit"; enabled: !root.busy && root.source-tag-edit-name != ""; clicked => { root.review-source-tag(tag-index, "edit", root.source-tag-edit-name); } }
+                                Button { text: "Reject"; enabled: !root.busy; clicked => { root.review-source-tag(tag-index, "skip", ""); } }
+                            }
                             Text { text: "Manage groups"; font-size: 18px; font-weight: 700; color: root.theme-text; }
+                            if root.can-edit-library && root.source-group-target != "": HorizontalBox { spacing: 8px;
+                                Text { text: "Move source " + root.source-group-target + " into a group below."; color: root.theme-muted; vertical-alignment: center; }
+                                Button { text: "Ungroup source"; clicked => { root.ungroup-source(); } }
+                                Button { text: "Cancel"; clicked => { root.cancel-source-group(); } }
+                            }
                             for name[gi] in root.groups: HorizontalBox { spacing: 8px;
                                 Text { text: name; overflow: elide; horizontal-stretch: 1; color: root.theme-text; vertical-alignment: center; }
+                                if root.can-edit-library && root.source-group-target != "": Button { text: "Put source here"; clicked => { root.assign-source-group(gi); } }
+                                if root.can-edit-library: Button { text: "Move…"; clicked => { root.choose-group-to-move(gi); } }
+                                if root.can-edit-library && root.moving-group-label != "": Button { text: "Move under this group"; clicked => { root.move-group-under(gi); } }
                                 if root.can-edit-library: Button { text: "Rename"; enabled: root.manage-group-rename != ""; clicked => { root.rename-group(gi, root.manage-group-rename); } }
                                 if root.can-edit-library: Button { text: "Delete"; clicked => { root.delete-group(gi); } }
                             }
@@ -662,7 +745,7 @@ export component CuratorNativeWindow inherits Window {
                     Slider { minimum: 0; maximum: 100; value <=> root.player-volume; changed value => { root.player-control("volume", self.value); } }
                     CheckBox { text: "Loop"; checked <=> root.player-looping; toggled => { root.player-control("loop", self.checked ? 1 : 0); } }
                 }
-                Image { source: root.preview; image-fit: contain; vertical-stretch: 1; }
+                Image { source: root.video-active ? root.video-frame : root.preview; image-fit: contain; vertical-stretch: 1; }
                 Text { text: root.session-status; wrap: word-wrap; }
                 if root.can-control-sessions: HorizontalBox {
                     for command in ["Start", "Pause", "Resume", "End"]: Button { text: command + " session"; clicked => { root.session-control(command); } }
@@ -699,7 +782,12 @@ export component CuratorNativeWindow inherits Window {
                 Button { text: root.player-paused ? "Resume" : "Pause"; clicked => { root.player-control(root.player-paused ? "resume" : "pause", 0); } }
                 Button { text: "Fullscreen"; clicked => { root.fullscreen(); } }
             }
-            Image { source: root.preview; image-fit: contain; vertical-stretch: 1; }
+            HorizontalBox { vertical-stretch: 0;
+                Text { text: "Progress"; }
+                Slider { minimum: 0; maximum: root.player-duration > 0 ? root.player-duration : 1; value <=> root.player-progress; changed value => { root.player-control("seek", self.value); } }
+                Text { text: root.player-progress + " / " + root.player-duration + " sec"; }
+            }
+            Image { source: root.video-active ? root.video-frame : root.preview; image-fit: contain; vertical-stretch: 1; }
                     Rectangle { vertical-stretch: 1; }
         }
         if root.stage-open && root.stage-mode == 2: VerticalBox { vertical-stretch: 1;
@@ -713,7 +801,7 @@ export component CuratorNativeWindow inherits Window {
                 for stars in [1, 2, 3, 4, 5]: Button { text: stars + " ★"; enabled: root.can-edit-library; clicked => { root.review-control("rate", stars); } }
                 Button { text: "Undo"; enabled: root.can-edit-library; clicked => { root.review-control("undo", 0); } }
             }
-            Image { source: root.preview; image-fit: contain; vertical-stretch: 1; }
+            Image { source: root.video-active ? root.video-frame : root.preview; image-fit: contain; vertical-stretch: 1; }
                     Rectangle { vertical-stretch: 1; }
         }
         if root.stage-open && root.stage-mode == 3: VerticalBox { vertical-stretch: 1;
@@ -745,7 +833,7 @@ export component CuratorNativeWindow inherits Window {
                 Button { text: "Next image"; enabled: root.can-playback; clicked => { root.slideshow-control("next"); } }
                 Button { text: "Stop"; clicked => { root.slideshow-control("stop"); } }
             }
-            Image { source: root.preview; image-fit: contain; vertical-stretch: 1; }
+            Image { source: root.video-active ? root.video-frame : root.preview; image-fit: contain; vertical-stretch: 1; }
                     Rectangle { vertical-stretch: 1; }
         }
         if root.stage-open && root.stage-mode == 5: VerticalBox { vertical-stretch: 1;
@@ -773,7 +861,7 @@ export component CuratorNativeWindow inherits Window {
                 Button { text: "Start session"; enabled: root.can-playback; clicked => { root.cockhero-control("start"); } }
                 Button { text: "Stop"; clicked => { root.cockhero-control("stop"); } }
             }
-            Image { source: root.preview; image-fit: contain; vertical-stretch: 1; }
+            Image { source: root.video-active ? root.video-frame : root.preview; image-fit: contain; vertical-stretch: 1; }
                     Rectangle { vertical-stretch: 1; }
         }
             }

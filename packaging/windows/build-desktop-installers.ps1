@@ -1,7 +1,7 @@
 # Builds the Curator Host and Curator Viewer NSIS installers (current-user
-# and all-users) from already-compiled binaries. Optionally stages a
-# pre-fetched tools directory (ffmpeg, ffprobe, mpv, gallery-dl) into the
-# Host installer; see packaging/bundles/fetch-tools.ps1.
+# and all-users) from already-compiled binaries. A verified tools directory
+# is required: Host carries all media tools, while Viewer carries libmpv and
+# its dependency DLLs for in-shell remote playback.
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]
@@ -25,6 +25,19 @@ $repositoryRoot = Split-Path -Parent (Split-Path -Parent $scriptRoot)
 foreach ($binary in @($HostBinary, $ViewerBinary)) {
     $resolved = (Resolve-Path -LiteralPath $binary -ErrorAction SilentlyContinue)
     if (-not $resolved) { throw "Curator executable was not found: $binary" }
+}
+
+if (-not $ToolsDirectory) {
+    throw 'ToolsDirectory is required. Run packaging/bundles/fetch-tools.sh first.'
+}
+$resolvedTools = Resolve-Path -LiteralPath $ToolsDirectory -ErrorAction SilentlyContinue
+if (-not $resolvedTools -or -not (Test-Path -LiteralPath $resolvedTools.Path -PathType Container)) {
+    throw "ToolsDirectory was not found: $ToolsDirectory"
+}
+foreach ($required in @('ffmpeg.exe', 'ffprobe.exe', 'mpv.exe', 'gallery-dl.exe', 'libmpv-2.dll')) {
+    if (-not (Test-Path -LiteralPath (Join-Path $resolvedTools.Path $required) -PathType Leaf)) {
+        throw "ToolsDirectory is missing required runtime: $required"
+    }
 }
 
 function Find-MakeNSIS {
@@ -63,8 +76,8 @@ New-Item -ItemType Directory -Force -Path $resolvedOutput | Out-Null
 $stageRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("curator-desktop-nsis-" + [guid]::NewGuid().ToString('N'))
 
 $editions = @(
-    @{ Name = 'host'; Binary = $HostBinary; Exe = 'Curator.exe'; Nsi = 'curator-host.nsi'; BundleTools = $true },
-    @{ Name = 'viewer'; Binary = $ViewerBinary; Exe = 'curator-viewer.exe'; Nsi = 'curator-viewer.nsi'; BundleTools = $false }
+    @{ Name = 'host'; Binary = $HostBinary; Exe = 'Curator.exe'; Nsi = 'curator-host.nsi'; ToolMode = 'all' },
+    @{ Name = 'viewer'; Binary = $ViewerBinary; Exe = 'curator-viewer.exe'; Nsi = 'curator-viewer.nsi'; ToolMode = 'libraries' }
 )
 
 try {
@@ -76,9 +89,20 @@ try {
                 -Destination (Join-Path $stage $edition.Exe)
             Copy-Item -LiteralPath (Join-Path $repositoryRoot 'desktop\icons\icon.ico') `
                 -Destination $stage
-            if ($edition.BundleTools -and $ToolsDirectory -and (Test-Path -LiteralPath $ToolsDirectory)) {
-                Copy-Item -Path (Join-Path $ToolsDirectory '*') `
+            Copy-Item -LiteralPath (Join-Path $repositoryRoot 'packaging\bundles\NOTICES.md') `
+                -Destination (Join-Path $stage 'THIRD_PARTY_NOTICES.md')
+            New-Item -ItemType Directory -Force -Path (Join-Path $stage 'tools') | Out-Null
+            if ($edition.ToolMode -eq 'all') {
+                Copy-Item -Path (Join-Path $resolvedTools.Path '*') `
                     -Destination (Join-Path $stage 'tools') -Recurse -Force
+            } else {
+                $libraries = Get-ChildItem -LiteralPath $resolvedTools.Path -Filter '*.dll' -File
+                if ($libraries.Count -eq 0) {
+                    throw 'ToolsDirectory contains no libmpv runtime DLLs for Curator Viewer.'
+                }
+                foreach ($library in $libraries) {
+                    Copy-Item -LiteralPath $library.FullName -Destination (Join-Path $stage 'tools')
+                }
             }
 
             $installer = Join-Path $resolvedOutput ("curator-$($edition.Name)-$Version-windows-$scope-setup.exe")

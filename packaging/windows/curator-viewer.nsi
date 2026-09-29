@@ -2,10 +2,11 @@
 ; CURATOR_STAGE, PRODUCT_VERSION, and OUTPUT_FILE. ALL_USERS is defined only
 ; for the elevated machine-wide variant.
 ;
-; The Viewer streams from a Host/Server and keeps no library of its own, so
-; no helper tools are bundled. Reinstalling over the same directory upgrades
-; in place; the uninstaller removes app files, shortcuts, and registry but
-; never user data (preferences live in the data directory).
+; The Viewer streams from a Host/Server and keeps no library of its own. It
+; carries libmpv and its dependency DLLs for in-shell remote playback.
+; Reinstalling over the same directory upgrades in place; the uninstaller
+; removes app files, shortcuts, and registry but never user data (preferences
+; live in the data directory).
 
 Unicode true
 SetCompressor /SOLID lzma
@@ -50,6 +51,9 @@ Section "Curator Viewer" SecViewer
   SetOutPath "$INSTDIR"
   File "${CURATOR_STAGE}\curator-viewer.exe"
   File "${CURATOR_STAGE}\icon.ico"
+  File "${CURATOR_STAGE}\THIRD_PARTY_NOTICES.md"
+  SetOutPath "$INSTDIR\tools"
+  File /r "${CURATOR_STAGE}\tools\*.*"
   WriteUninstaller "$INSTDIR\Uninstall Curator Viewer.exe"
 
   CreateDirectory "$SMPROGRAMS\Curator Viewer"
@@ -78,5 +82,7 @@ Section "Uninstall"
   Delete "$INSTDIR\Uninstall Curator Viewer.exe"
   Delete "$INSTDIR\curator-viewer.exe"
   Delete "$INSTDIR\icon.ico"
+  Delete "$INSTDIR\THIRD_PARTY_NOTICES.md"
+  RMDir /r "$INSTDIR\tools"
   RMDir "$INSTDIR"
 SectionEnd

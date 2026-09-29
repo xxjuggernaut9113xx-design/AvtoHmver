@@ -1,8 +1,8 @@
 # Bundled third-party tools — license notices
 #
-# The Windows Curator Host installer optionally stages helper executables
-# under `<install>\tools` (see `packaging/bundles/manifest.toml`). This file
-# records what those tools are and under which terms they ship. It is a
+# Windows Curator Host and Curator Viewer installers stage the required media
+# runtime under `<install>\tools` (see `packaging/bundles/manifest.toml`).
+# This file records what those tools are and under which terms they ship. It is a
 # notice file, not legal advice; the authoritative texts live with the
 # projects themselves.
 
@@ -17,7 +17,7 @@
 ## mpv / libmpv
 - Homepage: https://mpv.io — sources: https://github.com/mpv-player/mpv
 - License: GPL-2.0-or-later.
-- What ships: `mpv.exe` (+ `mpv-2.dll`, the libmpv shared library).
+- What ships: `mpv.exe`, `libmpv-2.dll`, and their required runtime DLLs.
 - Implication: GPL-2.0+ terms apply to the bundle; keep this notice and the
   source offer with the installer.
 
@@ -28,6 +28,6 @@
 - Implication: GPL-2.0 terms apply; keep this notice with the installer.
 
 ## Linux packages
-No third-party binaries are bundled in the `.deb` or portable archives.
-`mpv` and `ffmpeg` are `Recommends:` on the Host package so the distro
-package manager supplies them under its own terms.
+Linux packages use the distribution's `libmpv2` package. Host additionally
+recommends `ffmpeg`; package-manager dependencies keep their licensing and
+security updates under the distribution's control.

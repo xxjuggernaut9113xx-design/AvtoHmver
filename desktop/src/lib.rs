@@ -1,5 +1,6 @@
 mod clips;
 pub mod datadir;
+pub mod mpv_embed;
 mod player;
 
 slint::include_modules!();
@@ -92,6 +93,12 @@ enum Work {
         id: i64,
         log: bool,
     },
+    SourceTags,
+    ReviewSourceTag {
+        id: i64,
+        action: String,
+        normalized_name: Option<String>,
+    },
     SaveSettings(serde_json::Value),
     Commands(Vec<Command>),
     /// A single command whose JSON result the UI needs back (review rating
@@ -167,7 +174,13 @@ enum Update {
         generation: u64,
         result: Result<serde_json::Value, String>,
     },
-    SourceDetail(Result<String, String>),
+    SourceDetail {
+        id: i64,
+        log: bool,
+        result: Result<serde_json::Value, String>,
+    },
+    SourceTags(Result<Vec<curator::native::SourceTagCandidate>, String>),
+    SourceTagReviewed(Result<(), String>),
     SettingsSaved(Result<(), String>),
     Exported(Result<String, String>),
     Imported(Result<String, String>),
@@ -243,9 +256,16 @@ struct ViewState {
     // Capability/auth/availability blurb per provider, parallel to the ids.
     discovery_provider_info: Vec<String>,
     download_source_ids: Vec<i64>,
+    /// Captured source id for the explicit remove/delete-files confirmation.
+    /// List refreshes must never redirect a pending deletion to another row.
+    pending_source_delete: Option<i64>,
+    pending_source_edit: Option<i64>,
+    pending_source_group: Option<i64>,
+    source_tag_ids: Vec<i64>,
     /// Group ids parallel to the Slint `groups` name model, populated from
     /// navigation.
     group_ids: Vec<i64>,
+    pending_group_move: Option<i64>,
     preview_request: u64,
     browse_request: u64,
     preference_extras: BTreeMap<String, serde_json::Value>,
@@ -648,6 +668,13 @@ fn apply_player_status(
     window.set_player_looping(status.looping);
 }
 
+fn player_status_is_error(status: &PlayerStatus) -> bool {
+    status.message == "Playback error"
+        || status.message.starts_with("libmpv ")
+        || status.message.starts_with("Could not load libmpv")
+        || status.message.starts_with("Embedded player")
+}
+
 /// Starts one media item on the shared player. Images decode into the Slint
 /// preview pane; everything else loads into mpv. Returns an error when the
 /// item cannot start so feed/review/GOON can skip to a ready alternate.
@@ -666,6 +693,8 @@ fn play_media_item(
     window.set_player_duration(0.0);
     if item.kind == "image" && !is_animated_preview(item) {
         state.player.video_active = false;
+        window.set_video_active(false);
+        window.set_video_frame(slint::Image::default());
         let status = state.player.player.apply(PlayerCommand::Stop);
         state.preview_request = state.preview_request.wrapping_add(1);
         let request = state.preview_request;
@@ -677,6 +706,10 @@ fn play_media_item(
         return Ok(());
     }
     state.player.video_active = true;
+    window.set_video_active(true);
+    // Never leave the previous video's last frame visible while libmpv is
+    // replacing the file or reporting a load error.
+    window.set_video_frame(slint::Image::default());
     window.set_preview(slint::Image::default());
     let source = client.playback_source(item)?;
     // Persisted settings ride along with the load so mpv honors them on
@@ -690,10 +723,14 @@ fn play_media_item(
     window.set_playing(item.filename.clone().into());
     apply_player_status(window, &mut state.player, status.clone());
     if status.message.starts_with("Could not start")
+        || status.message.starts_with("Could not load libmpv")
+        || status.message.starts_with("Embedded player")
         || status.message.contains("not a file")
         || status.message.contains("No mpv")
         || status.message.contains("did not expose its IPC endpoint")
     {
+        state.player.video_active = false;
+        window.set_video_active(false);
         return Err(status.message);
     }
     Ok(())
@@ -740,6 +777,8 @@ fn advance_queue(
     }
     state.player.queue_index = None;
     state.player.video_active = false;
+    window.set_video_active(false);
+    window.set_video_frame(slint::Image::default());
     let status = state.player.player.apply(PlayerCommand::Stop);
     apply_player_status(window, &mut state.player, status);
     window.set_player_status(
@@ -752,6 +791,76 @@ fn advance_queue(
         }
         .into(),
     );
+}
+
+/// Keep playback attached to the same queue occurrence, including when the
+/// same media appears more than once. A removed current item leaves the
+/// cursor immediately before its former successor for the next advance.
+fn remove_queue_item<T>(queue: &mut Vec<T>, current: &mut Option<usize>, index: usize) -> bool {
+    if index >= queue.len() {
+        return false;
+    }
+    queue.remove(index);
+    if let Some(now) = *current {
+        *current = if now > index {
+            Some(now - 1)
+        } else if now == index {
+            index.checked_sub(1)
+        } else {
+            Some(now)
+        };
+    }
+    true
+}
+
+fn move_queue_item<T>(
+    queue: &mut Vec<T>,
+    current: &mut Option<usize>,
+    from: usize,
+    to: usize,
+) -> bool {
+    if from >= queue.len() || to >= queue.len() || from == to {
+        return false;
+    }
+    let item = queue.remove(from);
+    queue.insert(to, item);
+    if let Some(now) = *current {
+        *current = Some(if now == from {
+            to
+        } else if from < now && now <= to {
+            now - 1
+        } else if to <= now && now < from {
+            now + 1
+        } else {
+            now
+        });
+    }
+    true
+}
+
+fn shuffle_queue_items<T>(queue: &mut [T], current: &mut Option<usize>, mut seed: u64) {
+    if seed == 0 {
+        seed = 0x9E3779B97F4A7C15;
+    }
+    for i in (1..queue.len()).rev() {
+        seed ^= seed << 13;
+        seed ^= seed >> 7;
+        seed ^= seed << 17;
+        let j = (seed % (i as u64 + 1)) as usize;
+        queue.swap(i, j);
+        if *current == Some(i) {
+            *current = Some(j);
+        } else if *current == Some(j) {
+            *current = Some(i);
+        }
+    }
+}
+
+fn stored_queue_repeat(extra: &BTreeMap<String, serde_json::Value>) -> bool {
+    extra
+        .get("queue_repeat")
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(false)
 }
 
 // ─── Feed ────────────────────────────────────────────────────────────────
@@ -2245,6 +2354,57 @@ fn download_source_detail(row: &serde_json::Value) -> String {
     format!("{total}{current}{error}")
 }
 
+/// Confirm against the source id captured when the prompt opened. A download
+/// status refresh may reorder the visible rows before the user submits it.
+fn confirmed_source_delete(
+    pending: &mut Option<i64>,
+    confirmation: &str,
+    delete_files: bool,
+) -> Option<Command> {
+    let required = if delete_files {
+        "DELETE SOURCE FILES"
+    } else {
+        "REMOVE SOURCE"
+    };
+    if confirmation != required {
+        return None;
+    }
+    pending
+        .take()
+        .map(|id| Command::DeleteSource(id, delete_files))
+}
+
+fn source_patch_from_editor(
+    name: &str,
+    included: bool,
+    retention: &str,
+    confirmation: &str,
+) -> Result<curator::services::sources::SourcePatch, String> {
+    let name = name.trim();
+    if name.is_empty() {
+        return Err("Enter a source name".into());
+    }
+    let keep_newest = if retention.trim().is_empty() {
+        None
+    } else {
+        let value = retention
+            .trim()
+            .parse::<u32>()
+            .map_err(|_| "Retention must be a whole number between 0 and 1,000,000")?;
+        if value > 1_000_000 {
+            return Err("Retention must be at most 1,000,000 items".into());
+        }
+        (value != 0).then_some(value)
+    };
+    Ok(curator::services::sources::SourcePatch {
+        name: Some(name.to_owned()),
+        included: Some(included),
+        retention_keep_newest: Some(keep_newest),
+        retention_confirmation: (!confirmation.trim().is_empty())
+            .then(|| confirmation.trim().to_owned()),
+    })
+}
+
 fn apply_downloads(
     window: &CuratorNativeWindow,
     view: &Rc<RefCell<ViewState>>,
@@ -2564,12 +2724,26 @@ fn run_ui_inner(
         });
     }
     let view = Rc::new(RefCell::new(ViewState::default()));
+    {
+        let weak = window.as_weak();
+        view.borrow_mut().player.player.set_frame_callback(Box::new(
+            move |pixels, width, height| {
+                let Some(window) = weak.upgrade() else { return };
+                let buffer = slint::SharedPixelBuffer::<slint::Rgba8Pixel>::clone_from_slice(
+                    &pixels, width, height,
+                );
+                window.set_video_frame(slint::Image::from_rgba8(buffer));
+            },
+        ));
+    }
     window.set_media(ModelRc::new(view.borrow().media_model.clone()));
     let mut preferences_writable = true;
     match client.load_preferences() {
         Ok(preferences) => {
             view.borrow_mut().queue = preferences.queue;
             view.borrow_mut().preference_extras = preferences.extra;
+            let queue_repeat = stored_queue_repeat(&view.borrow().preference_extras);
+            view.borrow_mut().queue_repeat = queue_repeat;
             // Restore persisted player settings before first render.
             {
                 let extras = &view.borrow().preference_extras;
@@ -2583,16 +2757,20 @@ fn run_ui_inner(
                     window.set_player_looping(looping);
                 }
             }
-            // Migrate the pre-reskin workspace numbering (0 Library, 1-7
-            // Player/Feed/Review/GOON/Slideshow/Wall/Cock Hero, 8 Manage) to
-            // the new tabs (0 Library, 1 Discover, 2 Organization, 3 Activity;
-            // session modes now open the Stage overlay).
+            // Migrate the pre-reskin workspace numbering. Only the reduced
+            // Player/Feed/Review/GOON modes remain reachable; old saved
+            // Slideshow/Wall/Cock Hero workspaces return to Library.
             match preferences.workspace {
                 0 => window.set_workspace(0),
-                1..=7 => {
+                1..=4 => {
                     window.set_workspace(0);
                     window.set_stage_mode(preferences.workspace - 1);
                     window.set_stage_open(true);
+                }
+                5..=7 => {
+                    window.set_workspace(0);
+                    window.set_stage_mode(0);
+                    window.set_stage_open(false);
                 }
                 8 => window.set_workspace(2),
                 _ => window.set_workspace(0),
@@ -3057,10 +3235,34 @@ fn run_ui_inner(
                     } else {
                         worker_client.source_detail(id).await?
                     };
-                    Ok(format_source_detail(id, log, &value))
+                    Ok(value)
                 });
                 if let Some(result) = result {
-                    let _ = updates.send(Update::SourceDetail(result));
+                    let _ = updates.send(Update::SourceDetail { id, log, result });
+                }
+            }
+            Work::SourceTags => {
+                let result = run_until_shutdown(
+                    &handle,
+                    &mut work_stop,
+                    worker_client.pending_source_tags(50),
+                );
+                if let Some(result) = result {
+                    let _ = updates.send(Update::SourceTags(result));
+                }
+            }
+            Work::ReviewSourceTag {
+                id,
+                action,
+                normalized_name,
+            } => {
+                let result = run_until_shutdown(
+                    &handle,
+                    &mut work_stop,
+                    worker_client.review_source_tag(id, action, normalized_name),
+                );
+                if let Some(result) = result {
+                    let _ = updates.send(Update::SourceTagReviewed(result));
                 }
             }
             Work::SaveSettings(settings) => {
@@ -3583,7 +3785,90 @@ fn run_ui_inner(
     });
     let tx = send.clone();
     window.on_create_group(move |name| {
-        let _ = tx.send(Work::Commands(vec![Command::CreateGroup(name.to_string())]));
+        let name = name.trim();
+        if !name.is_empty() {
+            let _ = tx.send(Work::Commands(vec![Command::CreateGroup(name.to_owned())]));
+        }
+    });
+    let tx = send.clone();
+    let v = view.clone();
+    window.on_create_child_group(move |index, name| {
+        let name = name.trim();
+        if name.is_empty() {
+            return;
+        }
+        if let Some(id) = v.borrow().group_ids.get(index.max(0) as usize).copied() {
+            let _ = tx.send(Work::Commands(vec![Command::CreateChildGroup(
+                name.to_owned(),
+                id,
+            )]));
+        }
+    });
+    let v = view.clone();
+    let weak = window.as_weak();
+    window.on_choose_group_to_move(move |index| {
+        let Some(id) = v.borrow().group_ids.get(index.max(0) as usize).copied() else {
+            return;
+        };
+        let mut state = v.borrow_mut();
+        state.pending_group_move = Some(id);
+        state.pending_source_group = None;
+        drop(state);
+        if let Some(w) = weak.upgrade() {
+            w.set_source_group_target("".into());
+            let label = w
+                .get_groups()
+                .row_data(index.max(0) as usize)
+                .map(|name| name.to_string())
+                .unwrap_or_else(|| "group".to_owned());
+            w.set_moving_group_label(format!("{label} (#{id})").into());
+        }
+    });
+    let tx = send.clone();
+    let v = view.clone();
+    let weak = window.as_weak();
+    window.on_move_group_under(move |index| {
+        let state = v.borrow();
+        let Some(moving_id) = state.pending_group_move else {
+            return;
+        };
+        let Some(parent_id) = state.group_ids.get(index.max(0) as usize).copied() else {
+            return;
+        };
+        if moving_id == parent_id {
+            if let Some(w) = weak.upgrade() {
+                w.set_status("A group cannot be its own parent".into());
+            }
+            return;
+        }
+        drop(state);
+        let _ = tx.send(Work::Commands(vec![Command::MoveGroup(
+            moving_id,
+            Some(parent_id),
+        )]));
+        v.borrow_mut().pending_group_move = None;
+        if let Some(w) = weak.upgrade() {
+            w.set_moving_group_label("".into());
+        }
+    });
+    let tx = send.clone();
+    let v = view.clone();
+    let weak = window.as_weak();
+    window.on_move_group_to_top(move || {
+        if let Some(id) = v.borrow_mut().pending_group_move.take() {
+            let _ = tx.send(Work::Commands(vec![Command::MoveGroup(id, None)]));
+        }
+        if let Some(w) = weak.upgrade() {
+            w.set_moving_group_label("".into());
+        }
+    });
+    let v = view.clone();
+    let weak = window.as_weak();
+    window.on_cancel_group_move(move || {
+        v.borrow_mut().pending_group_move = None;
+        if let Some(w) = weak.upgrade() {
+            w.set_moving_group_label("".into());
+        }
     });
     let tx = send.clone();
     let v = view.clone();
@@ -3695,17 +3980,9 @@ fn run_ui_inner(
         let _ = tx.send(Work::Commands(vec![command]));
     });
     let weak = window.as_weak();
-    let v = view.clone();
     window.on_fullscreen(move || {
         let Some(w) = weak.upgrade() else { return };
-        let mut state = v.borrow_mut();
-        if state.player.video_active {
-            // mpv owns the pixels; fullscreen it instead of the Slint shell.
-            let status = state.player.player.apply(PlayerCommand::ToggleFullscreen);
-            apply_player_status(&w, &mut state.player, status);
-        } else {
-            w.window().set_fullscreen(!w.window().is_fullscreen());
-        }
+        w.window().set_fullscreen(!w.window().is_fullscreen());
     });
     let tx = send.clone();
     window.on_downloads(move |pause| {
@@ -3750,8 +4027,10 @@ fn run_ui_inner(
         };
         match action.as_str() {
             "inspect" => {
+                v.borrow_mut().pending_source_edit = Some(id);
                 if let Some(w) = weak.upgrade() {
                     w.set_source_detail("Loading source details…".into());
+                    w.set_source_edit_target("".into());
                 }
                 let _ = tx.send(Work::SourceDetail { id, log: false });
             }
@@ -3765,9 +4044,173 @@ fn run_ui_inner(
                 let _ = tx.send(Work::Commands(vec![Command::ResyncSource(id)]));
             }
             "delete" => {
-                let _ = tx.send(Work::Commands(vec![Command::DeleteSource(id, false)]));
+                let mut state = v.borrow_mut();
+                state.pending_source_delete = Some(id);
+                state.pending_source_edit = None;
+                state.pending_source_group = None;
+                drop(state);
+                if let Some(w) = weak.upgrade() {
+                    w.set_source_edit_target("".into());
+                    w.set_source_group_target("".into());
+                    let label = w
+                        .get_download_sources()
+                        .row_data(index.max(0) as usize)
+                        .map(|row| row.label.to_string())
+                        .unwrap_or_else(|| "Unnamed source".to_owned());
+                    w.set_source_delete_target(format!("{label} (#{id})").into());
+                    w.set_source_delete_confirmation("".into());
+                }
             }
             _ => {}
+        }
+    });
+    let tx = send.clone();
+    let v = view.clone();
+    let weak = window.as_weak();
+    window.on_confirm_source_delete(move |delete_files| {
+        let Some(w) = weak.upgrade() else { return };
+        let confirmation = w.get_source_delete_confirmation();
+        let command = confirmed_source_delete(
+            &mut v.borrow_mut().pending_source_delete,
+            confirmation.as_str(),
+            delete_files,
+        );
+        let Some(command) = command else { return };
+        let _ = tx.send(Work::Commands(vec![command]));
+        w.set_source_delete_target("".into());
+        w.set_source_delete_confirmation("".into());
+    });
+    let v = view.clone();
+    let weak = window.as_weak();
+    window.on_cancel_source_delete(move || {
+        v.borrow_mut().pending_source_delete = None;
+        if let Some(w) = weak.upgrade() {
+            w.set_source_delete_target("".into());
+            w.set_source_delete_confirmation("".into());
+        }
+    });
+    let tx = send.clone();
+    let v = view.clone();
+    let weak = window.as_weak();
+    window.on_save_source_edit(move || {
+        let Some(w) = weak.upgrade() else { return };
+        let Some(id) = v.borrow().pending_source_edit else {
+            return;
+        };
+        let patch = source_patch_from_editor(
+            w.get_source_edit_name().as_str(),
+            w.get_source_edit_included(),
+            w.get_source_edit_retention().as_str(),
+            w.get_source_edit_confirmation().as_str(),
+        );
+        match patch {
+            Ok(patch) => {
+                let _ = tx.send(Work::Commands(vec![Command::UpdateSource(id, patch)]));
+            }
+            Err(error) => w.set_status(error.into()),
+        }
+    });
+    let v = view.clone();
+    let weak = window.as_weak();
+    window.on_cancel_source_edit(move || {
+        v.borrow_mut().pending_source_edit = None;
+        if let Some(w) = weak.upgrade() {
+            w.set_source_edit_target("".into());
+        }
+    });
+    let tx = send.clone();
+    window.on_refresh_source_tags(move || {
+        let _ = tx.send(Work::SourceTags);
+    });
+    let tx = send.clone();
+    let v = view.clone();
+    let weak = window.as_weak();
+    window.on_review_source_tag(move |index, action, edited_name| {
+        let Some(w) = weak.upgrade() else { return };
+        let Some(id) = v
+            .borrow()
+            .source_tag_ids
+            .get(index.max(0) as usize)
+            .copied()
+        else {
+            return;
+        };
+        let normalized_name =
+            (!edited_name.trim().is_empty()).then(|| edited_name.trim().to_owned());
+        if action.as_str() == "edit" && normalized_name.is_none() {
+            w.set_status("Enter an edited tag name first".into());
+            return;
+        }
+        w.set_busy(true);
+        let _ = tx.send(Work::ReviewSourceTag {
+            id,
+            action: action.to_string(),
+            normalized_name,
+        });
+    });
+    let v = view.clone();
+    let weak = window.as_weak();
+    window.on_choose_source_group(move |index| {
+        let Some(id) = v
+            .borrow()
+            .download_source_ids
+            .get(index.max(0) as usize)
+            .copied()
+        else {
+            return;
+        };
+        let mut state = v.borrow_mut();
+        state.pending_source_group = Some(id);
+        state.pending_group_move = None;
+        drop(state);
+        if let Some(w) = weak.upgrade() {
+            w.set_moving_group_label("".into());
+            let label = w
+                .get_download_sources()
+                .row_data(index.max(0) as usize)
+                .map(|row| row.label.to_string())
+                .unwrap_or_else(|| "Unnamed source".to_owned());
+            w.set_source_group_target(format!("{label} (#{id})").into());
+        }
+    });
+    let tx = send.clone();
+    let v = view.clone();
+    let weak = window.as_weak();
+    window.on_assign_source_group(move |index| {
+        let state = v.borrow();
+        let Some(source_id) = state.pending_source_group else {
+            return;
+        };
+        let Some(group_id) = state.group_ids.get(index.max(0) as usize).copied() else {
+            return;
+        };
+        drop(state);
+        let _ = tx.send(Work::Commands(vec![Command::SetSourceGroup(
+            source_id,
+            Some(group_id),
+        )]));
+        v.borrow_mut().pending_source_group = None;
+        if let Some(w) = weak.upgrade() {
+            w.set_source_group_target("".into());
+        }
+    });
+    let tx = send.clone();
+    let v = view.clone();
+    let weak = window.as_weak();
+    window.on_ungroup_source(move || {
+        if let Some(id) = v.borrow_mut().pending_source_group.take() {
+            let _ = tx.send(Work::Commands(vec![Command::SetSourceGroup(id, None)]));
+        }
+        if let Some(w) = weak.upgrade() {
+            w.set_source_group_target("".into());
+        }
+    });
+    let v = view.clone();
+    let weak = window.as_weak();
+    window.on_cancel_source_group(move || {
+        v.borrow_mut().pending_source_group = None;
+        if let Some(w) = weak.upgrade() {
+            w.set_source_group_target("".into());
         }
     });
     let tx = send.clone();
@@ -4633,8 +5076,15 @@ fn run_ui_inner(
     window.on_enqueue(move |replace| {
         let mut state = v.borrow_mut();
         let selected = state.selected.values().cloned().collect::<Vec<_>>();
+        if selected.is_empty() {
+            if let Some(w) = weak.upgrade() {
+                w.set_status("Select media before adding it to the queue".into());
+            }
+            return;
+        }
         if replace {
             state.queue.clear();
+            state.player.queue_index = None;
         }
         state.queue.extend(selected);
         state.queue.truncate(1000);
@@ -4655,16 +5105,17 @@ fn run_ui_inner(
     let v = view.clone();
     let saver = preference_saver.clone();
     window.on_remove_queued(move |index| {
-        let mut state = v.borrow_mut();
-        let mut changed = false;
-        if (index as usize) < state.queue.len() {
-            state.queue.remove(index as usize);
-            changed = true;
-        }
+        let mut borrowed = v.borrow_mut();
+        let state = &mut *borrowed;
+        let changed = remove_queue_item(
+            &mut state.queue,
+            &mut state.player.queue_index,
+            index as usize,
+        );
         if let Some(w) = weak.upgrade() {
-            render(&w, &state);
+            render(&w, state);
             if changed && preferences_writable {
-                if let Err(error) = saver.queue(current_preferences(&w, &state)) {
+                if let Err(error) = saver.queue(current_preferences(&w, state)) {
                     w.set_status(error.into());
                 }
             }
@@ -4674,28 +5125,14 @@ fn run_ui_inner(
     let v = view.clone();
     let saver = preference_saver.clone();
     window.on_queue_move(move |from, to| {
-        let mut state = v.borrow_mut();
+        let mut borrowed = v.borrow_mut();
+        let state = &mut *borrowed;
         let (from, to) = (from as usize, to as usize);
-        if from < state.queue.len() && to < state.queue.len() && from != to {
-            let item = state.queue.remove(from);
-            state.queue.insert(to, item);
-            // Keep the now-playing pointer aimed at the same item.
-            if let Some(current) = state.player.queue_index {
-                state.player.queue_index = Some(if current == from {
-                    to
-                } else if from < current && current <= to {
-                    current - 1
-                } else if to <= current && current < from {
-                    current + 1
-                } else {
-                    current
-                });
-            }
-        }
+        let changed = move_queue_item(&mut state.queue, &mut state.player.queue_index, from, to);
         if let Some(w) = weak.upgrade() {
-            render(&w, &state);
-            if preferences_writable {
-                if let Err(error) = saver.queue(current_preferences(&w, &state)) {
+            render(&w, state);
+            if changed && preferences_writable {
+                if let Err(error) = saver.queue(current_preferences(&w, state)) {
                     w.set_status(error.into());
                 }
             }
@@ -4705,36 +5142,19 @@ fn run_ui_inner(
     let v = view.clone();
     let saver = preference_saver.clone();
     window.on_queue_shuffle(move || {
-        let mut state = v.borrow_mut();
-        // Remember the now-playing item so the pointer can follow it to its
-        // new position instead of detaching.
-        let current_id = state
-            .player
-            .queue_index
-            .and_then(|index| state.queue.get(index))
-            .map(|item| item.id);
-        // Fisher-Yates with a time-seeded PRNG; no extra dependencies.
-        let mut seed = std::time::SystemTime::now()
+        let mut borrowed = v.borrow_mut();
+        let state = &mut *borrowed;
+        // Follow the current queue occurrence by index while shuffling. ID
+        // lookup would select the wrong entry when media appears twice.
+        let seed = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_nanos() as u64)
             .unwrap_or(0x9E3779B97F4A7C15);
-        let mut next_random = move || {
-            seed ^= seed << 13;
-            seed ^= seed >> 7;
-            seed ^= seed << 17;
-            seed
-        };
-        let len = state.queue.len();
-        for i in (1..len).rev() {
-            let j = (next_random() % (i as u64 + 1)) as usize;
-            state.queue.swap(i, j);
-        }
-        state.player.queue_index =
-            current_id.and_then(|id| state.queue.iter().position(|item| item.id == id));
+        shuffle_queue_items(&mut state.queue, &mut state.player.queue_index, seed);
         if let Some(w) = weak.upgrade() {
-            render(&w, &state);
+            render(&w, state);
             if preferences_writable {
-                if let Err(error) = saver.queue(current_preferences(&w, &state)) {
+                if let Err(error) = saver.queue(current_preferences(&w, state)) {
                     w.set_status(error.into());
                 }
             }
@@ -4742,11 +5162,20 @@ fn run_ui_inner(
     });
     let weak = window.as_weak();
     let v = view.clone();
+    let saver = preference_saver.clone();
     window.on_queue_set_repeat(move |repeat| {
         let mut state = v.borrow_mut();
         state.queue_repeat = repeat;
+        state
+            .preference_extras
+            .insert("queue_repeat".into(), serde_json::json!(repeat));
         if let Some(w) = weak.upgrade() {
             render(&w, &state);
+            if preferences_writable {
+                if let Err(error) = saver.queue(current_preferences(&w, &state)) {
+                    w.set_status(error.into());
+                }
+            }
         }
     });
     let weak = window.as_weak();
@@ -5098,6 +5527,11 @@ fn run_ui_inner(
                                 );
                             }
                         }
+                    }
+                    if player_status_is_error(&status) {
+                        state.player.video_active = false;
+                        w.set_video_active(false);
+                        w.set_video_frame(slint::Image::default());
                     }
                     let holder = &mut state.player;
                     apply_player_status(&w, holder, status);
@@ -5716,14 +6150,76 @@ fn run_ui_inner(
                             let _ = tx.send(Work::Navigation);
                             let _ = tx.send(Work::ManageSnapshot);
                             let _ = tx.send(Work::DownloadsStatus);
+                            if let Some(id) = v.borrow().pending_source_edit {
+                                let _ = tx.send(Work::SourceDetail { id, log: false });
+                            }
                         }
                         Err(error) => w.set_status(error.into()),
                     },
                     Update::Downloads(result) => apply_downloads(&w, &v, result),
-                    Update::SourceDetail(result) => match result {
-                        Ok(text) => w.set_source_detail(text.into()),
+                    Update::SourceDetail { id, log, result } => match result {
+                        Ok(value) => {
+                            w.set_source_detail(format_source_detail(id, log, &value).into());
+                            if !log && v.borrow().pending_source_edit == Some(id) {
+                                let name = value["name"].as_str().unwrap_or("Unnamed source");
+                                w.set_source_edit_target(format!("{name} (#{id})").into());
+                                w.set_source_edit_name(name.into());
+                                w.set_source_edit_included(value["included"].as_i64() != Some(0));
+                                w.set_source_edit_retention(
+                                    value["retention_keep_newest"]
+                                        .as_u64()
+                                        .map(|value| value.to_string())
+                                        .unwrap_or_default()
+                                        .into(),
+                                );
+                                w.set_source_edit_confirmation("".into());
+                            }
+                        }
                         Err(error) => w.set_source_detail(format!("Source detail failed: {error}").into()),
                     },
+                    Update::SourceTags(result) => match result {
+                        Ok(candidates) => {
+                            let mut state = v.borrow_mut();
+                            state.source_tag_ids = candidates.iter().map(|tag| tag.id).collect();
+                            let rows = candidates
+                                .iter()
+                                .map(|tag| {
+                                    slint::SharedString::from(format!(
+                                        "{} · {} · {} → {}",
+                                        tag.filename,
+                                        tag.provider,
+                                        tag.raw_name,
+                                        tag.normalized_name.as_deref().unwrap_or(&tag.raw_name)
+                                    ))
+                                })
+                                .collect::<Vec<_>>();
+                            drop(state);
+                            w.set_source_tag_candidates(ModelRc::new(VecModel::from(rows)));
+                            w.set_status(if candidates.is_empty() {
+                                "No source tag proposals need review".into()
+                            } else {
+                                format!("{} source tag proposal(s) need review", candidates.len())
+                                    .into()
+                            });
+                        }
+                        Err(error) => {
+                            w.set_status(format!("Source tag review failed: {error}").into())
+                        }
+                    },
+                    Update::SourceTagReviewed(result) => {
+                        w.set_busy(false);
+                        match result {
+                            Ok(()) => {
+                                w.set_source_tag_edit_name("".into());
+                                w.set_status("Source tag decision saved".into());
+                                let _ = tx.send(Work::SourceTags);
+                                let _ = tx.send(v.borrow_mut().browse_work());
+                            }
+                            Err(error) => w.set_status(
+                                format!("Could not save source tag decision: {error}").into(),
+                            ),
+                        }
+                    }
                     Update::ReviewDone(result) => {
                         let mut state = v.borrow_mut();
                         state.review.busy = false;
@@ -6104,6 +6600,7 @@ fn run_ui_inner(
     });
     let _ = send.send(Work::Navigation);
     let _ = send.send(Work::ManageSnapshot);
+    let _ = send.send(Work::SourceTags);
     window.invoke_browse(false);
     let result = if background {
         // Start hidden in the tray; the remote service (if any) and the
@@ -6149,6 +6646,25 @@ fn run_ui_inner(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn player_errors_restore_the_preview_surface() {
+        for message in [
+            "Playback error",
+            "libmpv command failed: unsupported protocol",
+            "Could not load libmpv from tools",
+            "Embedded player did not initialize within two seconds",
+        ] {
+            assert!(player_status_is_error(&PlayerStatus {
+                message: message.into(),
+                ..PlayerStatus::default()
+            }));
+        }
+        assert!(!player_status_is_error(&PlayerStatus {
+            message: "Playing".into(),
+            ..PlayerStatus::default()
+        }));
+    }
 
     #[test]
     fn ch_pace_phase_matches_browser_schedule() {
@@ -6586,6 +7102,41 @@ mod tests {
     }
 
     #[test]
+    fn queue_edits_keep_the_playing_occurrence_and_advance_cursor() {
+        let mut queue = vec![(7, 'a'), (8, 'b'), (7, 'c'), (9, 'd')];
+        let mut current = Some(2);
+        assert!(move_queue_item(&mut queue, &mut current, 0, 3));
+        assert_eq!(queue[current.unwrap()], (7, 'c'));
+        assert!(remove_queue_item(&mut queue, &mut current, 0));
+        assert_eq!(queue[current.unwrap()], (7, 'c'));
+        let removed = current.unwrap();
+        assert!(remove_queue_item(&mut queue, &mut current, removed));
+        assert_eq!(current, removed.checked_sub(1));
+        assert!(!remove_queue_item(&mut queue, &mut current, 99));
+    }
+
+    #[test]
+    fn shuffle_tracks_duplicate_media_by_queue_occurrence() {
+        let original = vec![(7, 'a'), (7, 'b'), (8, 'c'), (9, 'd'), (7, 'e')];
+        let mut queue = original.clone();
+        let mut current = Some(1);
+        shuffle_queue_items(&mut queue, &mut current, 42);
+        assert_eq!(queue[current.unwrap()], (7, 'b'));
+        queue.sort_unstable();
+        let mut sorted = original;
+        sorted.sort_unstable();
+        assert_eq!(queue, sorted);
+    }
+
+    #[test]
+    fn queue_repeat_defaults_off_and_restores_from_preferences() {
+        let mut extra = BTreeMap::new();
+        assert!(!stored_queue_repeat(&extra));
+        extra.insert("queue_repeat".into(), serde_json::json!(true));
+        assert!(stored_queue_repeat(&extra));
+    }
+
+    #[test]
     fn size_filters_accept_whole_bytes_and_reject_invalid_values() {
         assert_eq!(parse_size_filter(" "), Ok(None));
         assert_eq!(parse_size_filter(" 1024 "), Ok(Some(1024)));
@@ -7013,5 +7564,47 @@ mod download_formatter_tests {
             download_source_detail(&rows[1]),
             "0 completed · error: connection reset"
         );
+    }
+
+    #[test]
+    fn source_delete_confirmation_keeps_the_captured_id_and_distinguishes_files() {
+        let mut pending = Some(17);
+        assert!(confirmed_source_delete(&mut pending, "REMOVE SOURCE", true).is_none());
+        assert_eq!(pending, Some(17));
+        assert!(matches!(
+            confirmed_source_delete(&mut pending, "REMOVE SOURCE", false),
+            Some(Command::DeleteSource(17, false))
+        ));
+        assert_eq!(pending, None);
+        assert!(confirmed_source_delete(&mut pending, "DELETE SOURCE FILES", true).is_none());
+
+        pending = Some(42);
+        assert!(matches!(
+            confirmed_source_delete(&mut pending, "DELETE SOURCE FILES", true),
+            Some(Command::DeleteSource(42, true))
+        ));
+    }
+
+    #[test]
+    fn source_editor_produces_the_server_patch_contract() {
+        let patch =
+            source_patch_from_editor("  New name  ", false, "12", "ENABLE RETENTION").unwrap();
+        assert_eq!(
+            serde_json::to_value(patch).unwrap(),
+            serde_json::json!({
+                "name":"New name",
+                "included":false,
+                "retention_keep_newest":12,
+                "retention_confirmation":"ENABLE RETENTION"
+            })
+        );
+        let disabled = source_patch_from_editor("Name", true, "", "").unwrap();
+        assert_eq!(
+            serde_json::to_value(disabled).unwrap()["retention_keep_newest"],
+            serde_json::Value::Null
+        );
+        assert!(source_patch_from_editor(" ", true, "", "").is_err());
+        assert!(source_patch_from_editor("Name", true, "1.2", "").is_err());
+        assert!(source_patch_from_editor("Name", true, "1000001", "").is_err());
     }
 }

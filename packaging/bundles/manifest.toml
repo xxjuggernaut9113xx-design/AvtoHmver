@@ -30,12 +30,11 @@ homepage = "https://ffmpeg.org"
 version = "20260927-git-a1bf4b6559"
 url = "https://github.com/shinchiro/mpv-winbuild-cmake/releases/download/20260927/mpv-x86_64-20260927-git-a1bf4b6559.7z"
 kind = "7z"
-# Only the player binary is staged from the main archive; the full mpv
-# release ships many files Curator never invokes. libmpv comes from the
-# [mpv-dev] archive below (needed for the P-01 embedded renderer work).
-# d3dcompiler_43.dll is deliberately omitted: mpv falls back to other
-# video outputs without it.
-stage = ["mpv.exe"]
+# Preserve the dynamic dependency closure as well as the player binary.
+# `libmpv-2.dll` is supplied by [mpv-dev] below; the remaining DLLs keep
+# both the Host player and the Viewer software renderer runnable on a fresh
+# Windows install with no PATH-provided codec stack.
+stage = ["mpv.exe", "*.dll"]
 license = "GPL-2.0-or-later"
 homepage = "https://mpv.io"
 
@@ -43,9 +42,10 @@ homepage = "https://mpv.io"
 version = "20260927-git-a1bf4b6559"
 url = "https://github.com/shinchiro/mpv-winbuild-cmake/releases/download/20260927/mpv-dev-x86_64-20260927-git-a1bf4b6559.7z"
 kind = "7z"
-# libmpv shared library for the future P-01 embedded renderer. Staged under
-# its real filename; nothing links it yet.
-stage = ["libmpv-2.dll"]
+# libmpv and its dynamic dependencies for the native software renderer.
+# Staging all DLLs avoids leaving an install that loads libmpv but fails on
+# its first decoder dependency.
+stage = ["*.dll"]
 license = "LGPL-2.1-or-later (libmpv)"
 homepage = "https://mpv.io"
 

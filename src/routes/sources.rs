@@ -1,12 +1,13 @@
 use std::sync::Arc;
 
 use axum::{
-    extract::{Path, Query, State},
+    extract::{ConnectInfo, Path, Query, State},
     http::StatusCode,
     Json,
 };
 use serde::{Deserialize, Deserializer};
 use serde_json::{json, Value};
+use std::net::SocketAddr;
 
 use crate::db::now_iso;
 use crate::downloader::run_download;
@@ -140,67 +141,41 @@ pub async fn add(
 pub async fn patch(
     State(state): State<Arc<AppState>>,
     Path(id): Path<i64>,
+    peer: Option<ConnectInfo<SocketAddr>>,
     Json(body): Json<PatchSourceBody>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
-    let automatic_cleanup_armed = state.settings.read().await.automatic_cleanup_mode != "never";
-    let conn = state.pool.get().map_err(db_err)?;
-
-    let mut fields: Vec<String> = Vec::new();
-    let mut values: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
-
-    if let Some(name) = body.name {
-        fields.push("name=?".to_string());
-        values.push(Box::new(name));
-    }
-    if let Some(included) = body.included {
-        fields.push("included=?".to_string());
-        values.push(Box::new(if included { 1i64 } else { 0i64 }));
-    }
-    if let Some(keep_newest) = body.retention_keep_newest {
-        let keep_newest = keep_newest.unwrap_or(0);
-        if keep_newest > 1_000_000 {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                Json(json!({"error":"Retention must be at most 1,000,000 items"})),
-            ));
-        }
-        if keep_newest > 0
-            && automatic_cleanup_armed
-            && body.retention_confirmation.as_deref() != Some("ENABLE RETENTION")
-        {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                Json(json!({
-                    "error":"Type ENABLE RETENTION before adding a rule while automatic cleanup is enabled."
-                })),
-            ));
-        }
-        if keep_newest == 0 {
-            fields.push("retention_keep_newest=NULL".to_string());
-        } else {
-            fields.push("retention_keep_newest=?".to_string());
-            values.push(Box::new(i64::from(keep_newest)));
-        }
-    }
-    if fields.is_empty() {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            Json(json!({"error": "Nothing to update"})),
-        ));
-    }
-
-    let sql = format!("UPDATE sources SET {} WHERE id=?", fields.join(", "));
-    values.push(Box::new(id));
-    let refs: Vec<&dyn rusqlite::ToSql> = values.iter().map(|b| b.as_ref()).collect();
-    conn.execute(&sql, refs.as_slice()).map_err(db_err)?;
-
-    match conn.query_row("SELECT * FROM sources WHERE id=?1", [id], row_to_json) {
-        Ok(v) => Ok(Json(v)),
-        Err(_) => Err((
-            StatusCode::NOT_FOUND,
-            Json(json!({"error": "Source not found"})),
-        )),
-    }
+    let caller = crate::services::access::Caller::for_peer(
+        peer.map(|peer| peer.0),
+        crate::native::ViewerPermissions::default(),
+    );
+    crate::services::sources::patch(
+        state,
+        caller,
+        id,
+        crate::services::sources::SourcePatch {
+            name: body.name,
+            included: body.included,
+            retention_keep_newest: body.retention_keep_newest,
+            retention_confirmation: body.retention_confirmation,
+        },
+    )
+    .await
+    .map(Json)
+    .map_err(|error| {
+        use crate::services::sources::SourceError;
+        let status = match error {
+            SourceError::Forbidden => StatusCode::FORBIDDEN,
+            SourceError::ShuttingDown | SourceError::MaintenanceActive => {
+                StatusCode::SERVICE_UNAVAILABLE
+            }
+            SourceError::Missing => StatusCode::NOT_FOUND,
+            SourceError::NothingToUpdate
+            | SourceError::RetentionLimit
+            | SourceError::RetentionConfirmation => StatusCode::BAD_REQUEST,
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
+        };
+        (status, Json(json!({"error":error.message()})))
+    })
 }
 
 // ─── PATCH /api/sources/:id/group ────────────────────────────────────────────
@@ -208,48 +183,28 @@ pub async fn patch(
 pub async fn set_group(
     State(state): State<Arc<AppState>>,
     Path(id): Path<i64>,
+    peer: Option<ConnectInfo<SocketAddr>>,
     Json(body): Json<SetGroupBody>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
-    let conn = state.pool.get().map_err(db_err)?;
-
-    let exists: bool = conn
-        .query_row("SELECT COUNT(*) FROM sources WHERE id=?1", [id], |r| {
-            r.get::<_, i64>(0)
+    let caller = crate::services::access::Caller::for_peer(
+        peer.map(|peer| peer.0),
+        crate::native::ViewerPermissions::default(),
+    );
+    crate::services::sources::set_group(&state, caller, id, body.group_id)
+        .map(Json)
+        .map_err(|error| {
+            use crate::services::sources::SourceError;
+            let status = match error {
+                SourceError::Forbidden => StatusCode::FORBIDDEN,
+                SourceError::ShuttingDown | SourceError::MaintenanceActive => {
+                    StatusCode::SERVICE_UNAVAILABLE
+                }
+                SourceError::Missing => StatusCode::NOT_FOUND,
+                SourceError::MissingGroup => StatusCode::BAD_REQUEST,
+                _ => StatusCode::INTERNAL_SERVER_ERROR,
+            };
+            (status, Json(json!({"error":error.message()})))
         })
-        .unwrap_or(0)
-        > 0;
-    if !exists {
-        return Err((
-            StatusCode::NOT_FOUND,
-            Json(json!({"error": "Source not found"})),
-        ));
-    }
-
-    if let Some(gid) = body.group_id {
-        let g_exists: bool = conn
-            .query_row("SELECT COUNT(*) FROM groups WHERE id=?1", [gid], |r| {
-                r.get::<_, i64>(0)
-            })
-            .unwrap_or(0)
-            > 0;
-        if !g_exists {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                Json(json!({"error": "Group not found"})),
-            ));
-        }
-    }
-
-    conn.execute(
-        "UPDATE sources SET group_id=?1 WHERE id=?2",
-        rusqlite::params![body.group_id, id],
-    )
-    .map_err(db_err)?;
-
-    Ok(Json(
-        conn.query_row("SELECT * FROM sources WHERE id=?1", [id], row_to_json)
-            .map_err(db_err)?,
-    ))
 }
 
 // ─── POST /api/sources/:id/resync ────────────────────────────────────────────
@@ -339,55 +294,27 @@ pub async fn delete(
     State(state): State<Arc<AppState>>,
     Path(id): Path<i64>,
     Query(q): Query<DeleteQuery>,
+    peer: Option<ConnectInfo<SocketAddr>>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
-    let slug: String = {
-        let conn = state.pool.get().map_err(db_err)?;
-        conn.query_row("SELECT slug FROM sources WHERE id=?1", [id], |r| r.get(0))
-            .map_err(|_| {
-                (
-                    StatusCode::NOT_FOUND,
-                    Json(json!({"error":"Source not found"})),
-                )
-            })?
-    };
-    if let Some(cancel) = state.source_cancellations.lock().await.get(&id).cloned() {
-        cancel.cancel();
-    }
-    // Wait for the owning task to reap the child and finish its serialized index work.
-    while state.running_sources.lock().await.contains(&id) {
-        if let Some(cancel) = state.source_cancellations.lock().await.get(&id).cloned() {
-            cancel.cancel();
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-    }
-    {
-        let conn = state.pool.get().map_err(db_err)?;
-        conn.execute("DELETE FROM sources WHERE id=?1", [id])
-            .map_err(db_err)?;
-    }
-
-    if q.delete_files {
-        // A large source directory can take seconds to remove. Keep the
-        // endpoint's existing best-effort semantics, but never occupy a Tokio
-        // worker while Windows walks it.
-        let library_dir = state.library_dir.clone();
-        let archives_dir = state.archives_dir.clone();
-        let slug_for_delete = slug.clone();
-        let _ = tokio::task::spawn_blocking(move || {
-            let dest = library_dir.join(&slug_for_delete);
-            if dest.exists() {
-                let dest_long = dunce::simplified(&dest).to_path_buf();
-                let _ = std::fs::remove_dir_all(&dest_long);
-            }
-            let archive = archives_dir.join(format!("{}.sqlite3", slug_for_delete));
-            if archive.exists() {
-                let _ = std::fs::remove_file(dunce::simplified(&archive));
-            }
+    let caller = crate::services::access::Caller::for_peer(
+        peer.map(|peer| peer.0),
+        crate::native::ViewerPermissions::default(),
+    );
+    crate::services::sources::delete(state, caller, id, q.delete_files)
+        .await
+        .map(Json)
+        .map_err(|error| {
+            use crate::services::sources::SourceError;
+            let status = match error {
+                SourceError::Forbidden => StatusCode::FORBIDDEN,
+                SourceError::ShuttingDown | SourceError::MaintenanceActive => {
+                    StatusCode::SERVICE_UNAVAILABLE
+                }
+                SourceError::Missing => StatusCode::NOT_FOUND,
+                _ => StatusCode::INTERNAL_SERVER_ERROR,
+            };
+            (status, Json(json!({"error":error.message()})))
         })
-        .await;
-    }
-
-    Ok(Json(json!({ "status": "deleted" })))
 }
 
 // ─── Shared create logic ──────────────────────────────────────────────────────
@@ -404,8 +331,15 @@ pub async fn create_sources_from_urls(
                 StatusCode::SERVICE_UNAVAILABLE
             }
             crate::services::sources::SourceError::InvalidInput(_)
-            | crate::services::sources::SourceError::InvalidUrl(_) => StatusCode::BAD_REQUEST,
+            | crate::services::sources::SourceError::InvalidUrl(_)
+            | crate::services::sources::SourceError::NothingToUpdate
+            | crate::services::sources::SourceError::RetentionLimit
+            | crate::services::sources::SourceError::RetentionConfirmation => {
+                StatusCode::BAD_REQUEST
+            }
             crate::services::sources::SourceError::Database(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            crate::services::sources::SourceError::Missing => StatusCode::NOT_FOUND,
+            crate::services::sources::SourceError::MissingGroup => StatusCode::BAD_REQUEST,
         };
         (status, Json(json!({"error": error.message()})))
     })?;
@@ -440,7 +374,7 @@ mod tests {
 
         let enabled: PatchSourceBody =
             serde_json::from_value(serde_json::json!({"retention_keep_newest": 25})).unwrap();
-        let Json(value) = patch(State(state.clone()), Path(1), Json(enabled))
+        let Json(value) = patch(State(state.clone()), Path(1), None, Json(enabled))
             .await
             .unwrap();
         assert_eq!(value["retention_keep_newest"], 25);
@@ -458,7 +392,7 @@ mod tests {
 
         let disabled: PatchSourceBody =
             serde_json::from_value(serde_json::json!({"retention_keep_newest": null})).unwrap();
-        let _ = patch(State(state.clone()), Path(1), Json(disabled))
+        let _ = patch(State(state.clone()), Path(1), None, Json(disabled))
             .await
             .unwrap();
         let cleared: Option<i64> = state
@@ -484,7 +418,7 @@ mod tests {
         let missing: PatchSourceBody =
             serde_json::from_value(serde_json::json!({"retention_keep_newest": 5})).unwrap();
         assert!(matches!(
-            patch(State(state.clone()), Path(1), Json(missing)).await,
+            patch(State(state.clone()), Path(1), None, Json(missing)).await,
             Err((StatusCode::BAD_REQUEST, _))
         ));
 
@@ -493,6 +427,8 @@ mod tests {
             "retention_confirmation": "ENABLE RETENTION"
         }))
         .unwrap();
-        assert!(patch(State(state), Path(1), Json(confirmed)).await.is_ok());
+        assert!(patch(State(state), Path(1), None, Json(confirmed))
+            .await
+            .is_ok());
     }
 }

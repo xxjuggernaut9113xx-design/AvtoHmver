@@ -2,8 +2,8 @@
 set -eu
 
 # Build the Curator Viewer Debian package plus a portable archive from an
-# already-compiled Viewer binary. The Viewer keeps no library and bundles
-# no helper tools; it streams from a Host or Server.
+# already-compiled Viewer binary. The Viewer keeps no library and streams
+# from a Host or Server; its required libmpv runtime is a package dependency.
 #
 # Usage: build-viewer-deb.sh <curator-viewer-binary> <output-dir>
 binary=${1:?pass the compiled Curator Viewer binary}

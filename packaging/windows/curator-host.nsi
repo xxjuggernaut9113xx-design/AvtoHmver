@@ -53,10 +53,11 @@ Section "Curator Host" SecHost
   SetOutPath "$INSTDIR"
   File "${CURATOR_STAGE}\Curator.exe"
   File "${CURATOR_STAGE}\icon.ico"
-  ; Bundled helper tools (ffmpeg, ffprobe, mpv, gallery-dl) are optional at
-  ; stage time; the app falls back to PATH when a tool is absent.
+  ; The release builder verifies this complete runtime before staging it.
   SetOutPath "$INSTDIR\tools"
-  File /nonfatal /r "${CURATOR_STAGE}\tools\*.*"
+  File /r "${CURATOR_STAGE}\tools\*.*"
+  SetOutPath "$INSTDIR"
+  File "${CURATOR_STAGE}\THIRD_PARTY_NOTICES.md"
   WriteUninstaller "$INSTDIR\Uninstall Curator Host.exe"
 
   CreateDirectory "$SMPROGRAMS\Curator"
@@ -87,6 +88,7 @@ Section "Uninstall"
   Delete "$INSTDIR\Uninstall Curator Host.exe"
   Delete "$INSTDIR\Curator.exe"
   Delete "$INSTDIR\icon.ico"
+  Delete "$INSTDIR\THIRD_PARTY_NOTICES.md"
   RMDir /r "$INSTDIR\tools"
   RMDir "$INSTDIR"
 SectionEnd

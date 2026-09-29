@@ -10,6 +10,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::sync::Arc;
 
+pub use crate::provenance::SourceTagCandidate;
+
 #[derive(Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LibraryQuery {
     pub search: Option<String>,
@@ -76,6 +78,8 @@ pub enum Command {
     StartSession,
     Session(crate::session::SessionControl),
     CreateGroup(String),
+    CreateChildGroup(String, i64),
+    MoveGroup(i64, Option<i64>),
     MoveToGroup(Vec<i64>, Option<i64>),
     /// Browser "add to group": membership without removing other groups.
     AddToGroup(Vec<i64>, Option<i64>),
@@ -98,6 +102,8 @@ pub enum Command {
     AddSources(String),
     ResyncAll,
     RenameSource(i64, String),
+    UpdateSource(i64, crate::services::sources::SourcePatch),
+    SetSourceGroup(i64, Option<i64>),
     ResyncSource(i64),
     DeleteSource(i64, bool),
     RenameGroup(i64, String),
@@ -898,6 +904,89 @@ impl Client {
         }
     }
 
+    /// Source-provided tag proposals waiting for a human decision. The Host
+    /// reads its database directly; a permitted Viewer keeps the existing
+    /// HTTP contract.
+    pub async fn pending_source_tags(
+        &self,
+        limit: u32,
+    ) -> Result<Vec<crate::provenance::SourceTagCandidate>, String> {
+        let value = match self {
+            Self::Local(client) => {
+                if client.state.shutdown.is_cancelled() {
+                    return Err("Curator is shutting down".into());
+                }
+                let _lease = client
+                    .state
+                    .maintenance
+                    .try_acquire_background_worker()
+                    .ok_or("A local maintenance job is active. Try again when it completes.")?;
+                let conn = client.state.pool.get().map_err(|error| error.to_string())?;
+                return crate::provenance::pending_source_tags(&conn, None, limit)
+                    .map_err(|error| error.to_string());
+            }
+            Self::Remote(client) => {
+                if !client.permissions.library_edit {
+                    return Err("Viewer role cannot review source tags".into());
+                }
+                client
+                    .request(&format!("/api/source-tags/review?limit={limit}"), None)
+                    .await?
+            }
+        };
+        serde_json::from_value(value["source_tags"].clone()).map_err(|error| error.to_string())
+    }
+
+    /// Apply one human source-tag decision. `skip` is the durable rejection
+    /// state and never removes a previously human-assigned tag.
+    pub async fn review_source_tag(
+        &self,
+        id: i64,
+        action: String,
+        normalized_name: Option<String>,
+    ) -> Result<(), String> {
+        if !matches!(action.as_str(), "add" | "edit" | "skip") {
+            return Err("Source-tag action must be add, edit, or skip".into());
+        }
+        match self {
+            Self::Local(client) => {
+                if client.state.shutdown.is_cancelled() {
+                    return Err("Curator is shutting down".into());
+                }
+                let _lease = client
+                    .state
+                    .maintenance
+                    .try_acquire_background_worker()
+                    .ok_or("A local maintenance job is active. Try again when it completes.")?;
+                let conn = client.state.pool.get().map_err(|error| error.to_string())?;
+                crate::provenance::review_source_tag(
+                    &conn,
+                    id,
+                    &action,
+                    normalized_name.as_deref(),
+                )
+                .map_err(|error| error.to_string())?;
+            }
+            Self::Remote(client) => {
+                if !client.permissions.library_edit {
+                    return Err("Viewer role cannot review source tags".into());
+                }
+                client
+                    .request(
+                        "/api/source-tags/review",
+                        Some(json!({
+                            "id": id,
+                            "action": action,
+                            "normalized_name": normalized_name,
+                            "remember": false,
+                        })),
+                    )
+                    .await?;
+            }
+        }
+        Ok(())
+    }
+
     pub async fn discover(
         &self,
         query: String,
@@ -1266,6 +1355,8 @@ impl Client {
                         client.permissions.session_control
                     }
                     Command::CreateGroup(_)
+                    | Command::CreateChildGroup(_, _)
+                    | Command::MoveGroup(_, _)
                     | Command::MoveToGroup(_, _)
                     | Command::AddToGroup(_, _)
                     | Command::Rate(_, _)
@@ -1276,6 +1367,8 @@ impl Client {
                     | Command::UndoRating(_, _)
                     | Command::CreateClips { .. } => client.permissions.library_edit,
                     Command::RenameSource(_, _)
+                    | Command::UpdateSource(_, _)
+                    | Command::SetSourceGroup(_, _)
                     | Command::ResyncSource(_)
                     | Command::DeleteSource(_, _)
                     | Command::RenameGroup(_, _)
@@ -1310,6 +1403,27 @@ impl Client {
                             )
                             .await;
                     }
+                    Command::UpdateSource(id, patch) => {
+                        return client
+                            .request_method(
+                                reqwest::Method::PATCH,
+                                &format!("/api/sources/{id}"),
+                                Some(
+                                    serde_json::to_value(patch)
+                                        .map_err(|error| error.to_string())?,
+                                ),
+                            )
+                            .await;
+                    }
+                    Command::SetSourceGroup(id, group_id) => {
+                        return client
+                            .request_method(
+                                reqwest::Method::PATCH,
+                                &format!("/api/sources/{id}/group"),
+                                Some(json!({"group_id":group_id})),
+                            )
+                            .await;
+                    }
                     Command::ResyncSource(id) => {
                         return client
                             .request_method(
@@ -1337,6 +1451,18 @@ impl Client {
                             )
                             .await;
                     }
+                    Command::MoveGroup(id, parent_id) => {
+                        return client
+                            .request_method(
+                                reqwest::Method::PATCH,
+                                &format!("/api/groups/{id}"),
+                                Some(match parent_id {
+                                    Some(parent_id) => json!({"parent_id": parent_id}),
+                                    None => json!({"clear_parent": true}),
+                                }),
+                            )
+                            .await;
+                    }
                     Command::DeleteGroup(id) => {
                         return client
                             .request_method(
@@ -1359,6 +1485,10 @@ impl Client {
                         serde_json::to_value(control).map_err(|e| e.to_string())?,
                     ),
                     Command::CreateGroup(name) => ("/api/groups".into(), json!({"name":name})),
+                    Command::CreateChildGroup(name, parent_id) => (
+                        "/api/groups".into(),
+                        json!({"name":name,"parent_id":parent_id}),
+                    ),
                     Command::MoveToGroup(ids, group) => (
                         "/api/media/bulk".into(),
                         json!({"ids":ids,"action":"move","group_id":group}),
@@ -1419,8 +1549,11 @@ impl Client {
                     }
                     // Handled by the method-specific early returns above.
                     Command::RenameSource(_, _)
+                    | Command::UpdateSource(_, _)
+                    | Command::SetSourceGroup(_, _)
                     | Command::ResyncSource(_)
                     | Command::DeleteSource(_, _)
+                    | Command::MoveGroup(_, _)
                     | Command::RenameGroup(_, _)
                     | Command::DeleteGroup(_) => {
                         unreachable!("source/group management returns early")
@@ -1653,6 +1786,16 @@ impl LocalClient {
                 )
                 .await,
             ),
+            Command::CreateChildGroup(name, parent_id) => response(
+                routes::groups::create(
+                    state,
+                    Json(routes::groups::CreateGroupBody {
+                        name,
+                        parent_id: Some(parent_id),
+                    }),
+                )
+                .await,
+            ),
             Command::MoveToGroup(ids, group_id) => response(
                 routes::media::bulk(
                     state,
@@ -1767,30 +1910,45 @@ impl LocalClient {
                 serde_json::to_value(result).map_err(|error| error.to_string())
             }
             Command::ResyncAll => Ok(routes::sources::resync_all(state).await.0),
-            Command::RenameSource(id, name) => response(
-                routes::sources::patch(
-                    state,
-                    Path(id),
-                    Json(routes::sources::PatchSourceBody {
-                        name: Some(name),
-                        included: None,
-                        retention_keep_newest: None,
-                        retention_confirmation: None,
-                    }),
-                )
-                .await,
-            ),
+            Command::RenameSource(id, name) => crate::services::sources::patch(
+                self.state.clone(),
+                crate::services::access::Caller::host(),
+                id,
+                crate::services::sources::SourcePatch {
+                    name: Some(name),
+                    ..Default::default()
+                },
+            )
+            .await
+            .map_err(|error| error.message().to_owned()),
+            Command::UpdateSource(id, patch) => crate::services::sources::patch(
+                self.state.clone(),
+                crate::services::access::Caller::host(),
+                id,
+                patch,
+            )
+            .await
+            .map_err(|error| error.message().to_owned()),
+            Command::SetSourceGroup(id, group_id) => crate::services::sources::set_group(
+                &self.state,
+                crate::services::access::Caller::host(),
+                id,
+                group_id,
+            )
+            .map_err(|error| error.message().to_owned()),
             Command::ResyncSource(id) => {
                 response(routes::sources::resync(state, Path(id)).await)
             }
-            Command::DeleteSource(id, delete_files) => response(
-                routes::sources::delete(
-                    state,
-                    Path(id),
-                    Query(routes::sources::DeleteQuery { delete_files }),
+            Command::DeleteSource(id, delete_files) => {
+                crate::services::sources::delete(
+                    self.state.clone(),
+                    crate::services::access::Caller::host(),
+                    id,
+                    delete_files,
                 )
-                .await,
-            ),
+                .await
+                .map_err(|error| error.message().to_owned())
+            }
             Command::RenameGroup(id, name) => response(
                 routes::groups::update(
                     state,
@@ -1799,6 +1957,18 @@ impl LocalClient {
                         name: Some(name),
                         parent_id: None,
                         clear_parent: false,
+                    }),
+                )
+                .await,
+            ),
+            Command::MoveGroup(id, parent_id) => response(
+                routes::groups::update(
+                    state,
+                    Path(id),
+                    Json(routes::groups::UpdateGroupBody {
+                        name: None,
+                        parent_id,
+                        clear_parent: parent_id.is_none(),
                     }),
                 )
                 .await,
@@ -2422,9 +2592,19 @@ mod tests {
             Command::Approve(1),
             Command::UndoRating(1, "token".into()),
             Command::CreateGroup("test".into()),
+            Command::CreateChildGroup("child".into(), 1),
+            Command::MoveGroup(1, Some(2)),
             Command::AddSources("https://example.com".into()),
             Command::StartSession,
             Command::RenameSource(1, "renamed".into()),
+            Command::UpdateSource(
+                1,
+                crate::services::sources::SourcePatch {
+                    included: Some(false),
+                    ..Default::default()
+                },
+            ),
+            Command::SetSourceGroup(1, Some(2)),
             Command::ResyncSource(1),
             Command::DeleteSource(1, false),
             Command::RenameGroup(1, "renamed".into()),
@@ -2489,6 +2669,35 @@ mod tests {
             .execute(Command::RenameGroup(id, "g2".into()))
             .await
             .unwrap();
+        let child = client
+            .execute(Command::CreateChildGroup("child".into(), id))
+            .await
+            .unwrap();
+        let child_id = child["id"].as_i64().unwrap();
+        assert_eq!(child["parent_id"], id);
+        assert!(client
+            .execute(Command::MoveGroup(id, Some(child_id)))
+            .await
+            .is_err());
+        let moved = client
+            .execute(Command::MoveGroup(child_id, None))
+            .await
+            .unwrap();
+        assert!(moved["parent_id"].is_null());
+        let assigned = client
+            .execute(Command::SetSourceGroup(1, Some(child_id)))
+            .await
+            .unwrap();
+        assert_eq!(assigned["group_id"], child_id);
+        let ungrouped = client
+            .execute(Command::SetSourceGroup(1, None))
+            .await
+            .unwrap();
+        assert!(ungrouped["group_id"].is_null());
+        client
+            .execute(Command::DeleteGroup(child_id))
+            .await
+            .unwrap();
         let detail = client.source_detail(1).await.unwrap();
         assert!(detail.get("name").is_some());
         client.execute(Command::DeleteGroup(id)).await.unwrap();
@@ -2525,6 +2734,58 @@ mod tests {
             .discover("test".into(), None, None, None)
             .await
             .is_err());
+    }
+
+    #[tokio::test]
+    async fn native_source_tag_review_adds_or_rejects_proposals() {
+        let root = tempfile::tempdir().unwrap();
+        let state = test_support::state(root.path());
+        test_support::source(&state);
+        let conn = state.pool.get().unwrap();
+        conn.execute(
+            "INSERT INTO media(id,source_id,filepath,filename,type,rating,added_at)
+             VALUES(1,1,'test/item.jpg','item.jpg','image',0,'2026')",
+            [],
+        )
+        .unwrap();
+        crate::provenance::capture_source_metadata(
+            &conn,
+            1,
+            Some("https://example.test/item"),
+            &json!({"extractor":"fixture","tags":["Raw One","Raw Two"]}),
+        )
+        .unwrap();
+        drop(conn);
+        let client = Client::Local(LocalClient::new((*state).clone()).unwrap());
+        let proposals = client.pending_source_tags(10).await.unwrap();
+        assert_eq!(proposals.len(), 2);
+        let add = proposals
+            .iter()
+            .find(|candidate| candidate.raw_name == "raw one")
+            .unwrap();
+        client
+            .review_source_tag(add.id, "edit".into(), Some("human choice".into()))
+            .await
+            .unwrap();
+        let reject = proposals
+            .iter()
+            .find(|candidate| candidate.raw_name == "raw two")
+            .unwrap();
+        client
+            .review_source_tag(reject.id, "skip".into(), None)
+            .await
+            .unwrap();
+        assert!(client.pending_source_tags(10).await.unwrap().is_empty());
+        let conn = state.pool.get().unwrap();
+        let visible: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM tags t JOIN media_tags mt ON mt.tag_id=t.id
+                 WHERE mt.media_id=1 AND t.name='human choice'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(visible, 1);
     }
 
     #[tokio::test]
