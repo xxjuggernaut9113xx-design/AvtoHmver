@@ -1225,7 +1225,6 @@ dependencies = [
  "futures",
  "hex",
  "image",
- "image-webp",
  "indexmap",
  "libc",
  "notify",
