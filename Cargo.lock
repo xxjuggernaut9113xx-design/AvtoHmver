@@ -1253,7 +1253,6 @@ dependencies = [
  "tracing-appender",
  "tracing-subscriber",
  "urlencoding",
- "uuid",
  "walkdir",
  "windows-sys 0.61.2",
  "zip",
@@ -6181,13 +6180,15 @@ checksum = "06abde3611657adf66d383f00b093d7faecc7fa57071cce2578660c9f1010821"
 
 [[package]]
 name = "uuid"
-version = "1.10.0"
+version = "1.26.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "81dfa00651efa65069b0b6b651f4aaa31ba9e3c3ce0137aaad053604ee7e0314"
+checksum = "2ef6dac1e96601b4fb3acccccff2139741fcb757cb9a36089bf5be91cfb285ce"
 dependencies = [
- "getrandom 0.2.17",
- "rand 0.8.8",
- "serde",
+ "getrandom 0.4.3",
+ "js-sys",
+ "rand 0.10.2",
+ "serde_core",
+ "wasm-bindgen",
 ]
 
 [[package]]
