@@ -22,7 +22,7 @@ export component CuratorTray inherits SystemTrayIcon {
 
 
 export component CuratorNativeWindow inherits Window {
-    title: (root.local-host ? "Curator Host" : "Curator Viewer") + " — " + (root.stage-open ? ("Stage — " + (root.stage-mode == 0 ? "Player" : root.stage-mode == 1 ? "Feed" : root.stage-mode == 2 ? "Review" : root.stage-mode == 3 ? "GOON" : root.stage-mode == 4 ? "Slideshow" : root.stage-mode == 5 ? "Portrait Wall" : "Cock Hero")) : (root.workspace == 0 ? root.location-title : root.workspace == 1 ? "Discover" : root.workspace == 2 ? "Organization" : "Activity"));
+    title: (root.local-host ? "Curator Host" : "Curator Viewer") + " — " + (root.stage-open ? ("Stage — " + (root.stage-mode == 0 ? "Player" : root.stage-mode == 1 ? "Feed" : root.stage-mode == 2 ? "Review" : "GOON")) : (root.workspace == 0 ? root.location-title : root.workspace == 1 ? "Discover" : root.workspace == 2 ? "Organization" : "Activity"));
     preferred-width: 1200px; preferred-height: 800px;
     min-width: 800px; min-height: 560px;
     in-out property <int> workspace: 0;
@@ -316,7 +316,7 @@ export component CuratorNativeWindow inherits Window {
                             text: label; primary: root.workspace == index && !root.stage-open;
                             clicked => { root.workspace = index; root.stage-open = false; root.menu-open = ""; }
                         }
-                        for label[index] in ["Player", "Feed", "Review", "GOON", "Slideshow", "Portrait Wall", "Cock Hero"]: Button {
+                        for label[index] in ["Player", "Feed", "Review", "GOON"]: Button {
                             text: label; primary: root.stage-open && root.stage-mode == index;
                             clicked => { root.stage-mode = index; root.stage-open = true; root.menu-open = ""; }
                         }
@@ -630,7 +630,7 @@ export component CuratorNativeWindow inherits Window {
             width: 100%; height: 100%; background: root.theme-background;
             VerticalBox { padding: 16px; spacing: 12px;
                 HorizontalBox { spacing: 6px;
-                    for label[index] in ["Player", "Feed", "Review", "GOON", "Slideshow", "Portrait Wall", "Cock Hero"]: Button {
+                    for label[index] in ["Player", "Feed", "Review", "GOON"]: Button {
                         text: label; primary: root.stage-mode == index;
                         clicked => { root.stage-mode = index; }
                     }
@@ -788,7 +788,7 @@ export component CuratorNativeWindow inherits Window {
                         vertical-stretch: 1; spacing: 12px;
                         VerticalBox {
                             width: 178px; spacing: 5px;
-                            for section[index] in ["General", "Media & Storage", "Appearance", "Playback & GOON", "Automation", "Local Admin"]: Button {
+                            for section[index] in ["General", "Media & Storage", "Appearance", "Playback & GOON"]: Button {
                                 text: section;
                                 visible: index != 5 || root.local-host;
                                 primary: root.settings-page == index;
@@ -854,42 +854,13 @@ export component CuratorNativeWindow inherits Window {
                                 Text { vertical-stretch: 0; text: "Playback & GOON"; font-size: 18px; color: root.theme-text; }
                                 if root.local-host: Text { vertical-stretch: 0; text: "Maximum clip length in seconds (5–3600)"; wrap: word-wrap; color: root.theme-text; }
                                 if root.local-host: LineEdit { height: 36px; vertical-stretch: 0; text <=> root.settings-draft-max-clip-seconds; placeholder-text: "60"; }
-                                if root.local-host: CheckBox { height: 36px; vertical-stretch: 0; text: "Enable metronome"; checked <=> root.settings-draft-metronome; }
-                                if root.local-host: Text { vertical-stretch: 0; text: "Metronome volume (0–1)"; wrap: word-wrap; color: root.theme-text; }
-                                if root.local-host: LineEdit { height: 36px; vertical-stretch: 0; text <=> root.settings-draft-metronome-volume; placeholder-text: "0.55"; }
                                 Text { vertical-stretch: 0; text: "Feed images advance automatically after the configured dwell interval. Player mode and session controls are available in the Player workspace."; wrap: word-wrap; color: root.theme-muted; }
-                                if root.local-host: Text { vertical-stretch: 0; text: "Slideshow"; font-size: 15px; color: root.theme-text; }
-                                if root.local-host: Text { vertical-stretch: 0; text: "Slideshow speed in milliseconds (500–60000)"; wrap: word-wrap; color: root.theme-text; }
-                                if root.local-host: LineEdit { height: 36px; vertical-stretch: 0; text <=> root.settings-draft-slideshow-speed; placeholder-text: "3000"; }
-                                if root.local-host: CheckBox { height: 36px; vertical-stretch: 0; text: "Loop slideshow"; checked <=> root.settings-draft-slideshow-loop; }
-                                if root.local-host: CheckBox { height: 36px; vertical-stretch: 0; text: "Shuffle slideshow"; checked <=> root.settings-draft-slideshow-shuffle; }
                                 if root.local-host: Text { vertical-stretch: 0; text: "GOON"; font-size: 15px; color: root.theme-text; }
                                 if root.local-host: Text { vertical-stretch: 0; text: "Default GOON item limit (1–10000)"; wrap: word-wrap; color: root.theme-text; }
                                 if root.local-host: LineEdit { height: 36px; vertical-stretch: 0; text <=> root.settings-draft-goon-limit; placeholder-text: "200"; }
                                 if root.local-host: CheckBox { height: 36px; vertical-stretch: 0; text: "Log GOON sessions"; checked <=> root.settings-draft-goon-log; }
                                 if root.local-host: Text { vertical-stretch: 0; text: "GOON persona"; wrap: word-wrap; color: root.theme-text; }
                                 if root.local-host: ComboBox { height: 36px; vertical-stretch: 0; model: ["neutral", "mommy", "dom", "brat"]; current-value <=> root.settings-draft-goon-persona; }
-                                if root.local-host: Text { vertical-stretch: 0; text: "Soundtrack provider"; wrap: word-wrap; color: root.theme-text; }
-                                if root.local-host: ComboBox { height: 36px; vertical-stretch: 0; model: ["local", "youtube", "soundcloud", "apple_music", "spotify"]; current-value <=> root.settings-draft-soundtrack; }
-                                if root.local-host: Text { vertical-stretch: 0; text: "Text to speech"; font-size: 15px; color: root.theme-text; }
-                                if root.local-host: Text { vertical-stretch: 0; text: "TTS voice (blank: system default)"; wrap: word-wrap; color: root.theme-text; }
-                                if root.local-host: LineEdit { height: 36px; vertical-stretch: 0; text <=> root.settings-draft-tts-voice; placeholder-text: "System default"; }
-                                if root.local-host: Text { vertical-stretch: 0; text: "TTS rate (0.1–3.0)"; wrap: word-wrap; color: root.theme-text; }
-                                if root.local-host: LineEdit { height: 36px; vertical-stretch: 0; text <=> root.settings-draft-tts-rate; placeholder-text: "1.0"; }
-                                if root.local-host: Text { vertical-stretch: 0; text: "TTS pitch (0–2.0)"; wrap: word-wrap; color: root.theme-text; }
-                                if root.local-host: LineEdit { height: 36px; vertical-stretch: 0; text <=> root.settings-draft-tts-pitch; placeholder-text: "1.0"; }
-                                if root.local-host: Text { vertical-stretch: 0; text: "TTS volume (0–1)"; wrap: word-wrap; color: root.theme-text; }
-                                if root.local-host: LineEdit { height: 36px; vertical-stretch: 0; text <=> root.settings-draft-tts-volume; placeholder-text: "1.0"; }
-                                if root.local-host: CheckBox { height: 36px; vertical-stretch: 0; text: "Enable NSFW filter (restart required)"; checked <=> root.settings-draft-nsfw; }
-                                if root.local-host: Text { vertical-stretch: 0; text: "Cock Hero"; font-size: 15px; color: root.theme-text; }
-                                if root.local-host: CheckBox { height: 36px; vertical-stretch: 0; text: "Log Cock Hero sessions"; checked <=> root.settings-draft-ch-log; }
-                                if root.local-host: Text { vertical-stretch: 0; text: "Default beat interval in seconds"; wrap: word-wrap; color: root.theme-text; }
-                                if root.local-host: LineEdit { height: 36px; vertical-stretch: 0; text <=> root.settings-draft-ch-interval; placeholder-text: "3.0"; }
-                                if root.local-host: Text { vertical-stretch: 0; text: "Default item limit"; wrap: word-wrap; color: root.theme-text; }
-                                if root.local-host: LineEdit { height: 36px; vertical-stretch: 0; text <=> root.settings-draft-ch-limit; placeholder-text: "200"; }
-                                if root.local-host: CheckBox { height: 36px; vertical-stretch: 0; text: "Shuffle by default"; checked <=> root.settings-draft-ch-shuffle; }
-                                if root.local-host: Text { vertical-stretch: 0; text: "Default media type"; wrap: word-wrap; color: root.theme-text; }
-                                if root.local-host: ComboBox { height: 36px; vertical-stretch: 0; model: ["image", "video", "all"]; current-value <=> root.settings-draft-ch-media-type; }
                             }
                         }
                         if root.settings-page == 4: ScrollView {
@@ -965,7 +936,7 @@ export component CuratorNativeWindow inherits Window {
                 VerticalBox {
                     padding: 48px; spacing: 12px; alignment: center;
                     Text { text: "Welcome to Curator"; font-size: 28px; font-weight: 700; horizontal-alignment: center; color: root.theme-text; }
-                    Text { text: "First-run setup is not complete yet. Your library lives in the data directory below; you can move it later from Settings → Local Admin."; wrap: word-wrap; horizontal-alignment: center; color: root.theme-text; }
+                    Text { text: "First-run setup is not complete yet. Your library lives in the data directory below; storage settings are available under Settings → Media & Storage."; wrap: word-wrap; horizontal-alignment: center; color: root.theme-text; }
                     Text { text: "Data directory: " + root.setup-data-dir; wrap: word-wrap; font-size: 12px; horizontal-alignment: center; color: root.theme-muted; }
                     if root.setup-status != "": Text { text: root.setup-status; wrap: word-wrap; color: #ff8a80; horizontal-alignment: center; }
                     HorizontalBox {
