@@ -92,11 +92,11 @@ pub fn source_usage(library_dir: &Path, slug: &str) -> u64 {
 }
 
 pub fn available_disk_bytes(path: &Path) -> Option<u64> {
-    fs2::available_space(path).ok()
+    fs4::available_space(path).ok()
 }
 
 pub fn total_disk_bytes(path: &Path) -> Option<u64> {
-    fs2::total_space(path).ok()
+    fs4::total_space(path).ok()
 }
 
 /// Check before a source process is started. A quota uses `>=` here so an

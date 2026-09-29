@@ -29,7 +29,7 @@ tokio          = { version = "1",   features = ["full"] }
 rusqlite       = { version = "0.31", features = ["bundled", "backup"] }
 r2d2           = "0.8"
 r2d2_sqlite    = "0.24"
-fs2            = "0.4"
+fs4            = "1.1"
 
 # Serialization
 serde          = { version = "1",    features = ["derive"] }
