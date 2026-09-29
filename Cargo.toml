@@ -77,7 +77,6 @@ tokio-util     = { version = "0.7", features = ["io", "rt"] }
 # Transitive-dependency pins — without these, newer releases of these crates
 # require a Rust edition/MSRV ahead of the CI toolchain and the build fails
 # during dependency resolution (see curator_rs_fixed / build fix notes).
-hashbrown      = "=0.15.5"
 # Slint's compiler requires indexmap 2.14+. Keep the workspace pin explicit
 # so every desktop/CLI target resolves the same compatible version.
 indexmap       = "=2.14.2"
