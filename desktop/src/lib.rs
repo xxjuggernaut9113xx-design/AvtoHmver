@@ -518,10 +518,7 @@ fn navigate_location(
     let _ = tx.send(state.browse_work());
 }
 
-<<<<<<< Updated upstream
-=======
 #[cfg(any(windows, test))]
->>>>>>> Stashed changes
 fn panic_hide(
     window: &CuratorNativeWindow,
     tray: &CuratorTray,
