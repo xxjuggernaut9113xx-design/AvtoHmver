@@ -204,8 +204,8 @@ fn setup_logging(log_path: &std::path::Path) {
     let (stdout, stdout_guard) = tracing_appender::non_blocking(std::io::stdout());
     std::mem::forget(stdout_guard);
 
-    // Detail is opt-in through RUST_LOG; ordinary runs record information only.
-    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
+    // Capture debug diagnostics by default; RUST_LOG can override the detail level.
+    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("debug"));
 
     tracing_subscriber::registry()
         .with(filter)
@@ -218,7 +218,7 @@ fn setup_logging(log_path: &std::path::Path) {
         .try_init()
         .ok();
     eprintln!(
-        "Diagnostic logs: {} (daily rotation, eight retained; set RUST_LOG before launch for detail)",
+        "Diagnostic logs: {} (debug by default, daily rotation, eight retained; RUST_LOG overrides detail)",
         log_path.parent().unwrap_or(std::path::Path::new(".")).display()
     );
 }
