@@ -823,47 +823,6 @@ export component CuratorNativeWindow inherits Window {
             Text { text: "GOON uses the existing Rust session timing and media ratings: slow, medium, fast, cum, and succubus phases map to their media ratings."; wrap: word-wrap; }
                     Rectangle { vertical-stretch: 1; }
         }
-        if root.stage-open && root.stage-mode == 4: VerticalBox { vertical-stretch: 1;
-            Text { text: "Slideshow"; font-size: 22px; }
-            Text { text: "Auto-advancing images from the library, using the slideshow speed, loop, and shuffle settings."; wrap: word-wrap; color: root.theme-muted; }
-            Text { text: root.slideshow-status; wrap: word-wrap; color: root.theme-muted; }
-            Text { text: root.playing; wrap: word-wrap; }
-            HorizontalBox {
-                Button { text: "Start / restart slideshow"; enabled: root.can-playback; clicked => { root.slideshow-control("start"); } }
-                Button { text: "Next image"; enabled: root.can-playback; clicked => { root.slideshow-control("next"); } }
-                Button { text: "Stop"; clicked => { root.slideshow-control("stop"); } }
-            }
-            Image { source: root.video-active ? root.video-frame : root.preview; image-fit: contain; vertical-stretch: 1; }
-                    Rectangle { vertical-stretch: 1; }
-        }
-        if root.stage-open && root.stage-mode == 5: VerticalBox { vertical-stretch: 1;
-            Text { text: "Portrait wall"; font-size: 22px; }
-            Text { text: "Three panes cycle images independently, like the browser edition."; wrap: word-wrap; color: root.theme-muted; }
-            Text { text: root.wall-status; wrap: word-wrap; color: root.theme-muted; }
-            HorizontalBox {
-                Button { text: "Start / restart wall"; enabled: root.can-playback; clicked => { root.wall-control("start"); } }
-                Button { text: "Stop"; clicked => { root.wall-control("stop"); } }
-            }
-            if root.wall-active: HorizontalBox {
-                Image { source: root.wall-preview-0; image-fit: contain; horizontal-stretch: 1; vertical-stretch: 1; }
-                Image { source: root.wall-preview-1; image-fit: contain; horizontal-stretch: 1; vertical-stretch: 1; }
-                Image { source: root.wall-preview-2; image-fit: contain; horizontal-stretch: 1; vertical-stretch: 1; }
-            }
-                    Rectangle { vertical-stretch: 1; }
-        }
-        if root.stage-open && root.stage-mode == 6: VerticalBox { vertical-stretch: 1;
-            Text { text: "Cock Hero"; font-size: 22px; }
-            Text { text: "Beat-paced session from the Cock Hero playlist, following the browser pace schedule (slow to furious, edging, cum). Metronome audio and speech cues are not implemented in the native shell yet."; wrap: word-wrap; color: root.theme-muted; }
-            Text { text: root.cockhero-status; wrap: word-wrap; color: root.theme-muted; }
-            Text { text: root.cockhero-beats; wrap: word-wrap; color: root.theme-muted; }
-            Text { text: root.playing; wrap: word-wrap; }
-            HorizontalBox {
-                Button { text: "Start session"; enabled: root.can-playback; clicked => { root.cockhero-control("start"); } }
-                Button { text: "Stop"; clicked => { root.cockhero-control("stop"); } }
-            }
-            Image { source: root.video-active ? root.video-frame : root.preview; image-fit: contain; vertical-stretch: 1; }
-                    Rectangle { vertical-stretch: 1; }
-        }
             }
         }
                     if root.settings-open: Rectangle {

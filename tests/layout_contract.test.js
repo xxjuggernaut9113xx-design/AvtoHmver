@@ -6,6 +6,12 @@ const path = require('node:path');
 const root = path.join(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 
+test('native stage exposes only the reduced player modes', () => {
+  const ui = read('desktop/ui/main.slint');
+  assert.match(ui, /\["Player", "Feed", "Review", "GOON"\]/);
+  assert.doesNotMatch(ui, /if root\.stage-open && root\.stage-mode == [456]:/);
+});
+
 test('the Explorer shell keeps one bounded primary panel and an independent sidebar scroller', () => {
   const css = read('static/style.css');
   assert.match(css, /\.app-shell\s*\{[\s\S]*?height:\s*100dvh;[\s\S]*?min-height:\s*0;/);
