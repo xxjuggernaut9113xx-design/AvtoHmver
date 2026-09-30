@@ -1,3 +1,4 @@
+mod bindings;
 mod clips;
 pub mod datadir;
 pub mod mpv_embed;
@@ -221,6 +222,11 @@ enum Update {
 
 #[derive(Default)]
 struct ViewState {
+    location_history: Vec<Option<(i64, bool)>>,
+    location_position: usize,
+    bindings: bindings::Bindings,
+    panic: Option<PanicSnapshot>,
+    loading_since: Option<Instant>,
     navigation: Vec<NavigationItem>,
     items: Vec<MediaItem>,
     media_model: Rc<VecModel<MediaRow>>,
@@ -375,6 +381,9 @@ enum PlayDriver {
 
 #[derive(Default)]
 struct PlayerHolder {
+    current: Option<MediaItem>,
+    pending_since: Option<Instant>,
+    ready: bool,
     player: NativePlayer,
     driver: PlayDriver,
     /// Index into `ViewState.queue` when driven by the manual queue.
@@ -389,6 +398,205 @@ struct PlayerHolder {
     /// our own updates from being re-sent as seeks.
     last_reported_position: f64,
     last_reported_volume: f64,
+}
+
+struct PanicSnapshot {
+    since: Instant,
+    paused: bool,
+    volume: f32,
+    session_id: Option<String>,
+}
+
+fn show_loading(window: &CuratorNativeWindow, step: &str) {
+    window.set_playback_loading(true);
+    window.set_playback_error(false);
+    window.set_playback_step(step.into());
+}
+
+fn show_playback_error(window: &CuratorNativeWindow, error: &str) {
+    window.set_playback_loading(false);
+    window.set_playback_error(true);
+    window.set_playback_step(error.into());
+}
+
+fn mark_media_ready(window: &CuratorNativeWindow, state: &mut ViewState) {
+    if state.player.ready {
+        return;
+    }
+    state.player.ready = true;
+    state.player.pending_since = None;
+    state.loading_since = None;
+    window.set_playback_loading(false);
+    window.set_playback_error(false);
+    if state.feed.active && state.player.driver == PlayDriver::Feed && state.feed.current_is_image {
+        state.feed.image_deadline = Some(Instant::now() + state.feed.image_dwell);
+    }
+    if state.review.active && state.player.driver == PlayDriver::Review {
+        state.review.countdown = Some(Instant::now() + Duration::from_secs(10));
+    }
+}
+
+fn finish_preview(
+    window: &CuratorNativeWindow,
+    state: &mut ViewState,
+    request: u64,
+    title: &str,
+    result: Result<NativeImage, String>,
+) {
+    if request != state.preview_request {
+        return;
+    }
+    match result {
+        Ok(image) => {
+            let buffer = slint::SharedPixelBuffer::<slint::Rgba8Pixel>::clone_from_slice(
+                &image.pixels,
+                image.width,
+                image.height,
+            );
+            window.set_preview(slint::Image::from_rgba8(buffer));
+            window.set_playing(title.into());
+            mark_media_ready(window, state);
+        }
+        Err(error) => {
+            window.set_preview(slint::Image::default());
+            window.set_playing(title.into());
+            state.player.pending_since = None;
+            state.loading_since = None;
+            show_playback_error(window, &format!("Could not decode {title}: {error}"));
+        }
+    }
+}
+
+fn navigate_location(
+    window: &CuratorNativeWindow,
+    state: &mut ViewState,
+    location: Option<(i64, bool)>,
+    tx: &WorkSender,
+) {
+    state.navigate_to(location);
+    let selected = location.and_then(|(id, group)| {
+        state
+            .navigation
+            .iter()
+            .position(|item| item.id == id && item.group == group)
+    });
+    window.set_location_index(selected.map_or(-1, |index| index as i32));
+    let mut path = Vec::new();
+    if let Some(index) = selected {
+        let mut item = &state.navigation[index];
+        path.push(item.name.clone());
+        let mut visited = HashSet::new();
+        while let Some(parent) = item.parent_id {
+            if !visited.insert(parent) {
+                break;
+            }
+            let Some(next) = state
+                .navigation
+                .iter()
+                .find(|item| item.group && item.id == parent)
+            else {
+                break;
+            };
+            path.push(next.name.clone());
+            item = next;
+        }
+        path.reverse();
+    }
+    window.set_location_title(if path.is_empty() {
+        "All sources and groups".into()
+    } else {
+        path.join(" / ").into()
+    });
+    window.set_location_back(state.location_position > 0);
+    window.set_location_forward(state.location_position + 1 < state.location_history.len());
+    window.set_workspace(0);
+    window.set_stage_open(false);
+    window.set_busy(true);
+    window.set_has_more(false);
+    window.set_has_previous(false);
+    window.set_library_scroll_y(0.0);
+    let _ = tx.send(state.browse_work());
+}
+
+fn panic_hide(
+    window: &CuratorNativeWindow,
+    tray: &CuratorTray,
+    state: &mut ViewState,
+    host: Option<&curator::AppState>,
+) {
+    if state.panic.is_some() {
+        return;
+    }
+    let session_id = host
+        .and_then(curator::services::session::current)
+        .filter(|session| session.status == curator::session::SessionStatus::Running)
+        .and_then(|session| {
+            curator::services::session::control(
+                host.unwrap(),
+                curator::session::SessionControl::Pause,
+            )
+            .ok()
+            .map(|_| session.session_id)
+        });
+    state.panic = Some(PanicSnapshot {
+        since: Instant::now(),
+        paused: window.get_player_paused(),
+        volume: window.get_player_volume(),
+        session_id,
+    });
+    state.player.player.suspend(true);
+    tray.set_panic_hidden(true);
+    let _ = window.hide();
+}
+
+fn panic_restore(
+    window: &CuratorNativeWindow,
+    tray: &CuratorTray,
+    state: &mut ViewState,
+    host: Option<&curator::AppState>,
+) {
+    if let Some(snapshot) = state.panic.take() {
+        let elapsed = snapshot.since.elapsed();
+        for value in [&mut state.feed.image_deadline, &mut state.review.countdown]
+            .into_iter()
+            .flatten()
+        {
+            *value += elapsed;
+        }
+        if let Some(started) = &mut state.player.pending_since {
+            *started += elapsed;
+        }
+        if let Some(started) = &mut state.loading_since {
+            *started += elapsed;
+        }
+
+        state.player.player.suspend(false);
+        if state.player.video_active {
+            state
+                .player
+                .player
+                .apply(PlayerCommand::SetVolume(snapshot.volume as f64));
+            state
+                .player
+                .player
+                .apply(PlayerCommand::SetPaused(snapshot.paused));
+        }
+        window.set_player_paused(snapshot.paused);
+        window.set_player_volume(snapshot.volume);
+        if let (Some(host), Some(id)) = (host, snapshot.session_id) {
+            if curator::services::session::current(host).is_some_and(|session| {
+                session.session_id == id
+                    && session.status == curator::session::SessionStatus::Paused
+            }) {
+                let _ = curator::services::session::control(
+                    host,
+                    curator::session::SessionControl::Resume,
+                );
+            }
+        }
+    }
+    tray.set_panic_hidden(false);
+    let _ = window.show();
 }
 
 struct FeedState {
@@ -659,6 +867,10 @@ fn apply_player_status(
     // otherwise re-send our own progress as a seek.
     holder.last_reported_position = status.position_secs;
     holder.last_reported_volume = status.volume;
+    if status.failed {
+        show_playback_error(window, &status.message);
+        holder.pending_since = None;
+    }
     window.set_player_status(status.message.clone().into());
     window.set_player_progress(status.position_secs as f32);
     window.set_player_duration(status.duration_secs as f32);
@@ -669,7 +881,8 @@ fn apply_player_status(
 }
 
 fn player_status_is_error(status: &PlayerStatus) -> bool {
-    status.message == "Playback error"
+    status.failed
+        || status.message == "Playback error"
         || status.message.starts_with("libmpv ")
         || status.message.starts_with("Could not load libmpv")
         || status.message.starts_with("Embedded player")
@@ -686,6 +899,22 @@ fn play_media_item(
     item: &MediaItem,
     driver: PlayDriver,
 ) -> Result<(), String> {
+    if state.panic.is_some() {
+        return Err("Playback is suspended by the panic key".into());
+    }
+    state.preview_request = state.preview_request.wrapping_add(1);
+    state.player.current = Some(item.clone());
+    state.player.ready = false;
+    state.player.pending_since = Some(Instant::now());
+    state.loading_since = None;
+    show_loading(
+        window,
+        if item.kind == "image" {
+            "Decoding image…"
+        } else {
+            "Waiting for libmpv and the first frame…"
+        },
+    );
     state.player.driver = driver;
     state.player.ended_handled = false;
     state.player.last_reported_position = 0.0;
@@ -695,11 +924,14 @@ fn play_media_item(
         state.player.video_active = false;
         window.set_video_active(false);
         window.set_video_frame(slint::Image::default());
+        window.set_preview(slint::Image::default());
         let status = state.player.player.apply(PlayerCommand::Stop);
         state.preview_request = state.preview_request.wrapping_add(1);
         let request = state.preview_request;
         window.set_playing(format!("Loading {}…", item.filename).into());
         if image_tx.try_send((request, 0, item.clone())).is_err() {
+            state.player.pending_since = None;
+            show_playback_error(window, "Image decoder is busy. Retry shortly.");
             return Err("Player preview is busy; try again shortly.".into());
         }
         apply_player_status(window, &mut state.player, status);
@@ -711,7 +943,10 @@ fn play_media_item(
     // replacing the file or reporting a load error.
     window.set_video_frame(slint::Image::default());
     window.set_preview(slint::Image::default());
-    let source = client.playback_source(item)?;
+    let source = client.playback_source(item).inspect_err(|error| {
+        state.player.pending_since = None;
+        show_playback_error(window, error);
+    })?;
     // Persisted settings ride along with the load so mpv honors them on
     // first play instead of its own defaults.
     let status = state.player.player.apply(PlayerCommand::Load {
@@ -722,13 +957,7 @@ fn play_media_item(
     });
     window.set_playing(item.filename.clone().into());
     apply_player_status(window, &mut state.player, status.clone());
-    if status.message.starts_with("Could not start")
-        || status.message.starts_with("Could not load libmpv")
-        || status.message.starts_with("Embedded player")
-        || status.message.contains("not a file")
-        || status.message.contains("No mpv")
-        || status.message.contains("did not expose its IPC endpoint")
-    {
+    if status.failed {
         state.player.video_active = false;
         window.set_video_active(false);
         return Err(status.message);
@@ -956,6 +1185,11 @@ fn feed_top_up(window: &CuratorNativeWindow, state: &mut ViewState, tx: &WorkSen
 }
 
 fn feed_start(window: &CuratorNativeWindow, state: &mut ViewState, tx: &WorkSender) {
+    state.player.player.apply(PlayerCommand::Stop);
+    state.preview_request = state.preview_request.wrapping_add(1);
+    state.player.current = None;
+    state.loading_since = Some(Instant::now());
+    show_loading(window, "Fetching media…");
     // Feed preempts the manual queue and review; the GOON driver only retakes
     // the player on a phase change.
     state.player.queue_index = None;
@@ -991,6 +1225,9 @@ fn feed_advance(
     image_tx: &mpsc::SyncSender<(u64, u8, MediaItem)>,
     tx: &WorkSender,
 ) -> bool {
+    if state.panic.is_some() {
+        return false;
+    }
     if !state.feed.active {
         return false;
     }
@@ -1002,6 +1239,9 @@ fn feed_advance(
         let Some(next) = feed_select_next(&mut state.feed) else {
             if state.feed.exhausted && !state.feed.fetching {
                 window.set_feed_status("Feed is out of media.".into());
+                state.loading_since = None;
+                state.player.pending_since = None;
+                show_playback_error(window, "Feed is out of media.");
             }
             return false;
         };
@@ -1531,6 +1771,11 @@ fn review_top_up(window: &CuratorNativeWindow, state: &mut ViewState, tx: &WorkS
 }
 
 fn review_start(window: &CuratorNativeWindow, state: &mut ViewState, tx: &WorkSender) {
+    state.player.player.apply(PlayerCommand::Stop);
+    state.preview_request = state.preview_request.wrapping_add(1);
+    state.player.current = None;
+    state.loading_since = Some(Instant::now());
+    show_loading(window, "Fetching media…");
     // Review preempts the manual queue and feed.
     state.player.queue_index = None;
     state.feed.active = false;
@@ -1560,12 +1805,18 @@ fn review_activate(
     client: &Client,
     image_tx: &mpsc::SyncSender<(u64, u8, MediaItem)>,
 ) -> bool {
+    if state.panic.is_some() {
+        return false;
+    }
     loop {
         let Some(item) = state.review.queue.pop_front() else {
             state.review.current = None;
             state.review.countdown = None;
             if state.review.exhausted && !state.review.fetching {
                 window.set_review_status("Review queue is empty.".into());
+                state.loading_since = None;
+                state.player.pending_since = None;
+                show_playback_error(window, "Review queue is empty.");
             }
             return false;
         };
@@ -1732,6 +1983,9 @@ fn goon_advance(
     tx: &WorkSender,
     rating: i64,
 ) {
+    if state.panic.is_some() {
+        return;
+    }
     // Keep a buffer of upcoming candidates while pages remain.
     if state.goon.candidates.len() < 8 {
         goon_top_up(state, tx, rating);
@@ -1762,6 +2016,8 @@ fn goon_advance(
     }
     if state.goon.exhausted && !state.goon.fetching {
         window.set_goon_status(format!("GOON · rating {rating} · no playable media found").into());
+        state.loading_since = None;
+        show_playback_error(window, "No media matches this GOON phase rating.");
     } else {
         window.set_goon_status(format!("GOON · rating {rating} · loading more media…").into());
     }
@@ -1807,6 +2063,12 @@ fn goon_drive(
         return;
     }
     state.goon.last_phase = Some(phase.clone());
+    state.preview_request = state.preview_request.wrapping_add(1);
+    state.player.player.apply(PlayerCommand::Stop);
+    state.player.current = None;
+    state.player.ready = false;
+    window.set_preview(slint::Image::default());
+    window.set_video_frame(slint::Image::default());
     state.goon.candidates.clear();
     state.goon.current = None;
     state.goon.cursor = None;
@@ -1819,12 +2081,18 @@ fn goon_drive(
     window.set_wall_active(false);
     match goon_pace_rating(&phase) {
         Some(rating) => {
+            state.loading_since = Some(Instant::now());
+            show_loading(window, "Fetching GOON phase media…");
             window
                 .set_goon_status(format!("GOON · {phase} · loading rating {rating} media…").into());
             goon_top_up(state, tx, rating);
             let _ = (client, image_tx);
         }
         None => {
+            state.loading_since = None;
+            state.player.pending_since = None;
+            window.set_playback_loading(false);
+            window.set_playback_error(false);
             // Succubus and unknown phases deliberately have no media.
             if state.player.driver == PlayDriver::Goon {
                 let status = state.player.player.apply(PlayerCommand::Stop);
@@ -2599,7 +2867,13 @@ fn current_preferences(window: &CuratorNativeWindow, state: &ViewState) -> Nativ
         workspace: window.get_workspace(),
         theme: window.get_settings_theme().to_string(),
         layout: window.get_settings_layout().to_string(),
-        extra: state.preference_extras.clone(),
+        extra: {
+            let mut extra = state.preference_extras.clone();
+            extra.insert("last_play_mode".into(), window.get_stage_mode().into());
+            extra.insert("layout_version".into(), 2.into());
+            extra.insert("key_bindings".into(), state.bindings.json());
+            extra
+        },
     }
 }
 
@@ -2775,6 +3049,24 @@ fn run_ui_inner(
                 8 => window.set_workspace(2),
                 _ => window.set_workspace(0),
             }
+            if view
+                .borrow()
+                .preference_extras
+                .get("layout_version")
+                .and_then(|v| v.as_i64())
+                == Some(2)
+            {
+                window.set_workspace(preferences.workspace.clamp(0, 3));
+                window.set_stage_open(false);
+            }
+            window.set_stage_mode(
+                view.borrow()
+                    .preference_extras
+                    .get("last_play_mode")
+                    .and_then(|v| v.as_i64())
+                    .unwrap_or(0)
+                    .clamp(0, 3) as i32,
+            );
             apply_native_palette(&window, &preferences.theme);
             window.set_settings_layout(preferences.layout.into());
             window.window().set_size(slint::PhysicalSize::new(
@@ -2863,6 +3155,84 @@ fn run_ui_inner(
             }
         }
     });
+    let loaded_bindings = bindings::Bindings::load(&view.borrow().preference_extras);
+    view.borrow_mut().bindings = loaded_bindings;
+    window.set_bind_panic(view.borrow().bindings.panic.label().into());
+    window.set_bind_pause(view.borrow().bindings.pause.label().into());
+    window.set_bind_next(view.borrow().bindings.next.label().into());
+    window.set_bind_fullscreen(view.borrow().bindings.fullscreen.label().into());
+    #[cfg(windows)]
+    let panic_key = if local_host {
+        match bindings::PanicHotkey::new() {
+            Ok(key) => {
+                if let Err(error) = key.rebind(&view.borrow().bindings.panic) {
+                    window.set_status(error.clone().into());
+                    window.set_binding_status(error.into());
+                }
+                Some(Rc::new(key))
+            }
+            Err(error) => {
+                window.set_status(error.clone().into());
+                window.set_binding_status(error.into());
+                None
+            }
+        }
+    } else {
+        None
+    };
+    {
+        let weak = window.as_weak();
+        let v = view.clone();
+        let saver = preference_saver.clone();
+        #[cfg(windows)]
+        let key = panic_key.clone();
+        window.on_save_bindings(move || {
+            let Some(w) = weak.upgrade() else {
+                return false;
+            };
+            let result = bindings::Bindings::parse([
+                w.get_bind_panic().as_str(),
+                w.get_bind_pause().as_str(),
+                w.get_bind_next().as_str(),
+                w.get_bind_fullscreen().as_str(),
+            ]);
+            let candidate = match result {
+                Ok(value) => value,
+                Err(error) => {
+                    w.set_binding_status(error.into());
+                    return false;
+                }
+            };
+            #[cfg(windows)]
+            if local_host && candidate.panic != v.borrow().bindings.panic {
+                let result = key
+                    .as_ref()
+                    .ok_or_else(|| "Windows panic key service unavailable".to_string())
+                    .and_then(|key| key.rebind(&candidate.panic));
+                if let Err(error) = result {
+                    w.set_binding_status(error.into());
+                    return false;
+                }
+            }
+            v.borrow_mut().bindings = candidate;
+            if preferences_writable {
+                let _ = saver.queue(current_preferences(&w, &v.borrow()));
+            }
+            w.set_binding_status("Key binds saved".into());
+            true
+        });
+    }
+    {
+        let weak = window.as_weak();
+        let tray_weak = tray.as_weak();
+        let v = view.clone();
+        let host = host_state.clone();
+        tray.on_show_window(move || {
+            if let (Some(w), Some(tray)) = (weak.upgrade(), tray_weak.upgrade()) {
+                panic_restore(&w, &tray, &mut v.borrow_mut(), host.as_deref());
+            }
+        });
+    }
     let image_client = client.clone();
     let image_handle = runtime.handle().clone();
     let image_updates = updates.clone();
@@ -2986,6 +3356,7 @@ fn run_ui_inner(
     let search_cancel_ui = search_cancel_tx.clone();
     let mut work_stop = session_stop.subscribe();
     let mut next_recovery = Instant::now() + Duration::from_secs(2);
+    let worker_host_state = host_state.clone();
     let worker = std::thread::spawn(move || loop {
         if *work_stop.borrow() {
             break;
@@ -3414,7 +3785,7 @@ fn run_ui_inner(
                 }
             }
             Work::Classifier { action } => {
-                let text = match host_state.as_ref() {
+                let text = match worker_host_state.as_ref() {
                     None => "Classifier controls need the local Host.".to_string(),
                     Some(state) => {
                         let outcome: Result<curator::phar::PharStatus, anyhow::Error> = (|| {
@@ -3463,7 +3834,7 @@ fn run_ui_inner(
                 let _ = updates.send(Update::ClassifierStatus(text));
             }
             Work::CompleteSetup => {
-                let result = match host_state.as_ref() {
+                let result = match worker_host_state.as_ref() {
                     None => Err("Setup completion needs the local Host.".to_string()),
                     Some(state) => {
                         let text = {
@@ -3481,7 +3852,7 @@ fn run_ui_inner(
                 let _ = updates.send(Update::SetupCompleted(result));
             }
             Work::MoveDataDir { target } => {
-                let (result, quit) = match host_state.as_ref() {
+                let (result, quit) = match worker_host_state.as_ref() {
                     None => (
                         Err("Data-directory moves need the local Host.".to_string()),
                         false,
@@ -3745,25 +4116,38 @@ fn run_ui_inner(
     let weak = window.as_weak();
     let tx = send.clone();
     window.on_navigate(move |index| {
+        let Some(w) = weak.upgrade() else { return };
         let mut state = v.borrow_mut();
-        let selected = state
+        let location = state
             .navigation
             .get(index as usize)
-            .map(|item| (item.id, item.group, item.name.clone()));
-        state.navigate_to(selected.as_ref().map(|(id, group, _)| (*id, *group)));
-        if let Some(w) = weak.upgrade() {
-            w.set_location_title(
-                selected
-                    .map(|(_, _, name)| name)
-                    .unwrap_or_else(|| "All sources and groups".into())
-                    .into(),
-            );
-            w.set_busy(true);
-            w.set_has_more(false);
-            w.set_has_previous(false);
-            w.set_library_scroll_y(0.0);
+            .map(|item| (item.id, item.group));
+        if state.location_history.is_empty() {
+            state.location_history.push(None);
         }
-        let _ = tx.send(state.browse_work());
+        let keep = state.location_position + 1;
+        state.location_history.truncate(keep);
+        if state.location_history.last() != Some(&location) {
+            state.location_history.push(location);
+        }
+        state.location_position = state.location_history.len() - 1;
+        navigate_location(&w, &mut state, location, &tx);
+    });
+    let v = view.clone();
+    let weak = window.as_weak();
+    let tx = send.clone();
+    window.on_location_history(move |forward| {
+        let Some(w) = weak.upgrade() else { return };
+        let mut state = v.borrow_mut();
+        let next = if forward {
+            state.location_position + 1
+        } else {
+            state.location_position.saturating_sub(1)
+        };
+        if let Some(location) = state.location_history.get(next).copied() {
+            state.location_position = next;
+            navigate_location(&w, &mut state, location, &tx);
+        }
     });
     let v = view.clone();
     let weak = window.as_weak();
@@ -5182,6 +5566,134 @@ fn run_ui_inner(
     let v = view.clone();
     let client_play = client.clone();
     let tx_play = send.clone();
+    {
+        let weak = window.as_weak();
+        let v = view.clone();
+        let saver = preference_saver.clone();
+        window.on_open_play_mode(move |mode| {
+            let Some(w) = weak.upgrade() else { return };
+            {
+                let mut state = v.borrow_mut();
+                if w.get_stage_mode() != mode {
+                    state.player.player.apply(PlayerCommand::Stop);
+                    state.preview_request = state.preview_request.wrapping_add(1);
+                    state.feed.active = false;
+                    state.feed.request = state.feed.request.wrapping_add(1);
+                    state.feed.fetching = false;
+                    state.feed.current = None;
+                    state.review.request = state.review.request.wrapping_add(1);
+                    state.review.fetching = false;
+                    state.review.current = None;
+                    state.goon.request = state.goon.request.wrapping_add(1);
+                    state.goon.fetching = false;
+                    state.goon.current = None;
+                    state.player.ready = false;
+                    state.player.video_active = false;
+                    w.set_video_active(false);
+                    state.review.active = false;
+                    state.goon.media_enabled = false;
+                    state.goon.last_phase = None;
+                    state.player.pending_since = None;
+                    state.loading_since = None;
+                    state.player.current = None;
+                    w.set_goon_media_enabled(false);
+                    w.set_playback_loading(false);
+                    w.set_playback_error(false);
+                    w.set_preview(slint::Image::default());
+                    w.set_video_frame(slint::Image::default());
+                }
+            }
+            w.set_stage_mode(mode.clamp(0, 3));
+            w.set_stage_open(true);
+            if preferences_writable {
+                let _ = saver.queue(current_preferences(&w, &v.borrow()));
+            }
+        });
+    }
+    {
+        let weak = window.as_weak();
+        let v = view.clone();
+        let image = image_send.clone();
+        let client = client.clone();
+        let tx = send.clone();
+        window.on_playback_next(move || {
+            let Some(w) = weak.upgrade() else { return };
+            let mut state = v.borrow_mut();
+            match w.get_stage_mode() {
+                1 => {
+                    feed_advance(&w, &mut state, &client, &image, &tx);
+                }
+                2 => review_skip(&w, &mut state, &client, &image, &tx),
+                3 => {
+                    if let Some(rating) =
+                        state.goon.last_phase.as_deref().and_then(goon_pace_rating)
+                    {
+                        goon_advance(&w, &mut state, &client, &image, &tx, rating);
+                    }
+                }
+                _ => advance_queue(&w, &mut state, &client, &image, &tx),
+            }
+        });
+    }
+    {
+        let weak = window.as_weak();
+        let v = view.clone();
+        let image = image_send.clone();
+        let client = client.clone();
+        let tx = send.clone();
+        window.on_playback_retry(move || {
+            let Some(w) = weak.upgrade() else { return };
+            let mut state = v.borrow_mut();
+            if let Some(item) = state.player.current.clone() {
+                let driver = state.player.driver;
+                if let Err(error) = play_media_item(&w, &mut state, &client, &image, &item, driver)
+                {
+                    show_playback_error(&w, &error);
+                }
+            } else {
+                match w.get_stage_mode() {
+                    1 => feed_start(&w, &mut state, &tx),
+                    2 => review_start(&w, &mut state, &tx),
+                    3 => {
+                        state.goon.fetching = false;
+                        state.goon.exhausted = false;
+                        state.goon.last_phase = None;
+                    }
+                    _ => {}
+                }
+            }
+        });
+    }
+    {
+        let weak = window.as_weak();
+        let v = view.clone();
+        window.on_shortcut(move |text, ctrl, alt, shift| {
+            let Some(w) = weak.upgrade() else {
+                return slint::private_unstable_api::re_exports::EventResult::Reject;
+            };
+            if !w.get_stage_open() || w.get_settings_open() {
+                return slint::private_unstable_api::re_exports::EventResult::Reject;
+            }
+            let bindings = v.borrow().bindings.clone();
+            if bindings.pause.matches(&text, ctrl, alt, shift) {
+                w.invoke_player_control(
+                    if w.get_player_paused() {
+                        "resume".into()
+                    } else {
+                        "pause".into()
+                    },
+                    0.0,
+                );
+            } else if bindings.next.matches(&text, ctrl, alt, shift) {
+                w.invoke_playback_next();
+            } else if bindings.fullscreen.matches(&text, ctrl, alt, shift) {
+                w.invoke_fullscreen();
+            } else {
+                return slint::private_unstable_api::re_exports::EventResult::Reject;
+            }
+            slint::private_unstable_api::re_exports::EventResult::Accept
+        });
+    }
     let image_play = image_send.clone();
     window.on_play(move |index| {
         let Some(w) = weak.upgrade() else { return };
@@ -5206,7 +5718,7 @@ fn run_ui_inner(
             &item,
             PlayDriver::Queue,
         ) {
-            w.set_status(format!("Could not play {}: {error}", item.filename).into());
+            show_playback_error(&w, &format!("Could not play {}: {error}", item.filename));
             let _ = tx_play.send(Work::DownloadsStatus);
         }
     });
@@ -5243,6 +5755,13 @@ fn run_ui_inner(
             }
         }
         let holder = &mut state.player;
+        if !holder.video_active && matches!(action.as_str(), "pause" | "resume") {
+            w.set_player_paused(action == "pause");
+            if action == "resume" && state.feed.active {
+                state.feed.image_deadline = Some(Instant::now() + state.feed.image_dwell);
+            }
+            return;
+        }
         let status = match action.as_str() {
             "pause" => holder.player.apply(PlayerCommand::SetPaused(true)),
             "resume" => holder.player.apply(PlayerCommand::SetPaused(false)),
@@ -5427,6 +5946,12 @@ fn run_ui_inner(
     let client_tick = client.clone();
     let image_tick = image_send.clone();
     let saver = preference_saver.clone();
+    #[cfg(windows)]
+    let panic_key_tick = panic_key.clone();
+    #[cfg(windows)]
+    let tray_tick = tray.as_weak();
+    #[cfg(windows)]
+    let host_tick = host_state.clone();
     timer.start(
         slint::TimerMode::Repeated,
         Duration::from_millis(50),
@@ -5437,6 +5962,26 @@ fn run_ui_inner(
             // One clock read per tick; the deadline checks and poll
             // re-arming below all share it.
             let tick_now = Instant::now();
+            #[cfg(windows)]
+            if let Some(hotkey) = &panic_key_tick {
+                while hotkey.events.try_recv().is_ok() {
+                    if let Some(tray) = tray_tick.upgrade() { panic_hide(&w, &tray, &mut v.borrow_mut(), host_tick.as_deref()); }
+                }
+            }
+            {
+                let mut state = v.borrow_mut();
+                if state.panic.is_none() && (state.loading_since.or(state.player.pending_since)).is_some_and(|start| tick_now.duration_since(start) >= Duration::from_secs(30)) {
+                    state.loading_since = None;
+                    state.player.pending_since = None;
+                    state.preview_request = state.preview_request.wrapping_add(1);
+                    state.feed.request = state.feed.request.wrapping_add(1);
+                    state.review.request = state.review.request.wrapping_add(1);
+                    state.goon.request = state.goon.request.wrapping_add(1);
+                    state.feed.fetching = false; state.review.fetching = false; state.goon.fetching = false;
+                    state.player.player.apply(PlayerCommand::Stop);
+                    show_playback_error(&w, "Media startup stalled after 30 seconds. Retry or skip.");
+                }
+            }
             let rejected = REJECTED_WORK.swap(0, Ordering::Relaxed);
             if rejected > 0 {
                 w.set_busy(false);
@@ -5468,7 +6013,7 @@ fn run_ui_inner(
                         .into(),
                 );
                 let snapshot = result.as_ref().ok().and_then(|state| state.as_ref());
-                goon_drive(&w, &mut v.borrow_mut(), &client_tick, &image_tick, &tx, snapshot);
+                if v.borrow().panic.is_none() { goon_drive(&w, &mut v.borrow_mut(), &client_tick, &image_tick, &tx, snapshot); }
             }
             let activity = downloads_latest.lock().ok().and_then(|mut pending| pending.take());
             if let Some(result) = activity {
@@ -5483,7 +6028,7 @@ fn run_ui_inner(
                     // Stale end-files from a replaced item never set `ended`
                     // (the player gates them on file-loaded), so an ended
                     // status here always belongs to the current media.
-                    if status.ended && !state.player.ended_handled {
+                    if status.ended && !state.player.ended_handled && state.panic.is_none() {
                         state.player.ended_handled = true;
                         match state.player.driver {
                             PlayDriver::Queue => {
@@ -5533,14 +6078,21 @@ fn run_ui_inner(
                         w.set_video_active(false);
                         w.set_video_frame(slint::Image::default());
                     }
+                    if !status.loading && !status.failed && state.player.video_active { mark_media_ready(&w, &mut state); }
                     let holder = &mut state.player;
                     apply_player_status(&w, holder, status);
                 }
             }
+            if v.borrow().panic.is_none() {
+                let mut state = v.borrow_mut();
+                if state.feed.active && state.feed.current.is_none() && !state.feed.candidates.is_empty() { feed_advance(&w, &mut state, &client_tick, &image_tick, &tx); }
+                if state.review.active && state.review.current.is_none() && !state.review.queue.is_empty() { review_activate(&w, &mut state, &client_tick, &image_tick); }
+                if state.goon.media_enabled && state.goon.current.is_none() && !state.goon.candidates.is_empty() { if let Some(rating) = state.goon.last_phase.as_deref().and_then(goon_pace_rating) { goon_advance(&w, &mut state, &client_tick, &image_tick, &tx, rating); } }
+            }
             // Feed dwell / max-clip and review countdown ticking.
             {
                 let mut state = v.borrow_mut();
-                if state.feed.active && state.player.driver == PlayDriver::Feed {
+                if state.panic.is_none() && !w.get_player_paused() && state.player.ready && state.feed.active && state.player.driver == PlayDriver::Feed {
                     let dwell_elapsed = state.feed.current_is_image
                         && state
                             .feed
@@ -5554,7 +6106,7 @@ fn run_ui_inner(
                         feed_advance(&w, &mut state, &client_tick, &image_tick, &tx);
                     }
                 }
-                if state.review.active
+                if state.panic.is_none() && state.player.ready && state.review.active
                     && !state.review.busy
                     && state
                         .review
@@ -5736,23 +6288,7 @@ fn run_ui_inner(
                     Update::Image(request, slot, title, result)
                         if slot == 0 && request == v.borrow().preview_request =>
                     {
-                        match result {
-                            Ok(image) => {
-                                let buffer =
-                                    slint::SharedPixelBuffer::<slint::Rgba8Pixel>::clone_from_slice(
-                                        &image.pixels,
-                                        image.width,
-                                        image.height,
-                                    );
-                                w.set_preview(slint::Image::from_rgba8(buffer));
-                                w.set_playing(title.into());
-                            }
-                            Err(error) => {
-                                w.set_preview(slint::Image::default());
-                                w.set_playing(title.into());
-                                w.set_status(error.into());
-                            }
-                        }
+                        finish_preview(&w, &mut v.borrow_mut(), request, &title, result);
                     }
                     Update::Image(request, slot, _title, result)
                         if wall_image_is_fresh(&v.borrow().wall, slot, request) =>
@@ -6364,6 +6900,7 @@ fn run_ui_inner(
                                         w.set_feed_status(
                                             format!("Feed load failed: {error}").into(),
                                         );
+ state.loading_since = None; state.player.pending_since = None; show_playback_error(&w, &format!("Feed load failed: {error}"));
                                     }
                                 }
                             }
@@ -6399,6 +6936,7 @@ fn run_ui_inner(
                                         w.set_review_status(
                                             format!("Review load failed: {error}").into(),
                                         );
+ state.loading_since = None; state.player.pending_since = None; show_playback_error(&w, &format!("Review load failed: {error}"));
                                     }
                                 }
                             }
@@ -6445,6 +6983,7 @@ fn run_ui_inner(
                                         w.set_goon_status(
                                             format!("GOON media load failed: {error}").into(),
                                         );
+ state.loading_since = None; state.player.pending_since = None; show_playback_error(&w, &format!("GOON media load failed: {error}"));
                                     }
                                 }
                             }
@@ -7606,5 +8145,192 @@ mod download_formatter_tests {
         assert!(source_patch_from_editor(" ", true, "", "").is_err());
         assert!(source_patch_from_editor("Name", true, "1.2", "").is_err());
         assert!(source_patch_from_editor("Name", true, "1000001", "").is_err());
+    }
+}
+
+#[cfg(test)]
+mod playback_feedback_tests {
+    use super::*;
+    struct Headless;
+    impl slint::platform::Platform for Headless {
+        fn create_window_adapter(
+            &self,
+        ) -> Result<Rc<dyn slint::platform::WindowAdapter>, slint::PlatformError> {
+            Ok(
+                slint::platform::software_renderer::MinimalSoftwareWindow::new(
+                    slint::platform::software_renderer::RepaintBufferType::NewBuffer,
+                ),
+            )
+        }
+    }
+    fn window() -> CuratorNativeWindow {
+        slint::platform::set_platform(Box::new(Headless)).unwrap();
+        CuratorNativeWindow::new().unwrap()
+    }
+    #[test]
+    fn image_failure_is_visible_and_stale_decode_cannot_clear_it() {
+        let w = window();
+        let mut state = ViewState {
+            preview_request: 2,
+            ..ViewState::default()
+        };
+        state.player.pending_since = Some(Instant::now());
+        show_loading(&w, "Decoding image");
+        finish_preview(&w, &mut state, 2, "broken.png", Err("invalid PNG".into()));
+        assert!(!w.get_playback_loading());
+        assert!(w.get_playback_error());
+        assert!(w.get_playback_step().contains("broken.png: invalid PNG"));
+        finish_preview(
+            &w,
+            &mut state,
+            1,
+            "old.png",
+            Ok(NativeImage {
+                pixels: vec![0, 0, 0, 255],
+                width: 1,
+                height: 1,
+            }),
+        );
+        assert!(w.get_playback_error());
+        assert!(!state.player.ready);
+        show_loading(&w, "Retry");
+        finish_preview(
+            &w,
+            &mut state,
+            2,
+            "good.png",
+            Ok(NativeImage {
+                pixels: vec![0, 0, 0, 255],
+                width: 1,
+                height: 1,
+            }),
+        );
+        assert!(!w.get_playback_loading());
+        assert!(!w.get_playback_error());
+        assert!(state.player.ready);
+    }
+    #[test]
+    fn first_ready_image_starts_dwell_and_preferences_save_last_mode() {
+        let w = window();
+        let mut state = ViewState::default();
+        state.feed.active = true;
+        state.feed.current_is_image = true;
+        state.player.driver = PlayDriver::Feed;
+        state.player.pending_since = Some(Instant::now());
+        show_loading(&w, "Decoding");
+        mark_media_ready(&w, &mut state);
+        assert!(state.feed.image_deadline.is_some());
+        assert!(state.player.pending_since.is_none());
+        let deadline = state.feed.image_deadline;
+        mark_media_ready(&w, &mut state);
+        assert_eq!(state.feed.image_deadline, deadline);
+        w.set_stage_mode(3);
+        let prefs = current_preferences(&w, &state);
+        assert_eq!(prefs.extra["last_play_mode"], 3);
+        assert_eq!(prefs.extra["layout_version"], 2);
+        assert_eq!(bindings::Bindings::load(&prefs.extra).panic.label(), "F9");
+    }
+    #[test]
+    fn panic_is_hide_only_and_restore_preserves_paused_volume_and_deadlines() {
+        let w = window();
+        let tray = CuratorTray::new().unwrap();
+        let mut state = ViewState::default();
+        w.set_player_volume(37.0);
+        w.set_player_paused(true);
+        let deadline = Instant::now() + Duration::from_secs(5);
+        state.feed.image_deadline = Some(deadline);
+        panic_hide(&w, &tray, &mut state, None);
+        let since = state.panic.as_ref().unwrap().since;
+        panic_hide(&w, &tray, &mut state, None);
+        assert_eq!(state.panic.as_ref().unwrap().since, since);
+        assert!(tray.get_panic_hidden());
+        state.panic.as_mut().unwrap().since -= Duration::from_secs(2);
+        panic_restore(&w, &tray, &mut state, None);
+        assert!(state.panic.is_none());
+        assert!(!tray.get_panic_hidden());
+        assert!(w.get_player_paused());
+        assert_eq!(w.get_player_volume(), 37.0);
+        assert!(state.feed.image_deadline.unwrap() >= deadline + Duration::from_secs(2));
+    }
+}
+
+#[cfg(test)]
+mod layout_render_tests {
+    use super::*;
+    struct Headless(Rc<slint::platform::software_renderer::MinimalSoftwareWindow>);
+    impl slint::platform::Platform for Headless {
+        fn create_window_adapter(
+            &self,
+        ) -> Result<Rc<dyn slint::platform::WindowAdapter>, slint::PlatformError> {
+            Ok(self.0.clone())
+        }
+    }
+    #[test]
+    fn render_playback_modes_across_sizes_and_palettes() {
+        use slint::platform::software_renderer::{MinimalSoftwareWindow, RepaintBufferType};
+        let adapter = MinimalSoftwareWindow::new(RepaintBufferType::NewBuffer);
+        slint::platform::set_platform(Box::new(Headless(adapter.clone()))).unwrap();
+        let w = CuratorNativeWindow::new().unwrap();
+        w.set_local_host(true);
+        w.set_can_playback(true);
+        w.set_can_edit_library(true);
+        w.set_stage_open(true);
+        w.set_playing("Disposable media".into());
+        let image = slint::SharedPixelBuffer::<slint::Rgba8Pixel>::clone_from_slice(
+            &[70u8, 140, 200, 255],
+            1,
+            1,
+        );
+        w.set_preview(slint::Image::from_rgba8(image));
+        w.show().unwrap();
+        for theme in ["dark", "light", "midnight"] {
+            apply_native_palette(&w, theme);
+            for (width, height) in [(800, 560), (1200, 800), (1600, 1000)] {
+                adapter.set_size(slint::PhysicalSize::new(width, height));
+                for mode in -2..4 {
+                    w.set_stage_open(mode >= 0);
+                    w.set_workspace(0);
+                    w.set_settings_layout("grid".into());
+                    w.set_selected_count(if mode == -2 { 1 } else { 0 });
+                    w.set_inspector("Disposable selection".into());
+                    w.set_nav_rows(ModelRc::new(VecModel::from(vec![NavRow {
+                        label: "Sample source".into(),
+                        count: "3".into(),
+                        is_group: false,
+                        depth: 0,
+                    }])));
+                    w.set_media(ModelRc::new(VecModel::from(vec![MediaRow {
+                        title: "Sample image".into(),
+                        detail: "image · 1 KiB".into(),
+                        selected: mode == -2,
+                        thumbnail: w.get_preview(),
+                        has_thumbnail: true,
+                    }])));
+                    w.set_stage_mode(mode.max(0));
+                    w.set_playback_loading(mode % 2 == 0);
+                    w.set_playback_step("Fetching media…".into());
+                    // Let widget palette and enabled-state transitions settle, as in the real event loop.
+                    std::thread::sleep(Duration::from_millis(250));
+                    slint::platform::update_timers_and_animations();
+                    w.window().request_redraw();
+                    let mut pixels = vec![slint::Rgb8Pixel::default(); (width * height) as usize];
+                    adapter.draw_if_needed(|renderer| {
+                        renderer.render(&mut pixels, width as usize);
+                    });
+                    assert!(pixels
+                        .iter()
+                        .any(|pixel| pixel.r != 0 || pixel.g != 0 || pixel.b != 0));
+                    if let Ok(dir) = std::env::var("CURATOR_LAYOUT_SNAPSHOTS") {
+                        let path =
+                            std::path::Path::new(&dir).join(format!("{theme}-{width}-{mode}.ppm"));
+                        let mut bytes = format!("P6\n{width} {height}\n255\n").into_bytes();
+                        for pixel in &pixels {
+                            bytes.extend([pixel.r, pixel.g, pixel.b]);
+                        }
+                        std::fs::write(path, bytes).unwrap();
+                    }
+                }
+            }
+        }
     }
 }

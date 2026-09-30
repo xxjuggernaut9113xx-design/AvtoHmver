@@ -6,7 +6,11 @@
 
 use crate::mpv_embed::{MpvInstance, PlayerEvent};
 use std::{
-    sync::mpsc::{self, Receiver, SyncSender, TryRecvError, TrySendError},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        mpsc::{self, Receiver, SyncSender, TryRecvError, TrySendError},
+        Arc,
+    },
     thread::{self, JoinHandle},
     time::{Duration, Instant},
 };
@@ -39,6 +43,8 @@ pub enum PlayerCommand {
 
 #[derive(Debug, Clone, Default)]
 pub struct PlayerStatus {
+    pub loading: bool,
+    pub failed: bool,
     pub message: String,
     pub position_secs: f64,
     pub duration_secs: f64,
@@ -52,6 +58,7 @@ pub struct PlayerStatus {
 impl PlayerStatus {
     fn loading() -> Self {
         Self {
+            loading: true,
             message: "Loading embedded player…".into(),
             volume: 100.0,
             speed: 1.0,
@@ -64,6 +71,8 @@ type FrameCallback = Box<dyn Fn(Vec<u8>, u32, u32)>;
 
 enum WorkerEvent {
     FileLoaded(u64),
+    AudioReady(u64),
+    StartupError(String),
     EndFile {
         generation: u64,
         eof: bool,
@@ -91,6 +100,9 @@ struct WorkerCommand {
 }
 
 pub struct NativePlayer {
+    suspended: Arc<AtomicBool>,
+    suspended_since: Option<Instant>,
+    loading_since: Option<Instant>,
     commands: Option<SyncSender<WorkerCommand>>,
     statuses: Option<Receiver<WorkerEvent>>,
     frames: Option<Receiver<VideoFrame>>,
@@ -121,11 +133,29 @@ impl Default for NativePlayer {
             },
             loaded: false,
             generation: 0,
+            suspended: Arc::new(AtomicBool::new(false)),
+            suspended_since: None,
+            loading_since: None,
         }
     }
 }
 
 impl NativePlayer {
+    /// Out-of-band safety state cannot be lost behind a full command queue.
+    pub fn suspend(&mut self, value: bool) {
+        if value && self.suspended_since.is_none() {
+            self.suspended_since = Some(Instant::now());
+        }
+        if !value {
+            if let Some(since) = self.suspended_since.take() {
+                if let Some(start) = &mut self.loading_since {
+                    *start += since.elapsed();
+                }
+            }
+        }
+        self.suspended.store(value, Ordering::SeqCst);
+    }
+
     pub fn status(&self) -> PlayerStatus {
         self.status.clone()
     }
@@ -146,33 +176,16 @@ impl NativePlayer {
         let (commands, command_rx) = mpsc::sync_channel(COMMAND_QUEUE_CAPACITY);
         let (status_tx, statuses) = mpsc::sync_channel(STATUS_QUEUE_CAPACITY);
         let (frame_tx, frames) = mpsc::sync_channel(FRAME_QUEUE_CAPACITY);
-        let (ready_tx, ready_rx) = mpsc::sync_channel(1);
+        let suspended = self.suspended.clone();
         let worker = thread::Builder::new()
             .name("curator-libmpv".into())
-            .spawn(move || player_worker(command_rx, status_tx, frame_tx, ready_tx))
+            .spawn(move || player_worker(command_rx, status_tx, frame_tx, suspended))
             .map_err(|error| format!("Could not start embedded player worker: {error}"))?;
-        match ready_rx.recv_timeout(Duration::from_secs(2)) {
-            Ok(Ok(())) => {
-                self.commands = Some(commands);
-                self.statuses = Some(statuses);
-                self.frames = Some(frames);
-                self.worker = Some(worker);
-                Ok(())
-            }
-            Ok(Err(error)) => {
-                let _ = worker.join();
-                Err(error)
-            }
-            Err(_) => {
-                let _ = commands.try_send(WorkerCommand {
-                    generation: self.generation,
-                    command: PlayerCommand::Shutdown,
-                });
-                drop(commands);
-                let _ = worker.join();
-                Err("Embedded player did not initialize within two seconds".into())
-            }
-        }
+        self.commands = Some(commands);
+        self.statuses = Some(statuses);
+        self.frames = Some(frames);
+        self.worker = Some(worker);
+        Ok(())
     }
 
     fn send(&mut self, command: PlayerCommand) -> Result<(), String> {
@@ -214,9 +227,17 @@ impl NativePlayer {
                 looping,
                 ..
             } => {
+                if self
+                    .worker
+                    .as_ref()
+                    .is_some_and(|worker| worker.is_finished())
+                {
+                    self.teardown();
+                }
                 self.generation = self.generation.wrapping_add(1);
                 self.mark_loading();
                 self.status = PlayerStatus::loading();
+                self.loading_since = Some(Instant::now());
                 self.status.volume = volume.clamp(0.0, 100.0);
                 self.status.speed = speed.clamp(0.25, 4.0);
                 self.status.looping = looping;
@@ -246,6 +267,9 @@ impl NativePlayer {
                 self.generation = self.generation.wrapping_add(1);
                 self.mark_loading();
                 self.status.message = "Stopped".into();
+                self.status.loading = false;
+                self.status.failed = false;
+                self.loading_since = None;
                 self.status.position_secs = 0.0;
                 self.send(command)
             }
@@ -257,6 +281,9 @@ impl NativePlayer {
         };
         if let Err(error) = result {
             self.status.message = error;
+            self.status.loading = false;
+            self.status.failed = true;
+            self.loading_since = None;
         }
         self.status()
     }
@@ -274,6 +301,18 @@ impl NativePlayer {
                         self.status.message = "Playing".into();
                         updates.push(self.status());
                     }
+                    Ok(WorkerEvent::AudioReady(generation)) if generation == self.generation => {
+                        self.status.loading = false;
+                        self.loading_since = None;
+                        updates.push(self.status());
+                    }
+                    Ok(WorkerEvent::StartupError(error)) => {
+                        self.status.message = error;
+                        self.status.loading = false;
+                        self.status.failed = true;
+                        self.loading_since = None;
+                        updates.push(self.status());
+                    }
                     Ok(WorkerEvent::EndFile {
                         generation,
                         eof,
@@ -281,6 +320,9 @@ impl NativePlayer {
                     }) if generation == self.generation => {
                         if failed {
                             self.status.message = "Playback error".into();
+                            self.status.failed = true;
+                            self.status.loading = false;
+                            self.loading_since = None;
                         } else if eof && self.loaded {
                             self.status.ended = true;
                             self.status.message = "Finished".into();
@@ -306,6 +348,9 @@ impl NativePlayer {
                     }
                     Ok(WorkerEvent::Error(generation, error)) if generation == self.generation => {
                         self.status.message = error;
+                        self.status.failed = true;
+                        self.status.loading = false;
+                        self.loading_since = None;
                         updates.push(self.status());
                     }
                     Ok(_) => {}
@@ -321,8 +366,30 @@ impl NativePlayer {
                 }
             }
         }
-        if let (Some(callback), Some(frame)) = (&self.frame_callback, newest) {
-            callback(frame.pixels, frame.width, frame.height);
+        if let Some(frame) = newest {
+            if let Some(callback) = &self.frame_callback {
+                callback(frame.pixels, frame.width, frame.height);
+            }
+            if self.status.loading {
+                self.status.loading = false;
+                self.status.message = "Playing".into();
+                self.loading_since = None;
+                updates.push(self.status());
+            }
+        }
+        if !self.suspended.load(Ordering::SeqCst)
+            && self
+                .loading_since
+                .is_some_and(|started| started.elapsed() >= Duration::from_secs(30))
+        {
+            self.generation = self.generation.wrapping_add(1);
+            let _ = self.send(PlayerCommand::Stop);
+            self.status.loading = false;
+            self.status.failed = true;
+            self.status.message =
+                "Playback did not become ready within 30 seconds. Retry or skip this file.".into();
+            self.loading_since = None;
+            updates.push(self.status());
         }
         updates
     }
@@ -338,28 +405,28 @@ fn player_worker(
     commands: Receiver<WorkerCommand>,
     statuses: SyncSender<WorkerEvent>,
     frames: SyncSender<VideoFrame>,
-    ready: SyncSender<Result<(), String>>,
+    suspended: Arc<AtomicBool>,
 ) {
     let mut instance = match MpvInstance::create() {
         Ok(instance) => instance,
         Err(error) => {
-            let _ = ready.send(Err(error));
+            let _ = statuses.try_send(WorkerEvent::StartupError(error));
             return;
         }
     };
     let mut renderer = match instance.create_renderer(RENDER_WIDTH, RENDER_HEIGHT) {
         Ok(renderer) => renderer,
         Err(error) => {
-            let _ = ready.send(Err(error));
+            let _ = statuses.try_send(WorkerEvent::StartupError(error));
             return;
         }
     };
-    if ready.send(Ok(())).is_err() {
-        return;
-    }
     let mut last_poll = Instant::now() - Duration::from_millis(100);
     let mut generation = 0;
     let mut render_ready = false;
+    let mut was_suspended = false;
+    let mut restore_volume = 100.0;
+    let mut restore_paused = false;
     loop {
         match commands.recv_timeout(Duration::from_millis(16)) {
             Ok(WorkerCommand {
@@ -381,11 +448,35 @@ fn player_worker(
             }
             Err(mpsc::RecvTimeoutError::Timeout) => {}
         }
+        let hidden = suspended.load(Ordering::SeqCst);
+        if hidden {
+            if !was_suspended {
+                restore_volume = instance
+                    .property("volume")
+                    .ok()
+                    .and_then(|value| value.parse().ok())
+                    .unwrap_or(100.0);
+                restore_paused = instance.property("pause").is_ok_and(|value| value == "yes");
+            }
+            let _ = instance.set_property("pause", "yes");
+            let _ = instance.set_property("mute", "yes");
+        } else if was_suspended {
+            let _ = instance.set_property("volume", &restore_volume.to_string());
+            let _ = instance.set_property("mute", "no");
+            let _ = instance.set_property("pause", if restore_paused { "yes" } else { "no" });
+        }
+        was_suspended = hidden;
         while let Some(event) = instance.next_event() {
             match event {
                 PlayerEvent::FileLoaded => {
                     render_ready = true;
                     let _ = statuses.try_send(WorkerEvent::FileLoaded(generation));
+                    if instance
+                        .property("vid")
+                        .is_ok_and(|value| matches!(value.as_str(), "no" | "false" | "0"))
+                    {
+                        let _ = statuses.try_send(WorkerEvent::AudioReady(generation));
+                    }
                 }
                 PlayerEvent::EndFile { eof, failed } => {
                     let _ = statuses.try_send(WorkerEvent::EndFile {
@@ -510,11 +601,78 @@ mod tests {
             speed: 0.01,
             looping: true,
         });
+        let deadline = Instant::now() + Duration::from_secs(3);
+        while player.status().loading && Instant::now() < deadline {
+            player.drain_events();
+            thread::sleep(Duration::from_millis(10));
+        }
         std::env::remove_var("CURATOR_LIBMPV_PATH");
         assert_eq!(status.volume, 100.0);
         assert_eq!(status.speed, 0.25);
         assert!(status.looping);
-        assert!(status.message.contains("libmpv"));
+        assert!(player.status().failed);
+    }
+
+    #[test]
+    fn loading_waits_for_first_frame_and_stalled_load_fails() {
+        let (status_tx, statuses) = mpsc::channel();
+        let (frame_tx, frames) = mpsc::channel();
+        let mut player = NativePlayer::default();
+        player.statuses = Some(statuses);
+        player.frames = Some(frames);
+        player.status = PlayerStatus::loading();
+        player.loading_since = Some(Instant::now());
+        player.generation = 4;
+        status_tx.send(WorkerEvent::FileLoaded(4)).unwrap();
+        player.drain_events();
+        assert!(player.status().loading);
+        frame_tx
+            .send(VideoFrame {
+                generation: 3,
+                pixels: vec![0, 0, 0, 255],
+                width: 1,
+                height: 1,
+            })
+            .unwrap();
+        player.drain_events();
+        assert!(player.status().loading);
+        frame_tx
+            .send(VideoFrame {
+                generation: 4,
+                pixels: vec![0, 0, 0, 255],
+                width: 1,
+                height: 1,
+            })
+            .unwrap();
+        player.drain_events();
+        assert!(!player.status().loading);
+        assert!(!player.status().failed);
+        player.status = PlayerStatus::loading();
+        player.loading_since = Some(Instant::now() - Duration::from_secs(31));
+        player.drain_events();
+        assert!(player.status().failed);
+        assert!(!player.status().loading);
+        assert!(player.status().message.contains("30 seconds"));
+        let expired = player.generation;
+        status_tx
+            .send(WorkerEvent::FileLoaded(expired - 1))
+            .unwrap();
+        player.drain_events();
+        assert!(player.status().failed);
+    }
+    #[test]
+    fn initialization_failure_is_a_terminal_loading_state() {
+        let (tx, rx) = mpsc::channel();
+        let mut player = NativePlayer::default();
+        player.statuses = Some(rx);
+        player.status = PlayerStatus::loading();
+        player.loading_since = Some(Instant::now());
+        tx.send(WorkerEvent::StartupError("Missing libmpv DLL".into()))
+            .unwrap();
+        player.drain_events();
+        assert!(player.status().failed);
+        assert!(!player.status().loading);
+        assert!(player.loading_since.is_none());
     }
 
     #[test]

@@ -9,10 +9,11 @@ export struct GroupCard { name: string, detail: string }
 export struct ProviderRow { name: string, detail: string, enabled: bool, locked: bool }
 
 export component CuratorTray inherits SystemTrayIcon {
+    in property <bool> panic-hidden: false;
     icon: @image-url("../icons/icon.png");
     tooltip: "Curator Host";
     Menu {
-        MenuItem { title: "Show Curator"; activated => { root.show-window(); } }
+        MenuItem { title: root.panic-hidden ? "All Clear" : "Show Curator"; activated => { root.show-window(); } }
         MenuSeparator {}
         MenuItem { title: "Quit Curator"; activated => { root.quit(); } }
     }
@@ -47,6 +48,11 @@ export component CuratorNativeWindow inherits Window {
     in-out property <float> player-speed: 1;
     in-out property <bool> player-paused: false;
     in-out property <bool> player-looping: false;
+    in-out property <bool> playback-loading: false;
+    in-out property <string> playback-step: "";
+    in-out property <bool> playback-error: false;
+    callback playback-retry();
+    callback playback-next();
     callback player-control(string, float);
     callback feed-control(string);
     in-out property <string> feed-status: "Start the feed to browse media continuously.";
@@ -314,13 +320,27 @@ export component CuratorNativeWindow inherits Window {
     in-out property <string> filter-min-size;
     in-out property <string> filter-max-size;
     in-out property <bool> filter-unknown-size;
-    private property <int> grid-columns: root.width >= 1400px ? 4 : root.width >= 1000px ? 3 : 2;
+    private property <int> grid-columns: root.width >= 1400px ? (root.selected-count > 0 ? 4 : 6) : root.width >= 1100px ? (root.selected-count > 0 ? 3 : 4) : 2;
     in-out property <[NavRow]> nav-rows;
     in-out property <[GroupCard]> group-cards;
     in-out property <[ProviderRow]> provider-list;
     in-out property <string> download-summary;
     in-out property <bool> stage-open: false;
     in-out property <int> stage-mode: 0;
+    private property <string> play-label: root.stage-mode == 0 ? "Player" : root.stage-mode == 1 ? "Feed" : root.stage-mode == 2 ? "Review" : "GOON";
+    callback open-play-mode(int);
+    callback location-history(bool);
+    in-out property <bool> location-back: false;
+    in-out property <bool> location-forward: false;
+    in-out property <int> location-index: -1;
+    in-out property <bool> filters-open: false;
+    callback shortcut(string, bool, bool, bool) -> EventResult;
+    in-out property <string> bind-panic: "F9";
+    in-out property <string> bind-pause: "Space";
+    in-out property <string> bind-next: "Right";
+    in-out property <string> bind-fullscreen: "F11";
+    in-out property <string> binding-status: "";
+    callback save-bindings() -> bool;
     in-out property <string> menu-open: "";
     in-out property <bool> show-diagnostics: false;
     callback open-settings();
@@ -330,34 +350,37 @@ export component CuratorNativeWindow inherits Window {
     callback quit-window();
     background: root.theme-background;
 
-    root-rect := Rectangle {
+    forward-focus: shortcuts;
+    shortcuts := FocusScope {
+      width: root.width; height: root.height;
+      key-pressed(event) => { return root.shortcut(event.text, event.modifiers.control, event.modifiers.alt, event.modifiers.shift); }
+      root-rect := Rectangle {
+        width: parent.width; height: parent.height;
         main-ui := VerticalBox {
-            padding: 16px; spacing: 12px;
+            padding: 0px; spacing: 0px;
+            Rectangle { background: root.theme-elevated; height: 48px; vertical-stretch: 0;
             top-bar := HorizontalBox {
+                padding: 6px;
                 spacing: 6px; min-height: 40px; max-height: 40px; vertical-stretch: 0;
                 Button { text: "File"; clicked => { root.menu-open = root.menu-open == "file" ? "" : "file"; } }
                 Button { text: "Tools"; clicked => { root.menu-open = root.menu-open == "tools" ? "" : "tools"; } }
                 Rectangle { width: 10px; }
-                ScrollView { horizontal-stretch: 1; vertical-stretch: 0;
-                    tab-strip := HorizontalBox { spacing: 6px;
-                        for label[index] in ["Library", "Discover", "Organization", "Activity"]: Button {
-                            text: label; primary: root.workspace == index && !root.stage-open;
-                            clicked => { root.workspace = index; root.stage-open = false; root.menu-open = ""; }
-                        }
-                        for label[index] in ["Player", "Feed", "Review", "GOON"]: Button {
-                            text: label; primary: root.stage-open && root.stage-mode == index;
-                            clicked => { root.stage-mode = index; root.stage-open = true; root.menu-open = ""; }
-                        }
-                        Button { text: "Settings"; clicked => { root.menu-open = ""; root.stage-open = false; root.open-settings(); } }
-                    }
+                Button { text: "‹"; enabled: root.location-back; clicked => { root.location-history(false); } }
+                Button { text: "›"; enabled: root.location-forward; clicked => { root.location-history(true); } }
+                Rectangle { background: root.theme-panel; border-radius: 5px; horizontal-stretch: 1;
+                    Text { text: root.workspace == 0 ? "Library / " + root.location-title : root.workspace == 1 ? "Discover" : root.workspace == 2 ? "Organization" : "Activity"; color: root.theme-text; overflow: elide; vertical-alignment: center; x: 8px; width: parent.width - 16px; }
                 }
+                if root.workspace == 0: LineEdit { placeholder-text: "Search library"; text <=> root.filter-search; accepted => { root.browse(false); } min-width: 130px; max-width: 240px; }
+                Button { text: "Play · " + root.play-label + " ▾"; enabled: root.can-playback; clicked => { root.menu-open = root.menu-open == "play" ? "" : "play"; } }
                 if !root.local-host: Button { text: "Switch Host"; clicked => { root.switch-host(); } }
             }
-            if root.connection-status != "": Text { text: root.connection-status; wrap: word-wrap; color: #ff8a80; font-size: 12px; }
+            }
+            if root.connection-status != "": Text { text: root.connection-status; wrap: word-wrap; color: root.theme-text; font-size: 12px; }
             HorizontalBox {
                 spacing: 0; vertical-stretch: 1;
+                Rectangle { width: 210px; background: root.theme-panel;
                 sidebar := VerticalBox {
-                    width: 232px; spacing: 10px; padding: 4px;
+                    spacing: 10px; padding: 12px;
                     HorizontalBox { spacing: 8px;
                         Rectangle { width: 34px; height: 34px; background: root.theme-accent; border-radius: 8px;
                             Text { text: "C"; color: #ffffff; font-weight: 700; font-size: 18px; horizontal-alignment: center; vertical-alignment: center; }
@@ -367,44 +390,47 @@ export component CuratorNativeWindow inherits Window {
                             Text { text: "/ " + (root.workspace == 0 ? "LIBRARY" : root.workspace == 1 ? "DISCOVER" : root.workspace == 2 ? "ORGANIZATION" : "ACTIVITY"); font-size: 11px; color: root.theme-muted; }
                         }
                     }
+                    for label[index] in ["Library", "Discover", "Organization", "Activity"]: Button {
+                        text: label; primary: root.workspace == index;
+                        clicked => { root.workspace = index; root.stage-open = false; root.menu-open = ""; }
+                    }
+                    Button { text: "Settings"; clicked => { root.menu-open = ""; root.open-settings(); } }
                     Button { text: "+ Add source"; primary: true; clicked => { root.workspace = 2; } }
                     Text { text: "SOURCE HIERARCHY"; font-size: 11px; font-weight: 700; color: root.theme-muted; }
                     ScrollView { vertical-stretch: 1;
                         VerticalBox { spacing: 2px;
-                            nav-all := TouchArea { clicked => { root.navigate(-1); } mouse-cursor: pointer;
-                                Rectangle { background: nav-all.has-hover ? root.theme-selection : #00000000; border-radius: 6px;
+                            nav-all := TouchArea { height: 36px; clicked => { root.navigate(-1); } mouse-cursor: pointer;
+                                Rectangle { background: nav-all.has-hover || root.location-index == -1 ? root.theme-selection : #00000000; border-radius: 6px;
                                     HorizontalBox { padding-left: 8px; padding-top: 5px; padding-bottom: 5px;
-                                        Text { text: "All sources and groups"; color: nav-all.has-hover ? root.theme-selection-text : root.theme-text; vertical-alignment: center; }
+                                        Text { text: "All sources and groups"; color: nav-all.has-hover || root.location-index == -1 ? root.theme-selection-text : root.theme-text; vertical-alignment: center; }
                                     }
                                 }
                             }
-                            for row[idx] in root.nav-rows: nav-touch := TouchArea { clicked => { root.navigate(idx); } mouse-cursor: pointer;
-                                Rectangle { background: nav-touch.has-hover ? root.theme-selection : #00000000; border-radius: 6px;
+                            for row[idx] in root.nav-rows: nav-touch := TouchArea { height: 32px; clicked => { root.navigate(idx); } mouse-cursor: pointer;
+                                Rectangle { background: nav-touch.has-hover || root.location-index == idx ? root.theme-selection : #00000000; border-radius: 6px;
                                     HorizontalBox { padding-left: 8px + row.depth * 14px; padding-top: 5px; padding-bottom: 5px;
-                                        Text { text: (row.is-group ? "▸ " : "• ") + row.label + " (" + row.count + ")"; color: nav-touch.has-hover ? root.theme-selection-text : root.theme-text; font-weight: row.is-group ? 700 : 400; overflow: elide; vertical-alignment: center; }
+                                        Text { text: (row.is-group ? "▸ " : "• ") + row.label + " (" + row.count + ")"; color: nav-touch.has-hover || root.location-index == idx ? root.theme-selection-text : root.theme-text; font-weight: row.is-group ? 700 : 400; overflow: elide; vertical-alignment: center; }
                                     }
                                 }
                             }
                         }
                     }
                 }
+                }
                 Rectangle { width: 1px; background: root.theme-line; }
                 content := VerticalBox {
-                    horizontal-stretch: 1; padding-left: 16px; spacing: 12px;
+                    horizontal-stretch: 1; padding: 12px; spacing: 10px;
                     if root.workspace == 0: VerticalBox { spacing: 12px;
-                        Text { text: "LIBRARY"; font-size: 11px; font-weight: 700; color: root.theme-muted; }
-                        HorizontalBox { spacing: 8px;
-                            Text { text: "All Media"; font-size: 24px; font-weight: 700; horizontal-stretch: 1; vertical-alignment: center; color: root.theme-text; }
-                            Button { text: "+ Add source"; clicked => { root.workspace = 2; } }
-                            if root.local-host: Button { text: "Import folder"; enabled: !root.busy; clicked => { root.import-folder(); } }
-                            LineEdit { placeholder-text: "Search library"; text <=> root.filter-search; min-width: 110px; horizontal-stretch: 1; }
-                            Button { text: "Play · Mobile Feed"; primary: true; enabled: root.can-playback; clicked => { root.stage-mode = 0; root.stage-open = true; } }
-                        }
                         HorizontalBox { spacing: 8px; 
                             Button { text: "Grid"; primary: root.settings-layout == "grid"; clicked => { root.settings-layout = "grid"; } }
                             Button { text: "Table"; primary: root.settings-layout == "table"; clicked => { root.settings-layout = "table"; } }
-                            ComboBox { model: ["All media", "image", "clip", "video"]; current-value <=> root.filter-kind; min-width: 100px; horizontal-stretch: 1; }
+                            ComboBox { model: ["All media", "image", "clip", "video"]; current-value <=> root.filter-kind; min-width: 100px; }
                             ComboBox { model: ["date_desc", "date_asc", "filename_asc", "filename_desc", "rating_desc", "rating_asc", "size_desc", "size_asc", "shuffle"]; current-value <=> root.filter-sort; min-width: 100px; horizontal-stretch: 1; }
+                            Button { text: root.filters-open ? "Hide filters" : "Filters ▾"; clicked => { root.filters-open = !root.filters-open; } }
+                            Button { text: "Refresh"; enabled: !root.busy; clicked => { root.browse(false); } }
+                        }
+                        if root.filters-open: VerticalBox { spacing: 6px;
+                        HorizontalBox { spacing: 8px;
                             ComboBox { model: ["all", "unrated", "auto", "needs_review", "reviewed"]; current-value <=> root.filter-review; min-width: 100px; horizontal-stretch: 1; }
                             ComboBox { model: ["Any rating", "0", "1", "2", "3", "4", "5"]; current-value <=> root.filter-rating; min-width: 90px; horizontal-stretch: 1; }
                             LineEdit { placeholder-text: "All tags (comma separated)"; text <=> root.filter-all-tags; horizontal-stretch: 1; }
@@ -417,6 +443,7 @@ export component CuratorNativeWindow inherits Window {
                             LineEdit { placeholder-text: "Min bytes"; text <=> root.filter-min-size; min-width: 62px; horizontal-stretch: 1; }
                             LineEdit { placeholder-text: "Max bytes"; text <=> root.filter-max-size; min-width: 62px; horizontal-stretch: 1; }
                             CheckBox { text: "Unknown size"; checked <=> root.filter-unknown-size; }
+                        }
                         }
                         HorizontalBox { spacing: 8px; 
                             Button { text: "Select all"; enabled: !root.busy; clicked => { root.select-all(); } }
@@ -451,14 +478,14 @@ export component CuratorNativeWindow inherits Window {
                             for entry[index] in root.media: Rectangle {
                                 row: index / root.grid-columns;
                                 col: Math.mod(index, root.grid-columns);
-                                min-width: 160px; height: 168px;
-                                background: entry.selected ? root.theme-selection : root.theme-elevated;
+                                min-width: 120px; max-width: 230px; height: 200px;
+                                background: entry.selected ? root.theme-selection : root.theme-background;
                                 border-width: 1px;
                                 border-color: entry.selected ? root.theme-accent : root.theme-line;
                                 VerticalBox {
                                     padding: 8px; spacing: 5px;
                                     HorizontalBox { CheckBox { checked: entry.selected; toggled => { root.select-item(index, self.checked); } } Rectangle { horizontal-stretch: 1; } }
-                                    Image { source: entry.thumbnail; height: 64px; visible: entry.has-thumbnail; image-fit: contain; }
+                                    Image { source: entry.thumbnail; height: 76px; visible: entry.has-thumbnail; image-fit: contain; }
                                     Button { text: entry.title; clicked => { root.select-item(index, !entry.selected); } }
                                     Text { text: entry.detail; color: entry.selected ? root.theme-selection-text : root.theme-text; overflow: elide; }
                                 }
@@ -466,8 +493,10 @@ export component CuratorNativeWindow inherits Window {
                         }
                                 }
                             }
-                            if root.selected-count > 0: ScrollView {
+                            if root.selected-count > 0: Rectangle {
                                 horizontal-stretch: 1; min-width: 250px; max-width: 330px;
+                                background: root.theme-panel; border-width: 1px; border-color: root.theme-line; border-radius: 6px;
+                                ScrollView { x: 8px; y: 8px; width: parent.width - 16px; height: parent.height - 16px;
                                 content-y <=> root.inspector-scroll-y;
                     VerticalBox {
                     Text { text: "Selection (" + root.selected-count + ")"; font-size: 20px; }
@@ -498,9 +527,10 @@ export component CuratorNativeWindow inherits Window {
                     if root.can-edit-library: Button { text: "Add selection to group"; enabled: !root.busy; clicked => { root.add-to-group(root.manage-target-group); } }
                     if root.local-host: Button { text: "Open file"; enabled: !root.busy; clicked => { root.open-selected(); } }
                     if root.local-host: Button { text: "Reveal in folder"; enabled: !root.busy; clicked => { root.reveal-selected(); } }
-                    if root.can-playback: Button { text: "Play selection"; clicked => { root.enqueue(true); root.stage-mode = 0; root.stage-open = true; } }
+                    if root.can-playback: Button { text: "Play selection"; clicked => { root.open-play-mode(0); root.enqueue(true); shortcuts.focus(); } }
                     if root.can-playback: Button { text: "Append to queue"; clicked => { root.enqueue(false); } }
                     }
+                            }
                             }
                         }
                     }
@@ -689,9 +719,15 @@ export component CuratorNativeWindow inherits Window {
         }
         if root.menu-open != "": TouchArea { width: 100%; height: 100%; clicked => { root.menu-open = ""; } }
         if root.menu-open != "": Rectangle {
-            x: 16px; y: 60px; width: 250px; height: root.menu-open == "file" ? 236px : 176px;
+            x: root.menu-open == "play" ? root.width - 260px : 8px; y: 48px; width: 250px; height: root.menu-open == "file" ? 236px : 176px;
             background: root.theme-panel; border-width: 1px; border-color: root.theme-line; border-radius: 8px;
             VerticalBox { padding: 6px; spacing: 2px;
+                if root.menu-open == "play": VerticalBox { spacing: 2px;
+                    for label[index] in ["Player", "Feed", "Review", "GOON"]: Button {
+                        text: label; primary: root.stage-mode == index;
+                        clicked => { root.menu-open = ""; root.open-play-mode(index); shortcuts.focus(); }
+                    }
+                }
                 if root.menu-open == "file": VerticalBox { spacing: 2px;
                     Button { text: "Add source…"; clicked => { root.menu-open = ""; root.workspace = 2; } }
                     if root.local-host: Button { text: "Import folder…"; clicked => { root.menu-open = ""; root.import-folder(); } }
@@ -713,12 +749,19 @@ export component CuratorNativeWindow inherits Window {
             width: 100%; height: 100%; background: root.theme-background;
             VerticalBox { padding: 16px; spacing: 12px;
                 HorizontalBox { spacing: 6px;
-                    for label[index] in ["Player", "Feed", "Review", "GOON"]: Button {
-                        text: label; primary: root.stage-mode == index;
-                        clicked => { root.stage-mode = index; }
-                    }
+                    ComboBox { model: ["Player", "Feed", "Review", "GOON"]; current-index: root.stage-mode; selected => { root.open-play-mode(self.current-index); shortcuts.focus(); } }
+                    Text { text: "Play · " + root.play-label; color: root.theme-text; vertical-alignment: center; }
                     Rectangle { horizontal-stretch: 1; }
-                    Button { text: "Close"; clicked => { root.stage-open = false; } }
+                    Button { text: "Back to library"; clicked => { root.stage-open = false; } }
+                }
+                if root.playback-loading: HorizontalBox { vertical-stretch: 0;
+                    ProgressIndicator { indeterminate: true; horizontal-stretch: 1; }
+                    Text { text: root.playback-step; color: root.theme-text; wrap: word-wrap; }
+                }
+                if root.playback-error: HorizontalBox { vertical-stretch: 0;
+                    Text { text: "Playback error: " + root.playback-step; color: root.theme-text; wrap: word-wrap; horizontal-stretch: 1; }
+                    Button { text: "Retry"; clicked => { root.playback-retry(); } }
+                    Button { text: "Skip"; clicked => { root.playback-next(); } }
                 }
         if root.stage-open && root.stage-mode == 0: HorizontalBox { vertical-stretch: 1;
             VerticalBox {
@@ -729,11 +772,13 @@ export component CuratorNativeWindow inherits Window {
                     Button { text: root.player-paused ? "Resume" : "Pause"; clicked => { root.player-control(root.player-paused ? "resume" : "pause", 0); } }
                     Button { text: "−10s"; clicked => { root.player-control("seek-relative", -10); } }
                     Button { text: "+10s"; clicked => { root.player-control("seek-relative", 10); } }
+                    Button { text: "Fullscreen"; clicked => { root.fullscreen(); } }
+                }
+                HorizontalBox {
                     Button { text: "0.75×"; clicked => { root.player-control("speed", 0.75); } }
                     Button { text: "1×"; clicked => { root.player-control("speed", 1); } }
                     Button { text: "1.5×"; clicked => { root.player-control("speed", 1.5); } }
                     Button { text: "2×"; clicked => { root.player-control("speed", 2); } }
-                    Button { text: "Fullscreen"; clicked => { root.fullscreen(); } }
                 }
                 HorizontalBox {
                     Text { text: "Progress"; }
@@ -752,10 +797,10 @@ export component CuratorNativeWindow inherits Window {
                 }
             }
             ScrollView {
-                horizontal-stretch: 1;
+                width: 260px; horizontal-stretch: 0;
                 VerticalBox {
                     Text { text: "Player queue"; font-size: 20px; }
-                    HorizontalBox {
+                    VerticalBox { vertical-stretch: 0;
                         Button { text: "Shuffle queue"; enabled: !root.busy; clicked => { root.queue-shuffle(); } }
                         Button { text: root.queue-repeat ? "Repeat: on" : "Repeat: off"; clicked => { root.queue-set-repeat(!root.queue-repeat); } }
                         Rectangle { horizontal-stretch: 1; }
@@ -788,7 +833,6 @@ export component CuratorNativeWindow inherits Window {
                 Text { text: root.player-progress + " / " + root.player-duration + " sec"; }
             }
             Image { source: root.video-active ? root.video-frame : root.preview; image-fit: contain; vertical-stretch: 1; }
-                    Rectangle { vertical-stretch: 1; }
         }
         if root.stage-open && root.stage-mode == 2: VerticalBox { vertical-stretch: 1;
             Text { text: "Review"; font-size: 22px; }
@@ -802,7 +846,6 @@ export component CuratorNativeWindow inherits Window {
                 Button { text: "Undo"; enabled: root.can-edit-library; clicked => { root.review-control("undo", 0); } }
             }
             Image { source: root.video-active ? root.video-frame : root.preview; image-fit: contain; vertical-stretch: 1; }
-                    Rectangle { vertical-stretch: 1; }
         }
         if root.stage-open && root.stage-mode == 3: VerticalBox { vertical-stretch: 1;
             Text { text: "GOON"; font-size: 22px; }
@@ -821,7 +864,8 @@ export component CuratorNativeWindow inherits Window {
                 Button { text: "End"; enabled: root.can-control-sessions; clicked => { root.session-control("End"); } }
             }
             Text { text: "GOON uses the existing Rust session timing and media ratings: slow, medium, fast, cum, and succubus phases map to their media ratings."; wrap: word-wrap; }
-                    Rectangle { vertical-stretch: 1; }
+            Text { text: root.playing; color: root.theme-text; }
+            Image { source: root.video-active ? root.video-frame : root.preview; image-fit: contain; vertical-stretch: 1; }
         }
             }
         }
@@ -835,7 +879,7 @@ export component CuratorNativeWindow inherits Window {
                         vertical-stretch: 1; spacing: 12px;
                         VerticalBox {
                             width: 178px; spacing: 5px;
-                            for section[index] in ["General", "Media & Storage", "Appearance", "Playback & GOON"]: Button {
+                            for section[index] in ["General", "Media & Storage", "Appearance", "Playback & GOON", "Key Binds"]: Button {
                                 text: section;
                                 visible: index != 5 || root.local-host;
                                 primary: root.settings-page == index;
@@ -911,6 +955,23 @@ export component CuratorNativeWindow inherits Window {
                             }
                         }
                         if root.settings-page == 4: ScrollView {
+                            horizontal-stretch: 1;
+                            VerticalBox { spacing: 10px; alignment: start;
+                                Text { text: "Key Binds"; font-size: 18px; color: root.theme-text; }
+                                Text { text: "Global panic: hides Curator and pauses playback. Use All Clear in the system tray to restore."; wrap: word-wrap; color: root.theme-muted; }
+                                LineEdit { text <=> root.bind-panic; placeholder-text: "F9"; }
+                                Text { text: "Playback keys work while Curator is focused, outside text fields. Use keys such as Space, Right, F11, or Ctrl+P."; wrap: word-wrap; color: root.theme-muted; }
+                                Text { text: "Play / pause"; color: root.theme-text; }
+                                LineEdit { text <=> root.bind-pause; }
+                                Text { text: "Next media"; color: root.theme-text; }
+                                LineEdit { text <=> root.bind-next; }
+                                Text { text: "Fullscreen"; color: root.theme-text; }
+                                LineEdit { text <=> root.bind-fullscreen; }
+                                Text { text: root.binding-status; wrap: word-wrap; color: root.theme-text; }
+                                Button { text: "Apply key binds"; clicked => { root.save-bindings(); } }
+                            }
+                        }
+                        if root.settings-page == 6: ScrollView {
                             horizontal-stretch: 1; content-y <=> root.settings-automation-scroll-y;
                             VerticalBox {
                                 spacing: 10px; alignment: start;
@@ -970,7 +1031,7 @@ export component CuratorNativeWindow inherits Window {
                         }
                     }
                     HorizontalBox {
-                        if root.settings-error != "": Text { text: root.settings-error; wrap: word-wrap; color: #ff8a80; horizontal-stretch: 1; }
+                        if root.settings-error != "": Text { text: root.settings-error; wrap: word-wrap; color: root.theme-text; horizontal-stretch: 1; }
                         if root.settings-error == "": Rectangle { horizontal-stretch: 1; }
                         Button { text: "Cancel"; enabled: !root.settings-saving; clicked => { root.settings-open = false; } }
                         Button { text: root.settings-saving ? "Saving…" : "Save"; primary: true; enabled: !root.busy && !root.settings-saving; clicked => { if root.save-settings() { root.settings-open = false; } } }
@@ -985,12 +1046,13 @@ export component CuratorNativeWindow inherits Window {
                     Text { text: "Welcome to Curator"; font-size: 28px; font-weight: 700; horizontal-alignment: center; color: root.theme-text; }
                     Text { text: "First-run setup is not complete yet. Your library lives in the data directory below; storage settings are available under Settings → Media & Storage."; wrap: word-wrap; horizontal-alignment: center; color: root.theme-text; }
                     Text { text: "Data directory: " + root.setup-data-dir; wrap: word-wrap; font-size: 12px; horizontal-alignment: center; color: root.theme-muted; }
-                    if root.setup-status != "": Text { text: root.setup-status; wrap: word-wrap; color: #ff8a80; horizontal-alignment: center; }
+                    if root.setup-status != "": Text { text: root.setup-status; wrap: word-wrap; color: root.theme-text; horizontal-alignment: center; }
                     HorizontalBox {
                         alignment: center;
                         Button { text: "Complete setup"; primary: true; clicked => { root.complete-setup(); } }
                     }
                 }
             }
+      }
     }
 }
