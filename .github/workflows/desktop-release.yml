@@ -11,8 +11,7 @@ permissions:
   contents: read
 
 # Preserve diagnostics from native builds and startup smoke tests. Curator's
-# runtime logger honours RUST_LOG and already defaults to debug for local use;
-# setting it here makes CI failures self-contained in the Actions log.
+# runtime logger honours RUST_LOG; CI opts into debug for useful failure logs.
 env:
   RUST_LOG: debug
   RUST_BACKTRACE: full
@@ -37,13 +36,21 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
   validate:
-    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - name: Native UI libraries
+        if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y build-essential libfontconfig1-dev libxkbcommon-dev libwayland-dev libgl1-mesa-dev libfuse2
       - uses: dtolnay/rust-toolchain@1.92.0
         with:
@@ -54,9 +61,11 @@ jobs:
       - run: cargo clippy --workspace --all-targets --all-features -- -D warnings
       - run: cargo test --workspace --locked
       - name: Server browser tests
-        run: |
-          node --test tests/*.test.js
-          node --check static/oobe.js
+        shell: bash
+        run: node --test tests/*.test.js
+      - run: node --check static/oobe.js
+      - name: Worker protocol contract tests
+        run: python -m unittest discover -s tests -p 'test_worker_*.py'
 
   windows:
     needs: validate
@@ -87,6 +96,50 @@ jobs:
           name: curator-${{ matrix.edition }}-windows
           path: target/release/${{ matrix.artifact }}
 
+  bundle-tools:
+    needs: validate
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Archive tools
+        run: sudo apt-get update && sudo apt-get install -y p7zip-full unzip
+      - name: Verify pinned Windows runtime artifacts
+        run: sh packaging/bundles/fetch-tools.sh staged-tools
+      - uses: actions/upload-artifact@v4
+        with:
+          name: curator-verified-windows-tools
+          path: staged-tools/
+
+  windows-installers:
+    needs: [windows, bundle-tools]
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: curator-host-windows
+          path: binaries/host
+      - uses: actions/download-artifact@v4
+        with:
+          name: curator-viewer-windows
+          path: binaries/viewer
+      - uses: actions/download-artifact@v4
+        with:
+          name: curator-verified-windows-tools
+          path: staged-tools
+      - name: Install NSIS
+        run: choco install nsis --no-progress -y
+      - name: Build Host and Viewer installers
+        shell: pwsh
+        run: ./packaging/windows/build-desktop-installers.ps1 -HostBinary binaries/host/Curator.exe -ViewerBinary binaries/viewer/curator-viewer.exe -ToolsDirectory staged-tools -OutputDirectory installers
+      - name: Install, upgrade, uninstall, and preserve data
+        shell: pwsh
+        run: ./packaging/windows/smoke-desktop-installers.ps1 -InstallerDirectory installers
+      - uses: actions/upload-artifact@v4
+        with:
+          name: curator-windows-installers
+          path: installers/*.exe
+
   linux:
     needs: validate
     runs-on: ubuntu-22.04
@@ -113,15 +166,25 @@ jobs:
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [windows, linux]
+    needs: [dependency-security, windows-installers, linux]
     runs-on: ubuntu-22.04
     permissions:
       contents: write
     steps:
       - uses: actions/download-artifact@v4
         with:
+          pattern: curator-*-windows
           path: release-artifacts
           merge-multiple: true
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: curator-*-linux
+          path: release-artifacts
+          merge-multiple: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: curator-windows-installers
+          path: release-artifacts
       - uses: softprops/action-gh-release@v2
         with:
           draft: true
