@@ -19,6 +19,18 @@ use tracing::{info, warn};
 
 const NUDE_BATCH_SIZE: usize = 12;
 const DETECTION_MIN_SCORE: f32 = 0.20;
+pub const WORKER_PROTOCOL_VERSION: u32 = 1;
+
+fn check_worker_protocol(version: Option<u32>) -> Result<(), String> {
+    if version == Some(WORKER_PROTOCOL_VERSION) {
+        Ok(())
+    } else {
+        Err(format!(
+            "worker protocol mismatch: expected {}, got {:?}",
+            WORKER_PROTOCOL_VERSION, version
+        ))
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Detection {
@@ -47,12 +59,14 @@ fn default_nudenet_model() -> String {
 
 #[derive(Serialize)]
 struct NudeRequest<'a> {
+    protocol_version: u32,
     id: i64,
     paths: Vec<&'a str>,
 }
 
 #[derive(Deserialize)]
 struct NudeResponse {
+    protocol_version: Option<u32>,
     id: Option<i64>,
     results: Option<Vec<NudeNetResult>>,
     // A stale worker lets us surface a useful upgrade error rather than
@@ -280,7 +294,7 @@ async fn wait_nude_ready(lines: &mut Lines<BufReader<ChildStdout>>) -> Result<()
         .ok_or_else(|| "worker closed stdout during startup".to_string())?;
     let response: NudeResponse = serde_json::from_str(&line).map_err(|error| error.to_string())?;
     if response.ready == Some(true) {
-        Ok(())
+        check_worker_protocol(response.protocol_version)
     } else {
         Err(response
             .error
@@ -300,6 +314,7 @@ async fn run_nude_batch(
         .map(|path| path.to_string_lossy().to_string())
         .collect::<Vec<_>>();
     let request = NudeRequest {
+        protocol_version: WORKER_PROTOCOL_VERSION,
         id,
         paths: path_strings.iter().map(String::as_str).collect(),
     };
@@ -316,6 +331,7 @@ async fn run_nude_batch(
         .map_err(|error| error.to_string())?
         .ok_or_else(|| "NudeNet worker closed stdout".to_string())?;
     let response: NudeResponse = serde_json::from_str(&line).map_err(|error| error.to_string())?;
+    check_worker_protocol(response.protocol_version)?;
     if response.id != Some(id) {
         return Err(format!(
             "NudeNet response id mismatch (expected {id}, got {:?})",
@@ -381,6 +397,7 @@ fn default_phar_model() -> String {
 
 #[derive(Serialize)]
 struct ActionRequest<'a> {
+    protocol_version: u32,
     id: i64,
     path: &'a str,
     windows: &'a [(f64, f64)],
@@ -388,6 +405,7 @@ struct ActionRequest<'a> {
 
 #[derive(Deserialize)]
 struct ActionResponse {
+    protocol_version: Option<u32>,
     id: Option<i64>,
     result: Option<ActionResult>,
     error: Option<String>,
@@ -509,7 +527,10 @@ async fn action_supervisor_loop(
             .and_then(Result::ok)
             .flatten()
             .and_then(|line| serde_json::from_str::<ActionResponse>(&line).ok())
-            .filter(|response| response.ready == Some(true));
+            .filter(|response| {
+                response.ready == Some(true)
+                    && check_worker_protocol(response.protocol_version).is_ok()
+            });
         if started.is_none() {
             let _ = child.kill().await;
             drain_action_jobs(&mut rx, "P-HAR model unavailable; clip needs manual review");
@@ -561,6 +582,7 @@ async fn run_action(
     static NEXT_ID: AtomicI64 = AtomicI64::new(1_000_000);
     let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
     let request = ActionRequest {
+        protocol_version: WORKER_PROTOCOL_VERSION,
         id,
         path: &path.to_string_lossy(),
         windows,
@@ -579,6 +601,7 @@ async fn run_action(
         .ok_or_else(|| "P-HAR worker closed stdout".to_string())?;
     let response: ActionResponse =
         serde_json::from_str(&line).map_err(|error| error.to_string())?;
+    check_worker_protocol(response.protocol_version)?;
     if response.id != Some(id) {
         return Err(format!(
             "P-HAR response id mismatch (expected {id}, got {:?})",
@@ -1083,6 +1106,13 @@ pub fn spawn_backfill_loop(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn worker_protocol_rejects_missing_and_future_versions() {
+        assert!(check_worker_protocol(Some(WORKER_PROTOCOL_VERSION)).is_ok());
+        assert!(check_worker_protocol(None).is_err());
+        assert!(check_worker_protocol(Some(WORKER_PROTOCOL_VERSION + 1)).is_err());
+    }
 
     #[test]
     fn missing_python_packages_are_terminal_startup_failures() {

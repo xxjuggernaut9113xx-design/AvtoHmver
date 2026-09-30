@@ -24,6 +24,7 @@ pub struct SystemInfo {
     pub edition: &'static str,
     pub version: &'static str,
     pub api_protocol: &'static str,
+    pub worker_protocol_version: u32,
     pub instance_id: String,
     pub capabilities: SystemCapabilities,
     pub viewer_permissions: crate::native::ViewerPermissions,
@@ -36,6 +37,7 @@ impl SystemInfo {
             edition: state.edition.as_str(),
             version: PRODUCT_VERSION,
             api_protocol: API_PROTOCOL,
+            worker_protocol_version: crate::nsfw::WORKER_PROTOCOL_VERSION,
             instance_id: state.instance_id.clone(),
             capabilities: SystemCapabilities {
                 browser_ui: true,
@@ -67,6 +69,7 @@ mod tests {
         assert!(text.contains("test-instance"));
         assert!(!text.contains(&dir.path().to_string_lossy().to_string()));
         assert!(text.contains(API_PROTOCOL));
+        assert!(text.contains("\"worker_protocol_version\":1"));
         assert!(text.contains("\"viewer_permissions\""));
         assert!(text.contains("\"library_edit\":false"));
     }

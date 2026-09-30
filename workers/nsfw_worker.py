@@ -18,8 +18,11 @@ without changing the protocol.
 import json
 import sys
 
+PROTOCOL_VERSION = 1
+
 
 def emit(value):
+    value["protocol_version"] = PROTOCOL_VERSION
     print(json.dumps(value, separators=(",", ":")), flush=True)
 
 
@@ -87,6 +90,8 @@ def main() -> int:
         try:
             request = json.loads(raw_line)
             request_id = request.get("id")
+            if request.get("protocol_version") != PROTOCOL_VERSION:
+                raise ValueError("unsupported worker protocol version")
             paths = request.get("paths")
             if not isinstance(paths, list) or not paths or len(paths) > 12:
                 raise ValueError("paths must be a non-empty batch of at most 12 files")

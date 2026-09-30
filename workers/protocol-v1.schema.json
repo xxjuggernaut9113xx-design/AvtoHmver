@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/webmaster19083-tech/Curator-rs/workers/protocol-v1.schema.json",
+  "title": "Curator inference worker JSON Lines protocol v1",
+  "oneOf": [
+    { "$ref": "#/$defs/startup" },
+    { "$ref": "#/$defs/nude_request" },
+    { "$ref": "#/$defs/action_request" },
+    { "$ref": "#/$defs/response" }
+  ],
+  "$defs": {
+    "version": { "type": "integer", "const": 1 },
+    "startup": {
+      "type": "object",
+      "required": ["protocol_version", "ready"],
+      "properties": {
+        "protocol_version": { "$ref": "#/$defs/version" },
+        "ready": { "type": "boolean" },
+        "model": { "type": "string" },
+        "version": { "type": "string" },
+        "error": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "nude_request": {
+      "type": "object",
+      "required": ["protocol_version", "id", "paths"],
+      "properties": {
+        "protocol_version": { "$ref": "#/$defs/version" },
+        "id": { "type": "integer" },
+        "paths": { "type": "array", "minItems": 1, "maxItems": 12, "items": { "type": "string", "minLength": 1 } }
+      },
+      "additionalProperties": false
+    },
+    "action_request": {
+      "type": "object",
+      "required": ["protocol_version", "id", "path", "windows"],
+      "properties": {
+        "protocol_version": { "$ref": "#/$defs/version" },
+        "id": { "type": "integer" },
+        "path": { "type": "string", "minLength": 1 },
+        "windows": {
+          "type": "array", "minItems": 1, "maxItems": 64,
+          "items": { "type": "array", "minItems": 2, "maxItems": 2, "prefixItems": [{ "type": "number" }, { "type": "number" }], "items": false }
+        }
+      },
+      "additionalProperties": false
+    },
+    "response": {
+      "type": "object",
+      "required": ["protocol_version", "id"],
+      "properties": {
+        "protocol_version": { "$ref": "#/$defs/version" },
+        "id": { "type": ["integer", "null"] },
+        "error": { "type": "string" },
+        "results": { "type": "array", "items": { "type": "object" } },
+        "result": { "type": "object" }
+      },
+      "oneOf": [ { "required": ["error"] }, { "required": ["results"] }, { "required": ["result"] } ],
+      "additionalProperties": false
+    }
+  }
+}

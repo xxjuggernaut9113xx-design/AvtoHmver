@@ -21,9 +21,11 @@ from pathlib import Path
 
 UPSTREAM_REVISION = "94adf9900cd36360795709d920b44404f29bad3e"
 RUNTIME_FORMAT = "curator-phar-runtime-v1"
+PROTOCOL_VERSION = 1
 
 
 def emit(value):
+    value["protocol_version"] = PROTOCOL_VERSION
     print(json.dumps(value, separators=(",", ":")), flush=True)
 
 
@@ -164,6 +166,8 @@ def main():
         try:
             request = json.loads(raw_line)
             request_id = request.get("id")
+            if request.get("protocol_version") != PROTOCOL_VERSION:
+                raise ValueError("unsupported worker protocol version")
             path = Path(request["path"])
             requested_windows = request.get("windows")
             if not path.is_file() or not isinstance(requested_windows, list):
