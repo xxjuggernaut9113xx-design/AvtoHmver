@@ -62,6 +62,7 @@ try {
         $stage = Join-Path $stageRoot $scope
         New-Item -ItemType Directory -Force -Path (Join-Path $stage 'static') | Out-Null
         Copy-Item -LiteralPath $sourceBinary -Destination (Join-Path $stage 'curator.exe')
+        Copy-Item -LiteralPath (Join-Path $repositoryRoot 'LICENSE') -Destination $stage
         Copy-Item -LiteralPath (Join-Path $scriptRoot 'Register-CuratorServer.ps1') -Destination $stage
         Copy-Item -LiteralPath (Join-Path $scriptRoot 'Unregister-CuratorServer.ps1') -Destination $stage
         Copy-Item -Path (Join-Path $repositoryRoot 'static\*') -Destination (Join-Path $stage 'static') -Recurse -Force

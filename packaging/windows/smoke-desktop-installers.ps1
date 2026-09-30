@@ -25,7 +25,7 @@ try {
         if (-not $installer) { throw "Missing $($edition.Name) current-user installer" }
         $installed = Join-Path (Join-Path $env:LOCALAPPDATA 'Programs') $edition.Folder
         Invoke-NSIS $installer.FullName
-        foreach ($required in @($edition.Exe, "tools\$($edition.Tool)", "Uninstall Curator $($edition.Name.Substring(0,1).ToUpper() + $edition.Name.Substring(1)).exe")) {
+        foreach ($required in @($edition.Exe, 'LICENSE', "tools\$($edition.Tool)", "Uninstall Curator $($edition.Name.Substring(0,1).ToUpper() + $edition.Name.Substring(1)).exe")) {
             if (-not (Test-Path -LiteralPath (Join-Path $installed $required) -PathType Leaf)) {
                 throw "Missing installed $($edition.Name) file: $required"
             }

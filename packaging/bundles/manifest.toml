@@ -46,7 +46,7 @@ kind = "7z"
 # Staging all DLLs avoids leaving an install that loads libmpv but fails on
 # its first decoder dependency.
 stage = ["*.dll"]
-license = "LGPL-2.1-or-later (libmpv)"
+license = "GPL-2.0-or-later (matching shinchiro mpv build)"
 homepage = "https://mpv.io"
 
 [gallery-dl]

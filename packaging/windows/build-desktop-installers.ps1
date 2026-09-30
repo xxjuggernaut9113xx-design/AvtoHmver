@@ -91,6 +91,7 @@ try {
                 -Destination $stage
             Copy-Item -LiteralPath (Join-Path $repositoryRoot 'packaging\bundles\NOTICES.md') `
                 -Destination (Join-Path $stage 'THIRD_PARTY_NOTICES.md')
+            Copy-Item -LiteralPath (Join-Path $repositoryRoot 'LICENSE') -Destination $stage
             New-Item -ItemType Directory -Force -Path (Join-Path $stage 'tools') | Out-Null
             if ($edition.ToolMode -eq 'all') {
                 Copy-Item -Path (Join-Path $resolvedTools.Path '*') `

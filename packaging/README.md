@@ -21,9 +21,10 @@ Linux produces an all-users `.deb` and a current-user portable archive. The
 archive includes `install-current-user.sh` and a rendered systemd-user unit;
 the `.deb` creates a `curator` service account and owns `/var/lib/curator`.
 
-Host and Viewer Linux release jobs build both Debian packages and portable
-AppImages. The app files may be placed per-user or system-wide; their settings
-remain in each user's own application-data directory.
+The Linux packaging scripts can build Host and Viewer Debian packages and
+portable tar archives. The current release workflow uploads compiled Linux
+binaries; it does not build or publish AppImages. The app files may be placed
+per-user or system-wide, while settings remain per-user.
 
 Host and Viewer app files may be installed per-user or system-wide, but their
 preferences remain per-user. Do not package two owners of the same resolved

@@ -47,6 +47,9 @@ test('Host and Viewer installers require the media runtime needed by native play
   assert.doesNotMatch(host, /File \/nonfatal \/r "\$\{CURATOR_STAGE\}\\tools/);
   assert.match(viewer, /File \/r "\$\{CURATOR_STAGE\}\\tools\\\*\.\*"/);
   assert.match(viewer, /THIRD_PARTY_NOTICES\.md/);
+  assert.match(host, /File "\$\{CURATOR_STAGE\}\\LICENSE"/);
+  assert.match(viewer, /File "\$\{CURATOR_STAGE\}\\LICENSE"/);
+  assert.match(read('packaging/windows/curator-server.nsi'), /File "\$\{CURATOR_STAGE\}\\LICENSE"/);
 });
 
 test('Linux scope packages carry appropriate service definitions', () => {
@@ -60,6 +63,9 @@ test('Linux scope packages carry appropriate service definitions', () => {
   assert.match(userSystemd, /__CURATOR_SERVER_PATH__/);
   assert.match(portable, /systemctl --user enable --now/);
   assert.match(postinst, /systemctl enable --now curator-server\.service/);
+  for (const edition of ['server', 'host', 'viewer']) {
+    assert.match(read(`packaging/linux/build-${edition}-deb.sh`), /\$root\/LICENSE/);
+  }
 });
 
 test('release workflow builds native Windows and Linux binaries without browser runtimes', () => {
@@ -67,6 +73,9 @@ test('release workflow builds native Windows and Linux binaries without browser 
   assert.match(workflow, /validate:/);
   assert.match(workflow, /windows:/);
   assert.match(workflow, /linux:/);
+  assert.match(workflow, /windows-installers:/);
+  assert.match(workflow, /smoke-desktop-installers\.ps1/);
+  assert.match(workflow, /needs: \[dependency-security, windows-installers, linux\]/);
   assert.match(workflow, /cargo build -vv --release --locked -p \$\{\{ matrix\.package \}\} --bin/);
   assert.match(workflow, /RUST_LOG: debug/);
   assert.match(workflow, /RUST_BACKTRACE: full/);

@@ -58,6 +58,7 @@ Section "Curator Host" SecHost
   File /r "${CURATOR_STAGE}\tools\*.*"
   SetOutPath "$INSTDIR"
   File "${CURATOR_STAGE}\THIRD_PARTY_NOTICES.md"
+  File "${CURATOR_STAGE}\LICENSE"
   WriteUninstaller "$INSTDIR\Uninstall Curator Host.exe"
 
   CreateDirectory "$SMPROGRAMS\Curator"
@@ -89,6 +90,7 @@ Section "Uninstall"
   Delete "$INSTDIR\Curator.exe"
   Delete "$INSTDIR\icon.ico"
   Delete "$INSTDIR\THIRD_PARTY_NOTICES.md"
+  Delete "$INSTDIR\LICENSE"
   RMDir /r "$INSTDIR\tools"
   RMDir "$INSTDIR"
 SectionEnd

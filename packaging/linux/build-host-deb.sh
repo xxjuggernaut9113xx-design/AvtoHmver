@@ -25,9 +25,11 @@ stage=$(mktemp -d "${TMPDIR:-/tmp}/curator-host-deb.XXXXXX")
 trap 'rm -rf "$stage"' EXIT HUP INT TERM
 
 mkdir -p "$output" "$stage/DEBIAN" "$stage/usr/lib/curator-host" \
-  "$stage/usr/share/applications" "$stage/usr/share/icons/hicolor/256x256/apps"
+  "$stage/usr/share/applications" "$stage/usr/share/icons/hicolor/256x256/apps" \
+  "$stage/usr/share/doc/curator-host"
 chmod 0755 "$stage" "$stage/DEBIAN"
 install -m 0755 "$binary" "$stage/usr/lib/curator-host/Curator"
+install -m 0644 "$root/LICENSE" "$stage/usr/share/doc/curator-host/LICENSE"
 install -m 0644 "$root/packaging/linux/curator-host.desktop" "$stage/usr/share/applications/curator-host.desktop"
 install -m 0644 "$root/desktop/icons/icon.png" "$stage/usr/share/icons/hicolor/256x256/apps/curator-host.png"
 if [ -n "$tools_dir" ] && [ -d "$tools_dir" ]; then
@@ -43,6 +45,7 @@ dpkg-deb --root-owner-group --build "$stage" "$output/curator-host_${version}_am
 portable=$(mktemp -d "${TMPDIR:-/tmp}/curator-host-portable.XXXXXX")
 trap 'rm -rf "$stage" "$portable"' EXIT HUP INT TERM
 install -m 0755 "$binary" "$portable/Curator"
+install -m 0644 "$root/LICENSE" "$portable/LICENSE"
 install -m 0644 "$root/desktop/icons/icon.png" "$portable/icon.png"
 if [ -n "$tools_dir" ] && [ -d "$tools_dir" ]; then
   mkdir -p "$portable/tools"

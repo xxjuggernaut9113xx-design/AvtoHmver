@@ -22,9 +22,11 @@ stage=$(mktemp -d "${TMPDIR:-/tmp}/curator-viewer-deb.XXXXXX")
 trap 'rm -rf "$stage"' EXIT HUP INT TERM
 
 mkdir -p "$output" "$stage/DEBIAN" "$stage/usr/lib/curator-viewer" \
-  "$stage/usr/share/applications" "$stage/usr/share/icons/hicolor/256x256/apps"
+  "$stage/usr/share/applications" "$stage/usr/share/icons/hicolor/256x256/apps" \
+  "$stage/usr/share/doc/curator-viewer"
 chmod 0755 "$stage" "$stage/DEBIAN"
 install -m 0755 "$binary" "$stage/usr/lib/curator-viewer/curator-viewer"
+install -m 0644 "$root/LICENSE" "$stage/usr/share/doc/curator-viewer/LICENSE"
 install -m 0644 "$root/packaging/linux/curator-viewer.desktop" "$stage/usr/share/applications/curator-viewer.desktop"
 install -m 0644 "$root/desktop/icons/icon.png" "$stage/usr/share/icons/hicolor/256x256/apps/curator-viewer.png"
 sed "s/@CURATOR_VERSION@/$version/" "$root/packaging/linux/debian-control-viewer" > "$stage/DEBIAN/control"
@@ -35,6 +37,7 @@ dpkg-deb --root-owner-group --build "$stage" "$output/curator-viewer_${version}_
 portable=$(mktemp -d "${TMPDIR:-/tmp}/curator-viewer-portable.XXXXXX")
 trap 'rm -rf "$stage" "$portable"' EXIT HUP INT TERM
 install -m 0755 "$binary" "$portable/curator-viewer"
+install -m 0644 "$root/LICENSE" "$portable/LICENSE"
 install -m 0644 "$root/desktop/icons/icon.png" "$portable/icon.png"
 tar -C "$portable" -czf "$output/curator-viewer-${version}-linux-x86_64.tar.gz" .
 echo "Built $output/curator-viewer_${version}_amd64.deb"

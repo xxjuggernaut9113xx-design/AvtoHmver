@@ -151,6 +151,17 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Build native editions with verbose diagnostics
         run: cargo build -vv --release --locked --workspace
+      - name: Build and inspect existing Debian and portable packages
+        run: |
+          sh packaging/linux/build-server-deb.sh target/release/curator linux-packages
+          sh packaging/linux/build-host-deb.sh target/release/Curator linux-packages
+          sh packaging/linux/build-viewer-deb.sh target/release/curator-viewer linux-packages
+          for package in linux-packages/*.deb; do dpkg-deb --field "$package" Package Version; dpkg-deb --contents "$package" >/dev/null; done
+          for archive in linux-packages/*.tar.gz; do tar -tzf "$archive" >/dev/null; done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: curator-linux-packages
+          path: linux-packages/
       - uses: actions/upload-artifact@v4
         with:
           name: curator-server-linux
@@ -181,6 +192,10 @@ jobs:
           pattern: curator-*-linux
           path: release-artifacts
           merge-multiple: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: curator-linux-packages
+          path: release-artifacts
       - uses: actions/download-artifact@v4
         with:
           name: curator-windows-installers

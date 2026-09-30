@@ -69,6 +69,7 @@ FunctionEnd
 Section "Curator Server" SecServer
   SetOutPath "$INSTDIR"
   File "${CURATOR_STAGE}\curator.exe"
+  File "${CURATOR_STAGE}\LICENSE"
   File "${CURATOR_STAGE}\Register-CuratorServer.ps1"
   File "${CURATOR_STAGE}\Unregister-CuratorServer.ps1"
   SetOutPath "$INSTDIR\static"
@@ -98,6 +99,7 @@ Section "Uninstall"
   Delete "$INSTDIR\Register-CuratorServer.ps1"
   Delete "$INSTDIR\Unregister-CuratorServer.ps1"
   Delete "$INSTDIR\curator.exe"
+  Delete "$INSTDIR\LICENSE"
   RMDir /r "$INSTDIR\static"
   RMDir "$INSTDIR"
 SectionEnd

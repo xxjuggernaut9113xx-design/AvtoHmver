@@ -16,7 +16,9 @@
 
 ## mpv / libmpv
 - Homepage: https://mpv.io — sources: https://github.com/mpv-player/mpv
-- License: GPL-2.0-or-later.
+- License: GPL-2.0-or-later for the pinned mpv and mpv-dev builds. The
+  `mpv-dev` archive is the development/runtime library companion to that
+  build; it is not identified as a separately configured LGPL variant.
 - What ships: `mpv.exe`, `libmpv-2.dll`, and their required runtime DLLs.
 - Implication: GPL-2.0+ terms apply to the bundle; keep this notice and the
   source offer with the installer.

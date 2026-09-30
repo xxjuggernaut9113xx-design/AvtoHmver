@@ -19,8 +19,9 @@ fi
 stage=$(mktemp -d "${TMPDIR:-/tmp}/curator-server-deb.XXXXXX")
 trap 'rm -rf "$stage"' EXIT HUP INT TERM
 
-mkdir -p "$output" "$stage/DEBIAN" "$stage/usr/lib/curator/static" "$stage/lib/systemd/system" "$stage/usr/lib/systemd/user"
+mkdir -p "$output" "$stage/DEBIAN" "$stage/usr/lib/curator/static" "$stage/lib/systemd/system" "$stage/usr/lib/systemd/user" "$stage/usr/share/doc/curator-server"
 install -m 0755 "$binary" "$stage/usr/lib/curator/curator"
+install -m 0644 "$root/LICENSE" "$stage/usr/share/doc/curator-server/LICENSE"
 cp -R "$root/static/." "$stage/usr/lib/curator/static/"
 install -m 0644 "$root/packaging/linux/curator-server.service" "$stage/lib/systemd/system/curator-server.service"
 sed 's|__CURATOR_SERVER_PATH__|%h/.local/lib/curator/curator|g' \
@@ -39,6 +40,7 @@ portable=$(mktemp -d "${TMPDIR:-/tmp}/curator-server-portable.XXXXXX")
 trap 'rm -rf "$stage" "$portable"' EXIT HUP INT TERM
 mkdir -p "$portable/static"
 install -m 0755 "$binary" "$portable/curator"
+install -m 0644 "$root/LICENSE" "$portable/LICENSE"
 cp -R "$root/static/." "$portable/static/"
 install -m 0644 "$root/packaging/linux/curator-server-user.service" "$portable/curator-server-user.service"
 install -m 0755 "$root/packaging/linux/install-current-user.sh" "$portable/install-current-user.sh"
