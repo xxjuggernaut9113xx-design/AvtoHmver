@@ -14,6 +14,9 @@ and detected Tailscale addresses according to its remote-access settings.
 See the [native parity status](docs/parity/STATUS.md) for current verification
 and the [permission matrix](docs/permissions.md) for role authority.
 
+Curator's own code is licensed under [GPL-3.0-only](LICENSE). The packaged
+media tools retain the terms recorded in the [third-party notices](packaging/bundles/NOTICES.md).
+
 Curator has three editions built from one Rust core:
 
 - **Curator Server** (`curator`) is the headless backend, browser UI, download
