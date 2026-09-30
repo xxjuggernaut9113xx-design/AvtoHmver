@@ -1,9 +1,18 @@
 # Curator 0.3.3
 
+> **Pre-release:** The Server with its browser UI is the established path. The
+> native Windows Host covers the core library, playback, source, download, and
+> remote-access workflows, but installer and broader parity validation are in
+> progress. Windows is the primary development and manual-test platform;
+> Linux has automated checks and limited UI smoke evidence.
+
 Curator is a self-hosted gallery-dl library: download media you are entitled to
 access, organize it with groups/tags/ratings, and browse it locally in a
-browser or native desktop app. The backend serves only loopback and explicitly
-detected Tailscale addresses—never ordinary LAN or wildcard interfaces.
+browser or native desktop app. The Host server can listen on localhost, LAN,
+and detected Tailscale addresses according to its remote-access settings.
+
+See the [native parity status](docs/parity/STATUS.md) for current verification
+and the [permission matrix](docs/permissions.md) for role authority.
 
 Curator has three editions built from one Rust core:
 

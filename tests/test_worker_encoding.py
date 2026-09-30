@@ -8,7 +8,7 @@ import unittest
 
 class WorkerEncodingTest(unittest.TestCase):
     def test_unicode_path_with_utf8_jsonl_encoding(self):
-        worker = Path(__file__).resolve().parents[1] / 'nsfw_worker.py'
+        worker = Path(__file__).resolve().parents[1] / 'workers' / 'nsfw_worker.py'
         with tempfile.TemporaryDirectory() as tmp:
             folder = Path(tmp)
             media = folder / 'emoji-\U0001f621-\u4e2d\u6587.jpg'

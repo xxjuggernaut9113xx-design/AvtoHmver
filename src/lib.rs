@@ -49,9 +49,9 @@ use tower_http::compression::CompressionLayer;
 use tower_http::services::ServeDir;
 use tracing::{error, info, warn};
 
-pub static DOCS_TEXT: &str = include_str!("../DOCS.txt");
-pub static NSFW_WORKER_PY: &str = include_str!("../nsfw_worker.py");
-pub static ACTION_WORKER_PY: &str = include_str!("../action_worker.py");
+pub static DOCS_TEXT: &str = include_str!("../docs/DOCS.txt");
+pub static NSFW_WORKER_PY: &str = include_str!("../workers/nsfw_worker.py");
+pub static ACTION_WORKER_PY: &str = include_str!("../workers/action_worker.py");
 
 /// Tests that alter process-global environment variables share one guard.
 /// Production configuration is per scope and does not rely on this lock.
