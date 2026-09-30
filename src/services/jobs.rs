@@ -68,7 +68,7 @@ mod tests {
         let root = tempfile::tempdir().unwrap();
         let state = crate::test_support::state(root.path());
         let direct = list(&state).await.unwrap();
-        let http = crate::routes::admin::list_jobs(State(state.clone()), None)
+        let http = crate::routes::admin::list_jobs(State(state.clone()), None.into())
             .await
             .unwrap()
             .0;
@@ -114,9 +114,10 @@ mod tests {
             confirmation: String::new(),
             backup_id: None,
         };
-        let http = crate::routes::admin::start_job(State(state.clone()), None, axum::Json(request))
-            .await
-            .unwrap_err();
+        let http =
+            crate::routes::admin::start_job(State(state.clone()), None.into(), axum::Json(request))
+                .await
+                .unwrap_err();
         assert_eq!(http.0, axum::http::StatusCode::CONFLICT);
         assert_eq!(http.1 .0["error"], direct.message());
         assert!(list(&state).await.unwrap().is_empty());

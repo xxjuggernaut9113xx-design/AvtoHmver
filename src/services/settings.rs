@@ -697,7 +697,7 @@ mod tests {
         let root = tempfile::tempdir().unwrap();
         let state = crate::test_support::state(root.path());
         let direct = read(&state, SettingsAudience::Local).await;
-        let http = crate::routes::settings::get(State(state.clone()), None)
+        let http = crate::routes::settings::get(State(state.clone()), None.into())
             .await
             .0;
         assert_eq!(direct, http);
@@ -712,7 +712,7 @@ mod tests {
         let direct = read(&state, SettingsAudience::Remote).await;
         let http = crate::routes::settings::get(
             State(state),
-            Some(ConnectInfo(SocketAddr::from(([100, 80, 0, 2], 42168)))),
+            Some(ConnectInfo(SocketAddr::from(([100, 80, 0, 2], 42168)))).into(),
         )
         .await
         .0;

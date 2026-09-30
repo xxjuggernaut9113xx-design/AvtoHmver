@@ -35,7 +35,7 @@ pub use crate::services::settings::SettingsPatch as PatchSettingsBody;
 
 pub async fn get(
     State(state): State<Arc<AppState>>,
-    peer: Option<ConnectInfo<SocketAddr>>,
+    peer: super::OptionalConnectInfo,
 ) -> Json<Value> {
     Json(crate::services::settings::read(&state, settings_audience(&peer)).await)
 }
@@ -52,7 +52,7 @@ fn settings_audience(peer: &Option<ConnectInfo<SocketAddr>>) -> SettingsAudience
 
 pub async fn patch(
     State(state): State<Arc<AppState>>,
-    peer: Option<ConnectInfo<SocketAddr>>,
+    peer: super::OptionalConnectInfo,
     Json(body): Json<PatchSettingsBody>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     if !is_local_client(&peer)
@@ -104,7 +104,7 @@ mod tests {
         let state = crate::test_support::state(root.path());
         let Json(value) = get(
             State(state),
-            Some(ConnectInfo(SocketAddr::from(([100, 80, 0, 2], 42168)))),
+            Some(ConnectInfo(SocketAddr::from(([100, 80, 0, 2], 42168)))).into(),
         )
         .await;
         assert!(value.get("ffmpeg_bin").is_none());
@@ -122,7 +122,7 @@ mod tests {
         .unwrap();
         let response = patch(
             State(state),
-            Some(ConnectInfo(SocketAddr::from(([100, 80, 0, 2], 42168)))),
+            Some(ConnectInfo(SocketAddr::from(([100, 80, 0, 2], 42168)))).into(),
             Json(body),
         )
         .await;
@@ -139,7 +139,7 @@ mod tests {
             "start_with_windows": true
         }))
         .unwrap();
-        let response = patch(State(Arc::new(server_state)), None, Json(body)).await;
+        let response = patch(State(Arc::new(server_state)), None.into(), Json(body)).await;
         assert!(matches!(response, Err((StatusCode::FORBIDDEN, _))));
     }
 
@@ -213,7 +213,9 @@ mod tests {
             "soundtrack_provider": "spotify"
         }))
         .unwrap();
-        let Json(value) = patch(State(state.clone()), None, Json(body)).await.unwrap();
+        let Json(value) = patch(State(state.clone()), None.into(), Json(body))
+            .await
+            .unwrap();
         assert_eq!(value["max_download_file_size_bytes"], 50 * 1024 * 1024u64);
         assert_eq!(value["max_source_storage_bytes"], 1024 * 1024 * 1024u64);
         assert_eq!(value["automatic_cleanup_mode"], "low_disk");
@@ -283,7 +285,7 @@ mod tests {
         assert_eq!(persisted.tts_volume, 0.0);
         assert_eq!(persisted.soundtrack_provider, "spotify");
 
-        let Json(reopened) = get(State(state), None).await;
+        let Json(reopened) = get(State(state), None.into()).await;
         for (field, expected) in [
             ("max_download_file_size_bytes", json!(50 * 1024 * 1024u64)),
             ("max_source_storage_bytes", json!(1024 * 1024 * 1024u64)),
@@ -313,7 +315,9 @@ mod tests {
 
         let body: PatchSettingsBody =
             serde_json::from_value(json!({"thumbnail_cache_max_bytes": 8})).unwrap();
-        let Json(value) = patch(State(state.clone()), None, Json(body)).await.unwrap();
+        let Json(value) = patch(State(state.clone()), None.into(), Json(body))
+            .await
+            .unwrap();
 
         assert_eq!(value["thumbnail_cache_max_bytes"], 8);
         assert!(
@@ -332,7 +336,7 @@ mod tests {
         assert!(matches!(
             patch(
                 State(state.clone()),
-                None,
+                None.into(),
                 Json(missing_cleanup_confirmation)
             )
             .await,
@@ -344,16 +348,18 @@ mod tests {
             "automatic_cleanup_confirmation": "ENABLE AUTOMATIC CLEANUP"
         }))
         .unwrap();
-        assert!(patch(State(state.clone()), None, Json(enabled_cleanup))
-            .await
-            .is_ok());
+        assert!(
+            patch(State(state.clone()), None.into(), Json(enabled_cleanup))
+                .await
+                .is_ok()
+        );
 
         let missing_archive_confirmation: PatchSettingsBody =
             serde_json::from_value(json!({"archive_retention_days": 30})).unwrap();
         assert!(matches!(
             patch(
                 State(state.clone()),
-                None,
+                None.into(),
                 Json(missing_archive_confirmation)
             )
             .await,
@@ -365,7 +371,7 @@ mod tests {
             "archive_retention_confirmation": "ENABLE ARCHIVE RETENTION"
         }))
         .unwrap();
-        assert!(patch(State(state), None, Json(enabled_archive))
+        assert!(patch(State(state), None.into(), Json(enabled_archive))
             .await
             .is_ok());
     }
@@ -388,7 +394,7 @@ mod tests {
                 _ => serde_json::json!({"tts_volume": value}),
             };
             let body: PatchSettingsBody = serde_json::from_value(payload).unwrap();
-            let response = patch(State(state.clone()), None, Json(body)).await;
+            let response = patch(State(state.clone()), None.into(), Json(body)).await;
             assert!(
                 matches!(response, Err((StatusCode::BAD_REQUEST, _))),
                 "{field}={value}"
@@ -403,7 +409,9 @@ mod tests {
             serde_json::json!({"tts_volume": 1.0}),
         ] {
             let body: PatchSettingsBody = serde_json::from_value(payload).unwrap();
-            assert!(patch(State(state.clone()), None, Json(body)).await.is_ok());
+            assert!(patch(State(state.clone()), None.into(), Json(body))
+                .await
+                .is_ok());
         }
     }
 
@@ -412,7 +420,7 @@ mod tests {
         let root = tempfile::tempdir().unwrap();
         let state = crate::test_support::state(root.path());
         let body: PatchSettingsBody = serde_json::from_value(json!({"theme": "bogus"})).unwrap();
-        let Err((status, Json(value))) = patch(State(state), None, Json(body)).await else {
+        let Err((status, Json(value))) = patch(State(state), None.into(), Json(body)).await else {
             panic!("invalid theme must be rejected");
         };
         assert_eq!(status, StatusCode::BAD_REQUEST);

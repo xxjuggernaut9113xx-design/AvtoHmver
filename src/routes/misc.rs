@@ -97,7 +97,7 @@ pub async fn get_log(State(state): State<Arc<AppState>>) -> Response {
         .into_response()
 }
 
-// ─── GET /api/sources/:id/log ────────────────────────────────────────────────
+// ─── GET /api/sources/{id}/log ────────────────────────────────────────────────
 
 pub async fn source_log(
     State(state): State<Arc<AppState>>,

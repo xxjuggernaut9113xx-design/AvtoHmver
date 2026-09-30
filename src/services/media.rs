@@ -385,7 +385,7 @@ mod tests {
         let direct = review(&state, Caller::host(), 1, Some(4)).unwrap();
         let response = crate::routes::media::set_rating(
             axum::extract::State(state.clone()),
-            None,
+            None.into(),
             axum::extract::Path(1),
             axum::Json(crate::routes::media::RatingBody { rating: 4 }),
         )
@@ -498,7 +498,7 @@ mod tests {
         let direct = add_tag_many(&state, Caller::host(), &[1, 1, 2], "reviewed").unwrap();
         let http = crate::routes::media::bulk(
             axum::extract::State(state.clone()),
-            None,
+            None.into(),
             axum::Json(crate::routes::media::BulkMediaBody {
                 ids: vec![1, 1, 2],
                 action: "add_tag".into(),
@@ -535,7 +535,7 @@ mod tests {
         let peer = axum::extract::ConnectInfo(std::net::SocketAddr::from(([100, 64, 1, 2], 50000)));
         let error = crate::routes::media::set_rating(
             axum::extract::State(state.clone()),
-            Some(peer),
+            Some(peer).into(),
             axum::extract::Path(1),
             axum::Json(crate::routes::media::RatingBody { rating: 4 }),
         )
@@ -544,7 +544,7 @@ mod tests {
         assert_eq!(error.0, StatusCode::FORBIDDEN);
         let error = crate::routes::media::bulk(
             axum::extract::State(state),
-            Some(peer),
+            Some(peer).into(),
             axum::Json(crate::routes::media::BulkMediaBody {
                 ids: vec![1],
                 action: "add_tag".into(),

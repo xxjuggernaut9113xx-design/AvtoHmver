@@ -504,7 +504,7 @@ mod tests {
             axum::extract::State(state.clone()),
             axum::extract::Path(1),
             axum::extract::Query(crate::routes::sources::DeleteQuery { delete_files: true }),
-            None,
+            None.into(),
         )
         .await
         .unwrap()
@@ -592,7 +592,7 @@ mod tests {
         let http = crate::routes::sources::patch(
             axum::extract::State(state.clone()),
             axum::extract::Path(1),
-            None,
+            None.into(),
             Json(crate::routes::sources::PatchSourceBody {
                 name: None,
                 included: Some(true),
@@ -696,7 +696,7 @@ mod tests {
         let http = crate::routes::sources::set_group(
             axum::extract::State(state.clone()),
             axum::extract::Path(1),
-            None,
+            None.into(),
             Json(crate::routes::sources::SetGroupBody { group_id: None }),
         )
         .await

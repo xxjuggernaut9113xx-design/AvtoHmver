@@ -52,7 +52,7 @@ fn job_error(error: crate::services::jobs::JobError) -> (StatusCode, Json<Value>
 
 pub async fn list_jobs(
     State(state): State<Arc<AppState>>,
-    peer: Option<ConnectInfo<SocketAddr>>,
+    peer: super::OptionalConnectInfo,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     local_only(&state, &peer)?;
     Ok(Json(
@@ -62,7 +62,7 @@ pub async fn list_jobs(
 
 pub async fn get_job(
     State(state): State<Arc<AppState>>,
-    peer: Option<ConnectInfo<SocketAddr>>,
+    peer: super::OptionalConnectInfo,
     Path(id): Path<String>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     local_only(&state, &peer)?;
@@ -74,7 +74,7 @@ pub async fn get_job(
 
 pub async fn start_job(
     State(state): State<Arc<AppState>>,
-    peer: Option<ConnectInfo<SocketAddr>>,
+    peer: super::OptionalConnectInfo,
     Json(request): Json<MaintenanceRequest>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     local_only(&state, &peer)?;
@@ -86,7 +86,7 @@ pub async fn start_job(
 
 pub async fn create_backup(
     State(state): State<Arc<AppState>>,
-    peer: Option<ConnectInfo<SocketAddr>>,
+    peer: super::OptionalConnectInfo,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     local_only(&state, &peer)?;
     let job = crate::services::jobs::start(
@@ -104,7 +104,7 @@ pub async fn create_backup(
 
 pub async fn list_backups(
     State(state): State<Arc<AppState>>,
-    peer: Option<ConnectInfo<SocketAddr>>,
+    peer: super::OptionalConnectInfo,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     local_only(&state, &peer)?;
     let backups = crate::services::backup::list(&state).map_err(|error| {
@@ -127,7 +127,7 @@ pub async fn list_backups(
 
 pub async fn download_backup(
     State(state): State<Arc<AppState>>,
-    peer: Option<ConnectInfo<SocketAddr>>,
+    peer: super::OptionalConnectInfo,
     Path(id): Path<String>,
 ) -> Response {
     if let Err(error) = local_only(&state, &peer) {
@@ -178,7 +178,7 @@ pub async fn download_backup(
 
 pub async fn validate_backup(
     State(state): State<Arc<AppState>>,
-    peer: Option<ConnectInfo<SocketAddr>>,
+    peer: super::OptionalConnectInfo,
     Path(id): Path<String>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     local_only(&state, &peer)?;
@@ -202,7 +202,7 @@ pub struct RestoreBody {
 
 pub async fn restore_backup(
     State(state): State<Arc<AppState>>,
-    peer: Option<ConnectInfo<SocketAddr>>,
+    peer: super::OptionalConnectInfo,
     Path(id): Path<String>,
     Json(body): Json<RestoreBody>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
@@ -222,7 +222,7 @@ pub async fn restore_backup(
 
 pub async fn phar_status(
     State(state): State<Arc<AppState>>,
-    peer: Option<ConnectInfo<SocketAddr>>,
+    peer: super::OptionalConnectInfo,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     local_only(&state, &peer)?;
     Ok(Json(json!(phar::status(
@@ -239,7 +239,7 @@ pub struct PharIntentBody {
 
 pub async fn phar_intent(
     State(state): State<Arc<AppState>>,
-    peer: Option<ConnectInfo<SocketAddr>>,
+    peer: super::OptionalConnectInfo,
     Json(body): Json<PharIntentBody>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     local_only(&state, &peer)?;
@@ -260,7 +260,7 @@ pub async fn phar_intent(
 
 pub async fn phar_install(
     State(state): State<Arc<AppState>>,
-    peer: Option<ConnectInfo<SocketAddr>>,
+    peer: super::OptionalConnectInfo,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     local_only(&state, &peer)?;
     let status = phar::start_install(&state.data_dir, state.install_scope).map_err(|error| {
@@ -279,7 +279,7 @@ pub async fn phar_install(
 
 pub async fn phar_cancel(
     State(state): State<Arc<AppState>>,
-    peer: Option<ConnectInfo<SocketAddr>>,
+    peer: super::OptionalConnectInfo,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     local_only(&state, &peer)?;
     let status = phar::cancel(&state.data_dir, state.install_scope).map_err(|error| {
@@ -293,7 +293,7 @@ pub async fn phar_cancel(
 
 pub async fn phar_repair(
     State(state): State<Arc<AppState>>,
-    peer: Option<ConnectInfo<SocketAddr>>,
+    peer: super::OptionalConnectInfo,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     local_only(&state, &peer)?;
     let status = phar::repair(&state.data_dir, state.install_scope).map_err(|error| {
@@ -307,7 +307,7 @@ pub async fn phar_repair(
 
 pub async fn phar_self_test(
     State(state): State<Arc<AppState>>,
-    peer: Option<ConnectInfo<SocketAddr>>,
+    peer: super::OptionalConnectInfo,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     local_only(&state, &peer)?;
     let status = phar::self_test(&state.data_dir, state.install_scope).map_err(|error| {

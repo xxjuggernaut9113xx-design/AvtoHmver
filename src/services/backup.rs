@@ -77,7 +77,7 @@ mod tests {
         std::fs::create_dir_all(&backup_dir).unwrap();
         std::fs::write(backup_dir.join("test.zip"), b"fixture").unwrap();
         let direct = snapshot(&state).await.unwrap();
-        let http = crate::routes::admin::list_backups(State(state), None)
+        let http = crate::routes::admin::list_backups(State(state), None.into())
             .await
             .unwrap()
             .0;

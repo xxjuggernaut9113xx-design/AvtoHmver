@@ -24,9 +24,9 @@ use crate::AppState;
 /// peer — or no peer, as on the Host-direct path — resolves to the Host
 /// itself; any other address is a remote Viewer carrying the capability set
 /// the Host advertises for its viewers.
-fn caller_for_peer(peer: Option<ConnectInfo<SocketAddr>>) -> Caller {
+fn caller_for_peer(peer: impl Into<Option<ConnectInfo<SocketAddr>>>) -> Caller {
     Caller::for_peer(
-        peer.map(|peer| peer.0),
+        peer.into().map(|peer| peer.0),
         crate::native::ViewerPermissions::default(),
     )
 }
@@ -118,7 +118,7 @@ pub async fn stream(
     Path(id): Path<i64>,
     headers: HeaderMap,
     method: Method,
-    peer: Option<ConnectInfo<SocketAddr>>,
+    peer: super::OptionalConnectInfo,
 ) -> Response {
     serve_stream(&state, id, headers, method, caller_for_peer(peer)).await
 }
@@ -279,7 +279,7 @@ pub async fn list(
         })
 }
 
-// ─── PUT /api/media/:id/rating ───────────────────────────────────────────────
+// ─── PUT /api/media/{id}/rating ───────────────────────────────────────────────
 
 #[derive(Deserialize)]
 pub struct RatingBody {
@@ -288,7 +288,7 @@ pub struct RatingBody {
 
 pub async fn set_rating(
     State(state): State<Arc<AppState>>,
-    peer: Option<ConnectInfo<SocketAddr>>,
+    peer: super::OptionalConnectInfo,
     Path(id): Path<i64>,
     Json(body): Json<RatingBody>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
@@ -302,7 +302,7 @@ pub async fn set_rating(
 
 pub async fn approve_rating(
     State(state): State<Arc<AppState>>,
-    peer: Option<ConnectInfo<SocketAddr>>,
+    peer: super::OptionalConnectInfo,
     Path(id): Path<i64>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     review_response(crate::services::media::review(
@@ -345,7 +345,7 @@ pub struct DurationBody {
 
 pub async fn set_duration(
     State(state): State<Arc<AppState>>,
-    peer: Option<ConnectInfo<SocketAddr>>,
+    peer: super::OptionalConnectInfo,
     Path(id): Path<i64>,
     Json(body): Json<DurationBody>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
@@ -371,7 +371,7 @@ pub struct UndoRatingBody {
 
 pub async fn undo_rating(
     State(state): State<Arc<AppState>>,
-    peer: Option<ConnectInfo<SocketAddr>>,
+    peer: super::OptionalConnectInfo,
     Path(id): Path<i64>,
     Json(body): Json<UndoRatingBody>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
@@ -390,7 +390,7 @@ pub struct TagBody {
 
 pub async fn add_tag(
     State(state): State<Arc<AppState>>,
-    peer: Option<ConnectInfo<SocketAddr>>,
+    peer: super::OptionalConnectInfo,
     Path(id): Path<i64>,
     Json(body): Json<TagBody>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
@@ -426,11 +426,11 @@ pub async fn add_tag(
     Ok(Json(json!({ "media_id": id, "tags": tags })))
 }
 
-// ─── DELETE /api/media/:id/tags/:tag_id ──────────────────────────────────────
+// ─── DELETE /api/media/{id}/tags/{tag_id} ──────────────────────────────────────
 
 pub async fn remove_tag(
     State(state): State<Arc<AppState>>,
-    peer: Option<ConnectInfo<SocketAddr>>,
+    peer: super::OptionalConnectInfo,
     Path((id, tag_id)): Path<(i64, i64)>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     if let Some(denied) = deny_edit(caller_for_peer(peer)) {
@@ -462,7 +462,7 @@ pub struct BulkMediaBody {
 /// models instead of creating a separate library store.
 pub async fn bulk(
     State(state): State<Arc<AppState>>,
-    peer: Option<ConnectInfo<SocketAddr>>,
+    peer: super::OptionalConnectInfo,
     Json(body): Json<BulkMediaBody>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     let mut ids = body.ids.clone();
@@ -765,7 +765,7 @@ mod tests {
         assert_eq!(videos["media"].as_array().unwrap().len(), 1);
         let _ = set_duration(
             State(state.clone()),
-            None,
+            None.into(),
             Path(1),
             Json(DurationBody {
                 duration_secs: 45.0,
@@ -798,7 +798,7 @@ mod tests {
         assert_eq!(
             set_duration(
                 State(state),
-                None,
+                None.into(),
                 Path(1),
                 Json(DurationBody {
                     duration_secs: -1.0
@@ -819,7 +819,7 @@ mod tests {
         state.pool.get().unwrap().execute_batch("INSERT INTO media(id,source_id,filepath,filename,type,added_at,auto_rating,rating,rating_source) VALUES(1,1,'a','a','image','2026',4,4,'auto');").unwrap();
         let saved = set_rating(
             State(state.clone()),
-            None,
+            None.into(),
             Path(1),
             Json(RatingBody { rating: 3 }),
         )
@@ -829,7 +829,7 @@ mod tests {
         let token = saved["rating_reviewed_at"].as_str().unwrap().to_string();
         let undone = undo_rating(
             State(state.clone()),
-            None,
+            None.into(),
             Path(1),
             Json(UndoRatingBody {
                 rating_reviewed_at: token.clone(),
@@ -855,7 +855,7 @@ mod tests {
         assert_eq!(
             undo_rating(
                 State(state.clone()),
-                None,
+                None.into(),
                 Path(1),
                 Json(UndoRatingBody {
                     rating_reviewed_at: token
@@ -910,7 +910,7 @@ mod tests {
         assert_eq!(queue["has_more"], true);
         // Approving an automatic recommendation is intentionally a separate
         // endpoint; star-rating requests themselves accept only 1..=5.
-        let manual = approve_rating(State(state.clone()), None, Path(1))
+        let manual = approve_rating(State(state.clone()), None.into(), Path(1))
             .await
             .unwrap()
             .0;
@@ -941,7 +941,7 @@ mod tests {
         .0;
         assert_eq!(next["media"][0]["id"], 2);
         assert_eq!(next["has_more"], false);
-        let approved = approve_rating(State(state.clone()), None, Path(2))
+        let approved = approve_rating(State(state.clone()), None.into(), Path(2))
             .await
             .unwrap()
             .0;
@@ -964,7 +964,7 @@ mod tests {
         // independently stored automatic recommendation for review.
         let cleared = undo_rating(
             State(state.clone()),
-            None,
+            None.into(),
             Path(1),
             Json(UndoRatingBody {
                 rating_reviewed_at: manual["rating_reviewed_at"].as_str().unwrap().to_owned(),
@@ -989,24 +989,29 @@ mod tests {
         .0;
         assert_eq!(reopened["media"][0]["id"], 1);
         assert_eq!(
-            approve_rating(State(state.clone()), None, Path(3))
+            approve_rating(State(state.clone()), None.into(), Path(3))
                 .await
                 .unwrap_err()
                 .0,
             StatusCode::CONFLICT
         );
         assert_eq!(
-            approve_rating(State(state.clone()), None, Path(999))
+            approve_rating(State(state.clone()), None.into(), Path(999))
                 .await
                 .unwrap_err()
                 .0,
             StatusCode::NOT_FOUND
         );
         assert_eq!(
-            set_rating(State(state), None, Path(1), Json(RatingBody { rating: 6 }))
-                .await
-                .unwrap_err()
-                .0,
+            set_rating(
+                State(state),
+                None.into(),
+                Path(1),
+                Json(RatingBody { rating: 6 })
+            )
+            .await
+            .unwrap_err()
+            .0,
             StatusCode::BAD_REQUEST
         );
     }
@@ -1385,7 +1390,7 @@ mod tests {
         assert_eq!(
             set_rating(
                 State(state.clone()),
-                peer,
+                peer.into(),
                 Path(1),
                 Json(RatingBody { rating: 4 }),
             )
@@ -1395,7 +1400,7 @@ mod tests {
             StatusCode::FORBIDDEN
         );
         assert_eq!(
-            approve_rating(State(state.clone()), peer, Path(1))
+            approve_rating(State(state.clone()), peer.into(), Path(1))
                 .await
                 .unwrap_err()
                 .0,
@@ -1404,7 +1409,7 @@ mod tests {
         assert_eq!(
             undo_rating(
                 State(state.clone()),
-                peer,
+                peer.into(),
                 Path(1),
                 Json(UndoRatingBody {
                     rating_reviewed_at: "token".into()
@@ -1418,7 +1423,7 @@ mod tests {
         assert_eq!(
             add_tag(
                 State(state.clone()),
-                peer,
+                peer.into(),
                 Path(1),
                 Json(TagBody {
                     name: "nope".into()
@@ -1430,7 +1435,7 @@ mod tests {
             StatusCode::FORBIDDEN
         );
         assert_eq!(
-            remove_tag(State(state.clone()), peer, Path((1, 1)),)
+            remove_tag(State(state.clone()), peer.into(), Path((1, 1)),)
                 .await
                 .unwrap_err()
                 .0,
@@ -1439,7 +1444,7 @@ mod tests {
         assert_eq!(
             set_duration(
                 State(state.clone()),
-                peer,
+                peer.into(),
                 Path(1),
                 Json(DurationBody {
                     duration_secs: 12.0
@@ -1453,7 +1458,7 @@ mod tests {
         assert_eq!(
             bulk(
                 State(state.clone()),
-                peer,
+                peer.into(),
                 Json(BulkMediaBody {
                     ids: vec![1],
                     action: "set_rating".into(),
@@ -1471,7 +1476,7 @@ mod tests {
         // The Host itself is unaffected: the same calls succeed locally.
         let _ = set_rating(
             State(state.clone()),
-            None,
+            None.into(),
             Path(1),
             Json(RatingBody { rating: 4 }),
         )
@@ -1479,7 +1484,7 @@ mod tests {
         .unwrap();
         let _ = bulk(
             State(state),
-            None,
+            None.into(),
             Json(BulkMediaBody {
                 ids: vec![1],
                 action: "set_rating".into(),

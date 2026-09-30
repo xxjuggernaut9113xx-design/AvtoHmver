@@ -45,7 +45,7 @@ fn ensure_local(peer: &Option<ConnectInfo<SocketAddr>>) -> Result<(), (StatusCod
 
 pub async fn serve_root(
     State(state): State<Arc<AppState>>,
-    peer: Option<ConnectInfo<SocketAddr>>,
+    peer: super::OptionalConnectInfo,
 ) -> Response {
     if state.edition != crate::edition::Edition::Server {
         return StatusCode::NOT_FOUND.into_response();
@@ -173,7 +173,7 @@ fn dep_json(status: logic::DependencyStatus, required: bool) -> Value {
 
 pub async fn status(
     State(state): State<Arc<AppState>>,
-    peer: Option<ConnectInfo<SocketAddr>>,
+    peer: super::OptionalConnectInfo,
 ) -> Response {
     match ensure_local(&peer) {
         Ok(()) => Json(build_status(&state).await).into_response(),
@@ -191,7 +191,7 @@ pub struct ValidateBody {
 
 pub async fn validate(
     State(state): State<Arc<AppState>>,
-    peer: Option<ConnectInfo<SocketAddr>>,
+    peer: super::OptionalConnectInfo,
     Json(body): Json<ValidateBody>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     ensure_local(&peer)?;
@@ -288,7 +288,7 @@ fn validate_executable_field(raw: &str) -> Result<String, String> {
 
 pub async fn save_settings(
     State(state): State<Arc<AppState>>,
-    peer: Option<ConnectInfo<SocketAddr>>,
+    peer: super::OptionalConnectInfo,
     Json(body): Json<OobeSettingsBody>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     ensure_local(&peer)?;
@@ -403,7 +403,7 @@ pub async fn save_settings(
 
 pub async fn complete(
     State(state): State<Arc<AppState>>,
-    peer: Option<ConnectInfo<SocketAddr>>,
+    peer: super::OptionalConnectInfo,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     ensure_local(&peer)?;
     let bin = state.gallery_dl_bin.clone();
@@ -440,7 +440,7 @@ pub async fn complete(
 
 pub async fn reset(
     State(state): State<Arc<AppState>>,
-    peer: Option<ConnectInfo<SocketAddr>>,
+    peer: super::OptionalConnectInfo,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     ensure_local(&peer)?;
     // Deliberately touches nothing but the one flag — no downloads, no

@@ -133,7 +133,7 @@ pub async fn create(
     Ok(Json(row))
 }
 
-// ─── PATCH /api/groups/:id ───────────────────────────────────────────────────
+// ─── PATCH /api/groups/{id} ───────────────────────────────────────────────────
 
 pub async fn update(
     State(state): State<Arc<AppState>>,
@@ -234,7 +234,7 @@ pub async fn update(
     Ok(Json(group_json))
 }
 
-// ─── DELETE /api/groups/:id ──────────────────────────────────────────────────
+// ─── DELETE /api/groups/{id} ──────────────────────────────────────────────────
 
 pub async fn delete(
     State(state): State<Arc<AppState>>,
@@ -270,7 +270,7 @@ pub async fn delete(
     Ok(Json(json!({ "status": "deleted" })))
 }
 
-// ─── POST /api/groups/:id/tags ───────────────────────────────────────────────
+// ─── POST /api/groups/{id}/tags ───────────────────────────────────────────────
 
 pub async fn add_tag(
     State(state): State<Arc<AppState>>,
@@ -314,7 +314,7 @@ pub async fn add_tag(
     Ok(Json(json!({ "group_id": id, "tags": tags })))
 }
 
-// ─── DELETE /api/groups/:id/tags/:tag_id ─────────────────────────────────────
+// ─── DELETE /api/groups/{id}/tags/{tag_id} ─────────────────────────────────────
 
 pub async fn remove_tag(
     State(state): State<Arc<AppState>>,

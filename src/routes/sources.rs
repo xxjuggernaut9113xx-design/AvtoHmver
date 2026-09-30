@@ -1,20 +1,18 @@
 use std::sync::Arc;
 
-use axum::{
-    extract::{ConnectInfo, Path, Query, State},
-    http::StatusCode,
-    Json,
-};
-use serde::{Deserialize, Deserializer};
-use serde_json::{json, Value};
-use std::net::SocketAddr;
-
 use crate::db::now_iso;
 use crate::downloader::run_download;
 use crate::routes::media::db_err;
 use crate::services::sources::row_to_json;
 use crate::slug::split_bulk_input;
 use crate::AppState;
+use axum::{
+    extract::{Path, Query, State},
+    http::StatusCode,
+    Json,
+};
+use serde::{Deserialize, Deserializer};
+use serde_json::{json, Value};
 
 // ─── Models ───────────────────────────────────────────────────────────────────
 
@@ -85,7 +83,7 @@ pub async fn list(
     Ok(Json(json!({ "sources": sources })))
 }
 
-// ─── GET /api/sources/:id ────────────────────────────────────────────────────
+// ─── GET /api/sources/{id} ────────────────────────────────────────────────────
 
 pub async fn get(
     State(state): State<Arc<AppState>>,
@@ -136,16 +134,16 @@ pub async fn add(
     Ok(Json(result))
 }
 
-// ─── PATCH /api/sources/:id ──────────────────────────────────────────────────
+// ─── PATCH /api/sources/{id} ──────────────────────────────────────────────────
 
 pub async fn patch(
     State(state): State<Arc<AppState>>,
     Path(id): Path<i64>,
-    peer: Option<ConnectInfo<SocketAddr>>,
+    peer: super::OptionalConnectInfo,
     Json(body): Json<PatchSourceBody>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     let caller = crate::services::access::Caller::for_peer(
-        peer.map(|peer| peer.0),
+        peer.into_option().map(|peer| peer.0),
         crate::native::ViewerPermissions::default(),
     );
     crate::services::sources::patch(
@@ -178,16 +176,16 @@ pub async fn patch(
     })
 }
 
-// ─── PATCH /api/sources/:id/group ────────────────────────────────────────────
+// ─── PATCH /api/sources/{id}/group ────────────────────────────────────────────
 
 pub async fn set_group(
     State(state): State<Arc<AppState>>,
     Path(id): Path<i64>,
-    peer: Option<ConnectInfo<SocketAddr>>,
+    peer: super::OptionalConnectInfo,
     Json(body): Json<SetGroupBody>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     let caller = crate::services::access::Caller::for_peer(
-        peer.map(|peer| peer.0),
+        peer.into_option().map(|peer| peer.0),
         crate::native::ViewerPermissions::default(),
     );
     crate::services::sources::set_group(&state, caller, id, body.group_id)
@@ -207,7 +205,7 @@ pub async fn set_group(
         })
 }
 
-// ─── POST /api/sources/:id/resync ────────────────────────────────────────────
+// ─── POST /api/sources/{id}/resync ────────────────────────────────────────────
 
 pub async fn resync(
     State(state): State<Arc<AppState>>,
@@ -288,16 +286,16 @@ pub async fn resync_all(State(state): State<Arc<AppState>>) -> Json<Value> {
     Json(json!({ "queued": count }))
 }
 
-// ─── DELETE /api/sources/:id ─────────────────────────────────────────────────
+// ─── DELETE /api/sources/{id} ─────────────────────────────────────────────────
 
 pub async fn delete(
     State(state): State<Arc<AppState>>,
     Path(id): Path<i64>,
     Query(q): Query<DeleteQuery>,
-    peer: Option<ConnectInfo<SocketAddr>>,
+    peer: super::OptionalConnectInfo,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     let caller = crate::services::access::Caller::for_peer(
-        peer.map(|peer| peer.0),
+        peer.into_option().map(|peer| peer.0),
         crate::native::ViewerPermissions::default(),
     );
     crate::services::sources::delete(state, caller, id, q.delete_files)
@@ -374,7 +372,7 @@ mod tests {
 
         let enabled: PatchSourceBody =
             serde_json::from_value(serde_json::json!({"retention_keep_newest": 25})).unwrap();
-        let Json(value) = patch(State(state.clone()), Path(1), None, Json(enabled))
+        let Json(value) = patch(State(state.clone()), Path(1), None.into(), Json(enabled))
             .await
             .unwrap();
         assert_eq!(value["retention_keep_newest"], 25);
@@ -392,7 +390,7 @@ mod tests {
 
         let disabled: PatchSourceBody =
             serde_json::from_value(serde_json::json!({"retention_keep_newest": null})).unwrap();
-        let _ = patch(State(state.clone()), Path(1), None, Json(disabled))
+        let _ = patch(State(state.clone()), Path(1), None.into(), Json(disabled))
             .await
             .unwrap();
         let cleared: Option<i64> = state
@@ -418,7 +416,7 @@ mod tests {
         let missing: PatchSourceBody =
             serde_json::from_value(serde_json::json!({"retention_keep_newest": 5})).unwrap();
         assert!(matches!(
-            patch(State(state.clone()), Path(1), None, Json(missing)).await,
+            patch(State(state.clone()), Path(1), None.into(), Json(missing)).await,
             Err((StatusCode::BAD_REQUEST, _))
         ));
 
@@ -427,7 +425,7 @@ mod tests {
             "retention_confirmation": "ENABLE RETENTION"
         }))
         .unwrap();
-        assert!(patch(State(state), Path(1), None, Json(confirmed))
+        assert!(patch(State(state), Path(1), None.into(), Json(confirmed))
             .await
             .is_ok());
     }

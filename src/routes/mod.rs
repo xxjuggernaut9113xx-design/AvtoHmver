@@ -22,7 +22,7 @@ pub mod thumb;
 
 use crate::AppState;
 use axum::{
-    extract::{ConnectInfo, Request, State},
+    extract::{ConnectInfo, FromRequestParts, Request, State},
     http::{Method, StatusCode},
     middleware::Next,
     response::{IntoResponse, Response},
@@ -30,7 +30,54 @@ use axum::{
     Json, Router,
 };
 use serde_json::json;
-use std::{net::SocketAddr, sync::Arc};
+use std::{convert::Infallible, net::SocketAddr, ops::Deref, sync::Arc};
+
+#[derive(Clone, Copy, Debug)]
+pub struct OptionalConnectInfo(Option<ConnectInfo<SocketAddr>>);
+
+impl OptionalConnectInfo {
+    pub(crate) fn into_option(self) -> Option<ConnectInfo<SocketAddr>> {
+        self.0
+    }
+}
+
+impl From<OptionalConnectInfo> for Option<ConnectInfo<SocketAddr>> {
+    fn from(peer: OptionalConnectInfo) -> Self {
+        peer.into_option()
+    }
+}
+
+impl From<Option<ConnectInfo<SocketAddr>>> for OptionalConnectInfo {
+    fn from(peer: Option<ConnectInfo<SocketAddr>>) -> Self {
+        Self(peer)
+    }
+}
+
+impl Deref for OptionalConnectInfo {
+    type Target = Option<ConnectInfo<SocketAddr>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<S> FromRequestParts<S> for OptionalConnectInfo
+where
+    S: Send + Sync,
+{
+    type Rejection = Infallible;
+
+    async fn from_request_parts(
+        parts: &mut axum::http::request::Parts,
+        state: &S,
+    ) -> Result<Self, Self::Rejection> {
+        Ok(Self(
+            ConnectInfo::<SocketAddr>::from_request_parts(parts, state)
+                .await
+                .ok(),
+        ))
+    }
+}
 
 /// Canonical mutation permission contract. Host and Server own their local
 /// library; a Tailnet Viewer is read/play/discover-only. Keep this list in
@@ -60,8 +107,8 @@ macro_rules! owner_mutations {
 pub const MUTATION_PERMISSIONS: &[MutationPermission] = owner_mutations![
     ("POST", "/api/admin/jobs"),
     ("POST", "/api/admin/backups"),
-    ("POST", "/api/admin/backups/:id/validate"),
-    ("POST", "/api/admin/backups/:id/restore"),
+    ("POST", "/api/admin/backups/{id}/validate"),
+    ("POST", "/api/admin/backups/{id}/restore"),
     ("POST", "/api/admin/phar"),
     ("POST", "/api/admin/phar/install"),
     ("POST", "/api/admin/phar/cancel"),
@@ -74,37 +121,37 @@ pub const MUTATION_PERMISSIONS: &[MutationPermission] = owner_mutations![
     ("POST", "/api/oobe/complete"),
     ("POST", "/api/oobe/reset"),
     ("POST", "/api/media/bulk"),
-    ("POST", "/api/media/:id/clips"),
-    ("PUT", "/api/media/:id/rating"),
-    ("POST", "/api/media/:id/rating/approve"),
-    ("POST", "/api/media/:id/rating/undo"),
-    ("PUT", "/api/media/:id/duration"),
-    ("POST", "/api/media/:id/tags"),
-    ("DELETE", "/api/media/:id/tags/:tag_id"),
-    ("DELETE", "/api/tags/:id"),
+    ("POST", "/api/media/{id}/clips"),
+    ("PUT", "/api/media/{id}/rating"),
+    ("POST", "/api/media/{id}/rating/approve"),
+    ("POST", "/api/media/{id}/rating/undo"),
+    ("PUT", "/api/media/{id}/duration"),
+    ("POST", "/api/media/{id}/tags"),
+    ("DELETE", "/api/media/{id}/tags/{tag_id}"),
+    ("DELETE", "/api/tags/{id}"),
     ("POST", "/api/source-tags/review"),
     ("POST", "/api/source-tag-rules"),
-    ("DELETE", "/api/source-tag-rules/:id"),
+    ("DELETE", "/api/source-tag-rules/{id}"),
     ("POST", "/api/sources"),
     ("POST", "/api/sources/resync-all"),
-    ("PATCH", "/api/sources/:id"),
-    ("DELETE", "/api/sources/:id"),
-    ("PATCH", "/api/sources/:id/group"),
-    ("POST", "/api/sources/:id/resync"),
+    ("PATCH", "/api/sources/{id}"),
+    ("DELETE", "/api/sources/{id}"),
+    ("PATCH", "/api/sources/{id}/group"),
+    ("POST", "/api/sources/{id}/resync"),
     ("POST", "/api/ch/session"),
     ("POST", "/api/search/download"),
     ("POST", "/api/groups"),
-    ("PATCH", "/api/groups/:id"),
-    ("DELETE", "/api/groups/:id"),
-    ("POST", "/api/groups/:id/tags"),
-    ("DELETE", "/api/groups/:id/tags/:tag_id"),
+    ("PATCH", "/api/groups/{id}"),
+    ("DELETE", "/api/groups/{id}"),
+    ("POST", "/api/groups/{id}/tags"),
+    ("DELETE", "/api/groups/{id}/tags/{tag_id}"),
     ("POST", "/api/downloads/pause"),
     ("POST", "/api/downloads/resume"),
-    ("POST", "/api/downloads/sources/:id/pause"),
-    ("POST", "/api/downloads/sources/:id/resume"),
+    ("POST", "/api/downloads/sources/{id}/pause"),
+    ("POST", "/api/downloads/sources/{id}/resume"),
     ("PATCH", "/api/settings"),
-    ("POST", "/api/storage/sources/:id/permit-once"),
-    ("POST", "/api/storage/sources/:id/cleanup"),
+    ("POST", "/api/storage/sources/{id}/permit-once"),
+    ("POST", "/api/storage/sources/{id}/cleanup"),
     ("POST", "/api/storage/thumbnails/clear"),
     ("POST", "/api/storage/archives/cleanup"),
     ("POST", "/api/export/chpack"),
@@ -113,7 +160,7 @@ pub const MUTATION_PERMISSIONS: &[MutationPermission] = owner_mutations![
     ("POST", "/api/goon/session/complete"),
     ("POST", "/api/goon/playlists"),
     ("POST", "/api/goon/beat-maps/analyze"),
-    ("PATCH", "/api/goon/beat-maps/:id"),
+    ("PATCH", "/api/goon/beat-maps/{id}"),
     ("POST", "/api/goon/oauth/callback"),
 ];
 
@@ -171,18 +218,18 @@ pub fn build_router(state: Arc<AppState>) -> Router {
             "/api/admin/jobs",
             get(admin::list_jobs).post(admin::start_job),
         )
-        .route("/api/admin/jobs/:id", get(admin::get_job))
+        .route("/api/admin/jobs/{id}", get(admin::get_job))
         .route(
             "/api/admin/backups",
             get(admin::list_backups).post(admin::create_backup),
         )
-        .route("/api/admin/backups/:id", get(admin::download_backup))
+        .route("/api/admin/backups/{id}", get(admin::download_backup))
         .route(
-            "/api/admin/backups/:id/validate",
+            "/api/admin/backups/{id}/validate",
             post(admin::validate_backup),
         )
         .route(
-            "/api/admin/backups/:id/restore",
+            "/api/admin/backups/{id}/restore",
             post(admin::restore_backup),
         )
         .route(
@@ -215,24 +262,27 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         // ── Media ──────────────────────────────────────────────────────────
         .route("/api/media", get(media::list))
         .route(
-            "/api/media/:id/stream",
+            "/api/media/{id}/stream",
             get(media::stream).head(media::stream),
         )
         .route("/api/media/bulk", post(media::bulk))
-        .route("/api/media/:id/clips", post(clips::create))
-        .route("/api/clip-jobs/:id", get(clips::status))
-        .route("/api/media/:id/rating", put(media::set_rating))
-        .route("/api/media/:id/rating/approve", post(media::approve_rating))
-        .route("/api/media/:id/rating/undo", post(media::undo_rating))
-        .route("/api/media/:id/duration", put(media::set_duration))
-        .route("/api/media/:id/tags", post(media::add_tag))
-        .route("/api/media/:id/tags/:tag_id", delete(media::remove_tag))
+        .route("/api/media/{id}/clips", post(clips::create))
+        .route("/api/clip-jobs/{id}", get(clips::status))
+        .route("/api/media/{id}/rating", put(media::set_rating))
+        .route(
+            "/api/media/{id}/rating/approve",
+            post(media::approve_rating),
+        )
+        .route("/api/media/{id}/rating/undo", post(media::undo_rating))
+        .route("/api/media/{id}/duration", put(media::set_duration))
+        .route("/api/media/{id}/tags", post(media::add_tag))
+        .route("/api/media/{id}/tags/{tag_id}", delete(media::remove_tag))
         // ── Thumbnails ─────────────────────────────────────────────────────
-        .route("/api/thumb/:id", get(thumb::get_thumbnail))
+        .route("/api/thumb/{id}", get(thumb::get_thumbnail))
         // ── Tags ───────────────────────────────────────────────────────────
         .route("/api/tags", get(tags::list))
         .route("/api/tags/quick", get(tags::quick))
-        .route("/api/tags/:id", delete(tags::delete_tag))
+        .route("/api/tags/{id}", delete(tags::delete_tag))
         .route(
             "/api/source-tags/review",
             get(source_tags::review_list).post(source_tags::review),
@@ -242,21 +292,21 @@ pub fn build_router(state: Arc<AppState>) -> Router {
             get(source_tags::list_rules).post(source_tags::save_rule),
         )
         .route(
-            "/api/source-tag-rules/:id",
+            "/api/source-tag-rules/{id}",
             delete(source_tags::delete_rule),
         )
         // ── Sources ────────────────────────────────────────────────────────
         .route("/api/sources", get(sources::list).post(sources::add))
         .route("/api/sources/resync-all", post(sources::resync_all))
         .route(
-            "/api/sources/:id",
+            "/api/sources/{id}",
             get(sources::get)
                 .patch(sources::patch)
                 .delete(sources::delete),
         )
-        .route("/api/sources/:id/group", patch(sources::set_group))
-        .route("/api/sources/:id/resync", post(sources::resync))
-        .route("/api/sources/:id/log", get(misc::source_log))
+        .route("/api/sources/{id}/group", patch(sources::set_group))
+        .route("/api/sources/{id}/resync", post(sources::resync))
+        .route("/api/sources/{id}/log", get(misc::source_log))
         // ── Cock Hero ──────────────────────────────────────────────────────
         .route("/api/ch/playlist", get(ch::get_playlist))
         .route("/api/ch/session", post(ch::log_session))
@@ -268,21 +318,21 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         // ── Groups ─────────────────────────────────────────────────────────
         .route("/api/groups", get(groups::list).post(groups::create))
         .route(
-            "/api/groups/:id",
+            "/api/groups/{id}",
             patch(groups::update).delete(groups::delete),
         )
-        .route("/api/groups/:id/tags", post(groups::add_tag))
-        .route("/api/groups/:id/tags/:tag_id", delete(groups::remove_tag))
+        .route("/api/groups/{id}/tags", post(groups::add_tag))
+        .route("/api/groups/{id}/tags/{tag_id}", delete(groups::remove_tag))
         // ── Downloads ──────────────────────────────────────────────────────
         .route("/api/downloads/status", get(downloads::status))
         .route("/api/downloads/pause", post(downloads::pause))
         .route("/api/downloads/resume", post(downloads::resume))
         .route(
-            "/api/downloads/sources/:id/pause",
+            "/api/downloads/sources/{id}/pause",
             post(downloads::pause_source),
         )
         .route(
-            "/api/downloads/sources/:id/resume",
+            "/api/downloads/sources/{id}/resume",
             post(downloads::resume_source),
         )
         // ── Settings ───────────────────────────────────────────────────────
@@ -290,11 +340,11 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route("/api/remote-access", get(remote::status))
         .route("/api/storage", get(storage::dashboard))
         .route(
-            "/api/storage/sources/:id/permit-once",
+            "/api/storage/sources/{id}/permit-once",
             post(storage::permit_one_sync),
         )
         .route(
-            "/api/storage/sources/:id/cleanup",
+            "/api/storage/sources/{id}/cleanup",
             post(storage::cleanup_source),
         )
         .route(
@@ -321,7 +371,7 @@ pub fn build_router(state: Arc<AppState>) -> Router {
             get(goon::list_playlists).post(goon::save_playlist),
         )
         .route("/api/goon/beat-maps/analyze", post(goon::analyze_beat_map))
-        .route("/api/goon/beat-maps/:id", patch(goon::update_beat_map))
+        .route("/api/goon/beat-maps/{id}", patch(goon::update_beat_map))
         .route("/api/goon/oauth/callback", post(goon::oauth_callback))
         .layer(axum::middleware::from_fn_with_state(
             Arc::clone(&state),
@@ -410,7 +460,7 @@ mod tests {
     }
 
     fn concrete_path(pattern: &str) -> String {
-        pattern.replace(":tag_id", "1").replace(":id", "1")
+        pattern.replace("{tag_id}", "1").replace("{id}", "1")
     }
 
     #[test]

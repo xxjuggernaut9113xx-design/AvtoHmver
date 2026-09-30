@@ -1172,7 +1172,7 @@ impl Client {
 }
 
 impl Client {
-    /// Mirrors `GET /api/clip-jobs/:id`. Server keeps the existing route;
+    /// Mirrors `GET /api/clip-jobs/{id}`. Server keeps the existing route;
     /// read-only, so any connected remote role may poll its own job.
     pub async fn clip_status(&self, job_id: i64) -> Result<serde_json::Value, String> {
         match self {
@@ -1799,7 +1799,7 @@ impl LocalClient {
             Command::MoveToGroup(ids, group_id) => response(
                 routes::media::bulk(
                     state,
-                    None,
+                    None.into(),
                     Json(routes::media::BulkMediaBody {
                         ids,
                         action: "move".into(),
@@ -1813,7 +1813,7 @@ impl LocalClient {
             Command::AddToGroup(ids, group_id) => response(
                 routes::media::bulk(
                     state,
-                    None,
+                    None.into(),
                     Json(routes::media::BulkMediaBody {
                         ids,
                         action: "add_group".into(),
@@ -1979,7 +1979,7 @@ impl LocalClient {
             Command::DeleteMedia(ids) => response(
                 routes::media::bulk(
                     state,
-                    None,
+                    None.into(),
                     Json(routes::media::BulkMediaBody {
                         ids,
                         action: "delete".into(),
@@ -1993,7 +1993,7 @@ impl LocalClient {
             Command::RefreshMetadata(ids) => response(
                 routes::media::bulk(
                     state,
-                    None,
+                    None.into(),
                     Json(routes::media::BulkMediaBody {
                         ids,
                         action: "refresh_metadata".into(),
@@ -2014,7 +2014,7 @@ impl LocalClient {
             ),
             Command::UpdateSettings(value) => {
                 let body = serde_json::from_value(value).map_err(|error| error.to_string())?;
-                response(routes::settings::patch(state, None, Json(body)).await)
+                response(routes::settings::patch(state, None.into(), Json(body)).await)
             }
             Command::QueueSearchResults(values) => {
                 let results =
@@ -2801,7 +2801,9 @@ mod tests {
             .execute(Command::UpdateSettings(json!({ "theme": "midnight" })))
             .await
             .unwrap();
-        let settings = routes::settings::get(State(state.clone()), None).await.0;
+        let settings = routes::settings::get(State(state.clone()), None.into())
+            .await
+            .0;
         assert_eq!(settings["theme"], "midnight");
     }
 

@@ -48,7 +48,7 @@ pub async fn dashboard(
 
 pub async fn permit_one_sync(
     State(state): State<Arc<AppState>>,
-    peer: Option<ConnectInfo<SocketAddr>>,
+    peer: super::OptionalConnectInfo,
     Path(id): Path<i64>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     local_only(&state, &peer)?;
@@ -91,7 +91,7 @@ pub struct CleanupSourceBody {
 
 pub async fn cleanup_source(
     State(state): State<Arc<AppState>>,
-    peer: Option<ConnectInfo<SocketAddr>>,
+    peer: super::OptionalConnectInfo,
     Path(id): Path<i64>,
     Json(body): Json<CleanupSourceBody>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
@@ -161,7 +161,7 @@ pub struct ConfirmationBody {
 
 pub async fn clear_thumbnails(
     State(state): State<Arc<AppState>>,
-    peer: Option<ConnectInfo<SocketAddr>>,
+    peer: super::OptionalConnectInfo,
     Json(body): Json<ConfirmationBody>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     local_only(&state, &peer)?;
@@ -201,7 +201,7 @@ pub struct ArchiveCleanupBody {
 
 pub async fn cleanup_archives(
     State(state): State<Arc<AppState>>,
-    peer: Option<ConnectInfo<SocketAddr>>,
+    peer: super::OptionalConnectInfo,
     Json(body): Json<ArchiveCleanupBody>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     local_only(&state, &peer)?;

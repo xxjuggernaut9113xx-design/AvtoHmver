@@ -161,7 +161,7 @@ pub async fn quick(
     Ok(Json(json!({ "tags": tags })))
 }
 
-// ─── DELETE /api/tags/:id ────────────────────────────────────────────────────
+// ─── DELETE /api/tags/{id} ────────────────────────────────────────────────────
 
 pub async fn delete_tag(
     State(state): State<Arc<AppState>>,
