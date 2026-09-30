@@ -4,3 +4,5 @@ config.json
 /dist/
 /desktop/target/
 /desktop/gen/
+__pycache__/
+*.py[cod]
