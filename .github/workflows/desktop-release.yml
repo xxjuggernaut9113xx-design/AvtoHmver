@@ -31,9 +31,11 @@ jobs:
           rust-version: "1.92.0"
           command: check bans licenses sources
       - name: RustSec advisory audit
-        uses: rustsec/audit-check@v2
+        uses: taiki-e/install-action@v2
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          tool: cargo-audit@0.22.2
+      - name: Check RustSec advisories
+        run: cargo audit
 
   validate:
     strategy:
