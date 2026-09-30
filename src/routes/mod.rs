@@ -483,7 +483,9 @@ mod tests {
 
     #[test]
     fn permission_document_is_generated_from_the_executable_matrix() {
-        let document = include_str!("../../docs/permissions.md");
+        // Git may check out Markdown with CRLF on Windows; compare the
+        // generated table using one line ending on every platform.
+        let document = include_str!("../../docs/permissions.md").replace("\r\n", "\n");
         let start_marker = "<!-- BEGIN GENERATED MUTATION MATRIX -->\n";
         let end_marker = "<!-- END GENERATED MUTATION MATRIX -->";
         let start = document.find(start_marker).expect("matrix start marker") + start_marker.len();
