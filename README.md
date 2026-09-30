@@ -46,8 +46,9 @@ templates are in [packaging](packaging/README.md).
 
 Windows Server releases contain separate current-user and all-users NSIS
 installers. The Linux portable archive includes its non-elevated service
-installer script; Linux `.deb` is the all-users Server package. Linux Host and Viewer releases also include
-portable AppImages alongside their `.deb` packages for current-user use.
+installer script; Linux `.deb` is the all-users Server package. Linux Host and
+Viewer packaging scripts produce `.deb` and portable tar archives; AppImages
+are not part of the current release workflow.
 
 To bring a stopped Host library into a new all-users Server location, run the
 elevated import command. It locks both locations, snapshots the source SQLite

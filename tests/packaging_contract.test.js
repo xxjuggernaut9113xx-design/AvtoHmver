@@ -75,6 +75,7 @@ test('release workflow builds native Windows and Linux binaries without browser 
   assert.match(workflow, /linux:/);
   assert.match(workflow, /windows-installers:/);
   assert.match(workflow, /smoke-desktop-installers\.ps1/);
+  assert.match(workflow, /build-server-installers\.ps1/);
   assert.match(workflow, /needs: \[dependency-security, windows-installers, linux\]/);
   assert.match(workflow, /cargo build -vv --release --locked -p \$\{\{ matrix\.package \}\} --bin/);
   assert.match(workflow, /RUST_LOG: debug/);
