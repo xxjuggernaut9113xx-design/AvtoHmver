@@ -2,6 +2,10 @@
 
 This table is the only status ledger. Detailed dated observations are linked from each ID. The [permission matrix](../permissions.md) defines role authority.
 
+H, V, and S denote intended Host, Viewer, and Server applicability (`✓`),
+limited applicability (`Scoped`), or exclusion (`—`). They do not claim
+completion. The service-layer column records current extraction direction.
+
 | ID | Title | H | V | S | Service layer | Status | Blockers |
 |---|---|---|---|---|---|---|---|
 | [A-01](evidence/A-01.md) | Typed service boundary | ✓ | Scoped | ✓ | Shared | Partial | Remaining service extraction |
