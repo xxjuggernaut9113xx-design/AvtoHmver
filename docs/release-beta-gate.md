@@ -34,7 +34,8 @@ Host instance ID in private release evidence. Do not publish tokens or IPs.
    Host-only operation in [the permission matrix](permissions.md); confirm
    server-side denial, not only a disabled control.
 5. Move the Host to another tailnet address or simulate the peer inventory
-   change with the checked-in fixture. Confirm Viewer rediscovers only the same
+   change with the checked-in [fixture](../tests/fixtures/tailscale-peer-inventory.json).
+   Confirm Viewer rediscovers only the same
    instance ID and renegotiates permissions. A changed instance ID must fail.
 6. Quit Host and confirm the listener and workers stop. Relaunch; the data lock
    should permit the new process and reject a concurrent second opener.

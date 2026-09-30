@@ -204,6 +204,10 @@ async fn tailnet_peer_ips() -> Result<Vec<std::net::IpAddr>, String> {
     }
     let status: TailscaleStatus = serde_json::from_slice(&output.stdout)
         .map_err(|_| "Tailscale returned unreadable peer data.".to_owned())?;
+    peer_ips_from_status(status)
+}
+
+fn peer_ips_from_status(status: TailscaleStatus) -> Result<Vec<std::net::IpAddr>, String> {
     if !status
         .backend_state
         .as_deref()
@@ -2410,6 +2414,20 @@ mod tests {
         let other_v6: std::net::IpAddr = "fd7a:115c:a1e1::2".parse().unwrap();
         assert!(!is_tailnet_ip(&other_v6));
         assert!(candidate_origin(other_v6, 42168).is_none());
+    }
+
+    #[test]
+    fn fake_peer_inventory_deduplicates_and_requires_running_tailnet() {
+        let fixture = include_str!("../tests/fixtures/tailscale-peer-inventory.json");
+        let status: TailscaleStatus = serde_json::from_str(fixture).unwrap();
+        let peers = peer_ips_from_status(status).unwrap();
+        assert_eq!(peers.len(), 4);
+        assert!(peers.contains(&"100.64.0.9".parse().unwrap()));
+        assert!(peers.contains(&"fd7a:115c:a1e0::8".parse().unwrap()));
+
+        let stopped: TailscaleStatus =
+            serde_json::from_str(&fixture.replace("Running", "Stopped")).unwrap();
+        assert!(peer_ips_from_status(stopped).is_err());
     }
 
     /// Serve one canned `/api/system/info` response on loopback so the

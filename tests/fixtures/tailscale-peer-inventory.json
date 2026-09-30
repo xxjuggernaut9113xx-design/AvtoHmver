@@ -1,0 +1,8 @@
+{
+  "BackendState": "Running",
+  "Self": { "TailscaleIPs": ["100.64.0.8", "fd7a:115c:a1e0::8"] },
+  "Peer": {
+    "first": { "TailscaleIPs": ["100.64.0.9", "100.64.0.8"] },
+    "second": { "TailscaleIPs": ["invalid", "100.64.0.10"] }
+  }
+}
