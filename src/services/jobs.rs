@@ -18,8 +18,8 @@ pub enum JobError {
 impl JobError {
     pub fn message(&self) -> &str {
         match self {
-            Self::Forbidden => "This Curator edition has no local Admin surface.",
-            Self::ShuttingDown => "Curator is shutting down",
+            Self::Forbidden => "This AvtoHmver edition has no local Admin surface.",
+            Self::ShuttingDown => "AvtoHmver is shutting down",
             Self::NotFound => "Maintenance job not found.",
             Self::Rejected(message) => message,
         }

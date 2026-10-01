@@ -1,4 +1,4 @@
-name: Curator release artifacts
+name: AvtoHmver release artifacts
 
 on:
   push:
@@ -10,7 +10,7 @@ on:
 permissions:
   contents: read
 
-# Preserve diagnostics from native builds and startup smoke tests. Curator's
+# Preserve diagnostics from native builds and startup smoke tests. AvtoHmver's
 # runtime logger honours RUST_LOG; CI opts into debug for useful failure logs.
 env:
   RUST_LOG: debug
@@ -75,27 +75,27 @@ jobs:
     strategy:
       matrix:
         include:
-          - package: curator
+          - package: avtohmver
             edition: server
-            binary: curator
-            artifact: curator.exe
-          - package: curator-desktop
+            binary: avtohmver-server
+            artifact: avtohmver-server.exe
+          - package: avtohmver-desktop
             edition: host
-            binary: Curator
-            artifact: Curator.exe
-          - package: curator-viewer
+            binary: AvtoHmver
+            artifact: AvtoHmver.exe
+          - package: avtohmver-viewer
             edition: viewer
-            binary: curator-viewer
-            artifact: curator-viewer.exe
+            binary: avtohmver-viewer
+            artifact: avtohmver-viewer.exe
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.92.0
       - uses: Swatinem/rust-cache@v2
-      - name: Build Curator ${{ matrix.edition }} with verbose diagnostics
+      - name: Build AvtoHmver ${{ matrix.edition }} with verbose diagnostics
         run: cargo build -vv --release --locked -p ${{ matrix.package }} --bin ${{ matrix.binary }}
       - uses: actions/upload-artifact@v4
         with:
-          name: curator-${{ matrix.edition }}-windows
+          name: avtohmver-${{ matrix.edition }}-windows
           path: target/release/${{ matrix.artifact }}
 
   bundle-tools:
@@ -109,7 +109,7 @@ jobs:
         run: sh packaging/bundles/fetch-tools.sh staged-tools
       - uses: actions/upload-artifact@v4
         with:
-          name: curator-verified-windows-tools
+          name: avtohmver-verified-windows-tools
           path: staged-tools/
 
   windows-installers:
@@ -119,34 +119,34 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: curator-server-windows
+          name: avtohmver-server-windows
           path: binaries/server
       - uses: actions/download-artifact@v4
         with:
-          name: curator-host-windows
+          name: avtohmver-host-windows
           path: binaries/host
       - uses: actions/download-artifact@v4
         with:
-          name: curator-viewer-windows
+          name: avtohmver-viewer-windows
           path: binaries/viewer
       - uses: actions/download-artifact@v4
         with:
-          name: curator-verified-windows-tools
+          name: avtohmver-verified-windows-tools
           path: staged-tools
       - name: Install NSIS
         run: choco install nsis --no-progress -y
       - name: Build Host and Viewer installers
         shell: pwsh
-        run: ./packaging/windows/build-desktop-installers.ps1 -HostBinary binaries/host/Curator.exe -ViewerBinary binaries/viewer/curator-viewer.exe -ToolsDirectory staged-tools -OutputDirectory installers
+        run: ./packaging/windows/build-desktop-installers.ps1 -HostBinary binaries/host/AvtoHmver.exe -ViewerBinary binaries/viewer/avtohmver-viewer.exe -ToolsDirectory staged-tools -OutputDirectory installers
       - name: Build Server installers
         shell: pwsh
-        run: ./packaging/windows/build-server-installers.ps1 -ServerBinary binaries/server/curator.exe -OutputDirectory installers
+        run: ./packaging/windows/build-server-installers.ps1 -ServerBinary binaries/server/avtohmver-server.exe -OutputDirectory installers
       - name: Install, upgrade, uninstall, and preserve data
         shell: pwsh
         run: ./packaging/windows/smoke-desktop-installers.ps1 -InstallerDirectory installers
       - uses: actions/upload-artifact@v4
         with:
-          name: curator-windows-installers
+          name: avtohmver-windows-installers
           path: installers/*.exe
 
   linux:
@@ -162,27 +162,27 @@ jobs:
         run: cargo build -vv --release --locked --workspace
       - name: Build and inspect existing Debian and portable packages
         run: |
-          sh packaging/linux/build-server-deb.sh target/release/curator linux-packages
-          sh packaging/linux/build-host-deb.sh target/release/Curator linux-packages
-          sh packaging/linux/build-viewer-deb.sh target/release/curator-viewer linux-packages
+          sh packaging/linux/build-server-deb.sh target/release/avtohmver-server linux-packages
+          sh packaging/linux/build-host-deb.sh target/release/AvtoHmver linux-packages
+          sh packaging/linux/build-viewer-deb.sh target/release/avtohmver-viewer linux-packages
           for package in linux-packages/*.deb; do dpkg-deb --field "$package" Package Version; dpkg-deb --contents "$package" >/dev/null; done
           for archive in linux-packages/*.tar.gz; do tar -tzf "$archive" >/dev/null; done
       - uses: actions/upload-artifact@v4
         with:
-          name: curator-linux-packages
+          name: avtohmver-linux-packages
           path: linux-packages/
       - uses: actions/upload-artifact@v4
         with:
-          name: curator-server-linux
-          path: target/release/curator
+          name: avtohmver-server-linux
+          path: target/release/avtohmver-server
       - uses: actions/upload-artifact@v4
         with:
-          name: curator-host-linux
-          path: target/release/Curator
+          name: avtohmver-host-linux
+          path: target/release/AvtoHmver
       - uses: actions/upload-artifact@v4
         with:
-          name: curator-viewer-linux
-          path: target/release/curator-viewer
+          name: avtohmver-viewer-linux
+          path: target/release/avtohmver-viewer
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
@@ -193,21 +193,21 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          pattern: curator-*-windows
+          pattern: avtohmver-*-windows
           path: release-artifacts
           merge-multiple: true
       - uses: actions/download-artifact@v4
         with:
-          pattern: curator-*-linux
+          pattern: avtohmver-*-linux
           path: release-artifacts
           merge-multiple: true
       - uses: actions/download-artifact@v4
         with:
-          name: curator-linux-packages
+          name: avtohmver-linux-packages
           path: release-artifacts
       - uses: actions/download-artifact@v4
         with:
-          name: curator-windows-installers
+          name: avtohmver-windows-installers
           path: release-artifacts
       - uses: softprops/action-gh-release@v2
         with:

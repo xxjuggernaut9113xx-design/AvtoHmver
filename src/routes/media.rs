@@ -689,7 +689,7 @@ fn bulk_delete_files(
         };
         if !path.starts_with(&root) {
             failed.push(
-                json!({"id":id,"error":"Refusing to delete a file outside Curator's library"}),
+                json!({"id":id,"error":"Refusing to delete a file outside AvtoHmver's library"}),
             );
             continue;
         }

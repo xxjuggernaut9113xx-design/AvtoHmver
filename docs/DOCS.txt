@@ -1,7 +1,7 @@
 CURATOR 0.3.0 — operational reference
 ======================================
 
-Curator is a self-hosted gallery-dl frontend. It stores sources, media
+AvtoHmver is a self-hosted gallery-dl frontend. It stores sources, media
 metadata, ratings, groups, tags, downloads, and browser UI state locally.
 It binds only to loopback and explicitly detected Tailscale addresses; it
 never binds an ordinary LAN interface or a wildcard address.
@@ -10,54 +10,54 @@ never binds an ordinary LAN interface or a wildcard address.
 EDITIONS
 --------
 
-Curator Server (`curator`)
+AvtoHmver Server (`avtohmver-server`)
     Headless Rust backend, browser UI/API, downloads, media serving, console
     mode, and background-service mode. It owns a data directory.
 
-Curator Host (`Curator`)
+AvtoHmver Host (`AvtoHmver`)
     Native Slint desktop application with the same backend and local
     integrations. It owns a data directory and calls the Rust core directly.
 
-Curator Viewer (`curator-viewer`)
+AvtoHmver Viewer (`avtohmver-viewer`)
     Lightweight native Slint client for saved Tailnet hosts. It starts no SQLite
     database, no downloader, and no HTTP server. It validates and pins remote
     requests to a Tailnet peer address.
 
-Host and Server acquire an exclusive OS lock at <data-dir>/.curator-data.lock
+Host and Server acquire an exclusive OS lock at <data-dir>/.avtohmver-server-data.lock
 before SQLite opens. Do not attempt to make two backend processes share a data
-directory; Curator intentionally rejects it.
+directory; AvtoHmver intentionally rejects it.
 
 
 COMMANDS
 --------
 
-    curator
-        Start Curator Server in the foreground with the current-user scope.
+    avtohmver-server
+        Start AvtoHmver Server in the foreground with the current-user scope.
 
-    curator --background --install-scope current-user
+    avtohmver-server --background --install-scope current-user
         Explicit background-service invocation used by current-user service
         registration.
 
-    curator --background --install-scope all-users
+    avtohmver-server --background --install-scope all-users
         Explicit background-service invocation used by machine service
         registration. The surrounding service installer requires elevation.
 
-    curator --data-dir /path/to/data
+    avtohmver-server --data-dir /path/to/data
         Use a one-off explicit data directory. It still receives the exclusive
         ownership lock.
 
-    curator import-host --from /path/to/host-data --install-scope all-users
+    avtohmver-server import-host --from /path/to/host-data --install-scope all-users
         Elevated, explicit Host-to-machine-Server migration. The command
         locks source/destination, creates an online SQLite snapshot, copies
         library/archives/thumbnails/backups/managed P-HAR files, and refuses
         an occupied destination. It does not copy Host-local executable paths.
 
-    curator phar-intent --enabled true --install-scope current-user
+    avtohmver-server phar-intent --enabled true --install-scope current-user
         Record only P-HAR opt-in intent. It performs no package/model download.
         Installers call this after their file transaction only when the
         unchecked P-HAR option was selected.
 
-    curator --docs
+    avtohmver-server --docs
         Print this document.
 
 
@@ -68,25 +68,25 @@ Current user is the default and normally needs no elevation.
 
 Windows current-user Server
     Program files: per-user application location.
-    Data/config: %LocalAppData%\Curator.
+    Data/config: %LocalAppData%\AvtoHmver.
     Background mode: a current-user scheduled task.
 
 Linux current-user Server
-    Program files: ~/.local/lib/curator (portable package convention).
-    Data/config: ~/.local/share/Curator on typical desktops.
-    Background mode: `systemctl --user enable --now curator-server-user`.
+    Program files: ~/.local/lib/avtohmver-server (portable package convention).
+    Data/config: ~/.local/share/AvtoHmver on typical desktops.
+    Background mode: `systemctl --user enable --now avtohmver-server-server-user`.
 
 All users requires elevation.
 
 Windows all-users Server
     Program files: Program Files.
-    Data/config: %ProgramData%\Curator.
-    Background mode: CuratorServer Windows service.
+    Data/config: %ProgramData%\AvtoHmver.
+    Background mode: AvtoHmverServer Windows service.
 
 Linux all-users Server
-    Program files/static assets: /usr/lib/curator.
-    Data/config: /var/lib/curator.
-    Background mode: `systemctl enable --now curator-server`.
+    Program files/static assets: /usr/lib/avtohmver-server.
+    Data/config: /var/lib/avtohmver-server.
+    Background mode: `systemctl enable --now avtohmver-server-server`.
 
 Host and Viewer app binaries can use either scope while their personal
 preferences remain per-user. Older current-user config.json files adjacent to
@@ -119,7 +119,7 @@ VIEWER AND TAILNET
 1. Start Host or Server on the library-owning device.
 2. Install and sign in to Tailscale on that device and the Viewer device.
 3. Configure a restrictive Tailnet grant. Tailnet grants remain the remote
-   authorization layer; Curator intentionally has no pairing token.
+   authorization layer; AvtoHmver intentionally has no pairing token.
 4. In Viewer, add a named host and run its connectivity test.
 
 Viewer accepts an endpoint only when its hostname/IP appears in local
@@ -175,7 +175,7 @@ MEDIA AND STORAGE
 -----------------
 
 The Media & Storage Settings tab keeps all storage-saving controls opt-in.
-`max_download_file_size_bytes` is unlimited by default. When set, Curator
+`max_download_file_size_bytes` is unlimited by default. When set, AvtoHmver
 passes the ceiling to gallery-dl as `--filesize-max`; known oversized remote
 items remain visible as unavailable placeholders with a skip reason. They are
 not entered into the successful download archive, do not fail the source, and
@@ -185,7 +185,7 @@ can download on a later re-sync after the ceiling is raised or removed.
 a remote source starts. A source already at its quota pauses with used and
 allowed values plus actions to increase the limit, remove old media, or permit
 one sync. An active remote sync can exceed the quota by up to one permitted
-file: Curator stops it after indexing that file. Local-folder imports ignore
+file: AvtoHmver stops it after indexing that file. Local-folder imports ignore
 both remote file-size and source-quota limits unless the explicit local-import
 option is enabled.
 
@@ -212,9 +212,9 @@ children, sticky actions, keyboard focus, touch scrolling, and horizontal
 overflow controls. Browser tests cover page assets; release UI tests should
 exercise desktop, short desktop, tablet, and phone viewport classes.
 
-Theme choices are System, Curator palettes, GTK System, and mapped Adwaita,
+Theme choices are System, AvtoHmver palettes, GTK System, and mapped Adwaita,
 Yaru, Arc, and Breeze light/dark presets. Host/Viewer provide client-local GTK
-name, light/dark preference, available accent, and font. Curator maps only
+name, light/dark preference, available accent, and font. AvtoHmver maps only
 those known family names; it never claims to parse arbitrary GTK CSS. Browser
 clients use prefers-color-scheme.
 
@@ -222,7 +222,7 @@ clients use prefers-color-scheme.
 P-HAR
 -----
 
-P-HAR is off by default and managed separately from NudeNet. Curator pins the
+P-HAR is off by default and managed separately from NudeNet. AvtoHmver pins the
 upstream P-HAR source revision and records artifact metadata plus a status
 marker under <data-dir>/phar.
 
@@ -240,7 +240,7 @@ setup and a real inference probe pass.
 
 Checkpoint redistribution rights are deliberately not assumed. Until each
 required checkpoint has a verified upstream source, rights status, and SHA-256,
-Curator downloads nothing and reports P-HAR failed/unready. The NSIS and OOBE
+AvtoHmver downloads nothing and reports P-HAR failed/unready. The NSIS and OOBE
 opt-ins record consent only; Local Admin can show the actionable failure,
 cancel, repair, self-test, or remove the managed environment.
 Failed P-HAR never disables NudeNet/manual review.
@@ -267,6 +267,6 @@ checks cover service definitions, architecture, resources, and server startup.
 USE
 ---
 
-Only add sources you have the right to access. Curator is a local front-end;
+Only add sources you have the right to access. AvtoHmver is a local front-end;
 you remain responsible for source-site terms, rate limits, account access, and
 Tailnet membership.

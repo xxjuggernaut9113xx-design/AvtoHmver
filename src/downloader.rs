@@ -213,7 +213,7 @@ pub struct PreviewItem {
     pub poster: Option<String>,
     pub source: String,
     /// gallery-dl exposes a size for some extractors during `-j` listing.
-    /// It lets Curator mark an oversized item before a download is attempted;
+    /// It lets AvtoHmver mark an oversized item before a download is attempted;
     /// absent metadata still falls back to gallery-dl's --filesize-max guard.
     pub remote_size_bytes: Option<u64>,
 }
@@ -1210,7 +1210,7 @@ async fn run_download_inner(
         dunce::simplified(&state.archives_dir.join(format!("{}.sqlite3", slug))).to_path_buf();
     let _ = std::fs::create_dir_all(&dest);
 
-    // Local folder sources use Curator's importer directly.  Route them
+    // Local folder sources use AvtoHmver's importer directly.  Route them
     // before spawning gallery-dl so a missing gallery-dl binary cannot block
     // local imports and no unused child process is created (or briefly
     // orphaned) for a source that never needs it.
@@ -1442,7 +1442,7 @@ async fn run_download_inner(
             if cancel.is_cancelled() {
                 "Cancelled by user; resync to continue."
             } else {
-                "Interrupted by Curator shutdown; resync to continue."
+                "Interrupted by AvtoHmver shutdown; resync to continue."
             }
             .to_string(),
         );

@@ -7,6 +7,8 @@ pub mod export;
 pub mod jobs;
 pub mod library;
 pub mod media;
+pub mod music;
+pub mod playback;
 pub mod session;
 pub mod settings;
 pub mod sources;

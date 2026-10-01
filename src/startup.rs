@@ -2,7 +2,7 @@
 
 use serde::Serialize;
 
-/// What Settings needs to show after reconciling Curator's stored preference
+/// What Settings needs to show after reconciling AvtoHmver's stored preference
 /// against the actual Windows Run entry. The command itself is returned only
 /// to loopback Host clients by the settings route.
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -17,18 +17,19 @@ pub struct StartupRegistration {
     pub repair_available: bool,
 }
 
-/// Register or remove the current Curator executable from the per-user Run
+/// Register or remove the current AvtoHmver executable from the per-user Run
 /// key. HKCU requires no elevation and `--background` prevents a login launch
-/// from flashing a foreground window before Curator settles into the tray.
+/// from flashing a foreground window before AvtoHmver settles into the tray.
 #[cfg(windows)]
 pub fn set_start_with_windows(enabled: bool) -> Result<(), String> {
     const RUN_KEY: &str = r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run";
-    const VALUE_NAME: &str = "Curator";
+    const VALUE_NAME: &str = "AvtoHmver";
 
+    // A successful new registration replaces the historical Run entry.
     let mut command = crate::process::blocking_command("reg.exe");
     if enabled {
         let executable = std::env::current_exe()
-            .map_err(|error| format!("Could not find the Curator executable: {error}"))?;
+            .map_err(|error| format!("Could not find the AvtoHmver executable: {error}"))?;
         command.args([
             "add",
             RUN_KEY,
@@ -47,13 +48,18 @@ pub fn set_start_with_windows(enabled: bool) -> Result<(), String> {
         .map_err(|error| format!("Could not update Windows startup: {error}"))?;
     // Deleting a missing Run entry already reaches the requested end state.
     if output.status.success() || !enabled {
+        let _ = crate::process::output_timeout(
+            crate::process::blocking_command("reg.exe")
+                .args(["delete", RUN_KEY, "/v", "Curator", "/f"]),
+            std::time::Duration::from_secs(5),
+        );
         return Ok(());
     }
     let detail = String::from_utf8_lossy(&output.stderr).trim().to_owned();
     Err(if detail.is_empty() {
-        "Windows did not accept Curator's startup setting.".to_string()
+        "Windows did not accept AvtoHmver's startup setting.".to_string()
     } else {
-        format!("Windows did not accept Curator's startup setting: {detail}")
+        format!("Windows did not accept AvtoHmver's startup setting: {detail}")
     })
 }
 
@@ -96,7 +102,7 @@ pub fn classify_startup_command(
             registered: false,
             state: "missing".into(),
             message:
-                "Windows has no Curator startup entry. Enable Start with Windows to repair it."
+                "Windows has no AvtoHmver startup entry. Enable Start with Windows to repair it."
                     .into(),
             actual_command: None,
             expected_command: Some(expected_command),
@@ -110,7 +116,7 @@ pub fn classify_startup_command(
             supported: cfg!(windows),
             registered: true,
             state: "registered".into(),
-            message: "Windows will start this Curator installation after sign-in.".into(),
+            message: "Windows will start this AvtoHmver installation after sign-in.".into(),
             actual_command: Some(actual_command.to_string()),
             expected_command: Some(expected_command),
             repair_available: false,
@@ -119,7 +125,7 @@ pub fn classify_startup_command(
         let message = if !actual_executable_exists {
             "Windows startup points to an executable that no longer exists. Enable Start with Windows to repair it."
         } else {
-            "Windows startup points to a different Curator executable. Enable Start with Windows to repair it."
+            "Windows startup points to a different AvtoHmver executable. Enable Start with Windows to repair it."
         };
         StartupRegistration {
             supported: cfg!(windows),
@@ -136,7 +142,7 @@ pub fn classify_startup_command(
 #[cfg(windows)]
 fn query_run_value() -> Result<Option<String>, String> {
     const RUN_KEY: &str = r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run";
-    const VALUE_NAME: &str = "Curator";
+    const VALUE_NAME: &str = "AvtoHmver";
     let output = crate::process::output_timeout(
         crate::process::blocking_command("reg.exe").args(["query", RUN_KEY, "/v", VALUE_NAME]),
         std::time::Duration::from_secs(5),
@@ -164,7 +170,7 @@ pub fn inspect_startup_registration() -> StartupRegistration {
                 supported: true,
                 registered: false,
                 state: "unavailable".into(),
-                message: format!("Could not locate this Curator executable: {error}"),
+                message: format!("Could not locate this AvtoHmver executable: {error}"),
                 actual_command: None,
                 expected_command: None,
                 repair_available: false,
@@ -220,27 +226,27 @@ mod tests {
     fn startup_command_is_quoted() {
         assert_eq!(
             run_value(std::path::Path::new(
-                r"C:\Program Files\Curator\Curator.exe"
+                r"C:\Program Files\AvtoHmver\AvtoHmver.exe"
             )),
-            r#""C:\Program Files\Curator\Curator.exe" --background"#,
+            r#""C:\Program Files\AvtoHmver\AvtoHmver.exe" --background"#,
         );
     }
 
     #[test]
     fn stale_or_missing_entries_are_actionable() {
-        let expected = std::path::Path::new(r"C:\Program Files\Curator\Curator.exe");
+        let expected = std::path::Path::new(r"C:\Program Files\AvtoHmver\AvtoHmver.exe");
         let missing = classify_startup_command(None, expected, false);
         assert_eq!(missing.state, "missing");
         assert!(missing.repair_available);
         let stale = classify_startup_command(
-            Some(r#""C:\Old Curator\Curator.exe" --background"#),
+            Some(r#""C:\Old AvtoHmver\AvtoHmver.exe" --background"#),
             expected,
             false,
         );
         assert_eq!(stale.state, "stale");
         assert!(!stale.registered);
         let current = classify_startup_command(
-            Some(r#""C:\Program Files\Curator\Curator.exe" --background"#),
+            Some(r#""C:\Program Files\AvtoHmver\AvtoHmver.exe" --background"#),
             expected,
             true,
         );

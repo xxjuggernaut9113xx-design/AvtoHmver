@@ -3,13 +3,13 @@ members = ["desktop", "viewer"]
 resolver = "2"
 
 [workspace.package]
-version = "0.3.3"
+version = "0.3.4"
 edition = "2021"
 rust-version = "1.92"
 license = "GPL-3.0-only"
 
 [package]
-name = "curator"
+name = "avtohmver"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -18,7 +18,7 @@ description = "Self-hosted gallery-dl front-end. Organize, view, tag, and rate y
 publish = false
 
 [[bin]]
-name = "curator"
+name = "avtohmver-server"
 path = "src/main.rs"
 
 [dependencies]

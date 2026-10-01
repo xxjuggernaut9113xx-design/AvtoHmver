@@ -143,11 +143,11 @@ pub fn detect_gallery_dl(bin: &str) -> DependencyStatus {
 }
 
 pub fn detect_ffprobe(bin: &str) -> DependencyStatus {
-    // Curator only ever shells out to ffprobe at runtime (see duration.rs) —
+    // AvtoHmver only ever shells out to ffprobe at runtime (see duration.rs) —
     // ffmpeg proper is not invoked anywhere outside test fixtures — but the
     // two ship together, so this is reported to the person as "ffmpeg /
     // ffprobe" (the spec's Step 2 asks about "ffmpeg" specifically; ffprobe
-    // is the actual, correct thing to probe for what Curator uses it for).
+    // is the actual, correct thing to probe for what AvtoHmver uses it for).
     check_executable(bin, "-version")
 }
 
@@ -259,8 +259,8 @@ mod tests {
     #[test]
     fn sanitize_path_input_accepts_normal_path() {
         assert_eq!(
-            sanitize_path_input("/home/user/Curator").unwrap(),
-            PathBuf::from("/home/user/Curator")
+            sanitize_path_input("/home/user/AvtoHmver").unwrap(),
+            PathBuf::from("/home/user/AvtoHmver")
         );
     }
 

@@ -39,7 +39,7 @@ impl MediaError {
     pub fn message(&self) -> &str {
         match self {
             Self::Forbidden => "Viewer cannot edit a local library",
-            Self::ShuttingDown => "Curator is shutting down",
+            Self::ShuttingDown => "AvtoHmver is shutting down",
             Self::Maintenance => "A local maintenance job is active",
             Self::InvalidRating => "Rating must be between 1 and 5",
             Self::InvalidSelection => "Select between one and 500 valid media items",

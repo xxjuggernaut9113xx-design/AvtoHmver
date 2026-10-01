@@ -247,7 +247,7 @@ async function init() {
     await refreshGroups();
     await refreshSources();
   } catch (e) {
-    toast('Could not reach the Curator server: ' + e.message, true);
+    toast('Could not reach the AvtoHmver server: ' + e.message, true);
   }
   await loadView();
   maybeStartPolling();
@@ -1458,16 +1458,16 @@ async function exportChpack() {
   const sourceName = sourceId != null ? (state.sourcesById[sourceId]?.name || '') : '';
 
   // Prompt for pack name — pre-fill with source name or a default.
-  const defaultName = sourceName || 'Curator Pack';
+  const defaultName = sourceName || 'AvtoHmver Pack';
   const packName = window.prompt('Pack name for CockHero:', defaultName);
   if (packName === null) return; // cancelled
 
-  const author = window.prompt('Author name:', 'Curator') ?? 'Curator';
+  const author = window.prompt('Author name:', 'AvtoHmver') ?? 'AvtoHmver';
   const description = window.prompt('Description (optional):', '') ?? '';
 
   const body = {
     name: packName.trim() || defaultName,
-    author: author.trim() || 'Curator',
+    author: author.trim() || 'AvtoHmver',
     description: description.trim(),
     unlock_cost: 0,
   };
@@ -1685,7 +1685,7 @@ async function resyncAllSources() {
 }
 
 async function removeSource(id, name) {
-  if (!confirm(`Remove "${name}" from Curator?`)) return;
+  if (!confirm(`Remove "${name}" from AvtoHmver?`)) return;
   const deleteFiles = confirm('Also delete its downloaded files from disk?\n\nOK = delete files\nCancel = keep files on disk');
   try {
     await api(`/api/sources/${id}?delete_files=${deleteFiles}`, { method: 'DELETE' });

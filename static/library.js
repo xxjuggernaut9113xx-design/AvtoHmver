@@ -1,6 +1,6 @@
 'use strict';
 
-// The original app remains Curator's media and playback engine. This adapter
+// The original app remains AvtoHmver's media and playback engine. This adapter
 // replaces its surrounding surface with a single Explorer-style library so
 // existing downloads, media URLs, lightbox, and feed paths remain intact.
 // remain intact.
@@ -72,7 +72,7 @@ async function importNativeFolder() {
   try {
     const sourceId = await window.curatorNative.importLocalFolder(null);
     if (sourceId == null) return;
-    toast('Local folder added to Curator.');
+    toast('Local folder added to AvtoHmver.');
     await refreshSources();
     await explorerLoadView();
   } catch (error) {
@@ -900,12 +900,12 @@ function previewSearchResult(result) {
   });
 }
 
-async function addSearchResultsToCurator() {
+async function addSearchResultsToAvtoHmver() {
   const chosen = [...explorer.searchSelected].map((index) => explorer.searchResults[index]).filter(Boolean); if (!chosen.length) return;
   const results = chosen.filter((result) => result.gallery_dl_compatible && result.gallery_dl_validated);
   if (results.length !== chosen.length) toast(`${chosen.length - results.length} CDN or unverified result${chosen.length - results.length === 1 ? '' : 's'} remain preview-only.`);
   if (!results.length) return;
-  try { await api('/api/search/download', { method: 'POST', body: JSON.stringify({ results }) }); toast(`${results.length} result${results.length === 1 ? '' : 's'} added to Curator`); await refreshSources(); }
+  try { await api('/api/search/download', { method: 'POST', body: JSON.stringify({ results }) }); toast(`${results.length} result${results.length === 1 ? '' : 's'} added to AvtoHmver`); await refreshSources(); }
   catch (error) { toast(`Could not add search results: ${error.message}`, true); }
 }
 
@@ -922,7 +922,7 @@ async function renderSearchPanel(panel) {
     const [providerData, settings] = await Promise.all([api('/api/search/providers'), api('/api/settings')]);
     registry = providerData.providers || []; if (Array.isArray(settings.search_providers) && settings.search_providers.length) selected = new Set(settings.search_providers);
   } catch (_) {
-    registry = [{ id: 'local', name: 'Curator library', availability: 'available' }, { id: 'balbums', name: 'Balbums / Bunkr', availability: 'available' }];
+    registry = [{ id: 'local', name: 'AvtoHmver library', availability: 'available' }, { id: 'balbums', name: 'Balbums / Bunkr', availability: 'available' }];
   }
   registry.forEach((provider) => {
     const label = document.createElement('label'); label.className = 'discover-provider';
@@ -937,8 +937,8 @@ async function renderSearchPanel(panel) {
     label.append(check, text, status); providerList.append(label);
   });
   const bulk = document.createElement('div'); bulk.className = 'discover-bulk'; bulk.innerHTML = '<label><input id="discover-select-all" type="checkbox"> Select all</label><span id="discover-selection-count">0 selected</span>';
-  const add = panelButton('Add to Curator'); add.addEventListener('click', addSearchResultsToCurator);
-  const download = panelButton('Download Selected'); download.classList.add('btn-accent'); download.addEventListener('click', addSearchResultsToCurator);
+  const add = panelButton('Add to AvtoHmver'); add.addEventListener('click', addSearchResultsToAvtoHmver);
+  const download = panelButton('Download Selected'); download.classList.add('btn-accent'); download.addEventListener('click', addSearchResultsToAvtoHmver);
   bulk.append(add, download); panel.append(bulk);
   explorerEl('#discover-select-all', bulk).addEventListener('change', (event) => { explorer.searchSelected.clear(); if (event.target.checked) explorer.searchResults.forEach((_, index) => explorer.searchSelected.add(index)); renderSearchResults(panel); });
   const status = document.createElement('p'); status.id = 'discover-status'; status.className = 'muted'; panel.append(status);
@@ -958,7 +958,7 @@ function sourceRow(source, creatorsOnly = false) {
 }
 
 function renderSourcesPanel(panel, creatorsOnly) {
-  panel.replaceChildren(makePanelHeading(creatorsOnly ? 'Creators' : 'Sources', creatorsOnly ? 'Creators and galleries already added to this Curator library.' : 'Every source uses Curator’s existing gallery-dl queue.'));
+  panel.replaceChildren(makePanelHeading(creatorsOnly ? 'Creators' : 'Sources', creatorsOnly ? 'Creators and galleries already added to this AvtoHmver library.' : 'Every source uses AvtoHmver’s existing gallery-dl queue.'));
   const add = panelButton('+ Add source'); add.classList.add('btn-accent'); add.addEventListener('click', () => explorerEl('#add-source-btn')?.click()); panel.append(add);
   const list = document.createElement('div'); list.className = 'explorer-card-list'; state.sources.forEach((source) => list.append(sourceRow(source, creatorsOnly))); panel.append(list);
 }
@@ -1026,7 +1026,7 @@ async function renderTagsPanel(panel) {
 }
 
 function renderRatingsPanel(panel) {
-  panel.replaceChildren(makePanelHeading('Ratings', '1★ SFW · 2★ Slow · 3★ Medium · 4★ Fast · 5★ Cum. Human ratings override automated ratings wherever Curator sorts, filters, reviews, and plays media.'));
+  panel.replaceChildren(makePanelHeading('Ratings', '1★ SFW · 2★ Slow · 3★ Medium · 4★ Fast · 5★ Cum. Human ratings override automated ratings wherever AvtoHmver sorts, filters, reviews, and plays media.'));
   const row = document.createElement('div'); row.className = 'rating-filter-row';
   const labels = { 1: 'SFW', 2: 'Slow', 3: 'Medium', 4: 'Fast', 5: 'Cum' };
   for (let value = 5; value >= 0; value--) {
@@ -1069,7 +1069,7 @@ function renderAdminJobs(target, jobs) {
     const detail = document.createElement('p'); detail.textContent = job.error || job.message || '';
     row.append(title, detail);
     if (job.backup_id) { const backup = document.createElement('small'); backup.className = 'mono muted'; backup.textContent = `Safety backup: ${job.backup_id}`; row.append(backup); }
-    if (job.restart_required) { const restart = document.createElement('small'); restart.className = 'admin-restart'; restart.textContent = 'Restart Curator to apply this job.'; row.append(restart); }
+    if (job.restart_required) { const restart = document.createElement('small'); restart.className = 'admin-restart'; restart.textContent = 'Restart AvtoHmver to apply this job.'; row.append(restart); }
     target.append(row);
   });
 }
@@ -1212,7 +1212,7 @@ async function refreshActivityPanel(panel) {
 }
 async function renderDownloadsPanel(panel) {
   stopActivityPolling();
-  panel.replaceChildren(makePanelHeading('Activity', 'Source-level queue and indexing progress. Curator only polls while this view is visible.'));
+  panel.replaceChildren(makePanelHeading('Activity', 'Source-level queue and indexing progress. AvtoHmver only polls while this view is visible.'));
   const status = document.createElement('p'); status.id = 'activity-status'; status.className = 'downloads-status'; status.textContent = 'Loading status…'; panel.append(status);
   const actions = document.createElement('div'); actions.className = 'explorer-card-actions';
   const pause = panelButton('Pause downloads'); const resume = panelButton('Resume downloads'); const resync = panelButton('Sync all sources');
@@ -1256,7 +1256,7 @@ function installExplorerUi() {
   const legacySidebar = document.createElement('div'); legacySidebar.className = 'legacy-sidebar'; legacySidebar.hidden = true;
   while (sidebar.firstChild) legacySidebar.append(sidebar.firstChild); sidebar.append(legacySidebar); sidebar.classList.add('explorer-sidebar');
   const navigation = document.createElement('div'); navigation.className = 'explorer-sidebar-content';
-  navigation.innerHTML = '<header class="explorer-brand"><span class="brand-mark">C</span><span>CURATOR</span><button type="button" class="explorer-sidebar-close" aria-label="Close navigation">×</button></header><button id="explorer-add-source" class="explorer-add-source" type="button">+ Add source</button><nav class="explorer-navigation" aria-label="Curator navigation"><section><h2>Library</h2><button data-nav="all" type="button">All Media</button><button data-nav="images" type="button">Images</button><button data-nav="clips" type="button">Clips</button><button data-nav="videos" type="button">Videos</button></section><section><h2>Discover</h2><button data-nav="search" type="button">Search</button><button data-nav="sources" type="button">Sources</button><button data-nav="creators" type="button">Creators</button></section><section><h2>Organization</h2><button data-nav="groups" type="button">Groups</button><button data-nav="tags" type="button">Tags</button><button data-nav="ratings" type="button">Ratings</button><button data-nav="review" type="button">Review Queue</button></section><section><h2>Activity</h2><button data-nav="downloads" type="button">Downloads <span id="sidebar-download-count" class="nav-count" hidden></span></button><button data-nav="recent" type="button">Recent</button></section></nav><footer><button id="explorer-settings" type="button">Settings</button><span id="explorer-stats" class="mono small muted"></span></footer>';
+  navigation.innerHTML = '<header class="explorer-brand"><span class="brand-mark">C</span><span>CURATOR</span><button type="button" class="explorer-sidebar-close" aria-label="Close navigation">×</button></header><button id="explorer-add-source" class="explorer-add-source" type="button">+ Add source</button><nav class="explorer-navigation" aria-label="AvtoHmver navigation"><section><h2>Library</h2><button data-nav="all" type="button">All Media</button><button data-nav="images" type="button">Images</button><button data-nav="clips" type="button">Clips</button><button data-nav="videos" type="button">Videos</button></section><section><h2>Discover</h2><button data-nav="search" type="button">Search</button><button data-nav="sources" type="button">Sources</button><button data-nav="creators" type="button">Creators</button></section><section><h2>Organization</h2><button data-nav="groups" type="button">Groups</button><button data-nav="tags" type="button">Tags</button><button data-nav="ratings" type="button">Ratings</button><button data-nav="review" type="button">Review Queue</button></section><section><h2>Activity</h2><button data-nav="downloads" type="button">Downloads <span id="sidebar-download-count" class="nav-count" hidden></span></button><button data-nav="recent" type="button">Recent</button></section></nav><footer><button id="explorer-settings" type="button">Settings</button><span id="explorer-stats" class="mono small muted"></span></footer>';
   // The sidebar is intentionally source-centric.  Navigation and global
   // actions live in the compact Tools disclosure, leaving room for the
   // expandable groups → subgroups → sources hierarchy below it.

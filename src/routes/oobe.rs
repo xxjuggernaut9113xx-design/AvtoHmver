@@ -72,7 +72,7 @@ pub async fn serve_root(
 
 /// True if a directory is writable, without ever creating one that doesn't
 /// already exist — used for the *currently active* data_dir, which should
-/// already exist since Curator is running against it right now. Candidate
+/// already exist since AvtoHmver is running against it right now. Candidate
 /// directories the person is considering go through `/api/oobe/validate`
 /// instead, which is allowed to create them.
 fn quick_writable_check(path: &Path) -> bool {
@@ -418,7 +418,7 @@ pub async fn complete(
 
     if !gallery_dl.found {
         // Never silently mark setup complete without a working gallery-dl —
-        // it's the one dependency Curator can't function without.
+        // it's the one dependency AvtoHmver can't function without.
         return Err(err(
             StatusCode::BAD_REQUEST,
             gallery_dl

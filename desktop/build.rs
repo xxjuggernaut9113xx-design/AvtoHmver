@@ -1,3 +1,3 @@
 fn main() {
-    slint_build::compile("ui/main.slint").expect("could not compile Curator Slint shell");
+    slint_build::compile("ui/main.slint").expect("could not compile AvtoHmver Slint shell");
 }

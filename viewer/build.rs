@@ -1,3 +1,3 @@
 fn main() {
-    slint_build::compile("ui/main.slint").expect("could not compile Curator Viewer UI");
+    slint_build::compile("ui/main.slint").expect("could not compile AvtoHmver Viewer UI");
 }

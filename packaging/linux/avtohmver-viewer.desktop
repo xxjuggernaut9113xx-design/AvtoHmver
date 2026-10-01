@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=AvtoHmver Viewer
+Comment=AvtoHmver remote media viewer
+Exec=/usr/lib/avtohmver-viewer/avtohmver-viewer
+Icon=avtohmver-viewer
+Terminal=false
+Type=Application
+Categories=Graphics;AudioVideo;
+StartupWMClass=avtohmver-viewer

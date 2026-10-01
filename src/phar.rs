@@ -2,7 +2,7 @@
 //!
 //! P-HAR is deliberately isolated below `data_dir/phar`. This module never
 //! accepts WSL or an arbitrary Python executable. State is durable JSON, so a
-//! Local Admin request can resume safely after Curator restarts.
+//! Local Admin request can resume safely after AvtoHmver restarts.
 
 use crate::edition::InstallScope;
 use anyhow::{anyhow, Result};
@@ -323,7 +323,7 @@ pub fn record_install_intent(
     }
     crate::config::save_config_for(scope, &cfg)?;
     let next = if enabled {
-        new_state(PharPhase::Requested, 0, "P-HAR setup requested. Installation runs after Curator starts, outside the OS installer.")
+        new_state(PharPhase::Requested, 0, "P-HAR setup requested. Installation runs after AvtoHmver starts, outside the OS installer.")
     } else {
         new_state(
             PharPhase::Disabled,
@@ -541,7 +541,7 @@ pub fn select_backend(
     }
 }
 fn detect_gpu(requested: PharBackend) -> Result<DetectedGpu> {
-    if let Ok(fake) = std::env::var("CURATOR_PHAR_TEST_GPU") {
+    if let Ok(fake) = crate::config::env_var("CURATOR_PHAR_TEST_GPU") {
         let fake = fake.to_ascii_lowercase();
         let cuda = (fake == "cuda").then(|| DetectedGpu {
             backend: PharBackend::Cuda,

@@ -1,11 +1,13 @@
-Package: curator-host
-Version: @CURATOR_VERSION@
+Package: avtohmver-host
+Version: @AVTOHMVER_VERSION@
+Conflicts: curator-host
+Replaces: curator-host
 Section: graphics
 Priority: optional
 Architecture: amd64
 Depends: libmpv2
-Maintainer: Curator
+Maintainer: AvtoHmver
 Recommends: mpv, ffmpeg
-Description: Curator Host native media library app
- Curator Host is the native desktop edition that owns and manages a local
+Description: AvtoHmver Host native media library app
+ AvtoHmver Host is the native desktop edition that owns and manages a local
  media library, served to remote Viewers over LAN or Tailnet.

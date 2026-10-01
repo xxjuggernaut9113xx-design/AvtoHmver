@@ -245,7 +245,7 @@ mod tests {
     use super::*;
     #[tokio::test]
     async fn real_split_preserves_original_and_indexes_short_mp4_copies() {
-        let Ok(probe) = std::env::var("CURATOR_TEST_FFPROBE") else {
+        let Ok(probe) = crate::config::env_var("CURATOR_TEST_FFPROBE") else {
             return;
         };
         let root = tempfile::tempdir().unwrap();

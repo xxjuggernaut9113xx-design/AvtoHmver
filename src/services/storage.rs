@@ -54,7 +54,7 @@ impl StorageError {
     pub fn message(self) -> &'static str {
         match self {
             Self::Forbidden => "Viewer cannot account for a local library",
-            Self::ShuttingDown => "Curator is shutting down",
+            Self::ShuttingDown => "AvtoHmver is shutting down",
             Self::Maintenance => "A local maintenance job is active",
             Self::AccountingFailed => "Storage accounting did not complete.",
         }

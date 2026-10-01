@@ -510,12 +510,16 @@ pub async fn complete(
 }
 
 pub async fn connector_status() -> Json<Value> {
+    let apple = crate::config::env_var("AVTOHMVER_APPLE_DEVELOPER_TOKEN")
+        .ok()
+        .filter(|s| !s.trim().is_empty())
+        .is_some();
     Json(json!({"connectors":[
-        {"provider":"local","available":true,"authorization":"none","beat_sync":true},
-        {"provider":"youtube","available":true,"authorization":"iframe_api","beat_sync":true},
-        {"provider":"soundcloud","available":true,"authorization":"widget_api","beat_sync":true},
-        {"provider":"apple_music","available":true,"authorization":"musickit","beat_sync":"manual_bpm_offset"},
-        {"provider":"spotify","available":true,"authorization":"oauth_pkce","beat_sync":false,"reason":"Spotify playback is independent and never synchronizes visual media"}
+        {"provider":"local","available":true,"desktop_mode":"local","web_mode":"local","beat_sync":false,"controls":["play","pause","seek","volume"]},
+        {"provider":"youtube","available":true,"desktop_mode":"external","web_mode":"embedded","authorization":"none","beat_sync":false},
+        {"provider":"soundcloud","available":true,"desktop_mode":"external","web_mode":"embedded","authorization":"none","beat_sync":false},
+        {"provider":"apple_music","available":true,"desktop_mode":"external","web_mode":if apple {"embedded_if_authorized"} else {"external"},"configured":apple,"authorization":"musickit_user_session","beat_sync":false},
+        {"provider":"spotify","available":true,"desktop_mode":"external","web_mode":"external","authorization":"none","beat_sync":false,"controls":[],"reason":"Playback is controlled independently in Spotify"}
     ]}))
 }
 
@@ -532,34 +536,17 @@ pub async fn save_playlist(
     State(state): State<Arc<AppState>>,
     Json(body): Json<PlaylistBody>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
-    let name = body.name.trim();
-    if name.is_empty() || name.len() > 160 {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            Json(json!({"error":"Playlist name is required"})),
-        ));
-    }
     let provider = body.provider.trim().to_ascii_lowercase();
-    if !matches!(
-        provider.as_str(),
-        "local" | "youtube" | "soundcloud" | "apple_music" | "spotify"
-    ) {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            Json(json!({"error":"Unknown playlist provider"})),
-        ));
-    }
-    if !body.tracks.is_array() {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            Json(json!({"error":"Playlist tracks must be an array"})),
-        ));
-    }
-    let conn = state.pool.get().map_err(db_err)?;
-    conn.execute("INSERT INTO goon_playlists(name,provider,source_url,tracks,added_at,updated_at) VALUES(?1,?2,?3,?4,?5,?5)",rusqlite::params![name,provider,body.source_url,body.tracks.to_string(),now_iso()]).map_err(db_err)?;
-    Ok(Json(
-        json!({"id":conn.last_insert_rowid(),"status":"saved"}),
-    ))
+    let id = crate::services::music::save_playlist(
+        &state,
+        None,
+        &body.name,
+        &provider,
+        body.source_url.as_deref(),
+        body.tracks,
+    )
+    .map_err(|e| (StatusCode::BAD_REQUEST, Json(json!({"error":e}))))?;
+    Ok(Json(json!({"id":id,"status":"saved"})))
 }
 
 fn allowed_track_path(state: &AppState, raw: &str) -> Result<PathBuf, String> {
@@ -571,7 +558,7 @@ fn allowed_track_path(state: &AppState, raw: &str) -> Result<PathBuf, String> {
     let data = dunce::canonicalize(&state.data_dir)
         .map_err(|_| "Data directory is unavailable".to_string())?;
     if !canonical.starts_with(&library) && !canonical.starts_with(&data) {
-        return Err("Track must be inside Curator's library or data directory".into());
+        return Err("Track must be inside AvtoHmver's library or data directory".into());
     }
     Ok(canonical)
 }
@@ -638,7 +625,7 @@ pub async fn update_beat_map(
 }
 
 /// OAuth callbacks intentionally retain no token in SQLite. Desktop builds
-/// may attach an OS credential-store bridge; without one Curator reports the
+/// may attach an OS credential-store bridge; without one AvtoHmver reports the
 /// safe session-only fallback rather than persisting a secret in a data file.
 pub async fn oauth_callback(
     Json(body): Json<OAuthCallbackBody>,
@@ -659,9 +646,48 @@ pub async fn oauth_callback(
             Json(json!({"error":"Authorization code is required"})),
         ));
     }
-    Ok(Json(
-        json!({"provider":provider,"authorized":true,"credential_storage":"session_only","state":body.state}),
+    Err((
+        StatusCode::NOT_IMPLEMENTED,
+        Json(
+            json!({"provider":provider,"authorized":false,"error":"OAuth code exchange is not configured. Open the provider externally; Apple Music authorization uses MusicKit in this browser session."}),
+        ),
     ))
+}
+
+pub async fn update_playlist(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<i64>,
+    Json(body): Json<PlaylistBody>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    let provider = body.provider.trim().to_ascii_lowercase();
+    let id = crate::services::music::save_playlist(
+        &state,
+        Some(id),
+        &body.name,
+        &provider,
+        body.source_url.as_deref(),
+        body.tracks,
+    )
+    .map_err(|e| (StatusCode::BAD_REQUEST, Json(json!({"error":e}))))?;
+    Ok(Json(json!({"id":id,"updated":true})))
+}
+pub async fn delete_playlist(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<i64>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    crate::services::music::delete_playlist(&state, id)
+        .map_err(|e| (StatusCode::BAD_REQUEST, Json(json!({"error":e}))))?;
+    Ok(Json(json!({"deleted":true})))
+}
+
+pub async fn apple_configuration() -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    match crate::config::env_var("AVTOHMVER_APPLE_DEVELOPER_TOKEN") {
+        Ok(token) if !token.trim().is_empty() => Ok(Json(json!({"developer_token":token}))),
+        _ => Err((
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({"error":"Apple Music is not configured. Open Apple Music externally."})),
+        )),
+    }
 }
 
 #[cfg(test)]

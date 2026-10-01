@@ -233,13 +233,13 @@ fn control_value<T: Serialize>(result: Result<T, ControlError>) -> Value {
 /// admission, independent of whether the caller used HTTP or the native UI.
 pub async fn pause_typed(state: &Arc<AppState>) -> Result<PauseOutcome, ControlError> {
     if state.shutdown.is_cancelled() {
-        return Err(ControlError::global("Curator is shutting down"));
+        return Err(ControlError::global("AvtoHmver is shutting down"));
     }
     let Some(_lease) = state.maintenance.try_acquire_background_worker() else {
         return Err(ControlError::global("A local maintenance job is active"));
     };
     if state.shutdown.is_cancelled() {
-        return Err(ControlError::global("Curator is shutting down"));
+        return Err(ControlError::global("AvtoHmver is shutting down"));
     }
     Ok(pause_unchecked(state).await)
 }
@@ -312,13 +312,13 @@ async fn pause_unchecked(state: &Arc<AppState>) -> PauseOutcome {
 
 pub async fn resume_typed(state: Arc<AppState>) -> Result<ResumeOutcome, ControlError> {
     if state.shutdown.is_cancelled() {
-        return Err(ControlError::global("Curator is shutting down"));
+        return Err(ControlError::global("AvtoHmver is shutting down"));
     }
     let Some(_lease) = state.maintenance.try_acquire_background_worker() else {
         return Err(ControlError::global("A local maintenance job is active"));
     };
     if state.shutdown.is_cancelled() {
-        return Err(ControlError::global("Curator is shutting down"));
+        return Err(ControlError::global("AvtoHmver is shutting down"));
     }
     resume_unchecked(state).await
 }
@@ -406,7 +406,7 @@ pub async fn pause_source_typed(
         ));
     };
     if state.shutdown.is_cancelled() {
-        return Err(ControlError::source(id, "Curator is shutting down"));
+        return Err(ControlError::source(id, "AvtoHmver is shutting down"));
     }
     let _control = state.download_control.lock().await;
     let exists = state
@@ -460,7 +460,7 @@ pub async fn resume_source_typed(
         ));
     };
     if state.shutdown.is_cancelled() {
-        return Err(ControlError::source(id, "Curator is shutting down"));
+        return Err(ControlError::source(id, "AvtoHmver is shutting down"));
     }
     let _control = state.download_control.lock().await;
     if state.downloads_paused.load(Ordering::SeqCst) {
@@ -491,7 +491,7 @@ pub async fn resume_source(state: Arc<AppState>, id: i64) -> Value {
 
 fn admission_error(state: &AppState) -> Option<&'static str> {
     if state.shutdown.is_cancelled() {
-        Some("Curator is shutting down")
+        Some("AvtoHmver is shutting down")
     } else if state.maintenance.is_active() {
         Some("A local maintenance job is active")
     } else {
@@ -591,11 +591,11 @@ mod tests {
         state.shutdown.cancel();
         assert_eq!(
             pause_typed(&state).await,
-            Err(ControlError::global("Curator is shutting down"))
+            Err(ControlError::global("AvtoHmver is shutting down"))
         );
         assert_eq!(
             resume_typed(state.clone()).await,
-            Err(ControlError::global("Curator is shutting down"))
+            Err(ControlError::global("AvtoHmver is shutting down"))
         );
     }
 
@@ -634,11 +634,11 @@ mod tests {
         state.shutdown.cancel();
         assert_eq!(
             pause_source_typed(&state, 1).await,
-            Err(ControlError::source(1, "Curator is shutting down"))
+            Err(ControlError::source(1, "AvtoHmver is shutting down"))
         );
         assert_eq!(
             resume_source_typed(state.clone(), 1).await,
-            Err(ControlError::source(1, "Curator is shutting down"))
+            Err(ControlError::source(1, "AvtoHmver is shutting down"))
         );
     }
 

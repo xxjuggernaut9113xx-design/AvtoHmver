@@ -728,7 +728,7 @@ mod tests {
     #[test]
     #[ignore = "requires CURATOR_LIBMPV_PATH and CURATOR_LIVE_RENDERER_MEDIA"]
     fn live_renderer_delivers_a_software_frame() {
-        let media = std::env::var("CURATOR_LIVE_RENDERER_MEDIA")
+        let media = avtohmver::config::env_var("CURATOR_LIVE_RENDERER_MEDIA")
             .expect("set CURATOR_LIVE_RENDERER_MEDIA to a disposable video");
         let received = Arc::new(AtomicUsize::new(0));
         let dimensions = Arc::new(AtomicUsize::new(0));

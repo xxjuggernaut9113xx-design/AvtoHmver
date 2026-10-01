@@ -8,22 +8,46 @@ export struct NavRow { label: string, count: string, is-group: bool, depth: int 
 export struct GroupCard { name: string, detail: string }
 export struct ProviderRow { name: string, detail: string, enabled: bool, locked: bool }
 
-export component CuratorTray inherits SystemTrayIcon {
+export component AvtoHmverTray inherits SystemTrayIcon {
     in property <bool> panic-hidden: false;
     icon: @image-url("../icons/icon.png");
-    tooltip: "Curator Host";
+    tooltip: "AvtoHmver Host";
     Menu {
-        MenuItem { title: root.panic-hidden ? "All Clear" : "Show Curator"; activated => { root.show-window(); } }
+        MenuItem { title: root.panic-hidden ? "All Clear" : "Show AvtoHmver"; activated => { root.show-window(); } }
         MenuSeparator {}
-        MenuItem { title: "Quit Curator"; activated => { root.quit(); } }
+        MenuItem { title: "Quit AvtoHmver"; activated => { root.quit(); } }
     }
     callback show-window();
     callback quit();
 }
 
 
-export component CuratorNativeWindow inherits Window {
-    title: (root.local-host ? "Curator Host" : "Curator Viewer") + " — " + (root.stage-open ? ("Stage — " + (root.stage-mode == 0 ? "Player" : root.stage-mode == 1 ? "Feed" : root.stage-mode == 2 ? "Review" : "GOON")) : (root.workspace == 0 ? root.location-title : root.workspace == 1 ? "Discover" : root.workspace == 2 ? "Organization" : "Activity"));
+export component AvtoHmverNativeWindow inherits Window {
+    in property <string> product-version;
+    in-out property <[string]> playback-preset-names: ["Current draft"];
+    in-out property <int> playback-preset-index: 0;
+    in-out property <string> playback-name: "Untitled";
+    in-out property <string> playback-collection: "";
+    in-out property <string> playback-tags: "";
+    in-out property <string> playback-types: "image,video";
+    in-out property <string> playback-order: "shuffled";
+    in-out property <string> playback-fit: "contain";
+    in-out property <bool> playback-captions: true;
+    in-out property <string> playback-music-source: "none";
+    in-out property <string> playback-playlist-id: "";
+    in-out property <string> playback-music-volume: "50";
+    in-out property <string> playback-seek: "0";
+    in-out property <string> playback-status: "Draft changes take effect at Start; Apply music changes only music.";
+    in-out property <bool> playback-active-cover: false;
+    in-out property <bool> playback-active-captions: true;
+    in-out property <[string]> playback-playlist-names: [];
+    in-out property <string> playback-playlist-name: "New playlist";
+    in-out property <string> playback-provider-url: "";
+    in-out property <string> playback-track-ids: "";
+    callback playback-action(string);
+    callback playback-select(int);
+
+    title: (root.local-host ? "AvtoHmver Host" : "AvtoHmver Viewer") + " " + root.product-version + " — " + (root.stage-open ? ("Stage — " + (root.stage-mode == 0 ? "Player" : root.stage-mode == 1 ? "Feed" : root.stage-mode == 2 ? "Review" : "GOON")) : (root.workspace == 0 ? root.location-title : root.workspace == 1 ? "Discover" : root.workspace == 2 ? "Organization" : "Activity"));
     preferred-width: 1200px; preferred-height: 800px;
     min-width: 800px; min-height: 560px;
     in-out property <int> workspace: 0;
@@ -538,7 +562,7 @@ export component CuratorNativeWindow inherits Window {
                         VerticalBox { spacing: 12px;
                             Text { text: "DISCOVER"; font-size: 11px; font-weight: 700; color: root.theme-muted; }
                             Text { text: "Search"; font-size: 24px; font-weight: 700; color: root.theme-text; }
-                            Text { text: "Find public media across every connected provider. Queue the hits you want and Curator downloads them."; wrap: word-wrap; color: root.theme-muted; }
+                            Text { text: "Find public media across every connected provider. Queue the hits you want and AvtoHmver downloads them."; wrap: word-wrap; color: root.theme-muted; }
                             HorizontalBox { spacing: 8px;
                                 LineEdit { placeholder-text: "Find collections, creators, or a page URL"; text <=> root.manage-discovery-query; horizontal-stretch: 1; }
                                 ComboBox { model: ["Any type", "album", "creator", "collection", "post"]; current-index: 0; selected => { root.discovery-result-type = self.current-index == 0 ? "" : self.current-value; } }
@@ -849,6 +873,58 @@ export component CuratorNativeWindow inherits Window {
         }
         if root.stage-open && root.stage-mode == 3: VerticalBox { vertical-stretch: 1;
             Text { text: "GOON"; font-size: 22px; }
+            if root.local-host: ScrollView { height: 260px; vertical-stretch: 0; VerticalBox {
+                Text { text: root.playback-status; wrap: word-wrap; }
+                HorizontalBox {
+                    ComboBox { model: root.playback-preset-names; current-index <=> root.playback-preset-index; selected => { root.playback-select(self.current-index); } }
+                    Button { text: "Refresh"; clicked => { root.playback-action("refresh"); } }
+                    LineEdit { text <=> root.playback-name; placeholder-text: "Preset name"; }
+                }
+                HorizontalBox {
+                    Button { text: "Save"; clicked => { root.playback-action("save"); } }
+                    Button { text: "Save as new"; clicked => { root.playback-action("new"); } }
+                    Button { text: "Rename"; clicked => { root.playback-action("save"); } }
+                    Button { text: "Delete"; clicked => { root.playback-action("delete"); } }
+                    Button { text: "Reload"; clicked => { root.playback-action("reload"); } }
+                }
+                HorizontalBox {
+                    Text { text: "Collection ID"; } LineEdit { text <=> root.playback-collection; }
+                    Text { text: "Tags"; } LineEdit { text <=> root.playback-tags; }
+                    ComboBox { model: ["image,video", "image", "video", "gif"]; current-value <=> root.playback-types; }
+                }
+                HorizontalBox {
+                    ComboBox { model: ["shuffled", "sequential"]; current-value <=> root.playback-order; }
+                    ComboBox { model: ["contain", "cover"]; current-value <=> root.playback-fit; }
+                    CheckBox { text: "Captions"; checked <=> root.playback-captions; }
+                }
+                HorizontalBox {
+                    ComboBox { model: ["none", "local", "spotify", "apple_music", "youtube", "soundcloud"]; current-value <=> root.playback-music-source; }
+                    Text { text: "Playlist ID"; } LineEdit { text <=> root.playback-playlist-id; }
+                    Text { text: "Music %"; } LineEdit { text <=> root.playback-music-volume; }
+                    Button { text: "Apply music"; clicked => { root.playback-action("apply"); } }
+                }
+                ComboBox { model: root.playback-playlist-names; selected => { root.playback-action("playlist-select:" + self.current-value); } }
+                HorizontalBox {
+                    LineEdit { text <=> root.playback-playlist-name; placeholder-text: "Playlist name"; }
+                    LineEdit { text <=> root.playback-provider-url; placeholder-text: "Provider HTTPS link"; }
+                    LineEdit { text <=> root.playback-track-ids; placeholder-text: "Local track IDs, comma separated"; }
+                }
+                HorizontalBox {
+                    Button { text: "Create playlist"; clicked => { root.playback-action("playlist-new"); } }
+                    Button { text: "Save playlist"; clicked => { root.playback-action("playlist-save"); } }
+                    Button { text: "Delete playlist"; clicked => { root.playback-action("playlist-delete"); } }
+                }
+                HorizontalBox {
+                    Button { text: "Import audio files"; clicked => { root.playback-action("import-files"); } }
+                    Button { text: "Import audio folder"; clicked => { root.playback-action("import-folder"); } }
+                    Button { text: "Music play"; enabled: root.playback-music-source == "local"; clicked => { root.playback-action("music-play"); } }
+                    Button { text: "Music pause"; enabled: root.playback-music-source == "local"; clicked => { root.playback-action("music-pause"); } }
+                    Button { text: "Music volume"; enabled: root.playback-music-source == "local"; clicked => { root.playback-action("volume"); } }
+                    LineEdit { text <=> root.playback-seek; placeholder-text: "Seek seconds"; }
+                    Button { text: "Seek music"; enabled: root.playback-music-source == "local"; clicked => { root.playback-action("seek"); } }
+                }
+            } }
+
             Text { text: root.goon-status; wrap: word-wrap; color: root.theme-muted; }
             Text { text: root.session-status; wrap: word-wrap; }
             CheckBox {
@@ -858,14 +934,14 @@ export component CuratorNativeWindow inherits Window {
                 toggled => { root.goon-media(self.checked); }
             }
             HorizontalBox {
-                Button { text: "Start GOON session"; enabled: root.can-control-sessions; clicked => { root.session-control("Start"); } }
+                Button { text: "Start GOON session"; enabled: root.can-control-sessions; clicked => { if root.local-host { root.playback-action("start"); } else { root.session-control("Start"); } } }
                 Button { text: "Pause"; enabled: root.can-control-sessions; clicked => { root.session-control("Pause"); } }
                 Button { text: "Resume"; enabled: root.can-control-sessions; clicked => { root.session-control("Resume"); } }
                 Button { text: "End"; enabled: root.can-control-sessions; clicked => { root.session-control("End"); } }
             }
             Text { text: "GOON uses the existing Rust session timing and media ratings: slow, medium, fast, cum, and succubus phases map to their media ratings."; wrap: word-wrap; }
-            Text { text: root.playing; color: root.theme-text; }
-            Image { source: root.video-active ? root.video-frame : root.preview; image-fit: contain; vertical-stretch: 1; }
+            Text { text: root.playback-active-captions ? root.playing : ""; color: root.theme-text; }
+            Image { source: root.video-active ? root.video-frame : root.preview; image-fit: root.playback-active-cover ? cover : contain; vertical-stretch: 1; }
         }
             }
         }
@@ -892,8 +968,8 @@ export component CuratorNativeWindow inherits Window {
                             VerticalBox {
                                 spacing: 10px; alignment: start;
                                 Text { vertical-stretch: 0; text: "General"; font-size: 18px; color: root.theme-text; }
-                                if root.local-host: CheckBox { height: 36px; vertical-stretch: 0; text: "Keep Curator running in the tray"; checked <=> root.settings-draft-tray; }
-                                if root.local-host: CheckBox { height: 36px; vertical-stretch: 0; text: "Start Curator with Windows"; checked <=> root.settings-draft-start-windows; }
+                                if root.local-host: CheckBox { height: 36px; vertical-stretch: 0; text: "Keep AvtoHmver running in the tray"; checked <=> root.settings-draft-tray; }
+                                if root.local-host: CheckBox { height: 36px; vertical-stretch: 0; text: "Start AvtoHmver with Windows"; checked <=> root.settings-draft-start-windows; }
                                 if root.local-host: CheckBox { height: 36px; vertical-stretch: 0; text: "Allow access from the local network (LAN)"; checked <=> root.settings-draft-lan; }
                                 if root.local-host: Text { vertical-stretch: 0; text: "LAN access binds the HTTP port on every local interface. Only enable it on networks you trust."; wrap: word-wrap; color: root.theme-muted; }
                                 if root.local-host: Text { vertical-stretch: 0; text: root.remote-access-status; wrap: word-wrap; color: root.theme-muted; }
@@ -958,9 +1034,9 @@ export component CuratorNativeWindow inherits Window {
                             horizontal-stretch: 1;
                             VerticalBox { spacing: 10px; alignment: start;
                                 Text { text: "Key Binds"; font-size: 18px; color: root.theme-text; }
-                                Text { text: "Global panic: hides Curator and pauses playback. Use All Clear in the system tray to restore."; wrap: word-wrap; color: root.theme-muted; }
+                                Text { text: "Global panic: hides AvtoHmver and pauses playback. Use All Clear in the system tray to restore."; wrap: word-wrap; color: root.theme-muted; }
                                 LineEdit { text <=> root.bind-panic; placeholder-text: "F9"; }
-                                Text { text: "Playback keys work while Curator is focused, outside text fields. Use keys such as Space, Right, F11, or Ctrl+P."; wrap: word-wrap; color: root.theme-muted; }
+                                Text { text: "Playback keys work while AvtoHmver is focused, outside text fields. Use keys such as Space, Right, F11, or Ctrl+P."; wrap: word-wrap; color: root.theme-muted; }
                                 Text { text: "Play / pause"; color: root.theme-text; }
                                 LineEdit { text <=> root.bind-pause; }
                                 Text { text: "Next media"; color: root.theme-text; }
@@ -1043,7 +1119,7 @@ export component CuratorNativeWindow inherits Window {
                 background: root.theme-background;
                 VerticalBox {
                     padding: 48px; spacing: 12px; alignment: center;
-                    Text { text: "Welcome to Curator"; font-size: 28px; font-weight: 700; horizontal-alignment: center; color: root.theme-text; }
+                    Text { text: "Welcome to AvtoHmver"; font-size: 28px; font-weight: 700; horizontal-alignment: center; color: root.theme-text; }
                     Text { text: "First-run setup is not complete yet. Your library lives in the data directory below; storage settings are available under Settings → Media & Storage."; wrap: word-wrap; horizontal-alignment: center; color: root.theme-text; }
                     Text { text: "Data directory: " + root.setup-data-dir; wrap: word-wrap; font-size: 12px; horizontal-alignment: center; color: root.theme-muted; }
                     if root.setup-status != "": Text { text: root.setup-status; wrap: word-wrap; color: root.theme-text; horizontal-alignment: center; }

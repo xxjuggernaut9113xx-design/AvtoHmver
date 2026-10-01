@@ -145,7 +145,7 @@ impl NsfwClassifier {
         );
         anyhow::ensure!(
             !self.is_permanently_unavailable(),
-            "NudeNet worker is unavailable until Curator restarts; install NudeNet in the configured Python environment"
+            "NudeNet worker is unavailable until AvtoHmver restarts; install NudeNet in the configured Python environment"
         );
         let (reply_tx, reply_rx) = oneshot::channel();
         self.tx
@@ -188,7 +188,7 @@ async fn nude_supervisor_loop(
                 if error.kind() == std::io::ErrorKind::NotFound {
                     permanently_unavailable.store(true, Ordering::Release);
                     warn!(
-                        "NudeNet worker is unavailable until Curator restarts: Python interpreter '{}' was not found",
+                        "NudeNet worker is unavailable until AvtoHmver restarts: Python interpreter '{}' was not found",
                         python_bin
                     );
                     drain_nude_jobs(
@@ -226,7 +226,7 @@ async fn nude_supervisor_loop(
                 let _ = child.kill().await;
                 if is_permanent_nude_startup_error(&error) {
                     permanently_unavailable.store(true, Ordering::Release);
-                    warn!("NudeNet worker is unavailable until Curator restarts: {error}");
+                    warn!("NudeNet worker is unavailable until AvtoHmver restarts: {error}");
                     drain_nude_jobs(
                         &mut rx,
                         "NudeNet worker unavailable (install NudeNet and its model dependencies)",
@@ -352,7 +352,7 @@ async fn run_nude_batch(
         return Ok(Ok(results));
     }
     if response.score.is_some() {
-        return Err("stale legacy score-worker protocol detected; restart Curator".to_string());
+        return Err("stale legacy score-worker protocol detected; restart AvtoHmver".to_string());
     }
     Err("NudeNet returned neither results nor an error".to_string())
 }
@@ -692,7 +692,7 @@ fn compact_detections(detections: &[Detection]) -> Value {
 ///
 /// This is intentionally a closed list, not a substring heuristic. In
 /// particular, `kissing` and `fondling` are not enough evidence for Fast,
-/// and `cumshot`/`facial-cumshot` are retained as evidence only: Curator
+/// and `cumshot`/`facial-cumshot` are retained as evidence only: AvtoHmver
 /// never assigns Cum automatically.
 fn phar_fast_label(label: &str) -> bool {
     matches!(
@@ -951,7 +951,7 @@ pub fn spawn_backfill_loop(
         loop {
             if classifier.is_permanently_unavailable() {
                 info!(
-                    "NudeNet auto-rating is paused until Curator restarts after its Python environment is repaired"
+                    "NudeNet auto-rating is paused until AvtoHmver restarts after its Python environment is repaired"
                 );
                 return;
             }

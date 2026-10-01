@@ -1,6 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-// Viewer owns only this small preferences file. It never initializes Curator's
+// Viewer owns only this small preferences file. It never initializes AvtoHmver's
 // database or server and every request is pinned to a Tailnet peer IP.
 slint::include_modules!();
 
@@ -39,7 +39,7 @@ struct SystemInfo {
     instance_id: String,
     tailnet_only: bool,
     #[serde(default)]
-    viewer_permissions: curator::native::ViewerPermissions,
+    viewer_permissions: avtohmver::native::ViewerPermissions,
 }
 #[derive(Deserialize)]
 struct TailscaleStatus {
@@ -65,16 +65,20 @@ struct TailnetPeer {
 }
 
 fn preferences_path() -> Result<PathBuf, String> {
-    let directory = dirs::config_dir()
-        .ok_or("No user configuration directory is available.")?
-        .join("tech.webmaster19083.curator.viewer");
+    let base = dirs::config_dir().ok_or("No user configuration directory is available.")?;
+    let legacy = base.join("tech.webmaster19083.curator.viewer");
+    let directory = if legacy.exists() {
+        legacy
+    } else {
+        base.join("AvtoHmver").join("viewer")
+    };
     std::fs::create_dir_all(&directory).map_err(|error| error.to_string())?;
     Ok(directory.join("hosts.json"))
 }
 fn legacy_preferences_path() -> Result<PathBuf, String> {
     Ok(dirs::config_dir()
         .ok_or("No user configuration directory is available.")?
-        .join("Curator Viewer")
+        .join("AvtoHmver Viewer")
         .join("hosts.json"))
 }
 fn load_hosts() -> Result<HostStore, String> {
@@ -146,14 +150,14 @@ fn normalized_endpoint(raw: &str) -> Result<reqwest::Url, String> {
     }
     if url.port().is_none() {
         url.set_port(Some(DEFAULT_PORT))
-            .map_err(|_| "Could not set the Curator port.")?;
+            .map_err(|_| "Could not set the AvtoHmver port.")?;
     }
     Ok(url)
 }
 async fn tailnet_peers() -> Result<Vec<TailnetPeer>, String> {
     let output = tokio::time::timeout(
         Duration::from_secs(3),
-        curator::process::command("tailscale")
+        avtohmver::process::command("tailscale")
             .args(["status", "--json"])
             .output(),
     )
@@ -210,7 +214,7 @@ fn origin(ip: IpAddr, port: u16) -> String {
 struct ConnectedHost {
     instance_id: String,
     pinned: String,
-    permissions: curator::native::ViewerPermissions,
+    permissions: avtohmver::native::ViewerPermissions,
 }
 
 /// Events the background connect task streams to the UI so a stalled or
@@ -225,7 +229,7 @@ enum ConnectEvent {
 async fn handshake(
     client: &reqwest::Client,
     pinned: &str,
-) -> Result<(String, curator::native::ViewerPermissions), String> {
+) -> Result<(String, avtohmver::native::ViewerPermissions), String> {
     let info = client
         .get(format!("{pinned}/api/system/info"))
         .send()
@@ -235,13 +239,13 @@ async fn handshake(
         .json::<SystemInfo>()
         .await
         .map_err(|_| format!("{pinned}: invalid system information"))?;
-    if info.api_protocol == curator::API_PROTOCOL
+    if info.api_protocol == avtohmver::API_PROTOCOL
         && matches!(info.edition.as_str(), "host" | "server")
         && info.tailnet_only
     {
         Ok((info.instance_id, info.viewer_permissions))
     } else {
-        Err(format!("{pinned}: incompatible Curator host"))
+        Err(format!("{pinned}: incompatible AvtoHmver host"))
     }
 }
 
@@ -249,7 +253,7 @@ async fn connect_once(
     endpoint: &str,
     peers: &[TailnetPeer],
     client: &reqwest::Client,
-) -> Result<(String, String, curator::native::ViewerPermissions), String> {
+) -> Result<(String, String, avtohmver::native::ViewerPermissions), String> {
     let url = normalized_endpoint(endpoint)?;
     let name = url
         .host_str()
@@ -293,7 +297,7 @@ async fn connect_once(
         }
     }
     Err(format!(
-        "Could not connect to a compatible Tailnet Curator host ({})",
+        "Could not connect to a compatible Tailnet AvtoHmver host ({})",
         failures.join("; ")
     ))
 }
@@ -378,16 +382,21 @@ async fn connect_flow(
         }
     }
     Err(format!(
-        "Could not connect to a compatible Tailnet Curator host after {attempts} attempt(s) ({})",
+        "Could not connect to a compatible Tailnet AvtoHmver host after {attempts} attempt(s) ({})",
         failures.join("; ")
     ))
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    if std::env::args().any(|arg| arg == "--version" || arg == "-V") {
+        println!("AvtoHmver Viewer {}", env!("CARGO_PKG_VERSION"));
+        return Ok(());
+    }
+
     let runtime = tokio::runtime::Runtime::new()?;
     while let Some(client) = choose_host(&runtime)? {
-        if curator_desktop::run_ui_with_exit(&runtime, client, false)?
-            != curator_desktop::NativeExit::SwitchHost
+        if avtohmver_desktop::run_ui_with_exit(&runtime, client, false)?
+            != avtohmver_desktop::NativeExit::SwitchHost
         {
             break;
         }
@@ -399,7 +408,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// `endpoint` supplies the expected library identity so a moved host can be
 /// found at its new address; every attempt is reported back to the UI.
 fn start_connect(
-    weak: &slint::Weak<CuratorViewerWindow>,
+    weak: &slint::Weak<AvtoHmverViewerWindow>,
     handle: &tokio::runtime::Handle,
     tx: &std::sync::mpsc::Sender<ConnectEvent>,
     name: String,
@@ -428,10 +437,10 @@ fn start_connect(
 
 fn choose_host(
     runtime: &tokio::runtime::Runtime,
-) -> Result<Option<curator::native::Client>, Box<dyn std::error::Error>> {
+) -> Result<Option<avtohmver::native::Client>, Box<dyn std::error::Error>> {
     use slint::ComponentHandle;
     use std::{cell::RefCell, rc::Rc, sync::mpsc};
-    let window = CuratorViewerWindow::new()?;
+    let window = AvtoHmverViewerWindow::new()?;
     let selected = Rc::new(RefCell::new(None));
     let (tx, rx) = mpsc::channel::<ConnectEvent>();
     let handle = runtime.handle().clone();
@@ -529,7 +538,7 @@ fn choose_host(
                                 );
                             }
                             let client =
-                                curator::native::RemoteClient::from_validated_peer_with_identity(
+                                avtohmver::native::RemoteClient::from_validated_peer_with_identity(
                                     &host.pinned,
                                     host.permissions,
                                     host.instance_id.clone(),
@@ -582,7 +591,7 @@ fn choose_host(
     let selected_client = selected
         .borrow_mut()
         .take()
-        .map(curator::native::Client::Remote);
+        .map(avtohmver::native::Client::Remote);
     Ok(selected_client)
 }
 
@@ -669,20 +678,20 @@ mod tests {
             .build()
             .unwrap();
 
-        let good = serve_system_info(info_json("host", curator::API_PROTOCOL, true)).await;
+        let good = serve_system_info(info_json("host", avtohmver::API_PROTOCOL, true)).await;
         let (instance_id, permissions) = handshake(&client, &good).await.unwrap();
         assert_eq!(instance_id, "library-1");
         // Missing permission fields grant only the read/playback defaults.
         assert!(permissions.playback);
         assert!(!permissions.library_edit);
 
-        let server = serve_system_info(info_json("server", curator::API_PROTOCOL, true)).await;
+        let server = serve_system_info(info_json("server", avtohmver::API_PROTOCOL, true)).await;
         assert!(handshake(&client, &server).await.is_ok());
 
         for bad in [
-            info_json("viewer", curator::API_PROTOCOL, true),
+            info_json("viewer", avtohmver::API_PROTOCOL, true),
             info_json("host", "bogus-protocol", true),
-            info_json("host", curator::API_PROTOCOL, false),
+            info_json("host", avtohmver::API_PROTOCOL, false),
         ] {
             let origin = serve_system_info(bad).await;
             assert!(handshake(&client, &origin).await.is_err());

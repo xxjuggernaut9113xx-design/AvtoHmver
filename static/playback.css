@@ -1,0 +1,10 @@
+.playback-sheet { color: var(--text, #eee); background: var(--bg, #17191e); border: 1px solid #777; border-radius: 12px; width: min(720px, 92vw); max-height: 90dvh; padding: 20px; overflow-y: auto; }
+.playback-sheet::backdrop { background: #000b; }
+.playback-sheet label { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; }
+.playback-sheet button, .playback-sheet input, .playback-sheet select { min-height: 44px; padding: 8px; font: inherit; }
+.playback-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.playback-sheet iframe { display: block; width: 100%; min-height: 220px; border: 0; }
+.playback-sheet audio { width: 100%; }
+.playback-stage { width: 100%; max-height: 50dvh; object-fit: contain; }
+.playback-start { position: sticky; bottom: 0; width: 100%; background: #8060df; color: white; font-weight: bold; }
+@media (max-width: 600px) { .playback-sheet { width: calc(100vw - 24px); max-height: 94dvh; padding: 12px; } }

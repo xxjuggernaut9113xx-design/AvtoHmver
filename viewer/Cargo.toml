@@ -1,14 +1,14 @@
 [package]
-name = "curator-viewer"
+name = "avtohmver-viewer"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
-description = "Curator Tailnet Viewer"
+description = "AvtoHmver Tailnet Viewer"
 publish = false
 
 [[bin]]
-name = "curator-viewer"
+name = "avtohmver-viewer"
 path = "src/main.rs"
 
 [build-dependencies]
@@ -17,8 +17,8 @@ path = "src/main.rs"
 slint-build = "=1.18.0"
 
 [dependencies]
-curator = { path = ".." }
-curator-desktop = { path = "../desktop" }
+avtohmver = { path = ".." }
+avtohmver-desktop = { path = "../desktop" }
 tokio = { version = "1", features = ["full"] }
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
 serde = { version = "1", features = ["derive"] }

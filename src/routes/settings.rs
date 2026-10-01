@@ -76,7 +76,7 @@ pub async fn patch(
         return Err((
             StatusCode::FORBIDDEN,
             Json(
-                json!({"error":"Startup, tray, and LAN controls are available only in the local Curator Host app."}),
+                json!({"error":"Startup, tray, and LAN controls are available only in the local AvtoHmver Host app."}),
             ),
         ));
     }
@@ -156,9 +156,9 @@ mod tests {
                 supported: true,
                 registered: false,
                 state: "stale".into(),
-                message: "Windows startup points to a different Curator executable. Enable Start with Windows to repair it.".into(),
-                actual_command: Some(r#""C:\\Old Curator\\Curator.exe" --background"#.into()),
-                expected_command: Some(r#""C:\\Curator\\Curator.exe" --background"#.into()),
+                message: "Windows startup points to a different AvtoHmver executable. Enable Start with Windows to repair it.".into(),
+                actual_command: Some(r#""C:\\Old AvtoHmver\\AvtoHmver.exe" --background"#.into()),
+                expected_command: Some(r#""C:\\AvtoHmver\\AvtoHmver.exe" --background"#.into()),
                 repair_available: true,
             }),
         );

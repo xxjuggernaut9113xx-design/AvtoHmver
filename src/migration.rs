@@ -33,7 +33,7 @@ pub fn import_host_library(source: &Path, destination: &Path) -> Result<HostImpo
         .with_context(|| format!("resolving Host data directory {}", source.display()))?;
     if !source.join("data.db").is_file() {
         bail!(
-            "{} is not a Curator Host data directory (data.db is missing)",
+            "{} is not a AvtoHmver Host data directory (data.db is missing)",
             source.display()
         );
     }

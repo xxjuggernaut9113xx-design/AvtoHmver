@@ -22,7 +22,7 @@ impl BackupError {
     pub fn message(&self) -> &str {
         match self {
             Self::Forbidden => "Recovery is available only on the Host or Server device",
-            Self::ShuttingDown => "Curator is shutting down",
+            Self::ShuttingDown => "AvtoHmver is shutting down",
             Self::InvalidId(message) => message,
             Self::ReadFailed(message) => message,
         }

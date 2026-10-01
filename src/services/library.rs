@@ -30,7 +30,7 @@ impl LibraryError {
         match self {
             Self::BadRequest(message) | Self::Internal(message) => message,
             Self::Forbidden => "Viewer cannot open a local library",
-            Self::ShuttingDown => "Curator is shutting down",
+            Self::ShuttingDown => "AvtoHmver is shutting down",
             Self::Maintenance => "A local maintenance job is active",
         }
     }
@@ -613,7 +613,7 @@ mod tests {
         );
         let (status, body) = http_list(&state, "/api/media").await;
         assert_eq!(status, 503);
-        assert_eq!(body["error"], "Curator is shutting down");
+        assert_eq!(body["error"], "AvtoHmver is shutting down");
     }
 
     #[tokio::test]

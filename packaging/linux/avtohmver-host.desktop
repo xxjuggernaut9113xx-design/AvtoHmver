@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=AvtoHmver Host
+Comment=AvtoHmver native media library host
+Exec=/usr/lib/avtohmver-host/AvtoHmver
+Icon=avtohmver-host
+Terminal=false
+Type=Application
+Categories=Graphics;AudioVideo;
+StartupWMClass=AvtoHmver

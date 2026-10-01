@@ -1,4 +1,4 @@
-# Builds the Curator Host and Curator Viewer NSIS installers (current-user
+# Builds the AvtoHmver Host and AvtoHmver Viewer NSIS installers (current-user
 # and all-users) from already-compiled binaries. A verified tools directory
 # is required: Host carries all media tools, while Viewer carries libmpv and
 # its dependency DLLs for in-shell remote playback.
@@ -24,7 +24,7 @@ $repositoryRoot = Split-Path -Parent (Split-Path -Parent $scriptRoot)
 
 foreach ($binary in @($HostBinary, $ViewerBinary)) {
     $resolved = (Resolve-Path -LiteralPath $binary -ErrorAction SilentlyContinue)
-    if (-not $resolved) { throw "Curator executable was not found: $binary" }
+    if (-not $resolved) { throw "AvtoHmver executable was not found: $binary" }
 }
 
 if (-not $ToolsDirectory) {
@@ -61,7 +61,7 @@ function Find-MakeNSIS {
 
 $nsis = Find-MakeNSIS
 if (-not $nsis) {
-    throw 'makensis is required to build Curator desktop installers. Install NSIS or add makensis.exe to PATH.'
+    throw 'makensis is required to build AvtoHmver desktop installers. Install NSIS or add makensis.exe to PATH.'
 }
 
 if (-not $Version) {
@@ -73,11 +73,11 @@ if (-not $Version) {
 
 $resolvedOutput = [System.IO.Path]::GetFullPath($OutputDirectory)
 New-Item -ItemType Directory -Force -Path $resolvedOutput | Out-Null
-$stageRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("curator-desktop-nsis-" + [guid]::NewGuid().ToString('N'))
+$stageRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("avtohmver-desktop-nsis-" + [guid]::NewGuid().ToString('N'))
 
 $editions = @(
-    @{ Name = 'host'; Binary = $HostBinary; Exe = 'Curator.exe'; Nsi = 'curator-host.nsi'; ToolMode = 'all' },
-    @{ Name = 'viewer'; Binary = $ViewerBinary; Exe = 'curator-viewer.exe'; Nsi = 'curator-viewer.nsi'; ToolMode = 'libraries' }
+    @{ Name = 'host'; Binary = $HostBinary; Exe = 'AvtoHmver.exe'; Nsi = 'avtohmver-host.nsi'; ToolMode = 'all' },
+    @{ Name = 'viewer'; Binary = $ViewerBinary; Exe = 'avtohmver-viewer.exe'; Nsi = 'avtohmver-viewer.nsi'; ToolMode = 'libraries' }
 )
 
 try {
@@ -99,16 +99,16 @@ try {
             } else {
                 $libraries = Get-ChildItem -LiteralPath $resolvedTools.Path -Filter '*.dll' -File
                 if ($libraries.Count -eq 0) {
-                    throw 'ToolsDirectory contains no libmpv runtime DLLs for Curator Viewer.'
+                    throw 'ToolsDirectory contains no libmpv runtime DLLs for AvtoHmver Viewer.'
                 }
                 foreach ($library in $libraries) {
                     Copy-Item -LiteralPath $library.FullName -Destination (Join-Path $stage 'tools')
                 }
             }
 
-            $installer = Join-Path $resolvedOutput ("curator-$($edition.Name)-$Version-windows-$scope-setup.exe")
+            $installer = Join-Path $resolvedOutput ("avtohmver-$($edition.Name)-$Version-windows-$scope-setup.exe")
             $arguments = @(
-                "/DCURATOR_STAGE=$stage",
+                "/DAVTOHMVER_STAGE=$stage",
                 "/DPRODUCT_VERSION=$Version",
                 "/DOUTPUT_FILE=$installer"
             )

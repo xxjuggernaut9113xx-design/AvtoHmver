@@ -1,4 +1,4 @@
-//! Product-edition and installation-scope contracts shared by every Curator
+//! Product-edition and installation-scope contracts shared by every AvtoHmver
 //! executable.  These values deliberately live in the core crate so clients
 //! cannot drift from the server's API negotiation rules.
 
@@ -55,7 +55,7 @@ impl InstallScope {
     /// scope selection outside the database means the location is known
     /// before SQLite is opened.
     pub fn from_environment() -> Self {
-        match std::env::var("CURATOR_INSTALL_SCOPE") {
+        match crate::config::env_var("CURATOR_INSTALL_SCOPE") {
             Ok(value)
                 if matches!(
                     value.trim().to_ascii_lowercase().as_str(),

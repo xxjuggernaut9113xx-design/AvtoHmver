@@ -96,7 +96,7 @@ async function startSession() {
     const data = await api(`/api/ch/playlist?${params}`);
     playlist   = data.items ?? [];
   } catch (e) {
-    showError("Could not reach Curator — is it running on this machine?");
+    showError("Could not reach AvtoHmver — is it running on this machine?");
     els.startBtn.disabled = false;
     return;
   }

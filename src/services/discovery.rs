@@ -2,7 +2,7 @@
 //! provider-normalized result adapters shared by native Host and the Server
 //! HTTP adapter.
 //!
-//! Curator never downloads search results itself. Providers return source or
+//! AvtoHmver never downloads search results itself. Providers return source or
 //! gallery URLs and the selected compatible URLs are handed to the
 //! established gallery-dl source queue.
 
@@ -76,7 +76,7 @@ pub fn providers(state: &AppState) -> Result<ProviderCatalog, &'static str> {
         return Err("Viewer cannot inspect a local discovery registry");
     }
     if state.shutdown.is_cancelled() {
-        return Err("Curator is shutting down");
+        return Err("AvtoHmver is shutting down");
     }
     Ok(ProviderCatalog {
         providers: state.search_registry.providers.clone(),
@@ -127,7 +127,7 @@ fn curated_providers() -> Vec<ProviderDescriptor> {
     vec![
         descriptor(
             "local",
-            "Curator library",
+            "AvtoHmver library",
             &["catalog"],
             false,
             "available",
@@ -567,7 +567,7 @@ fn generated_provider_templates(extractors: &str) -> Vec<ProviderDescriptor> {
             curated: false,
             result_types: vec!["post".into(), "tag".into()],
             // A gallery-dl extractor listing is useful for discovery but not
-            // proof that Curator has a safe, normalized query adapter. Keep
+            // proof that AvtoHmver has a safe, normalized query adapter. Keep
             // generated providers direct-URL-only until an adapter exists.
             search_template: None,
         });
@@ -638,7 +638,7 @@ pub struct SearchResult {
     pub item_count: Option<i64>,
     pub date: Option<String>,
     pub gallery_dl_compatible: bool,
-    /// Set only by Curator's adapters after the URL has passed the page-URL
+    /// Set only by AvtoHmver's adapters after the URL has passed the page-URL
     /// guard. CDN/media file URLs are preview-only.
     #[serde(default)]
     pub gallery_dl_validated: bool,
@@ -731,7 +731,7 @@ fn search_local_catalog(conn: &Connection, query: &str) -> rusqlite::Result<Vec<
                 title: row.get(0)?,
                 creator: row.get(4)?,
                 thumbnail: None,
-                source: "Curator library".to_string(),
+                source: "AvtoHmver library".to_string(),
                 source_url: row.get(1)?,
                 provider: "local".to_string(),
                 result_type: "album".to_string(),
@@ -762,7 +762,7 @@ fn search_local_catalog(conn: &Connection, query: &str) -> rusqlite::Result<Vec<
                 creator: Some(title.clone()),
                 title,
                 thumbnail: None,
-                source: "Curator library".to_string(),
+                source: "AvtoHmver library".to_string(),
                 source_url: row.get(2)?,
                 provider: "local".to_string(),
                 result_type: "creator".to_string(),
@@ -1099,7 +1099,7 @@ async fn search_balbums(query: &str) -> Result<Vec<SearchResult>, String> {
         urlencoding::encode(trimmed)
     );
     let client = reqwest::Client::builder()
-        .user_agent("Curator/0.1 discovery")
+        .user_agent("AvtoHmver/0.1 discovery")
         .connect_timeout(std::time::Duration::from_secs(4))
         .timeout(std::time::Duration::from_secs(10))
         .redirect(crate::url_guard::public_redirect_policy())
@@ -1304,7 +1304,7 @@ async fn search_kemono_like(provider: &str, query: &str) -> Result<Vec<SearchRes
         return Err("Search is not available for this provider".to_string());
     }
     let client = reqwest::Client::builder()
-        .user_agent("Curator/0.1 discovery")
+        .user_agent("AvtoHmver/0.1 discovery")
         .connect_timeout(std::time::Duration::from_secs(4))
         .timeout(std::time::Duration::from_secs(10))
         .redirect(crate::url_guard::public_redirect_policy())

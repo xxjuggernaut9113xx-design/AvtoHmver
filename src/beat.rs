@@ -22,7 +22,7 @@ const HOP: usize = 512;
 const WINDOW: usize = 1024;
 
 /// Decode a bounded five-minute mono PCM analysis buffer. The original audio
-/// is never changed or copied into Curator's database.
+/// is never changed or copied into AvtoHmver's database.
 pub fn decode_mono_pcm(ffmpeg_bin: &str, path: &Path) -> Result<Vec<f32>, String> {
     if !path.is_file() {
         return Err("Audio file is unavailable".to_string());

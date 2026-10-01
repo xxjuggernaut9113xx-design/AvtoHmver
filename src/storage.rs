@@ -72,7 +72,7 @@ pub fn human_bytes(bytes: u64) -> String {
     format!("{value:.1} {}", UNITS[unit])
 }
 
-/// Count regular files without following links. Curator owns these directories
+/// Count regular files without following links. AvtoHmver owns these directories
 /// and must never let an accounting pass escape through a junction/symlink.
 pub fn directory_usage(path: &Path) -> u64 {
     if !path.is_dir() {
@@ -295,7 +295,7 @@ pub fn dashboard_snapshot(
             "minimum_free_disk_bytes": settings.minimum_free_disk_bytes,
         },
         "sources": sources,
-        "note": "An active remote source sync can exceed its source quota by up to one permitted file before Curator pauses it.",
+        "note": "An active remote source sync can exceed its source quota by up to one permitted file before AvtoHmver pauses it.",
     })
 }
 

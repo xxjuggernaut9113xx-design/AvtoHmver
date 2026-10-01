@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Set up Curator</title>
+<title>Set up AvtoHmver</title>
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="/style.css">
 <link rel="stylesheet" href="/oobe.css">
@@ -16,7 +16,7 @@
   <div class="oobe-header">
     <span class="brand-mark" aria-hidden="true">◧</span>
     <div>
-      <h1 id="oobe-title">Set up Curator</h1>
+      <h1 id="oobe-title">Set up AvtoHmver</h1>
       <p id="oobe-subtitle">Step <span id="oobe-step-num">1</span> of 8</p>
     </div>
   </div>
@@ -28,12 +28,12 @@
   <!-- ── Step 1 — Welcome ─────────────────────────────────────────── -->
   <section class="oobe-step" data-step="1" aria-labelledby="step1-h">
     <div class="oobe-welcome-icon">◧</div>
-    <h2 id="step1-h">Welcome to Curator</h2>
+    <h2 id="step1-h">Welcome to AvtoHmver</h2>
     <p class="oobe-lede">Local gallery browser powered by gallery-dl.</p>
     <p class="oobe-lede">
-      Everything Curator downloads — your media, its database, and its settings —
+      Everything AvtoHmver downloads — your media, its database, and its settings —
       stays on this machine. Nothing is uploaded anywhere. This short setup checks
-      that Curator has what it needs, then gets out of your way.
+      that AvtoHmver has what it needs, then gets out of your way.
     </p>
     <div class="oobe-welcome-actions">
       <button class="btn btn-accent btn-block" data-action="get-started">Get Started</button>
@@ -44,7 +44,7 @@
   <!-- ── Step 2 — Dependencies ───────────────────────────────────────── -->
   <section class="oobe-step" data-step="2" aria-labelledby="step2-h" hidden>
     <h2 id="step2-h">Checking dependencies</h2>
-    <p class="oobe-lede">Curator drives these tools directly rather than replacing them.</p>
+    <p class="oobe-lede">AvtoHmver drives these tools directly rather than replacing them.</p>
 
     <div class="oobe-dep" id="dep-gallery_dl">
       <span class="oobe-dep-icon pending" id="dep-gallery_dl-icon">…</span>
@@ -80,7 +80,7 @@
   <section class="oobe-step" data-step="3" aria-labelledby="step3-h" hidden>
     <h2 id="step3-h">Data directory</h2>
     <p class="oobe-lede">
-      Curator stores downloaded media, its database, settings, and logs here.
+      AvtoHmver stores downloaded media, its database, settings, and logs here.
     </p>
     <div class="oobe-field oobe-field-full">
       <input type="text" class="oobe-input mono" id="data-dir-input">
@@ -91,8 +91,8 @@
       <p class="oobe-inline-status" id="data-dir-status"></p>
     </div>
     <p class="oobe-help">
-      Curator never moves existing files when you change this — pick a directory
-      that either doesn't exist yet (it'll be created) or already holds a Curator
+      AvtoHmver never moves existing files when you change this — pick a directory
+      that either doesn't exist yet (it'll be created) or already holds a AvtoHmver
       library you want to keep using.
     </p>
   </section>
@@ -110,9 +110,9 @@
     <button class="btn small" data-action="retest-gallery_dl">Test again</button>
     <p class="oobe-help">
       gallery-dl keeps its own configuration file (for things like site logins and
-      cookies) separately from Curator — this wizard doesn't ask for passwords or
+      cookies) separately from AvtoHmver — this wizard doesn't ask for passwords or
       cookies. See gallery-dl's own documentation for site-specific login setup;
-      Curator will use whatever gallery-dl is already configured to do.
+      AvtoHmver will use whatever gallery-dl is already configured to do.
     </p>
   </section>
 
@@ -157,7 +157,7 @@
       installer. You can also manage it later from Local Admin.
     </p>
     <p class="oobe-help" id="nsfw-help">
-      Turning this on when the environment isn't ready yet is fine — Curator will
+      Turning this on when the environment isn't ready yet is fine — AvtoHmver will
       just leave items unrated until the classifier's dependencies are installed.
       See <code>curator --docs</code> for setup instructions.
     </p>
@@ -214,7 +214,7 @@
     <p class="oobe-inline-status err" id="finish-blocker" hidden></p>
     <p class="oobe-help" id="finish-restart-note" hidden>
       Your data directory / executable path change will take effect the next time
-      Curator starts.
+      AvtoHmver starts.
     </p>
     <details class="oobe-details" id="finish-details" hidden>
       <summary>Details</summary>

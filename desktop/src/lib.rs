@@ -2,15 +2,17 @@ mod bindings;
 mod clips;
 pub mod datadir;
 pub mod mpv_embed;
+mod music;
+mod playback_setup;
 mod player;
 
 slint::include_modules!();
 
-use clips::{ClipEvent, ClipService};
-use curator::native::{
+use avtohmver::native::{
     Client, Command, LibraryQuery, ManageSnapshot, MediaItem, MediaPage, NativeImage,
     NativePreferences, NavigationItem, RecoverySnapshot,
 };
+use clips::{ClipEvent, ClipService};
 use player::{NativePlayer, PlayerCommand, PlayerStatus};
 use slint::{ComponentHandle, Model, ModelRc, VecModel};
 use std::{
@@ -55,7 +57,7 @@ fn write_export_file(path: &std::path::Path, bytes: &[u8]) -> Result<(), String>
 
 /// One-line-plus P-HAR status for the Local Admin panel, including the
 /// actionable error the engine reports when setup goes wrong.
-fn phar_status_text(status: &curator::phar::PharStatus) -> String {
+fn phar_status_text(status: &avtohmver::phar::PharStatus) -> String {
     let mut text = format!(
         "P-HAR: {:?} · {}% — {}",
         status.phase, status.progress_percent, status.message
@@ -70,7 +72,7 @@ fn phar_status_text(status: &curator::phar::PharStatus) -> String {
 }
 
 enum Work {
-    Recovery(Option<curator::maintenance::MaintenanceRequest>),
+    Recovery(Option<avtohmver::maintenance::MaintenanceRequest>),
     Navigation,
     ImportFolder,
     ExportSources,
@@ -180,7 +182,7 @@ enum Update {
         log: bool,
         result: Result<serde_json::Value, String>,
     },
-    SourceTags(Result<Vec<curator::native::SourceTagCandidate>, String>),
+    SourceTags(Result<Vec<avtohmver::native::SourceTagCandidate>, String>),
     SourceTagReviewed(Result<(), String>),
     SettingsSaved(Result<(), String>),
     Exported(Result<String, String>),
@@ -407,19 +409,19 @@ struct PanicSnapshot {
     session_id: Option<String>,
 }
 
-fn show_loading(window: &CuratorNativeWindow, step: &str) {
+fn show_loading(window: &AvtoHmverNativeWindow, step: &str) {
     window.set_playback_loading(true);
     window.set_playback_error(false);
     window.set_playback_step(step.into());
 }
 
-fn show_playback_error(window: &CuratorNativeWindow, error: &str) {
+fn show_playback_error(window: &AvtoHmverNativeWindow, error: &str) {
     window.set_playback_loading(false);
     window.set_playback_error(true);
     window.set_playback_step(error.into());
 }
 
-fn mark_media_ready(window: &CuratorNativeWindow, state: &mut ViewState) {
+fn mark_media_ready(window: &AvtoHmverNativeWindow, state: &mut ViewState) {
     if state.player.ready {
         return;
     }
@@ -437,7 +439,7 @@ fn mark_media_ready(window: &CuratorNativeWindow, state: &mut ViewState) {
 }
 
 fn finish_preview(
-    window: &CuratorNativeWindow,
+    window: &AvtoHmverNativeWindow,
     state: &mut ViewState,
     request: u64,
     title: &str,
@@ -468,7 +470,7 @@ fn finish_preview(
 }
 
 fn navigate_location(
-    window: &CuratorNativeWindow,
+    window: &AvtoHmverNativeWindow,
     state: &mut ViewState,
     location: Option<(i64, bool)>,
     tx: &WorkSender,
@@ -520,21 +522,21 @@ fn navigate_location(
 
 #[cfg(any(windows, test))]
 fn panic_hide(
-    window: &CuratorNativeWindow,
-    tray: &CuratorTray,
+    window: &AvtoHmverNativeWindow,
+    tray: &AvtoHmverTray,
     state: &mut ViewState,
-    host: Option<&curator::AppState>,
+    host: Option<&avtohmver::AppState>,
 ) {
     if state.panic.is_some() {
         return;
     }
     let session_id = host
-        .and_then(curator::services::session::current)
-        .filter(|session| session.status == curator::session::SessionStatus::Running)
+        .and_then(avtohmver::services::session::current)
+        .filter(|session| session.status == avtohmver::session::SessionStatus::Running)
         .and_then(|session| {
-            curator::services::session::control(
+            avtohmver::services::session::control(
                 host.unwrap(),
-                curator::session::SessionControl::Pause,
+                avtohmver::session::SessionControl::Pause,
             )
             .ok()
             .map(|_| session.session_id)
@@ -551,10 +553,10 @@ fn panic_hide(
 }
 
 fn panic_restore(
-    window: &CuratorNativeWindow,
-    tray: &CuratorTray,
+    window: &AvtoHmverNativeWindow,
+    tray: &AvtoHmverTray,
     state: &mut ViewState,
-    host: Option<&curator::AppState>,
+    host: Option<&avtohmver::AppState>,
 ) {
     if let Some(snapshot) = state.panic.take() {
         let elapsed = snapshot.since.elapsed();
@@ -585,13 +587,13 @@ fn panic_restore(
         window.set_player_paused(snapshot.paused);
         window.set_player_volume(snapshot.volume);
         if let (Some(host), Some(id)) = (host, snapshot.session_id) {
-            if curator::services::session::current(host).is_some_and(|session| {
+            if avtohmver::services::session::current(host).is_some_and(|session| {
                 session.session_id == id
-                    && session.status == curator::session::SessionStatus::Paused
+                    && session.status == avtohmver::session::SessionStatus::Paused
             }) {
-                let _ = curator::services::session::control(
+                let _ = avtohmver::services::session::control(
                     host,
-                    curator::session::SessionControl::Resume,
+                    avtohmver::session::SessionControl::Resume,
                 );
             }
         }
@@ -659,6 +661,10 @@ struct ReviewState {
 
 #[derive(Default)]
 struct GoonState {
+    active_order: Vec<i64>,
+    preset_media: Vec<MediaItem>,
+    active_preset: Option<avtohmver::services::playback::PlaybackPreset>,
+    allowed_ids: Option<HashSet<i64>>,
     media_enabled: bool,
     last_phase: Option<String>,
     last_session: Option<String>,
@@ -821,7 +827,7 @@ fn interactive_control(command: &Command) -> bool {
     )
 }
 
-fn session_text(state: Option<&curator::session::SessionState>) -> String {
+fn session_text(state: Option<&avtohmver::session::SessionState>) -> String {
     let Some(state) = state else {
         return "No active session".into();
     };
@@ -859,7 +865,7 @@ fn is_animated_preview(item: &MediaItem) -> bool {
 }
 
 fn apply_player_status(
-    window: &CuratorNativeWindow,
+    window: &AvtoHmverNativeWindow,
     holder: &mut PlayerHolder,
     status: PlayerStatus,
 ) {
@@ -893,7 +899,7 @@ fn player_status_is_error(status: &PlayerStatus) -> bool {
 /// preview pane; everything else loads into mpv. Returns an error when the
 /// item cannot start so feed/review/GOON can skip to a ready alternate.
 fn play_media_item(
-    window: &CuratorNativeWindow,
+    window: &AvtoHmverNativeWindow,
     state: &mut ViewState,
     client: &Client,
     image_tx: &mpsc::SyncSender<(u64, u8, MediaItem)>,
@@ -968,7 +974,7 @@ fn play_media_item(
 
 /// Advances the manual queue after an item genuinely ends.
 fn advance_queue(
-    window: &CuratorNativeWindow,
+    window: &AvtoHmverNativeWindow,
     state: &mut ViewState,
     client: &Client,
     image_tx: &mpsc::SyncSender<(u64, u8, MediaItem)>,
@@ -1169,7 +1175,7 @@ fn feed_select_next(feed: &mut FeedState) -> Option<MediaItem> {
         .cloned()
 }
 
-fn feed_top_up(window: &CuratorNativeWindow, state: &mut ViewState, tx: &WorkSender) {
+fn feed_top_up(window: &AvtoHmverNativeWindow, state: &mut ViewState, tx: &WorkSender) {
     if state.feed.fetching || state.feed.exhausted {
         return;
     }
@@ -1185,7 +1191,7 @@ fn feed_top_up(window: &CuratorNativeWindow, state: &mut ViewState, tx: &WorkSen
     window.set_feed_status("Loading feed…".into());
 }
 
-fn feed_start(window: &CuratorNativeWindow, state: &mut ViewState, tx: &WorkSender) {
+fn feed_start(window: &AvtoHmverNativeWindow, state: &mut ViewState, tx: &WorkSender) {
     state.player.player.apply(PlayerCommand::Stop);
     state.preview_request = state.preview_request.wrapping_add(1);
     state.player.current = None;
@@ -1220,7 +1226,7 @@ fn feed_start(window: &CuratorNativeWindow, state: &mut ViewState, tx: &WorkSend
 /// recycling shown items once fresh media runs out. Returns false when the
 /// feed has nothing to show at all.
 fn feed_advance(
-    window: &CuratorNativeWindow,
+    window: &AvtoHmverNativeWindow,
     state: &mut ViewState,
     client: &Client,
     image_tx: &mpsc::SyncSender<(u64, u8, MediaItem)>,
@@ -1308,14 +1314,14 @@ fn stop_competing_modes(state: &mut ViewState) {
 /// Preempts automated modes for a new mode start or manual playback,
 /// finishing an active Cock Hero session (with session logging) instead of
 /// silently clearing it.
-fn preempt_for_mode_start(window: &CuratorNativeWindow, state: &mut ViewState, tx: &WorkSender) {
+fn preempt_for_mode_start(window: &AvtoHmverNativeWindow, state: &mut ViewState, tx: &WorkSender) {
     if state.cockhero.active || state.cockhero.fetching {
         cockhero_finish(window, state, tx, "Cock Hero session preempted.");
     }
     stop_competing_modes(state);
 }
 
-fn slideshow_start(window: &CuratorNativeWindow, state: &mut ViewState, tx: &WorkSender) {
+fn slideshow_start(window: &AvtoHmverNativeWindow, state: &mut ViewState, tx: &WorkSender) {
     preempt_for_mode_start(window, state, tx);
     state.player.queue_index = None;
     let (speed, looping, shuffle) = slideshow_settings(&state.settings);
@@ -1337,7 +1343,7 @@ fn slideshow_start(window: &CuratorNativeWindow, state: &mut ViewState, tx: &Wor
 }
 
 fn slideshow_top_up(
-    window: &CuratorNativeWindow,
+    window: &AvtoHmverNativeWindow,
     state: &mut ViewState,
     tx: &WorkSender,
     shuffle: bool,
@@ -1368,7 +1374,7 @@ fn slideshow_should_loop(show: &SlideshowState) -> bool {
 /// pass over the library when looping. Returns false when nothing could
 /// be shown.
 fn slideshow_advance(
-    window: &CuratorNativeWindow,
+    window: &AvtoHmverNativeWindow,
     state: &mut ViewState,
     client: &Client,
     image_tx: &mpsc::SyncSender<(u64, u8, MediaItem)>,
@@ -1427,7 +1433,7 @@ fn slideshow_advance(
     }
 }
 
-fn slideshow_stop(window: &CuratorNativeWindow, state: &mut ViewState) {
+fn slideshow_stop(window: &AvtoHmverNativeWindow, state: &mut ViewState) {
     state.slideshow.active = false;
     state.slideshow.deadline = None;
     window.set_slideshow_status("Slideshow stopped.".into());
@@ -1435,7 +1441,7 @@ fn slideshow_stop(window: &CuratorNativeWindow, state: &mut ViewState) {
 
 // ─── Portrait wall ───────────────────────────────────────────────────────
 
-fn wall_start(window: &CuratorNativeWindow, state: &mut ViewState, tx: &WorkSender) {
+fn wall_start(window: &AvtoHmverNativeWindow, state: &mut ViewState, tx: &WorkSender) {
     preempt_for_mode_start(window, state, tx);
     state.player.queue_index = None;
     // The wall owns the player while active so a running video does not
@@ -1470,7 +1476,7 @@ fn wall_start(window: &CuratorNativeWindow, state: &mut ViewState, tx: &WorkSend
 }
 
 fn wall_top_up(
-    window: &CuratorNativeWindow,
+    window: &AvtoHmverNativeWindow,
     state: &mut ViewState,
     tx: &WorkSender,
     shuffle: bool,
@@ -1504,7 +1510,7 @@ fn wall_image_is_fresh(wall: &PortraitWallState, slot: u8, request: u64) -> bool
 /// Pulls the next unseen image for a wall pane and queues its decode into
 /// the pane's image slot.
 fn wall_advance_pane(
-    window: &CuratorNativeWindow,
+    window: &AvtoHmverNativeWindow,
     state: &mut ViewState,
     image_tx: &mpsc::SyncSender<(u64, u8, MediaItem)>,
     tx: &WorkSender,
@@ -1543,7 +1549,7 @@ fn wall_advance_pane(
     }
 }
 
-fn wall_stop(window: &CuratorNativeWindow, state: &mut ViewState) {
+fn wall_stop(window: &AvtoHmverNativeWindow, state: &mut ViewState) {
     state.wall.active = false;
     for pane in state.wall.panes.iter_mut() {
         pane.deadline = None;
@@ -1603,7 +1609,7 @@ fn ch_pace_phase(elapsed: Duration, total: Option<Duration>) -> (&'static str, u
     (phase.1, phase.2)
 }
 
-fn cockhero_start(window: &CuratorNativeWindow, state: &mut ViewState, tx: &WorkSender) {
+fn cockhero_start(window: &AvtoHmverNativeWindow, state: &mut ViewState, tx: &WorkSender) {
     preempt_for_mode_start(window, state, tx);
     state.player.queue_index = None;
     let settings = &state.settings;
@@ -1651,7 +1657,7 @@ fn cockhero_start(window: &CuratorNativeWindow, state: &mut ViewState, tx: &Work
 /// beat counter from the pace schedule. Returns false when the playlist
 /// is exhausted.
 fn cockhero_advance(
-    window: &CuratorNativeWindow,
+    window: &AvtoHmverNativeWindow,
     state: &mut ViewState,
     client: &Client,
     image_tx: &mpsc::SyncSender<(u64, u8, MediaItem)>,
@@ -1685,7 +1691,7 @@ fn cockhero_advance(
     }
 }
 
-fn cockhero_render_status(window: &CuratorNativeWindow, state: &CockHeroState) {
+fn cockhero_render_status(window: &AvtoHmverNativeWindow, state: &CockHeroState) {
     window.set_cockhero_status(
         format!(
             "Cock Hero · item {}/{} · {} @ {} BPM",
@@ -1701,7 +1707,7 @@ fn cockhero_render_status(window: &CuratorNativeWindow, state: &CockHeroState) {
 
 /// Stops the session and logs it when the ch_log_sessions setting is on.
 fn cockhero_finish(
-    window: &CuratorNativeWindow,
+    window: &AvtoHmverNativeWindow,
     state: &mut ViewState,
     tx: &WorkSender,
     message: &str,
@@ -1727,7 +1733,7 @@ fn cockhero_finish(
     }
 }
 
-fn cockhero_stop(window: &CuratorNativeWindow, state: &mut ViewState, tx: &WorkSender) {
+fn cockhero_stop(window: &AvtoHmverNativeWindow, state: &mut ViewState, tx: &WorkSender) {
     cockhero_finish(window, state, tx, "Cock Hero session stopped.");
 }
 
@@ -1755,7 +1761,7 @@ fn review_page_query(cursor: Option<String>) -> LibraryQuery {
     }
 }
 
-fn review_top_up(window: &CuratorNativeWindow, state: &mut ViewState, tx: &WorkSender) {
+fn review_top_up(window: &AvtoHmverNativeWindow, state: &mut ViewState, tx: &WorkSender) {
     if state.review.fetching || state.review.exhausted {
         return;
     }
@@ -1771,7 +1777,7 @@ fn review_top_up(window: &CuratorNativeWindow, state: &mut ViewState, tx: &WorkS
     window.set_review_status("Loading review queue…".into());
 }
 
-fn review_start(window: &CuratorNativeWindow, state: &mut ViewState, tx: &WorkSender) {
+fn review_start(window: &AvtoHmverNativeWindow, state: &mut ViewState, tx: &WorkSender) {
     state.player.player.apply(PlayerCommand::Stop);
     state.preview_request = state.preview_request.wrapping_add(1);
     state.player.current = None;
@@ -1801,7 +1807,7 @@ fn review_start(window: &CuratorNativeWindow, state: &mut ViewState, tx: &WorkSe
 
 /// Activates the head of the review queue. Returns false when empty.
 fn review_activate(
-    window: &CuratorNativeWindow,
+    window: &AvtoHmverNativeWindow,
     state: &mut ViewState,
     client: &Client,
     image_tx: &mpsc::SyncSender<(u64, u8, MediaItem)>,
@@ -1881,7 +1887,7 @@ fn review_finish_undo(review: &mut ReviewState, succeeded: bool) -> Option<Media
 
 /// Skip without mutating: the item stays in the queue for later.
 fn review_skip(
-    window: &CuratorNativeWindow,
+    window: &AvtoHmverNativeWindow,
     state: &mut ViewState,
     client: &Client,
     image_tx: &mpsc::SyncSender<(u64, u8, MediaItem)>,
@@ -1940,6 +1946,19 @@ fn goon_page_query(rating: i64, cursor: Option<String>) -> LibraryQuery {
 }
 
 fn goon_top_up(state: &mut ViewState, tx: &WorkSender, rating: i64) {
+    if state.goon.active_preset.is_some() {
+        if !state.goon.exhausted {
+            state.goon.candidates = state
+                .goon
+                .preset_media
+                .iter()
+                .filter(|item| item.rating == rating)
+                .cloned()
+                .collect();
+            state.goon.exhausted = true;
+        }
+        return;
+    }
     if state.goon.fetching || state.goon.exhausted {
         return;
     }
@@ -1948,7 +1967,20 @@ fn goon_top_up(state: &mut ViewState, tx: &WorkSender, rating: i64) {
     let request = state.goon.request;
     let cursor = state.goon.cursor.clone();
     let _ = tx.send(Work::LibraryPage {
-        query: Box::new(goon_page_query(rating, cursor)),
+        query: Box::new({
+            let mut query = goon_page_query(rating, cursor);
+            if let Some(p) = state.goon.active_preset.as_ref() {
+                query.group_id = p.collection_id;
+                query.tags = (!p.tags.is_empty()).then(|| p.tags.join(","));
+                query.sort = if p.order == "sequential" {
+                    "date_asc"
+                } else {
+                    "date_desc"
+                }
+                .into();
+            }
+            query
+        }),
         request,
         kind: PageKind::Goon,
     });
@@ -1963,7 +1995,13 @@ fn goon_select_next(goon: &mut GoonState, rating: i64) -> Option<MediaItem> {
     while attempts > 0 {
         attempts -= 1;
         let item = goon.candidates.pop_front()?;
-        if goon.recent.contains(&item.id) || item.rating != rating {
+        if goon.recent.contains(&item.id)
+            || item.rating != rating
+            || goon
+                .allowed_ids
+                .as_ref()
+                .is_some_and(|ids| !ids.contains(&item.id))
+        {
             goon.candidates.push_back(item);
             continue;
         }
@@ -1977,7 +2015,7 @@ fn goon_select_next(goon: &mut GoonState, rating: i64) -> Option<MediaItem> {
 /// from further library pages while they remain, so a rating match buried
 /// past the first page is still found.
 fn goon_advance(
-    window: &CuratorNativeWindow,
+    window: &AvtoHmverNativeWindow,
     state: &mut ViewState,
     client: &Client,
     image_tx: &mpsc::SyncSender<(u64, u8, MediaItem)>,
@@ -2027,14 +2065,14 @@ fn goon_advance(
 /// Reacts to session snapshots: on a phase change with GOON media enabled,
 /// loads rating-matched media for the new phase. Called from the 50ms tick.
 fn goon_drive(
-    window: &CuratorNativeWindow,
+    window: &AvtoHmverNativeWindow,
     state: &mut ViewState,
     client: &Client,
     image_tx: &mpsc::SyncSender<(u64, u8, MediaItem)>,
     tx: &WorkSender,
-    snapshot: Option<&curator::session::SessionState>,
+    snapshot: Option<&avtohmver::session::SessionState>,
 ) {
-    use curator::session::SessionStatus;
+    use avtohmver::session::SessionStatus;
     if !state.goon.media_enabled {
         return;
     }
@@ -2303,7 +2341,7 @@ fn rgb(value: u32) -> slint::Color {
     slint::Color::from_rgb_u8((value >> 16) as u8, (value >> 8) as u8, value as u8)
 }
 
-fn apply_native_palette(window: &CuratorNativeWindow, name: &str) {
+fn apply_native_palette(window: &AvtoHmverNativeWindow, name: &str) {
     let name = canonical_native_theme(name);
     let palette = native_palette(name);
     window.set_custom_background(rgb(palette.background));
@@ -2362,8 +2400,8 @@ fn recovery_text(snapshot: &RecoverySnapshot) -> String {
     lines.join("\n")
 }
 
-fn maintenance_kind_for_action(action: &str) -> Option<curator::maintenance::MaintenanceKind> {
-    use curator::maintenance::MaintenanceKind;
+fn maintenance_kind_for_action(action: &str) -> Option<avtohmver::maintenance::MaintenanceKind> {
+    use avtohmver::maintenance::MaintenanceKind;
     match action {
         "Create backup" => Some(MaintenanceKind::CreateBackup),
         "Validate backup" => Some(MaintenanceKind::ValidateBackup),
@@ -2438,7 +2476,7 @@ fn remote_access_summary(remote_access: &serde_json::Value) -> String {
 fn open_or_reveal(
     client: &Client,
     view: &Rc<RefCell<ViewState>>,
-    weak: &slint::Weak<CuratorNativeWindow>,
+    weak: &slint::Weak<AvtoHmverNativeWindow>,
     open: bool,
 ) {
     let Some(window) = weak.upgrade() else { return };
@@ -2648,7 +2686,7 @@ fn source_patch_from_editor(
     included: bool,
     retention: &str,
     confirmation: &str,
-) -> Result<curator::services::sources::SourcePatch, String> {
+) -> Result<avtohmver::services::sources::SourcePatch, String> {
     let name = name.trim();
     if name.is_empty() {
         return Err("Enter a source name".into());
@@ -2665,7 +2703,7 @@ fn source_patch_from_editor(
         }
         (value != 0).then_some(value)
     };
-    Ok(curator::services::sources::SourcePatch {
+    Ok(avtohmver::services::sources::SourcePatch {
         name: Some(name.to_owned()),
         included: Some(included),
         retention_keep_newest: Some(keep_newest),
@@ -2675,7 +2713,7 @@ fn source_patch_from_editor(
 }
 
 fn apply_downloads(
-    window: &CuratorNativeWindow,
+    window: &AvtoHmverNativeWindow,
     view: &Rc<RefCell<ViewState>>,
     result: Result<serde_json::Value, String>,
 ) {
@@ -2729,7 +2767,7 @@ fn remember_page_scroll(state: &mut ViewState, cursor: Option<String>, y: f32) {
     }
 }
 
-fn render(window: &CuratorNativeWindow, state: &ViewState) {
+fn render(window: &AvtoHmverNativeWindow, state: &ViewState) {
     window.set_selected_count(state.selected.len().min(i32::MAX as usize) as i32);
     window.set_can_undo_rating(
         state.selected.len() == 1
@@ -2858,7 +2896,7 @@ fn inspector_text(selected: &BTreeMap<i64, MediaItem>) -> String {
         .join("\n\n")
 }
 
-fn current_preferences(window: &CuratorNativeWindow, state: &ViewState) -> NativePreferences {
+fn current_preferences(window: &AvtoHmverNativeWindow, state: &ViewState) -> NativePreferences {
     let size = window.window().size();
     NativePreferences {
         version: 1,
@@ -2894,7 +2932,7 @@ pub fn run_ui(
 
 /// Clears the tracked clip job, its persisted id, and the pending UI.
 fn finish_clip_job(
-    window: &CuratorNativeWindow,
+    window: &AvtoHmverNativeWindow,
     view: &Rc<RefCell<ViewState>>,
     saver: &PreferenceSaver,
     preferences_writable: bool,
@@ -2911,14 +2949,14 @@ fn finish_clip_job(
 }
 
 /// Host entry point: the desktop drives the library against the in-process
-/// [`curator::AppState`] — native clip encodes, classifier controls, and
+/// [`avtohmver::AppState`] — native clip encodes, classifier controls, and
 /// first-run setup run here instead of over HTTP. The Viewer keeps using
 /// [`run_ui_with_exit`], which passes no state.
 pub fn run_ui_host(
     runtime: &tokio::runtime::Runtime,
     client: Client,
     background: bool,
-    state: Arc<curator::AppState>,
+    state: Arc<avtohmver::AppState>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     run_ui_inner(runtime, client, background, Some(state)).map(|_| ())
 }
@@ -2935,7 +2973,7 @@ fn run_ui_inner(
     runtime: &tokio::runtime::Runtime,
     client: Client,
     background: bool,
-    host_state: Option<Arc<curator::AppState>>,
+    host_state: Option<Arc<avtohmver::AppState>>,
 ) -> Result<NativeExit, Box<dyn std::error::Error>> {
     // Encodes are in-process, so a previous run's "running" rows are dead:
     // ffmpeg died with the old process. Mark them before the UI restores
@@ -2948,7 +2986,8 @@ fn run_ui_inner(
             );
         }
     }
-    let window = CuratorNativeWindow::new()?;
+    let window = AvtoHmverNativeWindow::new()?;
+    window.set_product_version(env!("CARGO_PKG_VERSION").into());
     let local_host = matches!(client, Client::Local(_));
     window.set_local_host(local_host);
     window.set_can_edit_library(client.can_edit_library());
@@ -2966,7 +3005,7 @@ fn run_ui_inner(
     // System tray: Show/Quit live here for the whole UI lifetime. A
     // background launch (or the keep-running preference) hides the window
     // instead of exiting, so downloads and remote access keep going.
-    let tray = CuratorTray::new()?;
+    let tray = AvtoHmverTray::new()?;
     {
         let weak = window.as_weak();
         tray.on_show_window(move || {
@@ -2999,6 +3038,12 @@ fn run_ui_inner(
         });
     }
     let view = Rc::new(RefCell::new(ViewState::default()));
+    let _playback_setup = playback_setup::attach(
+        &window,
+        host_state.clone(),
+        view.clone(),
+        runtime.handle().clone(),
+    );
     {
         let weak = window.as_weak();
         view.borrow_mut().player.player.set_frame_callback(Box::new(
@@ -3109,7 +3154,7 @@ fn run_ui_inner(
         let scope = state.install_scope;
         let data_dir = state.data_dir.clone();
         window.set_classifier_status(
-            phar_status_text(&curator::phar::status(&data_dir, scope)).into(),
+            phar_status_text(&avtohmver::phar::status(&data_dir, scope)).into(),
         );
     }
     let (regular, receive) = mpsc::sync_channel(WORK_QUEUE_CAPACITY);
@@ -3403,7 +3448,7 @@ fn run_ui_inner(
             }
             Work::ImportFolder => {
                 if let Some(path) = rfd::FileDialog::new()
-                    .set_title("Import folder into Curator")
+                    .set_title("Import folder into AvtoHmver")
                     .pick_folder()
                 {
                     if let Some(result) = run_until_shutdown(
@@ -3417,7 +3462,7 @@ fn run_ui_inner(
             }
             Work::ExportSources => {
                 if let Some(path) = rfd::FileDialog::new()
-                    .set_title("Export Curator source list")
+                    .set_title("Export AvtoHmver source list")
                     .set_file_name("curator-sources.json")
                     .save_file()
                 {
@@ -3439,7 +3484,7 @@ fn run_ui_inner(
             }
             Work::ImportSources => {
                 if let Some(path) = rfd::FileDialog::new()
-                    .set_title("Import Curator source list")
+                    .set_title("Import AvtoHmver source list")
                     .add_filter("JSON source lists", &["json"])
                     .pick_file()
                 {
@@ -3450,7 +3495,7 @@ fn run_ui_inner(
                             return Err("Source-list file exceeds 8 MiB".to_owned());
                         }
                         let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
-                        curator::services::export::parse_source_file(&bytes)
+                        avtohmver::services::export::parse_source_file(&bytes)
                     })();
                     let result = result.and_then(|parsed| {
                         let skipped = parsed.skipped;
@@ -3789,39 +3834,40 @@ fn run_ui_inner(
                 let text = match worker_host_state.as_ref() {
                     None => "Classifier controls need the local Host.".to_string(),
                     Some(state) => {
-                        let outcome: Result<curator::phar::PharStatus, anyhow::Error> = (|| {
+                        let outcome: Result<avtohmver::phar::PharStatus, anyhow::Error> = (|| {
                             let status = match action.as_str() {
                                 // Opt-in: requesting the install is the
                                 // explicit consent gate.
                                 "install" => {
-                                    curator::phar::record_install_intent(
+                                    avtohmver::phar::record_install_intent(
                                         &state.data_dir,
                                         state.install_scope,
                                         true,
                                         None,
                                     )?;
-                                    curator::phar::start_install(
+                                    avtohmver::phar::start_install(
                                         &state.data_dir,
                                         state.install_scope,
                                     )?
                                 }
                                 "repair" => {
-                                    curator::phar::repair(&state.data_dir, state.install_scope)?
+                                    avtohmver::phar::repair(&state.data_dir, state.install_scope)?
                                 }
                                 // Evaluate/resume: picks up a requested,
                                 // paused, or stalled setup without
                                 // re-running the whole install.
-                                "evaluate" => curator::phar::resume_requested_setup(
+                                "evaluate" => avtohmver::phar::resume_requested_setup(
                                     &state.data_dir,
                                     state.install_scope,
                                 )?,
-                                "self-test" => {
-                                    curator::phar::self_test(&state.data_dir, state.install_scope)?
-                                }
+                                "self-test" => avtohmver::phar::self_test(
+                                    &state.data_dir,
+                                    state.install_scope,
+                                )?,
                                 "cancel" => {
-                                    curator::phar::cancel(&state.data_dir, state.install_scope)?
+                                    avtohmver::phar::cancel(&state.data_dir, state.install_scope)?
                                 }
-                                _ => curator::phar::status(&state.data_dir, state.install_scope),
+                                _ => avtohmver::phar::status(&state.data_dir, state.install_scope),
                             };
                             Ok(status)
                         })(
@@ -4354,7 +4400,7 @@ fn run_ui_inner(
     });
     let tx = send.clone();
     window.on_session_control(move |command| {
-        use curator::session::SessionControl;
+        use avtohmver::session::SessionControl;
         let command = match command.as_str() {
             "Start" => Command::StartSession,
             "Pause" => Command::Session(SessionControl::Pause),
@@ -4850,7 +4896,7 @@ fn run_ui_inner(
     let saver = preference_saver.clone();
     let local_host = matches!(client, Client::Local(_));
     window.on_save_theme(move |theme| {
-        if !curator::services::settings::VALID_THEMES.contains(&theme.as_str()) {
+        if !avtohmver::services::settings::VALID_THEMES.contains(&theme.as_str()) {
             if let Some(window) = weak.upgrade() {
                 window.set_status("Choose a supported native theme".into());
             }
@@ -5101,7 +5147,7 @@ fn run_ui_inner(
         };
         let theme = window.get_settings_draft_theme();
         let library_layout = window.get_settings_draft_layout();
-        if !curator::services::settings::VALID_THEMES.contains(&theme.as_str()) {
+        if !avtohmver::services::settings::VALID_THEMES.contains(&theme.as_str()) {
             window.set_settings_error("Choose a supported native theme".into());
             return false;
         }
@@ -6967,6 +7013,9 @@ fn run_ui_inner(
                                                         && !state.goon.recent.contains(&item.id)
                                                 })
                                                 .collect::<VecDeque<_>>();
+                                            if !state.goon.active_order.is_empty() {
+                                                candidates.make_contiguous().sort_by_key(|item| state.goon.active_order.iter().position(|id| *id == item.id).unwrap_or(usize::MAX));
+                                            }
                                             state.goon.candidates.append(&mut candidates);
                                             if state.goon.current.is_none() {
                                                 goon_advance(
@@ -7113,7 +7162,7 @@ fn run_ui_inner(
     let recovery_view = view.clone();
     let recovery_window = window.as_weak();
     window.on_recovery(move |action, backup, confirmation| {
-        use curator::maintenance::{MaintenanceKind, MaintenanceRequest};
+        use avtohmver::maintenance::{MaintenanceKind, MaintenanceRequest};
         let kind = maintenance_kind_for_action(action.as_str());
         let selected_backup = if matches!(
             kind,
@@ -7423,7 +7472,7 @@ mod tests {
         assert!(settings_optional_days("0", "Archive retention").is_err());
         // The full settings body the UI builds must deserialize into the
         // server PATCH contract, including every newly added control.
-        let body: curator::routes::settings::PatchSettingsBody =
+        let body: avtohmver::routes::settings::PatchSettingsBody =
             serde_json::from_value(serde_json::json!({
                 "theme": "dark",
                 "library_layout": "grid",
@@ -7583,7 +7632,7 @@ mod tests {
 
     #[test]
     fn session_display_uses_authoritative_phase_and_active_time() {
-        use curator::session::{GameConfig, SessionCommand, SessionEngine};
+        use avtohmver::session::{GameConfig, SessionCommand, SessionEngine};
         let mut engine = SessionEngine::new(GameConfig::quick_default()).unwrap();
         engine.dispatch(SessionCommand::Start { monotonic_ms: 100 });
         let update = engine.dispatch(SessionCommand::Tick {
@@ -8164,9 +8213,9 @@ mod playback_feedback_tests {
             )
         }
     }
-    fn window() -> CuratorNativeWindow {
+    fn window() -> AvtoHmverNativeWindow {
         slint::platform::set_platform(Box::new(Headless)).unwrap();
-        CuratorNativeWindow::new().unwrap()
+        AvtoHmverNativeWindow::new().unwrap()
     }
     #[test]
     fn image_failure_is_visible_and_stale_decode_cannot_clear_it() {
@@ -8234,7 +8283,7 @@ mod playback_feedback_tests {
     #[test]
     fn panic_is_hide_only_and_restore_preserves_paused_volume_and_deadlines() {
         let w = window();
-        let tray = CuratorTray::new().unwrap();
+        let tray = AvtoHmverTray::new().unwrap();
         let mut state = ViewState::default();
         w.set_player_volume(37.0);
         w.set_player_paused(true);
@@ -8271,7 +8320,7 @@ mod layout_render_tests {
         use slint::platform::software_renderer::{MinimalSoftwareWindow, RepaintBufferType};
         let adapter = MinimalSoftwareWindow::new(RepaintBufferType::NewBuffer);
         slint::platform::set_platform(Box::new(Headless(adapter.clone()))).unwrap();
-        let w = CuratorNativeWindow::new().unwrap();
+        let w = AvtoHmverNativeWindow::new().unwrap();
         w.set_local_host(true);
         w.set_can_playback(true);
         w.set_can_edit_library(true);
@@ -8321,7 +8370,7 @@ mod layout_render_tests {
                     assert!(pixels
                         .iter()
                         .any(|pixel| pixel.r != 0 || pixel.g != 0 || pixel.b != 0));
-                    if let Ok(dir) = std::env::var("CURATOR_LAYOUT_SNAPSHOTS") {
+                    if let Ok(dir) = avtohmver::config::env_var("CURATOR_LAYOUT_SNAPSHOTS") {
                         let path =
                             std::path::Path::new(&dir).join(format!("{theme}-{width}-{mode}.ppm"));
                         let mut bytes = format!("P6\n{width} {height}\n255\n").into_bytes();

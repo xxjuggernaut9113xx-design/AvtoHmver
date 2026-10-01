@@ -395,7 +395,7 @@ fn run_blocking(state: &AppState, request: &MaintenanceRequest) -> Result<JobRes
         }
         MaintenanceKind::RestoreBackup => {
             stage_restore(state, required_backup_id(request)?)?;
-            "Restore is staged and will apply when Curator restarts.".into()
+            "Restore is staged and will apply when AvtoHmver restarts.".into()
         }
         MaintenanceKind::ClearHumanRatings => {
             transactional(&state.pool, |tx| {
@@ -487,12 +487,12 @@ fn run_blocking(state: &AppState, request: &MaintenanceRequest) -> Result<JobRes
         }
         MaintenanceKind::FactoryReset => {
             stage_factory_reset(state)?;
-            "Factory reset is staged and will apply when Curator restarts; media, archives, P-HAR, and backups are preserved.".into()
+            "Factory reset is staged and will apply when AvtoHmver restarts; media, archives, P-HAR, and backups are preserved.".into()
         }
         MaintenanceKind::RemovePharEnvironment => {
             crate::phar::disable(&state.data_dir, state.install_scope)?;
             remove_preserved_directory(&state.data_dir.join("phar"), &state.data_dir)?;
-            "Removed the Curator-managed P-HAR environment and disabled its setup request.".into()
+            "Removed the AvtoHmver-managed P-HAR environment and disabled its setup request.".into()
         }
         MaintenanceKind::RemoveArchives => {
             remove_preserved_directory(&state.archives_dir, &state.data_dir)?;
@@ -667,7 +667,7 @@ pub fn validate_backup(data_dir: &Path, id: &str) -> Result<()> {
     };
     if manifest.format != BACKUP_FORMAT || !manifest.files.iter().any(|file| file.name == "data.db")
     {
-        bail!("Backup manifest is not a Curator database backup.");
+        bail!("Backup manifest is not a AvtoHmver database backup.");
     }
     let temporary = tempfile::tempdir()?;
     let database = temporary.path().join("data.db");
@@ -775,7 +775,7 @@ pub fn apply_pending_restart(data_dir: &Path, scope: InstallScope) -> Result<()>
     let suffix = match pending.operation.as_str() {
         "restore" => "restore-pending",
         "factory_reset" => "reset-pending",
-        _ => bail!("Unknown pending Curator restart operation."),
+        _ => bail!("Unknown pending AvtoHmver restart operation."),
     };
     let staged_db = data_dir.join(format!("data.db.{suffix}"));
     if !staged_db.is_file() {
@@ -929,7 +929,7 @@ fn remove_preserved_directory(target: &Path, data_dir: &Path) -> Result<()> {
     let root = dunce::canonicalize(data_dir)?;
     let target = dunce::canonicalize(target).unwrap_or_else(|_| target.to_path_buf());
     if !target.starts_with(&root) || target == root {
-        bail!("Refusing to remove data outside Curator's preserved-data directory.");
+        bail!("Refusing to remove data outside AvtoHmver's preserved-data directory.");
     }
     if target.exists() {
         std::fs::remove_dir_all(&target)?;

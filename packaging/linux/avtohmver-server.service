@@ -1,0 +1,21 @@
+[Unit]
+Description=AvtoHmver Server local and Tailnet media backend
+After=network-online.target tailscaled.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=avtohmver
+Group=avtohmver
+WorkingDirectory=/var/lib/avtohmver
+Environment=AVTOHMVER_INSTALL_SCOPE=all-users
+ExecStart=/usr/lib/avtohmver/avtohmver-server --background --install-scope all-users
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/var/lib/avtohmver -/var/lib/curator
+
+[Install]
+WantedBy=multi-user.target

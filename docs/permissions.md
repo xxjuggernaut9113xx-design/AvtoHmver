@@ -1,6 +1,6 @@
 # Permission model
 
-This is Curator's canonical permission policy. Other documentation links here instead of restating role capabilities.
+This is AvtoHmver's canonical permission policy. Other documentation links here instead of restating role capabilities.
 
 ## Roles and read capabilities
 
@@ -24,9 +24,11 @@ The following table is generated from `routes::MUTATION_PERMISSIONS`. Tests comp
 <!-- BEGIN GENERATED MUTATION MATRIX -->
 | Method | Route | Host | Server | Viewer |
 |---|---|---:|---:|---:|
+| DELETE | `/api/goon/playlists/{id}` | Allow | Allow | Deny |
 | DELETE | `/api/groups/{id}` | Allow | Allow | Deny |
 | DELETE | `/api/groups/{id}/tags/{tag_id}` | Allow | Allow | Deny |
 | DELETE | `/api/media/{id}/tags/{tag_id}` | Allow | Allow | Deny |
+| DELETE | `/api/playback-presets/{id}` | Allow | Allow | Deny |
 | DELETE | `/api/source-tag-rules/{id}` | Allow | Allow | Deny |
 | DELETE | `/api/sources/{id}` | Allow | Allow | Deny |
 | DELETE | `/api/tags/{id}` | Allow | Allow | Deny |
@@ -63,10 +65,14 @@ The following table is generated from `routes::MUTATION_PERMISSIONS`. Tests comp
 | POST | `/api/media/{id}/rating/approve` | Allow | Allow | Deny |
 | POST | `/api/media/{id}/rating/undo` | Allow | Allow | Deny |
 | POST | `/api/media/{id}/tags` | Allow | Allow | Deny |
+| POST | `/api/music/import` | Allow | Allow | Deny |
+| POST | `/api/music/tracks` | Allow | Allow | Deny |
 | POST | `/api/oobe/complete` | Allow | Allow | Deny |
 | POST | `/api/oobe/reset` | Allow | Allow | Deny |
 | POST | `/api/oobe/settings` | Allow | Allow | Deny |
 | POST | `/api/oobe/validate` | Allow | Allow | Deny |
+| POST | `/api/playback-presets` | Allow | Allow | Deny |
+| POST | `/api/playback-presets/resolve` | Allow | Allow | Deny |
 | POST | `/api/search/download` | Allow | Allow | Deny |
 | POST | `/api/session/command` | Allow | Allow | Deny |
 | POST | `/api/session/start` | Allow | Allow | Deny |
@@ -79,10 +85,14 @@ The following table is generated from `routes::MUTATION_PERMISSIONS`. Tests comp
 | POST | `/api/storage/sources/{id}/cleanup` | Allow | Allow | Deny |
 | POST | `/api/storage/sources/{id}/permit-once` | Allow | Allow | Deny |
 | POST | `/api/storage/thumbnails/clear` | Allow | Allow | Deny |
+| PUT | `/api/goon/playlists/{id}` | Allow | Allow | Deny |
 | PUT | `/api/media/{id}/duration` | Allow | Allow | Deny |
 | PUT | `/api/media/{id}/rating` | Allow | Allow | Deny |
+| PUT | `/api/playback-presets/{id}` | Allow | Allow | Deny |
 <!-- END GENERATED MUTATION MATRIX -->
 
 ## Maintenance and edition constraints
 
 An allowed role can still receive a validation error, maintenance rejection, shutdown rejection, or an edition-specific denial. Those checks narrow authority and never grant an operation denied above. Viewer cannot become Host through `X-Forwarded-For` or another caller-controlled header.
+
+Remote mobile clients retain the read-only Viewer role. They can read presets and playlists and resolve a presentation draft through GET; editing and upload remain local Host operations.

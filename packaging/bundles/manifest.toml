@@ -1,8 +1,8 @@
-# Curator helper-tool bundle manifest.
+# AvtoHmver helper-tool bundle manifest.
 #
 # These are the third-party executables the Windows Host installer stages
 # under <install>/tools, which the app resolves install-relative first
-# (see config::resolve_tool_bin), then CURATOR_<ENV> overrides, then
+# (see config::resolve_tool_bin), then AVTOHMVER_<ENV> overrides, then
 # config.json, then PATH.
 #
 # Checksums are NOT hand-written here. Run packaging/bundles/fetch-tools.sh

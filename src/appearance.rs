@@ -1,6 +1,6 @@
 //! Small client-side appearance hint used by Host and Viewer webviews.
 //!
-//! Curator maps known GTK families to its own accessible palettes; it does
+//! AvtoHmver maps known GTK families to its own accessible palettes; it does
 //! not attempt to parse or execute arbitrary GTK stylesheet files.
 
 use serde::Serialize;
@@ -35,7 +35,7 @@ pub fn client_appearance() -> ClientAppearance {
 }
 
 fn env_value(name: &str) -> Option<String> {
-    std::env::var(name)
+    crate::config::env_var(name)
         .ok()
         .map(|value| value.trim_matches(['\'', '"']).trim().to_string())
         .filter(|value| !value.is_empty())

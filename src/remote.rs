@@ -1,11 +1,11 @@
-//! The one Curator HTTP listener set and its remote-access diagnostics.
+//! The one AvtoHmver HTTP listener set and its remote-access diagnostics.
 //!
 //! The desktop shell, headless fallback, and any remote browser all use the
 //! same Axum router. It is always bound to loopback and to addresses reported
 //! by the local Tailscale daemon. An ordinary-LAN listener is strictly
 //! opt-in (`lan_access_enabled`): enabling it binds the configured port on
 //! all local interfaces, so an accidentally shared Wi-Fi or Ethernet network
-//! never silently becomes an unauthenticated Curator admin surface.
+//! never silently becomes an unauthenticated AvtoHmver admin surface.
 
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
@@ -28,13 +28,13 @@ use crate::AppState;
 pub const DEFAULT_SERVER_PORT: u16 = 42168;
 const LISTENER_REFRESH_INTERVAL: Duration = Duration::from_secs(15);
 
-/// Bookkeeping key for the non-loopback listeners Curator owns.
+/// Bookkeeping key for the non-loopback listeners AvtoHmver owns.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum ExtraListenerKey {
     Tailscale(IpAddr),
 }
 
-/// Process-lifetime state for every socket owned by Curator. The desktop
+/// Process-lifetime state for every socket owned by AvtoHmver. The desktop
 /// window deliberately has no ownership relationship with this state: hiding
 /// it to the tray must not disconnect a browser fallback client.
 pub struct ServerStatus {
@@ -149,7 +149,7 @@ impl ServerStatus {
     }
 }
 
-/// Bind the shared server at Curator's normal port.
+/// Bind the shared server at AvtoHmver's normal port.
 pub async fn start_http_server(state: &AppState) -> Result<u16> {
     start_http_server_on(state, DEFAULT_SERVER_PORT).await
 }
@@ -170,7 +170,7 @@ async fn start_primary(state: &AppState, requested_port: u16) -> Result<u16> {
 
     refresh_tailscale_listeners(state).await;
     spawn_listener_refresher(state);
-    info!("Curator HTTP server listening on loopback port {port}; Tailnet listeners are added only when Tailscale reports local addresses");
+    info!("AvtoHmver HTTP server listening on loopback port {port}; Tailnet listeners are added only when Tailscale reports local addresses");
     Ok(port)
 }
 
@@ -204,27 +204,29 @@ async fn spawn_primary_set(
     if lan {
         let listener = TcpListener::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, requested_port)))
             .await
-            .with_context(|| format!("binding Curator LAN wildcard on 0.0.0.0:{requested_port}"))?;
+            .with_context(|| {
+                format!("binding AvtoHmver LAN wildcard on 0.0.0.0:{requested_port}")
+            })?;
         let port = listener
             .local_addr()
-            .context("reading Curator LAN listener address")?
+            .context("reading AvtoHmver LAN listener address")?
             .port();
         spawn_primary_listener(state, listener, token.clone());
-        info!("Curator LAN listener enabled on 0.0.0.0:{port}");
+        info!("AvtoHmver LAN listener enabled on 0.0.0.0:{port}");
         return Ok(port);
     }
     let ipv4_listener = TcpListener::bind(SocketAddr::from((Ipv4Addr::LOCALHOST, requested_port)))
         .await
-        .with_context(|| format!("binding Curator on 127.0.0.1:{requested_port}"))?;
+        .with_context(|| format!("binding AvtoHmver on 127.0.0.1:{requested_port}"))?;
     let port = ipv4_listener
         .local_addr()
-        .context("reading Curator loopback listener address")?
+        .context("reading AvtoHmver loopback listener address")?
         .port();
     spawn_primary_listener(state, ipv4_listener, token.clone());
     // IPv6 loopback is an additional local endpoint, never a wildcard bind.
     match TcpListener::bind(SocketAddr::from((Ipv6Addr::LOCALHOST, port))).await {
         Ok(listener) => spawn_primary_listener(state, listener, token.clone()),
-        Err(error) => info!("Curator IPv6 loopback unavailable on [::1]:{port}: {error}"),
+        Err(error) => info!("AvtoHmver IPv6 loopback unavailable on [::1]:{port}: {error}"),
     }
     Ok(port)
 }
@@ -236,7 +238,7 @@ fn spawn_primary_listener(state: &AppState, listener: TcpListener, token: Cancel
     let address = match listener.local_addr() {
         Ok(address) => address,
         Err(error) => {
-            warn!("Could not read Curator listener address: {error}");
+            warn!("Could not read AvtoHmver listener address: {error}");
             return;
         }
     };
@@ -257,7 +259,7 @@ fn spawn_primary_listener(state: &AppState, listener: TcpListener, token: Cancel
         })
         .await;
         if let Err(error) = result {
-            warn!("Curator HTTP listener {address} stopped unexpectedly: {error}");
+            warn!("AvtoHmver HTTP listener {address} stopped unexpectedly: {error}");
         }
         status.unregister(address);
     });
@@ -271,7 +273,7 @@ fn spawn_listener(
     let address = match listener.local_addr() {
         Ok(address) => address,
         Err(error) => {
-            warn!("Could not read Curator listener address: {error}");
+            warn!("Could not read AvtoHmver listener address: {error}");
             return;
         }
     };
@@ -297,7 +299,7 @@ fn spawn_listener(
         })
         .await;
         if let Err(error) = result {
-            warn!("Curator HTTP listener {address} stopped unexpectedly: {error}");
+            warn!("AvtoHmver HTTP listener {address} stopped unexpectedly: {error}");
         }
         status.unregister(address);
         if let Some((key, _)) = extra {
@@ -362,15 +364,15 @@ async fn refresh_tailscale_listeners(state: &AppState) {
         let socket = SocketAddr::new(address, state.remote_server.port());
         match TcpListener::bind(socket).await {
             Ok(listener) => {
-                info!("Curator Tailnet listener enabled on {socket}");
+                info!("AvtoHmver Tailnet listener enabled on {socket}");
                 spawn_listener(state, listener, Some((key, cancellation)));
             }
             Err(error) => {
                 // A stale status entry, a race while reconnecting, or an IPv6
-                // capability gap must leave Curator local-only rather than
+                // capability gap must leave AvtoHmver local-only rather than
                 // falling back to a LAN wildcard.
                 state.remote_server.release_extra(key);
-                info!("Curator Tailnet listener unavailable on {socket}: {error}");
+                info!("AvtoHmver Tailnet listener unavailable on {socket}: {error}");
             }
         }
     }
@@ -392,7 +394,7 @@ pub(crate) async fn refresh_lan_listener(state: &AppState) {
         let _start_guard = state.remote_server.start_lock.lock().await;
         if !state.remote_server.running() {
             if let Err(error) = start_primary(state, state.remote_server.port()).await {
-                warn!("Curator listener refresh could not restart the HTTP server: {error:#}");
+                warn!("AvtoHmver listener refresh could not restart the HTTP server: {error:#}");
             }
         }
         return;
@@ -428,14 +430,14 @@ async fn swap_primary(state: &AppState, lan: bool) {
             state.remote_server.set_port(bound_port);
             state.remote_server.set_primary(token, lan);
             if lan {
-                info!("Curator LAN mode enabled; loopback is served by the wildcard");
+                info!("AvtoHmver LAN mode enabled; loopback is served by the wildcard");
             } else {
-                info!("Curator LAN mode disabled; loopback listener restored");
+                info!("AvtoHmver LAN mode disabled; loopback listener restored");
                 refresh_tailscale_listeners(state).await;
             }
         }
         Err(error) => {
-            warn!("Curator primary listener unavailable after LAN mode change: {error:#}");
+            warn!("AvtoHmver primary listener unavailable after LAN mode change: {error:#}");
             // The old listener set is already cancelled. Restore the previous
             // mode so the host is never left with no primary bound; the next
             // refresh cycle retries the requested mode because the setting
@@ -449,12 +451,12 @@ async fn swap_primary(state: &AppState, lan: bool) {
                         refresh_tailscale_listeners(state).await;
                     }
                     info!(
-                        "Curator primary listener restored to previous mode after failed LAN change"
+                        "AvtoHmver primary listener restored to previous mode after failed LAN change"
                     );
                 }
                 Err(restore_error) => {
                     warn!(
-                        "Curator could not restore the previous primary listener either: {restore_error:#}; the next refresh cycle will retry"
+                        "AvtoHmver could not restore the previous primary listener either: {restore_error:#}; the next refresh cycle will retry"
                     );
                 }
             }
@@ -807,7 +809,10 @@ mod tests {
     #[tokio::test]
     async fn lan_refresh_restarts_a_server_with_no_primary_bound() {
         let root = tempfile::tempdir().unwrap();
-        let state = crate::test_support::state(root.path());
+        let mut isolated = (*crate::test_support::state(root.path())).clone();
+        // Never contend with an installed Host using the production port.
+        isolated.remote_server = Arc::new(ServerStatus::new(0));
+        let state = Arc::new(isolated);
         assert!(!state.remote_server.running());
 
         state.settings.write().await.lan_access_enabled = true;

@@ -49,7 +49,7 @@ impl SourceError {
     pub fn message(&self) -> &str {
         match self {
             Self::Forbidden => "Viewer cannot modify local sources",
-            Self::ShuttingDown => "Curator is shutting down",
+            Self::ShuttingDown => "AvtoHmver is shutting down",
             Self::MaintenanceActive => {
                 "A local maintenance job is active. Try again when it completes."
             }

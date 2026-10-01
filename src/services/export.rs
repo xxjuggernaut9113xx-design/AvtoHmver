@@ -35,7 +35,7 @@ impl ExportError {
     pub fn message(&self) -> &str {
         match self {
             Self::Forbidden => "Viewer cannot export a local library",
-            Self::ShuttingDown => "Curator is shutting down",
+            Self::ShuttingDown => "AvtoHmver is shutting down",
             Self::MaintenanceActive => {
                 "A local maintenance job is active. Try this change again when it completes."
             }

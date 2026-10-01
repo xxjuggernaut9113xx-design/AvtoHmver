@@ -6,11 +6,11 @@
 //! Server's single slot. The ffmpeg invocation mirrors the Server route's
 //! arguments, plus `-progress pipe:1` for percent reporting.
 //!
-//! DB note: `curator::db` is crate-private, so the small clip-job statements
+//! DB note: `avtohmver::db` is crate-private, so the small clip-job statements
 //! here intentionally mirror the canonical helpers in `src/db.rs`.
 
 use super::Update;
-use curator::{maintenance::BackgroundWorkerLease, AppState};
+use avtohmver::{maintenance::BackgroundWorkerLease, AppState};
 use rusqlite::OptionalExtension;
 use std::{
     collections::HashMap,
@@ -282,7 +282,7 @@ fn probe_duration(ffprobe_bin: &str, path: &Path) -> Option<f64> {
     if !path.is_file() {
         return None;
     }
-    let mut cmd = curator::process::blocking_command(ffprobe_bin);
+    let mut cmd = avtohmver::process::blocking_command(ffprobe_bin);
     cmd.args([
         "-v",
         "error",
@@ -292,7 +292,7 @@ fn probe_duration(ffprobe_bin: &str, path: &Path) -> Option<f64> {
         "default=noprint_wrappers=1:nokey=1",
     ])
     .arg(path);
-    let output = curator::process::output_timeout(&mut cmd, Duration::from_secs(5)).ok()?;
+    let output = avtohmver::process::output_timeout(&mut cmd, Duration::from_secs(5)).ok()?;
     if !output.status.success() {
         return None;
     }
@@ -319,7 +319,7 @@ fn stamp(path: &Path) -> Option<String> {
 async fn kill_child(child: &mut tokio::process::Child) {
     #[cfg(windows)]
     if let Some(pid) = child.id() {
-        let mut taskkill = curator::process::command("taskkill");
+        let mut taskkill = avtohmver::process::command("taskkill");
         taskkill
             .args(["/F", "/T", "/PID", &pid.to_string()])
             .kill_on_drop(true);
@@ -431,7 +431,7 @@ async fn encode(
         Ok(cloned) => cloned,
         Err(error) => return EncodeOutcome::Failed(format!("Could not stage clip log: {error}")),
     };
-    let mut child = match curator::process::command(&state.ffmpeg_bin)
+    let mut child = match avtohmver::process::command(&state.ffmpeg_bin)
         .args(["-nostdin", "-hide_banner", "-loglevel", "error", "-n", "-i"])
         .arg(&original)
         .args([

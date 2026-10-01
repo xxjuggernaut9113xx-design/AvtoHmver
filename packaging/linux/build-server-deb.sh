@@ -4,7 +4,7 @@ set -eu
 # Build an all-users Debian package plus a portable archive from an already
 # compiled Server binary. Current-user installs use the archive and the user
 # systemd unit; the .deb provides the system service unit as well.
-binary=${1:?pass the compiled curator Server binary}
+binary=${1:?pass the compiled avtohmver Server binary}
 output=${2:?pass an output directory}
 root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
 version=$(awk '
@@ -16,32 +16,32 @@ if [ -z "$version" ]; then
   echo "Could not read workspace version from Cargo.toml" >&2
   exit 1
 fi
-stage=$(mktemp -d "${TMPDIR:-/tmp}/curator-server-deb.XXXXXX")
+stage=$(mktemp -d "${TMPDIR:-/tmp}/avtohmver-server-deb.XXXXXX")
 trap 'rm -rf "$stage"' EXIT HUP INT TERM
 
-mkdir -p "$output" "$stage/DEBIAN" "$stage/usr/lib/curator/static" "$stage/lib/systemd/system" "$stage/usr/lib/systemd/user" "$stage/usr/share/doc/curator-server"
-install -m 0755 "$binary" "$stage/usr/lib/curator/curator"
-install -m 0644 "$root/LICENSE" "$stage/usr/share/doc/curator-server/LICENSE"
-cp -R "$root/static/." "$stage/usr/lib/curator/static/"
-install -m 0644 "$root/packaging/linux/curator-server.service" "$stage/lib/systemd/system/curator-server.service"
-sed 's|__CURATOR_SERVER_PATH__|%h/.local/lib/curator/curator|g' \
-  "$root/packaging/linux/curator-server-user.service" > "$stage/usr/lib/systemd/user/curator-server-user.service"
-chmod 0644 "$stage/usr/lib/systemd/user/curator-server-user.service"
-sed "s/@CURATOR_VERSION@/$version/" "$root/packaging/linux/debian-control" > "$stage/DEBIAN/control"
+mkdir -p "$output" "$stage/DEBIAN" "$stage/usr/lib/avtohmver/static" "$stage/lib/systemd/system" "$stage/usr/lib/systemd/user" "$stage/usr/share/doc/avtohmver-server"
+install -m 0755 "$binary" "$stage/usr/lib/avtohmver/avtohmver-server"
+install -m 0644 "$root/LICENSE" "$stage/usr/share/doc/avtohmver-server/LICENSE"
+cp -R "$root/static/." "$stage/usr/lib/avtohmver/static/"
+install -m 0644 "$root/packaging/linux/avtohmver-server.service" "$stage/lib/systemd/system/avtohmver-server.service"
+sed 's|__AVTOHMVER_SERVER_PATH__|%h/.local/lib/avtohmver/avtohmver-server|g' \
+  "$root/packaging/linux/avtohmver-server-user.service" > "$stage/usr/lib/systemd/user/avtohmver-server-user.service"
+chmod 0644 "$stage/usr/lib/systemd/user/avtohmver-server-user.service"
+sed "s/@AVTOHMVER_VERSION@/$version/" "$root/packaging/linux/debian-control" > "$stage/DEBIAN/control"
 install -m 0755 "$root/packaging/linux/postinst" "$stage/DEBIAN/postinst"
 install -m 0755 "$root/packaging/linux/prerm" "$stage/DEBIAN/prerm"
 
-dpkg-deb --root-owner-group --build "$stage" "$output/curator-server_${version}_amd64.deb"
+dpkg-deb --root-owner-group --build "$stage" "$output/avtohmver-server_${version}_amd64.deb"
 
 # The portable archive is the current-user package. Include exactly the
 # current-user unit and installer alongside the binary/static resources rather
 # than leaving someone to hunt through a system package for service files.
-portable=$(mktemp -d "${TMPDIR:-/tmp}/curator-server-portable.XXXXXX")
+portable=$(mktemp -d "${TMPDIR:-/tmp}/avtohmver-server-portable.XXXXXX")
 trap 'rm -rf "$stage" "$portable"' EXIT HUP INT TERM
 mkdir -p "$portable/static"
-install -m 0755 "$binary" "$portable/curator"
+install -m 0755 "$binary" "$portable/avtohmver-server"
 install -m 0644 "$root/LICENSE" "$portable/LICENSE"
 cp -R "$root/static/." "$portable/static/"
-install -m 0644 "$root/packaging/linux/curator-server-user.service" "$portable/curator-server-user.service"
+install -m 0644 "$root/packaging/linux/avtohmver-server-user.service" "$portable/avtohmver-server-user.service"
 install -m 0755 "$root/packaging/linux/install-current-user.sh" "$portable/install-current-user.sh"
-tar -C "$portable" -czf "$output/curator-server-${version}-linux-x86_64.tar.gz" .
+tar -C "$portable" -czf "$output/avtohmver-server-${version}-linux-x86_64.tar.gz" .

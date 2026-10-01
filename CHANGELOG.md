@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Renamed current editions and packages to AvtoHmver 0.3.4, retaining legacy data paths, environment aliases, and the Curator API protocol.
+- Added shared playback drafts and revision-aware preset storage, managed local audio playlists, byte-range streaming, and independent music playback.
+- Added validated external provider links, visible browser embeds, optional MusicKit playback, and truthful authorization failures.
+
 - Defined the Host, Server, and Viewer permission matrix and executable route coverage.
 - Declared Rust 1.92 support, reduced dependency pins, isolated Tokio test utilities, and upgraded Axum and Tower.
 - Replaced the data directory lock with fs4 and verified exclusive ownership across processes.

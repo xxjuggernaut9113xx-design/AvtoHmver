@@ -1,6 +1,6 @@
 //! URL validation for source queues and discovery fetches.
 //!
-//! Curator is an administrator-facing local application, so accepting an
+//! AvtoHmver is an administrator-facing local application, so accepting an
 //! arbitrary URL must not turn gallery discovery into a shortcut to loopback,
 //! link-local, private-LAN, or Tailnet services. The checks are deliberately
 //! shared by direct URL search, queued sources, and redirect handling.
@@ -74,7 +74,7 @@ fn is_public_ipv4(address: Ipv4Addr) -> bool {
         || address.is_multicast()
         // Tailscale uses this CGNAT range. Treat it as private even though it
         // is not part of RFC1918, so a source can never probe another Tailnet
-        // device through Curator.
+        // device through AvtoHmver.
         || (a == 100 && (64..=127).contains(&b))
         // Benchmark, documentation, and future-use blocks do not belong in a
         // downloader queue either.

@@ -1,8 +1,10 @@
-Package: curator-server
-Version: @CURATOR_VERSION@
+Package: avtohmver-server
+Version: @AVTOHMVER_VERSION@
+Conflicts: curator-server
+Replaces: curator-server
 Section: graphics
 Priority: optional
 Architecture: amd64
-Maintainer: Curator
-Description: Curator Server local and Tailnet media backend
- Curator Server serves the Curator browser UI and manages a local media library.
+Maintainer: AvtoHmver
+Description: AvtoHmver Server local and Tailnet media backend
+ AvtoHmver Server serves the AvtoHmver browser UI and manages a local media library.

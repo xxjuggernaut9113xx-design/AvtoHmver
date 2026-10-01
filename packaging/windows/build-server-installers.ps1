@@ -14,7 +14,7 @@ $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repositoryRoot = Split-Path -Parent (Split-Path -Parent $scriptRoot)
 $sourceBinary = (Resolve-Path -LiteralPath $ServerBinary).Path
 if (-not (Test-Path -LiteralPath $sourceBinary -PathType Leaf)) {
-    throw "Curator Server executable was not found: $ServerBinary"
+    throw "AvtoHmver Server executable was not found: $ServerBinary"
 }
 
 function Find-MakeNSIS {
@@ -43,7 +43,7 @@ function Find-MakeNSIS {
 
 $nsis = Find-MakeNSIS
 if (-not $nsis) {
-    throw 'makensis is required to build Curator Server installers. Install NSIS or add makensis.exe to PATH.'
+    throw 'makensis is required to build AvtoHmver Server installers. Install NSIS or add makensis.exe to PATH.'
 }
 
 if (-not $Version) {
@@ -55,26 +55,26 @@ if (-not $Version) {
 
 $resolvedOutput = [System.IO.Path]::GetFullPath($OutputDirectory)
 New-Item -ItemType Directory -Force -Path $resolvedOutput | Out-Null
-$stageRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("curator-server-nsis-" + [guid]::NewGuid().ToString('N'))
+$stageRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("avtohmver-server-nsis-" + [guid]::NewGuid().ToString('N'))
 
 try {
     foreach ($scope in @('current-user', 'all-users')) {
         $stage = Join-Path $stageRoot $scope
         New-Item -ItemType Directory -Force -Path (Join-Path $stage 'static') | Out-Null
-        Copy-Item -LiteralPath $sourceBinary -Destination (Join-Path $stage 'curator.exe')
+        Copy-Item -LiteralPath $sourceBinary -Destination (Join-Path $stage 'avtohmver-server.exe')
         Copy-Item -LiteralPath (Join-Path $repositoryRoot 'LICENSE') -Destination $stage
-        Copy-Item -LiteralPath (Join-Path $scriptRoot 'Register-CuratorServer.ps1') -Destination $stage
-        Copy-Item -LiteralPath (Join-Path $scriptRoot 'Unregister-CuratorServer.ps1') -Destination $stage
+        Copy-Item -LiteralPath (Join-Path $scriptRoot 'Register-AvtoHmverServer.ps1') -Destination $stage
+        Copy-Item -LiteralPath (Join-Path $scriptRoot 'Unregister-AvtoHmverServer.ps1') -Destination $stage
         Copy-Item -Path (Join-Path $repositoryRoot 'static\*') -Destination (Join-Path $stage 'static') -Recurse -Force
 
-        $installer = Join-Path $resolvedOutput ("curator-server-$Version-windows-$scope-setup.exe")
+        $installer = Join-Path $resolvedOutput ("avtohmver-server-$Version-windows-$scope-setup.exe")
         $arguments = @(
-            "/DCURATOR_STAGE=$stage",
+            "/DAVTOHMVER_STAGE=$stage",
             "/DPRODUCT_VERSION=$Version",
             "/DOUTPUT_FILE=$installer"
         )
         if ($scope -eq 'all-users') { $arguments += '/DALL_USERS' }
-        & $nsis @arguments (Join-Path $scriptRoot 'curator-server.nsi')
+        & $nsis @arguments (Join-Path $scriptRoot 'avtohmver-server.nsi')
         if ($LASTEXITCODE -ne 0) { throw "makensis failed for the $scope installer." }
     }
 } finally {

@@ -1,7 +1,7 @@
 //! Disposable Host window for native manual smoke checks.
-//! Build with `cargo build --locked -p curator-desktop --example native_manual`.
+//! Build with `cargo build --locked -p avtohmver-desktop --example native_manual`.
 
-fn seed_populated_library(state: &curator::AppState) -> Result<(), Box<dyn std::error::Error>> {
+fn seed_populated_library(state: &avtohmver::AppState) -> Result<(), Box<dyn std::error::Error>> {
     let conn = state.pool.get()?;
     conn.execute_batch(
         "INSERT INTO sources(id,name,url,slug,status,added_at) VALUES
@@ -53,21 +53,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     std::env::set_var("CURATOR_NATIVE_PREFS_DIR", root.join("Preferences"));
     let result = (|| {
         let runtime = tokio::runtime::Runtime::new()?;
-        let options = curator::edition::InitializeOptions {
-            edition: curator::edition::Edition::Host,
-            install_scope: curator::edition::InstallScope::CurrentUser,
+        let options = avtohmver::edition::InitializeOptions {
+            edition: avtohmver::edition::Edition::Host,
+            install_scope: avtohmver::edition::InstallScope::CurrentUser,
             data_dir_override: Some(root.join("Data")),
         };
-        let state = runtime.block_on(curator::initialize_with_options(options))?;
+        let state = runtime.block_on(avtohmver::initialize_with_options(options))?;
         if std::env::var_os("CURATOR_NATIVE_SMOKE_EMPTY").is_none()
             && !std::env::args().any(|argument| argument == "--empty")
         {
             seed_populated_library(&state)?;
         }
-        let client = curator::native::LocalClient::new(state.clone())?;
+        let client = avtohmver::native::LocalClient::new(state.clone())?;
         let result =
-            curator_desktop::run_ui(&runtime, curator::native::Client::Local(client), false);
-        runtime.block_on(curator::shutdown(&state));
+            avtohmver_desktop::run_ui(&runtime, avtohmver::native::Client::Local(client), false);
+        runtime.block_on(avtohmver::shutdown(&state));
         drop(state);
         drop(runtime);
         result

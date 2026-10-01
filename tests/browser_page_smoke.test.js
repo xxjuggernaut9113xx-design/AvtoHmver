@@ -43,7 +43,7 @@ test('packaged browser assets parse and do not depend on remote UI libraries', (
   assert.doesNotMatch(html, /fonts\.googleapis\.com|fonts\.gstatic\.com|threejs|cdnjs|unpkg/i);
   assert.doesNotMatch(styles, /url\(\s*https?:\/\//i);
 
-  for (const file of ['static/oobe.js', 'static/virtual-clips.js', 'static/app.js', 'static/library.js']) {
+  for (const file of ['static/oobe.js', 'static/virtual-clips.js', 'static/app.js', 'static/library.js', 'static/playback.js']) {
     assert.doesNotThrow(() => new vm.Script(read(file), { filename: file }));
   }
   assert.match(read('static/library.js'), /function goonRecordTimingCorrection\(session, kind\)/);

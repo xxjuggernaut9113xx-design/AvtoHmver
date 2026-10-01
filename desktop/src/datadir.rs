@@ -10,7 +10,7 @@
 
 use std::path::{Path, PathBuf};
 
-use curator::AppState;
+use avtohmver::AppState;
 
 const PENDING_FILE: &str = "pending-move.json";
 const FAILED_FILE: &str = "pending-move-failed.json";
@@ -74,9 +74,9 @@ fn validated_target(current: &Path, raw: &str) -> Result<PathBuf, String> {
 /// is replaced by a failure report (surfaced by the UI on launch) and the
 /// app starts with the previous location.
 pub fn apply_pending_move() -> anyhow::Result<()> {
-    let scope = curator::edition::InstallScope::from_environment();
-    let config = curator::config::load_config_for(scope);
-    let current = curator::config::resolve_data_dir_for(&config, scope, None);
+    let scope = avtohmver::edition::InstallScope::from_environment();
+    let config = avtohmver::config::load_config_for(scope);
+    let current = avtohmver::config::resolve_data_dir_for(&config, scope, None);
     let pending_path = current.join(PENDING_FILE);
     if !pending_path.is_file() {
         return Ok(());
@@ -104,8 +104,8 @@ pub fn apply_pending_move() -> anyhow::Result<()> {
 fn apply_move(
     current: &Path,
     target: &Path,
-    config: &curator::config::Config,
-    scope: curator::edition::InstallScope,
+    config: &avtohmver::config::Config,
+    scope: avtohmver::edition::InstallScope,
 ) -> anyhow::Result<()> {
     let current = dunce::canonicalize(current)?;
     if target == current.as_path() {
@@ -136,7 +136,7 @@ fn apply_move(
     // along with the directory, so it is removed from the new home.
     let mut config = config.clone();
     config.data_dir = Some(target.to_string_lossy().into_owned());
-    curator::config::save_config_for(scope, &config).map_err(|error| {
+    avtohmver::config::save_config_for(scope, &config).map_err(|error| {
         anyhow::anyhow!("Data moved, but config.json could not be updated: {error}")
     })?;
     let _ = std::fs::remove_file(target.join(PENDING_FILE));

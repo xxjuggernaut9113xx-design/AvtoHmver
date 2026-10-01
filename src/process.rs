@@ -9,7 +9,7 @@ use std::{
 /// process-tree handling lives at call sites; classifiers use this helper so
 /// their worker invocation follows the same executable resolution policy.
 /// Build asynchronous child processes with the same Unicode and windowing
-/// behavior everywhere Curator launches an external helper.  Centralizing it
+/// behavior everywhere AvtoHmver launches an external helper.  Centralizing it
 /// avoids invisible console windows on Windows and prevents a Python worker
 /// from changing JSON encoding according to the machine locale.
 pub fn command(program: impl AsRef<std::ffi::OsStr>) -> tokio::process::Command {

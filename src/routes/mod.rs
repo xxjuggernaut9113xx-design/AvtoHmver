@@ -8,7 +8,9 @@ pub mod groups;
 pub mod library;
 pub mod media;
 pub mod misc;
+pub mod music;
 pub mod oobe;
+pub mod playback;
 pub mod remote;
 pub mod search;
 pub mod session;
@@ -105,6 +107,14 @@ macro_rules! owner_mutations {
 }
 
 pub const MUTATION_PERMISSIONS: &[MutationPermission] = owner_mutations![
+    ("POST", "/api/music/tracks"),
+    ("POST", "/api/music/import"),
+    ("PUT", "/api/goon/playlists/{id}"),
+    ("DELETE", "/api/goon/playlists/{id}"),
+    ("POST", "/api/playback-presets"),
+    ("PUT", "/api/playback-presets/{id}"),
+    ("DELETE", "/api/playback-presets/{id}"),
+    ("POST", "/api/playback-presets/resolve"),
     ("POST", "/api/admin/jobs"),
     ("POST", "/api/admin/backups"),
     ("POST", "/api/admin/backups/{id}/validate"),
@@ -213,6 +223,34 @@ async fn maintenance_write_guard(
 
 pub fn build_router(state: Arc<AppState>) -> Router {
     Router::new()
+        .route("/api/music/access", get(music::access))
+        .route(
+            "/api/music/apple-configuration",
+            get(goon::apple_configuration),
+        )
+        .route("/api/music/tracks", get(music::list).post(music::upload))
+        .route("/api/music/import", post(music::import))
+        .route(
+            "/api/music/tracks/{id}/stream",
+            get(music::stream).head(music::stream),
+        )
+        .route(
+            "/api/goon/playlists/{id}",
+            put(goon::update_playlist).delete(goon::delete_playlist),
+        )
+        .layer(axum::extract::DefaultBodyLimit::max(256 * 1024 * 1024))
+        .route(
+            "/api/playback-presets",
+            get(playback::list).post(playback::create),
+        )
+        .route(
+            "/api/playback-presets/{id}",
+            put(playback::update).delete(playback::delete),
+        )
+        .route(
+            "/api/playback-presets/resolve",
+            get(playback::resolve_read).post(playback::resolve),
+        )
         .route("/api/system/info", get(system::info))
         .route(
             "/api/admin/jobs",
@@ -362,7 +400,7 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         // ── Stats / Log ────────────────────────────────────────────────────
         .route("/api/stats", get(misc::stats))
         .route("/api/log", get(misc::get_log))
-        // ── Curator interactive sessions ────────────────────────────────────
+        // ── AvtoHmver interactive sessions ────────────────────────────────────
         .route("/api/goon/session", post(goon::start))
         .route("/api/goon/session/complete", post(goon::complete))
         .route("/api/goon/connectors", get(goon::connector_status))

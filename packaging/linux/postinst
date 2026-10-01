@@ -1,13 +1,19 @@
 #!/bin/sh
 set -eu
 
-if ! getent passwd curator >/dev/null 2>&1; then
-  useradd --system --home-dir /var/lib/curator --create-home --shell /usr/sbin/nologin curator
+if ! getent passwd avtohmver >/dev/null 2>&1; then
+  useradd --system --home-dir /var/lib/avtohmver --create-home --shell /usr/sbin/nologin avtohmver
 fi
-install -d -o curator -g curator -m 0750 /var/lib/curator
+# Keep the legacy service identity so custom data paths retain their permissions.
+if getent passwd curator >/dev/null 2>&1 && [ -d /var/lib/curator ]; then
+  install -d -m 0755 /etc/systemd/system/avtohmver-server.service.d
+  printf '[Service]\nUser=curator\nGroup=curator\nWorkingDirectory=/var/lib/curator\n' > /etc/systemd/system/avtohmver-server.service.d/legacy-user.conf
+fi
+install -d -o avtohmver -g avtohmver -m 0750 /var/lib/avtohmver
 if command -v systemctl >/dev/null 2>&1 && [ -d /run/systemd/system ]; then
+  systemctl disable --now curator-server.service >/dev/null 2>&1 || true
   systemctl daemon-reload
-  systemctl enable --now curator-server.service
+  systemctl enable --now avtohmver-server.service
 fi
 
 # Package installs in a chroot/container may not have a live systemd manager;

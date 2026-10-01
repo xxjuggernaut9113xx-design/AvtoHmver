@@ -577,6 +577,84 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f2032f911046de80f0a198e0901378627c33f59ea0ac00e363d481118bd70a53"
 
 [[package]]
+name = "avtohmver"
+version = "0.3.4"
+dependencies = [
+ "anyhow",
+ "async-stream",
+ "axum",
+ "chrono",
+ "clap",
+ "clap_lex",
+ "dirs",
+ "dunce",
+ "fs4",
+ "futures",
+ "hex",
+ "image",
+ "indexmap",
+ "libc",
+ "notify",
+ "once_cell",
+ "r2d2",
+ "r2d2_sqlite",
+ "rand 0.8.8",
+ "regex",
+ "reqwest",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha1",
+ "tempfile",
+ "tokio",
+ "tokio-util",
+ "tower",
+ "tower-http",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
+ "urlencoding",
+ "walkdir",
+ "windows-sys 0.61.2",
+ "zip",
+]
+
+[[package]]
+name = "avtohmver-desktop"
+version = "0.3.4"
+dependencies = [
+ "anyhow",
+ "avtohmver",
+ "dunce",
+ "libloading",
+ "rfd",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "slint",
+ "slint-build",
+ "tempfile",
+ "tokio",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "avtohmver-viewer"
+version = "0.3.4"
+dependencies = [
+ "avtohmver",
+ "avtohmver-desktop",
+ "dirs",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "slint",
+ "slint-build",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
 name = "axum"
 version = "0.8.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1204,84 +1282,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "83cf0d42651b16c6dfe68685716d18480d18a9c39c62d76e8cf3eb6ed5d8bcbf"
 dependencies = [
  "dtor",
-]
-
-[[package]]
-name = "curator"
-version = "0.3.3"
-dependencies = [
- "anyhow",
- "async-stream",
- "axum",
- "chrono",
- "clap",
- "clap_lex",
- "dirs",
- "dunce",
- "fs4",
- "futures",
- "hex",
- "image",
- "indexmap",
- "libc",
- "notify",
- "once_cell",
- "r2d2",
- "r2d2_sqlite",
- "rand 0.8.8",
- "regex",
- "reqwest",
- "rusqlite",
- "serde",
- "serde_json",
- "sha1",
- "tempfile",
- "tokio",
- "tokio-util",
- "tower",
- "tower-http",
- "tracing",
- "tracing-appender",
- "tracing-subscriber",
- "urlencoding",
- "walkdir",
- "windows-sys 0.61.2",
- "zip",
-]
-
-[[package]]
-name = "curator-desktop"
-version = "0.3.3"
-dependencies = [
- "anyhow",
- "curator",
- "dunce",
- "libloading",
- "rfd",
- "rusqlite",
- "serde",
- "serde_json",
- "slint",
- "slint-build",
- "tempfile",
- "tokio",
- "windows-sys 0.61.2",
-]
-
-[[package]]
-name = "curator-viewer"
-version = "0.3.3"
-dependencies = [
- "curator",
- "curator-desktop",
- "dirs",
- "reqwest",
- "serde",
- "serde_json",
- "slint",
- "slint-build",
- "tempfile",
- "tokio",
 ]
 
 [[package]]

@@ -21,7 +21,7 @@ pub use crate::services::discovery::{
 };
 
 /// GET /api/search/providers.  The registry is built at startup from the
-/// installed gallery-dl version plus Curator's curated overlay.
+/// installed gallery-dl version plus AvtoHmver's curated overlay.
 pub async fn providers(State(state): State<Arc<AppState>>) -> Json<Value> {
     Json(match crate::services::discovery::providers(&state) {
         Ok(catalog) => serde_json::to_value(catalog).unwrap_or_default(),

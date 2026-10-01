@@ -1,9 +1,0 @@
-[Desktop Entry]
-Name=Curator Host
-Comment=Curator native media library host
-Exec=/usr/lib/curator-host/Curator
-Icon=curator-host
-Terminal=false
-Type=Application
-Categories=Graphics;AudioVideo;
-StartupWMClass=Curator

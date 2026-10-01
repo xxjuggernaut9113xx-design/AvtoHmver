@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Curator — a gallery-dl browser</title>
+<title>AvtoHmver — a gallery-dl browser</title>
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="/style.css">
 </head>
@@ -22,7 +22,7 @@
     <header class="brand">
       <span class="brand-mark">◧</span>
       <div>
-        <h1>Curator</h1>
+        <h1>AvtoHmver <small>0.3.4</small></h1>
         <p class="tagline">site-agnostic gallery-dl browser</p>
       </div>
       <button id="sidebar-close-btn" class="sidebar-close-btn" aria-label="Close menu">✕</button>
@@ -37,6 +37,7 @@
       </div>
     </div>
 
+    <button type="button" class="btn" id="playback-setup-open">Playback setup</button>
     <div class="quick-add">
       <input id="quick-add-input" type="text" class="quick-add-input" placeholder="paste a creator URL…" autocomplete="off">
       <button id="quick-add-btn" class="btn btn-accent" title="Add this source">+</button>
@@ -157,7 +158,7 @@
 <div id="settings-modal" class="modal-overlay" hidden>
   <div class="modal settings-center-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
     <header class="settings-center-header">
-      <div><p class="explorer-kicker">Curator</p><h2 id="settings-title">Settings</h2></div>
+      <div><p class="explorer-kicker">AvtoHmver</p><h2 id="settings-title">Settings</h2></div>
       <p class="muted">Changes to downloads apply to newly started work immediately.</p>
     </header>
     <div class="settings-center">
@@ -176,12 +177,12 @@
           <label class="settings-field mono small">concurrent downloads <input id="settings-max-concurrent" type="number" min="1" max="20" step="1"></label>
           <section id="settings-local-startup" data-local-setting data-host-setting>
             <h3 class="settings-subhead">Startup and tray</h3>
-            <label class="settings-checkbox mono small"><input id="settings-start-with-windows" type="checkbox"> Start Curator when Windows starts</label>
-            <label class="settings-checkbox mono small"><input id="settings-keep-running-in-tray" type="checkbox"> Keep Curator running in the system tray when the window is closed</label>
+            <label class="settings-checkbox mono small"><input id="settings-start-with-windows" type="checkbox"> Start AvtoHmver when Windows starts</label>
+            <label class="settings-checkbox mono small"><input id="settings-keep-running-in-tray" type="checkbox"> Keep AvtoHmver running in the system tray when the window is closed</label>
             <p id="settings-startup-registration" class="settings-status muted" aria-live="polite">Checking Windows startup registration…</p>
           </section>
           <h3 class="settings-subhead">Remote Access</h3>
-          <p class="muted">Curator serves this device and approved Tailscale devices; it never listens on ordinary LAN interfaces.</p>
+          <p class="muted">AvtoHmver serves this device and approved Tailscale devices; it never listens on ordinary LAN interfaces.</p>
           <div id="settings-remote-access" class="mono small muted" aria-live="polite">Checking server status…</div>
         </section>
 
@@ -192,7 +193,7 @@
           <label class="settings-field mono small">default library layout <select id="settings-library-layout"><option value="grid">Grid</option><option value="table">Table</option></select></label>
           <div id="settings-local-tools" data-local-setting>
             <label class="settings-field mono small">ffmpeg executable <input id="settings-ffmpeg-bin" type="text" placeholder="ffmpeg"></label>
-            <p id="settings-ffmpeg-restart-notice" class="settings-restart-notice" hidden>Restart required: FFmpeg changes take effect when Curator next starts.</p>
+            <p id="settings-ffmpeg-restart-notice" class="settings-restart-notice" hidden>Restart required: FFmpeg changes take effect when AvtoHmver next starts.</p>
           </div>
           <h3 class="settings-subhead">Download-size limits</h3>
           <label class="settings-field mono small">maximum remote file size <select id="settings-max-download-size-preset"><option value="unlimited">Unlimited</option><option value="26214400">25 MB</option><option value="52428800">50 MB</option><option value="104857600">100 MB</option><option value="262144000">250 MB</option><option value="524288000">500 MB</option><option value="1073741824">1 GB</option><option value="custom">Custom</option></select></label>
@@ -239,7 +240,7 @@
           <h3>NSFW classification</h3>
           <p class="muted">NudeNet runs locally. P-HAR can suggest qualifying Fast clips; Cum remains confirmed by a person or reserved tag. Long videos and unavailable dependencies go to Review.</p>
           <label class="settings-checkbox mono small"><input id="settings-nsfw-filter-enabled" type="checkbox"> enable NSFW auto-rating</label>
-          <p id="settings-nsfw-restart-notice" class="settings-restart-notice" hidden>Restart required: NSFW classification changes apply when Curator next starts.</p>
+          <p id="settings-nsfw-restart-notice" class="settings-restart-notice" hidden>Restart required: NSFW classification changes apply when AvtoHmver next starts.</p>
           <h3 class="settings-subhead">Backup reminders and export</h3>
           <p class="muted">The source list is the hard-to-recreate part of a library. The reminder banner is optional; Export is always available here.</p>
           <label class="settings-field mono small">remind me every <span><input id="settings-export-reminder-days" type="number" min="1" max="365" step="1"> days</span></label>
@@ -351,5 +352,7 @@
 <script src="/virtual-clips.js"></script>
 <script src="/app.js"></script>
 <script src="/library.js"></script>
+<script src="/playback.js"></script>
+<link rel="stylesheet" href="/playback.css">
 </body>
 </html>

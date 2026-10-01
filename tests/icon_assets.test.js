@@ -6,7 +6,7 @@ const path = require('node:path');
 const root = path.join(__dirname, '..');
 const iconPath = (name) => path.join(root, 'desktop', 'icons', name);
 
-test('Curator ships a complete PNG, multi-size ICO, and ICNS icon set', () => {
+test('AvtoHmver ships a complete PNG, multi-size ICO, and ICNS icon set', () => {
   const png = fs.readFileSync(iconPath('icon.png'));
   assert.deepEqual([...png.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
   assert.equal(png.readUInt32BE(16), 256);

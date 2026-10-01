@@ -4,8 +4,9 @@ use clap::{Parser, Subcommand, ValueEnum};
 
 #[derive(Debug, Parser)]
 #[command(
-    name = "curator-server",
-    about = "Curator Server: local and Tailnet media backend"
+    name = "avtohmver-server",
+    version,
+    about = "AvtoHmver Server: local and Tailnet media backend"
 )]
 struct Cli {
     #[arg(long)]
@@ -52,7 +53,7 @@ enum BackendArg {
     Rocm,
 }
 
-impl From<BackendArg> for curator::phar::PharBackend {
+impl From<BackendArg> for avtohmver::phar::PharBackend {
     fn from(value: BackendArg) -> Self {
         match value {
             BackendArg::Auto => Self::Auto,
@@ -62,7 +63,7 @@ impl From<BackendArg> for curator::phar::PharBackend {
     }
 }
 
-impl From<ScopeArg> for curator::edition::InstallScope {
+impl From<ScopeArg> for avtohmver::edition::InstallScope {
     fn from(value: ScopeArg) -> Self {
         match value {
             ScopeArg::CurrentUser => Self::CurrentUser,
@@ -75,7 +76,7 @@ impl From<ScopeArg> for curator::edition::InstallScope {
 async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
     if cli.docs {
-        print!("{}", curator::DOCS_TEXT);
+        print!("{}", avtohmver::DOCS_TEXT);
         return Ok(());
     }
 
@@ -88,22 +89,25 @@ async fn main() -> anyhow::Result<()> {
                     "Host import is intentionally limited to an all-users Server destination."
                 );
                 let config =
-                    curator::config::load_config_for(curator::edition::InstallScope::AllUsers);
-                let destination = curator::config::resolve_data_dir_for(
+                    avtohmver::config::load_config_for(avtohmver::edition::InstallScope::AllUsers);
+                let destination = avtohmver::config::resolve_data_dir_for(
                     &config,
-                    curator::edition::InstallScope::AllUsers,
+                    avtohmver::edition::InstallScope::AllUsers,
                     cli.data_dir.as_deref(),
                 );
-                let report = curator::migration::import_host_library(&from, &destination)?;
-                curator::migration::configure_all_users_server(&report.destination_data_dir)?;
+                let report = avtohmver::migration::import_host_library(&from, &destination)?;
+                avtohmver::migration::configure_all_users_server(&report.destination_data_dir)?;
                 println!("{}", serde_json::to_string_pretty(&report)?);
             }
             Command::PharIntent { enabled, backend } => {
                 let scope = cli.install_scope.unwrap_or(ScopeArg::CurrentUser).into();
-                let config = curator::config::load_config_for(scope);
-                let data_dir =
-                    curator::config::resolve_data_dir_for(&config, scope, cli.data_dir.as_deref());
-                let status = curator::phar::record_install_intent(
+                let config = avtohmver::config::load_config_for(scope);
+                let data_dir = avtohmver::config::resolve_data_dir_for(
+                    &config,
+                    scope,
+                    cli.data_dir.as_deref(),
+                );
+                let status = avtohmver::phar::record_install_intent(
                     &data_dir,
                     scope,
                     enabled,
@@ -115,20 +119,20 @@ async fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
-    let mut options = curator::edition::InitializeOptions::server();
+    let mut options = avtohmver::edition::InitializeOptions::server();
     if let Some(scope) = cli.install_scope {
         options.install_scope = scope.into();
     }
     options.data_dir_override = cli.data_dir;
-    let state = curator::initialize_with_options(options).await?;
+    let state = avtohmver::initialize_with_options(options).await?;
     tracing::info!(
         edition = state.edition.as_str(),
         install_scope = state.install_scope.as_str(),
         background = cli.background,
-        "Curator Server started"
+        "AvtoHmver Server started"
     );
-    curator::remote::start_http_server(&state).await?;
+    avtohmver::remote::start_http_server(&state).await?;
     let _ = tokio::signal::ctrl_c().await;
-    curator::shutdown(&state).await;
+    avtohmver::shutdown(&state).await;
     Ok(())
 }

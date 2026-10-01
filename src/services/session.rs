@@ -15,7 +15,7 @@ pub enum SessionError {
 impl std::fmt::Display for SessionError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::ShuttingDown => formatter.write_str("Curator is shutting down"),
+            Self::ShuttingDown => formatter.write_str("AvtoHmver is shutting down"),
             Self::Maintenance => formatter.write_str("A local maintenance job is active"),
             Self::Engine(message) => formatter.write_str(message),
         }
@@ -174,6 +174,6 @@ mod tests {
         )
         .await;
         assert_eq!(status, 503);
-        assert_eq!(denied["error"], "Curator is shutting down");
+        assert_eq!(denied["error"], "AvtoHmver is shutting down");
     }
 }

@@ -1,6 +1,6 @@
 # Bundled third-party tools — license notices
 #
-# Windows Curator Host and Curator Viewer installers stage the required media
+# Windows AvtoHmver Host and AvtoHmver Viewer installers stage the required media
 # runtime under `<install>\tools` (see `packaging/bundles/manifest.toml`).
 # This file records what those tools are and under which terms they ship. It is a
 # notice file, not legal advice; the authoritative texts live with the

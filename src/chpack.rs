@@ -174,7 +174,7 @@ pub fn safe_pack_filename(name: &str) -> String {
 /// reference "CH MediaTagger" tool's own naming exactly (decompiled and
 /// confirmed: it does `'_'.join(sorted(self.selected_tags))` where the
 /// difficulty tag is just one more entry in that same set — it is never
-/// treated as special or forced to a fixed position). Curator's own speed
+/// treated as special or forced to a fixed position). AvtoHmver's own speed
 /// tag is folded into the same sort rather than appended last, so a file
 /// tagged e.g. "thighs" + "cum" round-trips to the same filename
 /// (`cum_thighs`, not `thighs_cum`) either tool would produce.
@@ -202,7 +202,7 @@ mod tests {
     #[test]
     fn archive_filename_sorts_speed_tag_with_the_rest_alphabetically() {
         // 'cum' < 'thighs' alphabetically, so it must sort first, matching
-        // the reference tool exactly rather than Curator forcing speed last.
+        // the reference tool exactly rather than AvtoHmver forcing speed last.
         assert_eq!(
             build_archive_filename(3, &["thighs".to_string()], Some("cum"), ".jpg"),
             "3_cum_thighs.jpg"

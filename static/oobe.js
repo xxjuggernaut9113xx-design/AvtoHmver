@@ -77,7 +77,7 @@ async function api(path, opts) {
     throw new Error(message);
   }
   if (!body || typeof body !== 'object') {
-    throw new Error('Curator returned an invalid setup response. Restart Curator and try again.');
+    throw new Error('AvtoHmver returned an invalid setup response. Restart AvtoHmver and try again.');
   }
   return body;
 }

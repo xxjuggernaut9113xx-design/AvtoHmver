@@ -154,12 +154,12 @@ pub struct RemoteClient {
     instance_id: Option<String>,
 }
 
-/// Default Curator Tailnet port, used when a saved origin carries no explicit
+/// Default AvtoHmver Tailnet port, used when a saved origin carries no explicit
 /// port.
 pub const CURATOR_PORT: u16 = 42168;
 
 /// Numeric Tailnet addresses only: 100.64.0.0/10 for IPv4 and
-/// fd7a:115c:a1e0::/48 for IPv6. Anything else is never a Curator peer.
+/// fd7a:115c:a1e0::/48 for IPv6. Anything else is never a AvtoHmver peer.
 fn is_tailnet_ip(ip: &std::net::IpAddr) -> bool {
     match ip {
         std::net::IpAddr::V4(ip) => {
@@ -230,7 +230,7 @@ fn peer_ips_from_status(status: TailscaleStatus) -> Result<Vec<std::net::IpAddr>
     Ok(ips.into_iter().collect())
 }
 
-/// Build a candidate Curator origin for a peer address. Non-Tailnet
+/// Build a candidate AvtoHmver origin for a peer address. Non-Tailnet
 /// addresses are refused outright.
 fn candidate_origin(ip: std::net::IpAddr, port: u16) -> Option<reqwest::Url> {
     if !is_tailnet_ip(&ip) {
@@ -274,7 +274,7 @@ impl Default for ViewerPermissions {
 
 impl RemoteClient {
     /// The caller must validate this numeric origin against the connected
-    /// Tailscale peer inventory and negotiate Curator's protocol first.
+    /// Tailscale peer inventory and negotiate AvtoHmver's protocol first.
     pub fn from_validated_peer(origin: &str) -> Result<Self, String> {
         Self::from_validated_peer_with_permissions(origin, ViewerPermissions::default())
     }
@@ -359,7 +359,7 @@ impl RemoteClient {
             || url.password().is_some()
             || url.fragment().is_some()
         {
-            return Err("Refusing a destination outside the connected Curator host".into());
+            return Err("Refusing a destination outside the connected AvtoHmver host".into());
         }
         Ok(url)
     }
@@ -918,7 +918,7 @@ impl Client {
         let value = match self {
             Self::Local(client) => {
                 if client.state.shutdown.is_cancelled() {
-                    return Err("Curator is shutting down".into());
+                    return Err("AvtoHmver is shutting down".into());
                 }
                 let _lease = client
                     .state
@@ -955,7 +955,7 @@ impl Client {
         match self {
             Self::Local(client) => {
                 if client.state.shutdown.is_cancelled() {
-                    return Err("Curator is shutting down".into());
+                    return Err("AvtoHmver is shutting down".into());
                 }
                 let _lease = client
                     .state
@@ -1141,14 +1141,21 @@ impl Client {
             Self::Remote(client) => format!("viewer-{}", client.origin_string()),
         };
         let key = hex::encode(Sha1::digest(key.as_bytes()));
-        let directory = if let Some(override_dir) = std::env::var_os("CURATOR_NATIVE_PREFS_DIR") {
-            std::path::PathBuf::from(override_dir)
-        } else {
-            dirs::config_dir()
-                .ok_or("User configuration directory is unavailable")?
-                .join("Curator")
-                .join("native-v1")
-        };
+        let directory =
+            if let Some(override_dir) = crate::config::env_var_os("CURATOR_NATIVE_PREFS_DIR") {
+                std::path::PathBuf::from(override_dir)
+            } else {
+                {
+                    let base =
+                        dirs::config_dir().ok_or("User configuration directory is unavailable")?;
+                    let legacy = base.join("Curator").join("native-v1");
+                    if legacy.exists() {
+                        legacy
+                    } else {
+                        base.join("AvtoHmver").join("native-v1")
+                    }
+                }
+            };
         Ok(directory.join(format!("{key}.json")))
     }
 
@@ -1756,7 +1763,7 @@ impl LocalClient {
 
     pub async fn execute(&self, command: Command) -> Result<Value, String> {
         if self.state.shutdown.is_cancelled() {
-            return Err("Curator is shutting down".into());
+            return Err("AvtoHmver is shutting down".into());
         }
         // Keep admission closed for the entire operation, including async
         // cancellation/requeue work. A flag check alone races maintenance.

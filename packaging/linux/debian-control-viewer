@@ -1,10 +1,12 @@
-Package: curator-viewer
-Version: @CURATOR_VERSION@
+Package: avtohmver-viewer
+Version: @AVTOHMVER_VERSION@
+Conflicts: curator-viewer
+Replaces: curator-viewer
 Section: graphics
 Priority: optional
 Architecture: amd64
 Depends: libmpv2
-Maintainer: Curator
-Description: Curator Viewer native remote media app
- Curator Viewer is the native desktop edition that streams a library from a
- Curator Host or Server over LAN or Tailnet. It keeps no library of its own.
+Maintainer: AvtoHmver
+Description: AvtoHmver Viewer native remote media app
+ AvtoHmver Viewer is the native desktop edition that streams a library from a
+ AvtoHmver Host or Server over LAN or Tailnet. It keeps no library of its own.

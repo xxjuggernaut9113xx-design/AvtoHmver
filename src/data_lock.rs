@@ -1,7 +1,7 @@
-//! One process may own a resolved Curator data directory at a time.
+//! One process may own a resolved AvtoHmver data directory at a time.
 //!
 //! SQLite WAL protects individual transactions, but it cannot make two
-//! independent Curator schedulers, migrators, and cache workers safe.  This
+//! independent AvtoHmver schedulers, migrators, and cache workers safe.  This
 //! advisory OS lock is therefore acquired before a pool is created and kept
 //! for the entire backend lifetime.
 
@@ -19,9 +19,10 @@ pub struct DataDirectoryLock {
 impl DataDirectoryLock {
     pub fn acquire(data_dir: &Path) -> Result<Self> {
         std::fs::create_dir_all(data_dir)
-            .with_context(|| format!("creating Curator data directory {}", data_dir.display()))?;
-        let resolved = dunce::canonicalize(data_dir)
-            .with_context(|| format!("resolving Curator data directory {}", data_dir.display()))?;
+            .with_context(|| format!("creating AvtoHmver data directory {}", data_dir.display()))?;
+        let resolved = dunce::canonicalize(data_dir).with_context(|| {
+            format!("resolving AvtoHmver data directory {}", data_dir.display())
+        })?;
         let path = resolved.join(".curator-data.lock");
         let file = OpenOptions::new()
             .create(true)
@@ -31,10 +32,10 @@ impl DataDirectoryLock {
             // inode while another process holds the advisory lock on it.
             .truncate(false)
             .open(&path)
-            .with_context(|| format!("opening Curator data lock {}", path.display()))?;
+            .with_context(|| format!("opening AvtoHmver data lock {}", path.display()))?;
         FileExt::try_lock(&file).map_err(|error| {
             anyhow::anyhow!(
-                "Curator data directory {} is already owned by another Host or Server process ({error})",
+                "AvtoHmver data directory {} is already owned by another Host or Server process ({error})",
                 resolved.display()
             )
         })?;

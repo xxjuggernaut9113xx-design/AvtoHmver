@@ -88,7 +88,7 @@ type MpvRenderContextUpdate = unsafe extern "C" fn(*mut MpvRenderContext) -> c_u
 /// search its library paths. An explicit override remains useful for a
 /// disposable test library or an administrator managed installation.
 pub fn resolve_libmpv() -> PathBuf {
-    if let Some(path) = std::env::var_os("CURATOR_LIBMPV_PATH") {
+    if let Some(path) = avtohmver::config::env_var_os("CURATOR_LIBMPV_PATH") {
         return PathBuf::from(path);
     }
     let name = if cfg!(windows) {
@@ -195,6 +195,14 @@ pub struct MpvInstance {
 
 impl MpvInstance {
     pub fn create() -> Result<Self, String> {
+        Self::create_mode(false)
+    }
+
+    pub fn create_audio() -> Result<Self, String> {
+        Self::create_mode(true)
+    }
+
+    fn create_mode(audio_only: bool) -> Result<Self, String> {
         let api = MpvApi::load()?;
         // SAFETY: `mpv_create` takes no arguments and returns either a valid
         // handle or null.
@@ -213,7 +221,8 @@ impl MpvInstance {
             ("force-window", "no"),
             // The render context supplies the video output; without this,
             // mpv can decode and advance a file while never producing frames.
-            ("vo", "libmpv"),
+            ("vo", if audio_only { "null" } else { "libmpv" }),
+            ("vid", if audio_only { "no" } else { "auto" }),
         ] {
             instance.set_option(name, value)?;
         }

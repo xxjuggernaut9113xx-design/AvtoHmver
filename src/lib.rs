@@ -65,7 +65,7 @@ pub type GroupTagCache = Arc<RwLock<Option<Arc<HashMap<i64, HashSet<String>>>>>>
 
 pub use startup::{set_start_with_windows, StartupRegistration};
 
-/// Apply the Windows Run registration and persist the matching Curator
+/// Apply the Windows Run registration and persist the matching AvtoHmver
 /// preference as one operation. Keeping this in the backend prevents the tray,
 /// Settings dialog, and OOBE from drifting into contradictory states.
 pub async fn set_start_with_windows_preference(
@@ -243,7 +243,7 @@ fn load_or_create_instance_id(data_dir: &std::path::Path) -> Result<String> {
         "created_by_version": PRODUCT_VERSION,
     }))?;
     std::fs::write(&path, text)
-        .with_context(|| format!("writing Curator instance identity {}", path.display()))?;
+        .with_context(|| format!("writing AvtoHmver instance identity {}", path.display()))?;
     Ok(instance_id)
 }
 
@@ -262,7 +262,7 @@ pub async fn initialize_host() -> Result<AppState> {
 pub async fn initialize_with_options(options: InitializeOptions) -> Result<AppState> {
     anyhow::ensure!(
         options.edition.owns_library(),
-        "Curator Viewer must not initialize a database or HTTP server"
+        "AvtoHmver Viewer must not initialize a database or HTTP server"
     );
     let cfg = config::load_config_for(options.install_scope);
     let requested_data_dir = config::resolve_data_dir_for(

@@ -62,7 +62,7 @@ pub fn import_folder(state: &crate::AppState, folder: &Path, group_id: Option<i6
     let library = dunce::canonicalize(&state.library_dir)?;
     anyhow::ensure!(
         !library.starts_with(&folder) && !folder.starts_with(&library),
-        "Select a folder outside Curator's managed library"
+        "Select a folder outside AvtoHmver's managed library"
     );
     let url = format!("local:{}", folder.to_string_lossy());
     let conn = state.pool.get()?;

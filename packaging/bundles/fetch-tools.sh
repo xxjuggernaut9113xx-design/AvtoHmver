@@ -15,7 +15,7 @@ root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
 manifest="$root/packaging/bundles/manifest.toml"
 lock="$root/packaging/bundles/bundles.lock"
 out=${1:?pass the output tools directory}
-tmp=$(mktemp -d "${TMPDIR:-/tmp}/curator-tools.XXXXXX")
+tmp=$(mktemp -d "${TMPDIR:-/tmp}/avtohmver-tools.XXXXXX")
 trap 'rm -rf "$tmp"' EXIT HUP INT TERM
 mkdir -p "$out"
 

@@ -27,7 +27,7 @@ fn local_only(
     if !state.edition.has_local_admin() {
         return Err((
             StatusCode::FORBIDDEN,
-            Json(json!({"error":"This Curator edition has no local Admin surface."})),
+            Json(json!({"error":"This AvtoHmver edition has no local Admin surface."})),
         ));
     }
     if peer.as_ref().is_none_or(|peer| peer.0.ip().is_loopback()) {
@@ -35,7 +35,7 @@ fn local_only(
     } else {
         Err((
             StatusCode::FORBIDDEN,
-            Json(json!({"error":"Curator Admin is available only from this device."})),
+            Json(json!({"error":"AvtoHmver Admin is available only from this device."})),
         ))
     }
 }

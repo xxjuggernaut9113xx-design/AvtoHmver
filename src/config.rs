@@ -1,5 +1,5 @@
 //! `config.json` — the small, pre-database bootstrap file that decides where
-//! everything else lives (`data_dir`) and which external executables Curator
+//! everything else lives (`data_dir`) and which external executables AvtoHmver
 //! shells out to (`gallery_dl_bin`, `python_bin`, `ffprobe_bin`).
 //!
 //! This file is deliberately separate from `db::Settings` (`settings.json`):
@@ -35,7 +35,7 @@ pub struct Config {
     /// launched; managed P-HAR state is configured through Local Admin.
     pub action_model_path: Option<String>,
     /// Installer/first-run intent only. Managed P-HAR setup occurs after
-    /// Curator starts, never inside an OS installer transaction.
+    /// AvtoHmver starts, never inside an OS installer transaction.
     #[serde(default)]
     pub phar_setup_requested: bool,
     /// Native P-HAR backend preference: `auto`, `cuda`, or `rocm`.
@@ -62,7 +62,7 @@ pub fn resolve_tool_bin(configured: Option<&str>, env_key: &str, file_name: &str
             }
         }
     }
-    if let Ok(value) = std::env::var(format!("CURATOR_{env_key}")) {
+    if let Ok(value) = env_var(&format!("CURATOR_{env_key}")) {
         if !value.trim().is_empty() {
             return value;
         }
@@ -92,14 +92,35 @@ fn legacy_config_path() -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("config.json"))
 }
 
-pub fn scoped_config_dir(scope: InstallScope) -> PathBuf {
+fn fresh_config_dir(scope: InstallScope) -> PathBuf {
     match scope {
         InstallScope::CurrentUser => dirs::data_local_dir()
             .or_else(dirs::data_dir)
             .or_else(dirs::home_dir)
             .unwrap_or_else(|| PathBuf::from("."))
-            .join("Curator"),
+            .join("AvtoHmver"),
         InstallScope::AllUsers => all_users_root(),
+    }
+}
+
+pub fn scoped_config_dir(scope: InstallScope) -> PathBuf {
+    let fresh = fresh_config_dir(scope);
+    let legacy = PathBuf::from(
+        fresh
+            .to_string_lossy()
+            .replace("AvtoHmver", "Curator")
+            .replace("avtohmver", "curator"),
+    );
+    select_config_dir(fresh, legacy)
+}
+
+fn select_config_dir(fresh: PathBuf, legacy: PathBuf) -> PathBuf {
+    if fresh.join("config.json").is_file() || fresh.join("data.db").is_file() {
+        fresh
+    } else if legacy.exists() {
+        legacy
+    } else {
+        fresh
     }
 }
 
@@ -109,24 +130,24 @@ fn all_users_root() -> PathBuf {
         std::env::var_os("ProgramData")
             .map(PathBuf::from)
             .unwrap_or_else(|| PathBuf::from(r"C:\ProgramData"))
-            .join("Curator")
+            .join("AvtoHmver")
     }
     #[cfg(target_os = "macos")]
     {
-        PathBuf::from("/Library/Application Support/Curator")
+        PathBuf::from("/Library/Application Support/AvtoHmver")
     }
     #[cfg(all(unix, not(target_os = "macos")))]
     {
-        PathBuf::from("/var/lib/curator")
+        PathBuf::from("/var/lib/avtohmver")
     }
     #[cfg(not(any(windows, target_os = "macos", unix)))]
     {
-        PathBuf::from("./Curator")
+        PathBuf::from("./AvtoHmver")
     }
 }
 
 pub fn config_path_for(scope: InstallScope) -> PathBuf {
-    if let Some(directory) = std::env::var_os("CURATOR_CONFIG_DIR") {
+    if let Some(directory) = crate::config::env_var_os("CURATOR_CONFIG_DIR") {
         return PathBuf::from(directory).join("config.json");
     }
     let scoped = scoped_config_path(scope);
@@ -164,7 +185,7 @@ pub fn load_config() -> Config {
 /// not write an executable-adjacent legacy config, because that could make an
 /// all-users Server mutate a former current-user Host installation.
 pub fn save_config_for(scope: InstallScope, cfg: &Config) -> std::io::Result<()> {
-    let path = if std::env::var_os("CURATOR_CONFIG_DIR").is_some() {
+    let path = if crate::config::env_var_os("CURATOR_CONFIG_DIR").is_some() {
         config_path_for(scope)
     } else {
         scoped_config_path(scope)
@@ -193,7 +214,7 @@ pub fn resolve_data_dir_for(
         return path.to_path_buf();
     }
     // 1. Environment variable
-    if let Ok(env_val) = std::env::var("CURATOR_DATA_DIR") {
+    if let Ok(env_val) = crate::config::env_var("CURATOR_DATA_DIR") {
         if !env_val.is_empty() {
             return PathBuf::from(env_val);
         }
@@ -214,7 +235,7 @@ pub fn resolve_data_dir_for(
 /// overwrites an existing file — OOBE's settings endpoint (`save_config`)
 /// is the only thing that updates an already-present config.json.
 pub fn ensure_config_json_for(scope: InstallScope, data_dir: &Path) {
-    let path = if std::env::var_os("CURATOR_CONFIG_DIR").is_some() {
+    let path = if crate::config::env_var_os("CURATOR_CONFIG_DIR").is_some() {
         config_path_for(scope)
     } else {
         scoped_config_path(scope)
@@ -228,9 +249,47 @@ pub fn ensure_config_json_for(scope: InstallScope, data_dir: &Path) {
     }
 }
 
+/// New product variables take precedence; historical names remain supported.
+pub fn env_var_os(key: &str) -> Option<std::ffi::OsString> {
+    let modern = key.replacen("CURATOR_", "AVTOHMVER_", 1);
+    let legacy = key.replacen("AVTOHMVER_", "CURATOR_", 1);
+    std::env::var_os(modern).or_else(|| std::env::var_os(legacy))
+}
+pub fn env_var(key: &str) -> Result<String, std::env::VarError> {
+    env_var_os(key)
+        .ok_or(std::env::VarError::NotPresent)?
+        .into_string()
+        .map_err(std::env::VarError::NotUnicode)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn an_empty_new_install_root_does_not_hide_an_existing_library() {
+        let root = tempfile::tempdir().unwrap();
+        let fresh = root.path().join("AvtoHmver");
+        let legacy = root.path().join("Curator");
+        std::fs::create_dir_all(&fresh).unwrap();
+        std::fs::create_dir_all(&legacy).unwrap();
+        std::fs::write(legacy.join("data.db"), b"existing").unwrap();
+        assert_eq!(select_config_dir(fresh.clone(), legacy.clone()), legacy);
+        std::fs::write(fresh.join("config.json"), b"{}").unwrap();
+        assert_eq!(select_config_dir(fresh.clone(), legacy), fresh);
+    }
+
+    #[test]
+    fn modern_environment_precedes_legacy_alias_in_both_directions() {
+        let _guard = crate::PROCESS_ENV_LOCK.lock().unwrap();
+        std::env::set_var("CURATOR_ALIAS_TEST", "legacy");
+        std::env::set_var("AVTOHMVER_ALIAS_TEST", "modern");
+        assert_eq!(env_var("CURATOR_ALIAS_TEST").unwrap(), "modern");
+        assert_eq!(env_var("AVTOHMVER_ALIAS_TEST").unwrap(), "modern");
+        std::env::remove_var("AVTOHMVER_ALIAS_TEST");
+        assert_eq!(env_var("AVTOHMVER_ALIAS_TEST").unwrap(), "legacy");
+        std::env::remove_var("CURATOR_ALIAS_TEST");
+    }
 
     #[test]
     fn resolve_tool_bin_prefers_env_override() {
@@ -278,6 +337,6 @@ mod tests {
         std::env::remove_var("CURATOR_DATA_DIR");
         let cfg = Config::default();
         let resolved = resolve_data_dir_for(&cfg, InstallScope::CurrentUser, None);
-        assert!(resolved.ends_with("Curator"));
+        assert!(resolved.ends_with("AvtoHmver") || resolved.ends_with("Curator"));
     }
 }

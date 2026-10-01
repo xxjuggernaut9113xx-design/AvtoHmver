@@ -198,7 +198,7 @@ pub struct Settings {
     pub library_layout: String,
 
     /// Explicit discovery providers.  An empty list means "local only";
-    /// Curator never silently fans out to every extractor installed by
+    /// AvtoHmver never silently fans out to every extractor installed by
     /// gallery-dl.
     #[serde(default = "default_search_providers")]
     pub search_providers: Vec<String>,
@@ -346,6 +346,7 @@ pub fn init_pool(data_dir: &Path) -> Result<DbPool> {
 pub fn run_migrations(conn: &Connection) -> Result<()> {
     let tx = conn.unchecked_transaction()?;
     let conn = &*tx;
+    conn.execute_batch("CREATE TABLE IF NOT EXISTS playback_presets(id INTEGER PRIMARY KEY,revision INTEGER NOT NULL,body TEXT NOT NULL); CREATE TABLE IF NOT EXISTS music_tracks(id INTEGER PRIMARY KEY,title TEXT NOT NULL,format TEXT NOT NULL,bytes INTEGER NOT NULL);")?;
     // ── groups ────────────────────────────────────────────────────────────────
     conn.execute_batch(
         "
@@ -420,7 +421,7 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
     }
     // Source retention and a one-time quota override are durable source
     // state, rather than process memory, so an intentional "permit once"
-    // remains meaningful if Curator is restarted before the queued sync runs.
+    // remains meaningful if AvtoHmver is restarted before the queued sync runs.
     for (name, definition) in [
         (
             "retention_keep_newest",

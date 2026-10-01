@@ -90,7 +90,7 @@ pub struct ChpackBody {
     pub unlock_cost: i64,
 }
 fn default_author() -> String {
-    "Curator".into()
+    "AvtoHmver".into()
 }
 
 pub async fn export_chpack(
@@ -129,7 +129,7 @@ pub async fn export_chpack(
         let pname = body
             .name
             .as_deref()
-            .unwrap_or(src_name.as_deref().unwrap_or("Curator Export"))
+            .unwrap_or(src_name.as_deref().unwrap_or("AvtoHmver Export"))
             .to_string();
 
         let mut stmt = conn.prepare(
@@ -152,7 +152,11 @@ pub async fn export_chpack(
 
         (pname, rows)
     } else {
-        let pname = body.name.as_deref().unwrap_or("Curator Export").to_string();
+        let pname = body
+            .name
+            .as_deref()
+            .unwrap_or("AvtoHmver Export")
+            .to_string();
         let mut stmt = conn.prepare(
             "SELECT m.filepath, m.type, m.rating, \
                 (SELECT GROUP_CONCAT(t.name, ',') FROM media_tags mt JOIN tags t ON t.id=mt.tag_id WHERE mt.media_id=m.id) AS tags_csv \
