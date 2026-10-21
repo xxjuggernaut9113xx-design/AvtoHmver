@@ -23,7 +23,11 @@ const WINDOW: usize = 1024;
 
 /// Decode a bounded five-minute mono PCM analysis buffer. The original audio
 /// is never changed or copied into AvtoHmver's database.
-pub fn decode_mono_pcm(ffmpeg_bin: &str, path: &Path) -> Result<Vec<f32>, String> {
+pub fn decode_mono_pcm_cancellable(
+    ffmpeg_bin: &str,
+    path: &Path,
+    cancelled: &dyn Fn() -> bool,
+) -> Result<Vec<f32>, String> {
     if !path.is_file() {
         return Err("Audio file is unavailable".to_string());
     }
@@ -33,12 +37,19 @@ pub fn decode_mono_pcm(ffmpeg_bin: &str, path: &Path) -> Result<Vec<f32>, String
     command.args([
         "-t", "300", "-vn", "-ac", "1", "-ar", "22050", "-f", "f32le", "pipe:1",
     ]);
-    let output = crate::process::output_timeout_limited(
+    let output = crate::process::output_timeout_limited_cancellable(
         &mut command,
         std::time::Duration::from_secs(30),
         32 * 1024 * 1024,
+        cancelled,
     )
-    .map_err(|error| format!("ffmpeg is unavailable: {error}"))?;
+    .map_err(|error| {
+        if error.kind() == std::io::ErrorKind::Interrupted {
+            "Beat analysis cancelled".into()
+        } else {
+            format!("ffmpeg is unavailable: {error}")
+        }
+    })?;
     if !output.status.success() {
         return Err("ffmpeg could not decode this audio track".to_string());
     }
@@ -179,9 +190,20 @@ pub fn analyze_pcm(samples: &[f32], sample_rate: u32) -> BeatAnalysis {
     }
 }
 
-pub fn analyze_local_audio(ffmpeg_bin: &str, path: &Path) -> Result<BeatAnalysis, String> {
-    let pcm = decode_mono_pcm(ffmpeg_bin, path)?;
-    Ok(analyze_pcm(&pcm, SAMPLE_RATE))
+pub fn analyze_local_audio_cancellable(
+    ffmpeg_bin: &str,
+    path: &Path,
+    cancelled: &dyn Fn() -> bool,
+) -> Result<BeatAnalysis, String> {
+    let pcm = decode_mono_pcm_cancellable(ffmpeg_bin, path, cancelled)?;
+    if cancelled() {
+        return Err("Beat analysis cancelled".into());
+    }
+    let result = analyze_pcm(&pcm, SAMPLE_RATE);
+    if cancelled() {
+        return Err("Beat analysis cancelled".into());
+    }
+    Ok(result)
 }
 
 #[cfg(test)]

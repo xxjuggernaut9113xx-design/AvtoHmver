@@ -42,6 +42,14 @@ pub fn control(state: &AppState, command: SessionControl) -> Result<SessionUpdat
         .map_err(SessionError::Engine)
 }
 
+pub fn start_paused(state: &AppState, config: GameConfig) -> Result<SessionUpdate, SessionError> {
+    let _lease = admit(state)?;
+    state
+        .sessions
+        .start_paused(config)
+        .map_err(SessionError::Engine)
+}
+
 fn admit(state: &AppState) -> Result<crate::maintenance::BackgroundWorkerLease, SessionError> {
     if state.shutdown.is_cancelled() {
         return Err(SessionError::ShuttingDown);
@@ -66,6 +74,64 @@ mod tests {
         http::Request,
     };
     use tower::ServiceExt;
+
+    #[tokio::test]
+    async fn configured_native_session_runs_without_reference_service_and_restarts_cleanly() {
+        let root = tempfile::tempdir().unwrap();
+        let state = crate::test_support::state(root.path());
+        let config = crate::instructor::InstructorOptions {
+            duration_seconds: 60,
+            seed: Some(123),
+            metronome: false,
+            ..Default::default()
+        }
+        .compile()
+        .unwrap();
+        let first = start(&state, config.clone()).unwrap();
+        assert!(!first.state.audio.metronome_enabled);
+        assert_eq!(first.state.seed, 123);
+        let injected = control(
+            &state,
+            SessionControl::InjectEvent {
+                event_id: "checkpoint".into(),
+            },
+        )
+        .unwrap();
+        assert!(injected
+            .state
+            .active_events
+            .iter()
+            .any(|e| e.id == "checkpoint"));
+        let completed = control(
+            &state,
+            SessionControl::CompleteEvent {
+                event_id: "checkpoint".into(),
+            },
+        )
+        .unwrap();
+        assert!(completed
+            .state
+            .completed_events
+            .iter()
+            .any(|e| e == "checkpoint"));
+        let paused = control(&state, SessionControl::Pause).unwrap();
+        assert_eq!(paused.state.status, crate::session::SessionStatus::Paused);
+        let resumed = control(&state, SessionControl::Resume).unwrap();
+        assert_eq!(
+            resumed.state.active_elapsed_ms,
+            paused.state.active_elapsed_ms
+        );
+        let ended = control(&state, SessionControl::End { completed: false }).unwrap();
+        assert!(ended.state.active_events.is_empty());
+        assert!(ended.state.pending_tasks.is_empty());
+        assert_eq!(ended.state.status, crate::session::SessionStatus::Cancelled);
+        let second = start_paused(&state, config).unwrap();
+        assert_ne!(first.state.session_id, second.state.session_id);
+        assert_eq!(second.state.status, crate::session::SessionStatus::Paused);
+        assert_eq!(second.state.active_elapsed_ms, 0);
+        state.sessions.interrupt_active();
+        state.sessions.stop_runner();
+    }
 
     async fn http_request(
         state: &AppState,

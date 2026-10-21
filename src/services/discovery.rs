@@ -6,7 +6,7 @@
 //! gallery URLs and the selected compatible URLs are handed to the
 //! established gallery-dl source queue.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -120,9 +120,7 @@ fn descriptor(
 /// version, but they remain visible and their capability status is explicit.
 fn curated_providers() -> Vec<ProviderDescriptor> {
     let page = &["page", "download"];
-    // Balbums, Kemono, and Coomer have real query adapters in this build.
-    // Every other advertised extractor remains discoverable, but is explicitly
-    // direct URL-only rather than pretending a free-text search exists.
+    // Only providers with a verified query adapter advertise search.
     let searchable = &["page", "download", "direct_url"];
     vec![
         descriptor(
@@ -147,7 +145,7 @@ fn curated_providers() -> Vec<ProviderDescriptor> {
         descriptor(
             "kemono",
             "Kemono",
-            searchable,
+            &["search", "page", "download", "direct_url"],
             false,
             "available",
             &["creator", "post"],
@@ -156,7 +154,7 @@ fn curated_providers() -> Vec<ProviderDescriptor> {
         descriptor(
             "erome",
             "Erome",
-            searchable,
+            &["search", "page", "download", "direct_url"],
             false,
             "available",
             &["album", "creator"],
@@ -165,11 +163,11 @@ fn curated_providers() -> Vec<ProviderDescriptor> {
         descriptor(
             "redgifs",
             "Redgifs",
-            searchable,
+            &["search", "page", "download", "direct_url"],
             false,
             "available",
             &["post", "creator"],
-            Some("https://www.redgifs.com/browse/{QUERY}"),
+            Some("https://www.redgifs.com/search?query={QUERY}"),
         ),
         descriptor(
             "deviantart",
@@ -318,7 +316,7 @@ fn curated_providers() -> Vec<ProviderDescriptor> {
         descriptor(
             "coomer",
             "Coomer",
-            searchable,
+            &["search", "page", "download", "direct_url"],
             false,
             "available",
             &["creator", "post"],
@@ -636,6 +634,8 @@ pub struct SearchResult {
     pub provider: String,
     pub result_type: String,
     pub item_count: Option<i64>,
+    #[serde(default)]
+    pub total_bytes: Option<i64>,
     pub date: Option<String>,
     pub gallery_dl_compatible: bool,
     /// Set only by AvtoHmver's adapters after the URL has passed the page-URL
@@ -657,6 +657,9 @@ pub struct SearchQuery {
     pub result_type: Option<String>,
     pub sort: Option<String>,
     pub limit: Option<usize>,
+    #[serde(default)]
+    pub paged: bool,
+    pub cursor: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -670,6 +673,60 @@ pub struct SearchResponse {
     pub results: Vec<SearchResult>,
     pub providers: Vec<String>,
     pub provider_errors: Vec<ProviderError>,
+    pub next_cursor: Option<String>,
+}
+
+#[derive(Default)]
+pub(crate) struct SearchPages {
+    snapshots: HashMap<String, (std::time::Instant, SearchResponse)>,
+}
+
+impl SearchPages {
+    fn first(&mut self, mut response: SearchResponse, limit: usize) -> SearchResponse {
+        self.snapshots
+            .retain(|_, (created, _)| created.elapsed() < Duration::from_secs(600));
+        if response.results.len() <= limit {
+            return response;
+        }
+        if self.snapshots.len() >= 32 {
+            if let Some(oldest) = self
+                .snapshots
+                .iter()
+                .min_by_key(|(_, (created, _))| created)
+                .map(|(id, _)| id.clone())
+            {
+                self.snapshots.remove(&oldest);
+            }
+        }
+        let id = format!("{:032x}", rand::random::<u128>());
+        self.snapshots
+            .insert(id.clone(), (std::time::Instant::now(), response.clone()));
+        response.results.truncate(limit);
+        response.next_cursor = Some(format!("{id}:{limit}"));
+        response
+    }
+
+    fn next(&mut self, cursor: &str, limit: usize) -> Result<SearchResponse, SearchError> {
+        let bad = || {
+            SearchError::BadRequest(
+                "Discover search expired or cursor is invalid. Search again.".into(),
+            )
+        };
+        let (id, offset) = cursor.split_once(':').ok_or_else(bad)?;
+        let offset = offset.parse::<usize>().map_err(|_| bad())?;
+        let (created, snapshot) = self.snapshots.get(id).ok_or_else(bad)?;
+        if created.elapsed() >= Duration::from_secs(600)
+            || offset == 0
+            || offset >= snapshot.results.len()
+        {
+            return Err(bad());
+        }
+        let end = offset.saturating_add(limit).min(snapshot.results.len());
+        let mut page = snapshot.clone();
+        page.results = snapshot.results[offset..end].to_vec();
+        page.next_cursor = (end < snapshot.results.len()).then(|| format!("{id}:{end}"));
+        Ok(page)
+    }
 }
 
 /// Service-level search failure. The HTTP adapter maps these to the same
@@ -721,21 +778,26 @@ fn search_local_catalog(conn: &Connection, query: &str) -> rusqlite::Result<Vec<
         "SELECT s.name,s.url,s.item_count,s.added_at,
                 (SELECT sm.creator FROM source_metadata sm
                  JOIN media m ON m.id=sm.media_id WHERE m.source_id=s.id
-                 ORDER BY sm.id DESC LIMIT 1) AS creator
+                 ORDER BY sm.id DESC LIMIT 1) AS creator,
+                (SELECT CASE WHEN COUNT(*)=COUNT(file_size_bytes) THEN COALESCE(SUM(file_size_bytes),0) END FROM media WHERE source_id=s.id) AS total_bytes,
+                (SELECT MIN(id) FROM media WHERE source_id=s.id AND downloaded=1 AND missing=0 AND type IN ('image','video')) AS thumbnail_id
          FROM sources s WHERE s.name LIKE ?1 COLLATE NOCASE OR s.url LIKE ?1 COLLATE NOCASE
-         ORDER BY s.item_count DESC,s.id DESC LIMIT 80",
+         ORDER BY s.item_count DESC,s.id DESC LIMIT 2000",
     )?;
     for result in sources
         .query_map([&needle], |row| {
             Ok(SearchResult {
                 title: row.get(0)?,
                 creator: row.get(4)?,
-                thumbnail: None,
+                thumbnail: row
+                    .get::<_, Option<i64>>(6)?
+                    .map(|id| format!("/api/thumb/{id}")),
                 source: "AvtoHmver library".to_string(),
                 source_url: row.get(1)?,
                 provider: "local".to_string(),
                 result_type: "album".to_string(),
                 item_count: row.get(2)?,
+                total_bytes: row.get(5)?,
                 date: row.get(3)?,
                 gallery_dl_compatible: true,
                 gallery_dl_validated: true,
@@ -748,12 +810,13 @@ fn search_local_catalog(conn: &Connection, query: &str) -> rusqlite::Result<Vec<
     }
 
     let mut creators = conn.prepare(
-        "SELECT sm.creator,COUNT(DISTINCT m.id),MIN(s.url),MAX(sm.captured_at)
-         FROM source_metadata sm JOIN media m ON m.id=sm.media_id
+        "SELECT sm.creator,COUNT(DISTINCT m.id),MIN(s.url),MAX(sm.captured_at),
+                CASE WHEN COUNT(*)=COUNT(m.file_size_bytes) THEN COALESCE(SUM(m.file_size_bytes),0) END, MIN(CASE WHEN m.downloaded=1 AND m.missing=0 THEN m.id END)
+         FROM (SELECT media_id,creator,MAX(captured_at) AS captured_at FROM source_metadata GROUP BY media_id,creator) sm JOIN media m ON m.id=sm.media_id
          JOIN sources s ON s.id=m.source_id
          WHERE sm.creator IS NOT NULL AND sm.creator<>''
            AND sm.creator LIKE ?1 COLLATE NOCASE
-         GROUP BY sm.creator ORDER BY COUNT(DISTINCT m.id) DESC,sm.creator COLLATE NOCASE LIMIT 80",
+         GROUP BY sm.creator ORDER BY COUNT(DISTINCT m.id) DESC,sm.creator COLLATE NOCASE LIMIT 2000",
     )?;
     for result in creators
         .query_map([&needle], |row| {
@@ -761,12 +824,15 @@ fn search_local_catalog(conn: &Connection, query: &str) -> rusqlite::Result<Vec<
             Ok(SearchResult {
                 creator: Some(title.clone()),
                 title,
-                thumbnail: None,
+                thumbnail: row
+                    .get::<_, Option<i64>>(5)?
+                    .map(|id| format!("/api/thumb/{id}")),
                 source: "AvtoHmver library".to_string(),
                 source_url: row.get(2)?,
                 provider: "local".to_string(),
                 result_type: "creator".to_string(),
                 item_count: row.get(1)?,
+                total_bytes: row.get(4)?,
                 date: row.get(3)?,
                 gallery_dl_compatible: true,
                 gallery_dl_validated: true,
@@ -780,6 +846,220 @@ fn search_local_catalog(conn: &Connection, query: &str) -> rusqlite::Result<Vec<
     Ok(results)
 }
 
+fn parse_erome(html: &str) -> Vec<SearchResult> {
+    static ALBUM: Lazy<Regex> = Lazy::new(|| {
+        Regex::new(
+        r#"(?is)<a\b[^>]*\bhref\s*=\s*["'](?:https://(?:www\.)?erome\.com)?/a/(?P<id>[a-zA-Z0-9]+)["'][^>]*>(?P<body>.*?)</a>"#
+    ).unwrap()
+    });
+    static COVER: Lazy<Regex> = Lazy::new(|| {
+        Regex::new(r#"(?is)<img\b[^>]*\b(?:data-src|src)\s*=\s*["'](?P<url>https://[^"']+)["']"#)
+            .unwrap()
+    });
+    static TITLE: Lazy<Regex> = Lazy::new(|| {
+        Regex::new(r#"(?is)\b(?:title|alt)\s*=\s*["'](?P<title>[^"']+)["']"#).unwrap()
+    });
+    let mut results = Vec::<SearchResult>::new();
+    for card in ALBUM.captures_iter(html) {
+        let id = &card["id"];
+        let body = &card["body"];
+        let thumbnail = COVER
+            .captures(body)
+            .map(|cover| html_text(&cover["url"]))
+            .filter(|url| crate::url_guard::normalize_public_http_url(url).is_ok());
+        let title = TITLE
+            .captures(card.get(0).unwrap().as_str())
+            .map(|title| html_text(&title["title"]))
+            .filter(|title| !title.is_empty())
+            .or_else(|| {
+                let text = html_text(body);
+                (!text.is_empty()).then_some(text)
+            })
+            .unwrap_or_else(|| id.to_owned());
+        let source_url = format!("https://www.erome.com/a/{id}");
+        if let Some(existing) = results
+            .iter_mut()
+            .find(|result| result.source_url == source_url)
+        {
+            if existing.title == id && title != id {
+                existing.title = title;
+            }
+            if existing.thumbnail.is_none() {
+                existing.thumbnail = thumbnail;
+            }
+            continue;
+        }
+        results.push(SearchResult {
+            title,
+            creator: None,
+            thumbnail,
+            source: "erome.com".into(),
+            source_url,
+            provider: "erome".into(),
+            result_type: "album".into(),
+            item_count: None,
+            total_bytes: None,
+            date: None,
+            gallery_dl_compatible: true,
+            gallery_dl_validated: true,
+            relevance: Some(80),
+        });
+    }
+    results
+}
+
+async fn search_erome(query: &str) -> Result<Vec<SearchResult>, String> {
+    if let Some(result) = provider_direct_url_result("erome", query) {
+        return Ok(vec![result]);
+    }
+    if query.starts_with("https://") || query.starts_with("http://") {
+        return Ok(Vec::new());
+    }
+    let client = reqwest::Client::builder()
+        .user_agent("AvtoHmver discovery")
+        .timeout(Duration::from_secs(5))
+        .redirect(crate::url_guard::public_redirect_policy())
+        .build()
+        .map_err(|error| error.to_string())?;
+    let mut results = Vec::new();
+    for page in 1..=3 {
+        let response = client
+            .get("https://www.erome.com/search")
+            .query(&[("q", query), ("page", &page.to_string())])
+            .send()
+            .await
+            .map_err(|error| {
+                format!("Erome search unavailable: {error}; paste an album URL instead")
+            })?
+            .error_for_status()
+            .map_err(|error| format!("Erome search failed: {error}; paste an album URL instead"))?;
+        let mut bytes = Vec::new();
+        let mut stream = response.bytes_stream();
+        while let Some(chunk) = stream.next().await {
+            let chunk = chunk.map_err(|error| error.to_string())?;
+            if bytes.len().saturating_add(chunk.len()) > 4 * 1024 * 1024 {
+                return Err("Erome search response exceeded 4 MiB".into());
+            }
+            bytes.extend_from_slice(&chunk);
+        }
+        let html = String::from_utf8(bytes).map_err(|_| "Erome returned non-text search data")?;
+        let lower = html.to_ascii_lowercase();
+        if lower.contains("cf-chl-") || lower.contains("<title>just a moment") {
+            return Err("Erome requires a browser challenge; paste an album URL instead".into());
+        }
+        let albums = parse_erome(&html);
+        let full = albums.len() >= 36;
+        results.extend(albums);
+        if !full {
+            break;
+        }
+    }
+    Ok(results)
+}
+
+async fn discovery_json(request: reqwest::RequestBuilder) -> Result<Value, String> {
+    let response = request
+        .send()
+        .await
+        .map_err(|error| error.to_string())?
+        .error_for_status()
+        .map_err(|error| error.to_string())?;
+    let mut bytes = Vec::new();
+    let mut stream = response.bytes_stream();
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk.map_err(|error| error.to_string())?;
+        if bytes.len().saturating_add(chunk.len()) > 4 * 1024 * 1024 {
+            return Err("Search response exceeded 4 MiB".into());
+        }
+        bytes.extend_from_slice(&chunk);
+    }
+    serde_json::from_slice(&bytes).map_err(|_| "Provider returned malformed search data".into())
+}
+
+fn parse_redgifs(value: &Value) -> Vec<SearchResult> {
+    value
+        .get("gifs")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|gif| {
+            let id = gif.get("id")?.as_str()?;
+            if id.is_empty() || !id.bytes().all(|byte| byte.is_ascii_alphanumeric()) {
+                return None;
+            }
+            let creator = gif
+                .get("userName")
+                .and_then(Value::as_str)
+                .map(str::to_owned);
+            let thumbnail = gif
+                .pointer("/urls/thumbnail")
+                .or_else(|| gif.pointer("/urls/poster"))
+                .and_then(Value::as_str)
+                .filter(|url| crate::url_guard::normalize_public_http_url(url).is_ok())
+                .map(str::to_owned);
+            Some(SearchResult {
+                title: gif
+                    .get("title")
+                    .and_then(Value::as_str)
+                    .filter(|title| !title.is_empty())
+                    .unwrap_or(id)
+                    .to_owned(),
+                creator,
+                thumbnail,
+                source: "redgifs.com".into(),
+                source_url: format!("https://www.redgifs.com/watch/{id}"),
+                provider: "redgifs".into(),
+                result_type: "post".into(),
+                // Gallery posts may contain several files; the search response
+                // does not establish that count or their aggregate byte size.
+                item_count: None,
+                total_bytes: None,
+                date: None,
+                gallery_dl_compatible: true,
+                gallery_dl_validated: true,
+                relevance: Some(80),
+            })
+        })
+        .collect()
+}
+
+async fn search_redgifs(query: &str) -> Result<Vec<SearchResult>, String> {
+    if let Some(result) = provider_direct_url_result("redgifs", query) {
+        return Ok(vec![result]);
+    }
+    if query.starts_with("https://") || query.starts_with("http://") {
+        return Ok(Vec::new());
+    }
+    // The public temporary-token and search interfaces match gallery-dl's
+    // maintained RedgifsAPI adapter. No user credentials are persisted.
+    let client = reqwest::Client::builder()
+        .user_agent("AvtoHmver discovery")
+        .timeout(Duration::from_secs(5))
+        .redirect(crate::url_guard::public_redirect_policy())
+        .build()
+        .map_err(|error| error.to_string())?;
+    let auth = discovery_json(client.get("https://api.redgifs.com/v2/auth/temporary")).await?;
+    let token = auth
+        .get("token")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "Redgifs did not provide a temporary token".to_string())?;
+    let response = discovery_json(
+        client
+            .get("https://api.redgifs.com/v2/gifs/search")
+            .bearer_auth(token)
+            .header("Origin", "https://www.redgifs.com")
+            .header("Referer", "https://www.redgifs.com/")
+            .query(&[("search_text", query), ("count", "100"), ("page", "1")]),
+    )
+    .await?;
+    if !response.get("gifs").is_some_and(Value::is_array) {
+        return Err(
+            "Redgifs returned an unsupported search response; paste a watch URL instead".into(),
+        );
+    }
+    Ok(parse_redgifs(&response))
+}
+
 async fn search_remote_provider(
     provider: String,
     text: String,
@@ -788,17 +1068,15 @@ async fn search_remote_provider(
         "balbums" => search_balbums(&text).await,
         "kemono" => search_kemono_like("kemono", &text).await,
         "coomer" => search_kemono_like("coomer", &text).await,
-        // These curated adapters safely accept known page URLs right now.
-        // Search/query support depends on gallery-dl version and site access;
-        // return a useful per-provider error rather than attempting a fake
-        // universal API request.
-        "erome" | "redgifs" | "deviantart" => {
+        "redgifs" => search_redgifs(&text).await,
+        "deviantart" => {
             if let Some(result) = provider_direct_url_result(&provider, &text) {
                 Ok(vec![result])
             } else {
-                Err("This provider needs a gallery/page URL or an enabled version-specific search adapter".to_string())
+                Err("DeviantArt search requires a registered OAuth application; paste a gallery/page URL instead".to_string())
             }
         }
+        "erome" => search_erome(&text).await,
         _ => Err(
             "Search is not available for this provider in the installed gallery-dl version"
                 .to_string(),
@@ -811,6 +1089,17 @@ pub async fn search(
     query: SearchQuery,
 ) -> Result<SearchResponse, SearchError> {
     let bad = SearchError::BadRequest;
+    let limit = query
+        .limit
+        .unwrap_or(if query.paged { 40 } else { 100 })
+        .clamp(1, 250);
+    if let Some(cursor) = query.cursor.as_deref() {
+        return state
+            .discovery_pages
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .next(cursor, limit);
+    }
     let text = query.query.clone().unwrap_or_default().trim().to_string();
     if text.is_empty() {
         return Err(bad("A search query is required".to_string()));
@@ -838,7 +1127,7 @@ pub async fn search(
             search_local_catalog(&conn, &text)
                 .map_err(|error| SearchError::Internal(error.to_string()))?
         };
-        results.extend(catalog_results.into_iter().take(50));
+        results.extend(catalog_results);
         if let Some(result) = direct_url_result(&text) {
             results.push(result);
         }
@@ -874,7 +1163,7 @@ pub async fn search(
     .await;
     for (provider, outcome) in remote_outcomes {
         match outcome {
-            Ok(values) => results.extend(values.into_iter().take(50)),
+            Ok(values) => results.extend(values.into_iter().take(2000)),
             Err(error) => provider_errors.push(ProviderError { provider, error }),
         }
     }
@@ -905,11 +1194,23 @@ pub async fn search(
         }
         _ => return Err(bad("Unknown search sort".to_string())),
     }
-    results.truncate(query.limit.unwrap_or(100).clamp(1, 250));
-    Ok(SearchResponse {
+    if !query.paged {
+        results.truncate(limit);
+    }
+    let response = SearchResponse {
         results,
         providers: requested,
         provider_errors,
+        next_cursor: None,
+    };
+    Ok(if query.paged {
+        state
+            .discovery_pages
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .first(response, limit)
+    } else {
+        response
     })
 }
 
@@ -1055,6 +1356,7 @@ fn parse_balbums_html(html: &str) -> Vec<SearchResult> {
             provider: "balbums".to_string(),
             result_type: "album".to_string(),
             item_count,
+            total_bytes: None,
             date: None,
             gallery_dl_compatible: true,
             gallery_dl_validated: true,
@@ -1081,6 +1383,7 @@ async fn search_balbums(query: &str) -> Result<Vec<SearchResult>, String> {
             provider: "balbums".to_string(),
             result_type: "collection".to_string(),
             item_count: None,
+            total_bytes: None,
             date: None,
             // An index URL must be resolved to its source page before it can
             // enter gallery-dl. The UI keeps it available for preview/open.
@@ -1235,6 +1538,7 @@ fn parse_kemono_posts(base: &str, provider: &str, value: &Value) -> Vec<SearchRe
                 provider: provider.to_string(),
                 result_type: "post".to_string(),
                 item_count: (file_count > 0).then_some(file_count as i64),
+                total_bytes: None,
                 date: post.get("published").and_then(kemono_text),
                 // gallery-dl's kemono extractor consumes exactly these
                 // canonical post URLs.
@@ -1423,6 +1727,7 @@ fn direct_url_result(query: &str) -> Option<SearchResult> {
         provider: "gallery-dl".to_string(),
         result_type: "post".to_string(),
         item_count: None,
+        total_bytes: None,
         date: None,
         gallery_dl_compatible: !host.ends_with("balbums.st") && is_verified_page_url(value),
         gallery_dl_validated: is_verified_page_url(value),
@@ -1451,6 +1756,7 @@ fn provider_direct_url_result(provider: &str, query: &str) -> Option<SearchResul
         provider: provider.to_string(),
         result_type: "post".to_string(),
         item_count: None,
+        total_bytes: None,
         date: None,
         gallery_dl_compatible: true,
         gallery_dl_validated: true,
@@ -1462,6 +1768,62 @@ fn provider_direct_url_result(provider: &str, query: &str) -> Option<SearchResul
 mod tests {
     use super::*;
     use axum::extract::State;
+
+    #[test]
+    fn erome_search_deduplicates_cover_and_title_links_and_rejects_other_hosts() {
+        let results = parse_erome(
+            r#"
+          <a href="https://www.erome.com/a/Album123"><img data-src="https://cdn.erome.com/cover.jpg" alt="A &amp; B"></a>
+          <a href="https://www.erome.com/a/Album123">A &amp; B</a>
+          <a href="/a/Other456">Another album</a>
+          <a href="https://other.example/a/Wrong">Not an album</a>
+          <a href="https://www.erome.com/a/../../Wrong">Not an album</a>
+        "#,
+        );
+        assert_eq!(results.len(), 2);
+        assert_eq!(results[0].title, "A & B");
+        assert_eq!(
+            results[0].thumbnail.as_deref(),
+            Some("https://cdn.erome.com/cover.jpg")
+        );
+        assert_eq!(results[1].source_url, "https://www.erome.com/a/Other456");
+        assert!(results
+            .iter()
+            .all(|result| result.item_count.is_none() && result.total_bytes.is_none()));
+    }
+
+    #[tokio::test]
+    #[ignore = "requires live Erome and Redgifs services"]
+    async fn live_erome_and_redgifs_searches_return_gallery_pages() {
+        for provider in ["erome", "redgifs"] {
+            let results = search_remote_provider(provider.into(), "cosplay".into())
+                .await
+                .unwrap();
+            assert!(!results.is_empty(), "{provider} returned no results");
+            assert!(results
+                .iter()
+                .all(|result| result.provider == provider
+                    && is_verified_page_url(&result.source_url)));
+        }
+    }
+
+    #[test]
+    fn redgifs_search_accepts_only_stable_watch_ids_and_keeps_unknown_sizes() {
+        let results = parse_redgifs(&serde_json::json!({"gifs": [
+            {"id": "ValidWatch123", "userName": "Creator", "urls": {"thumbnail": "https://thumbs.redgifs.com/preview.jpg"}},
+            {"id": "../bad"}, {"id": ""}, {"id": "Other", "urls": {"poster": "file:///secret"}}
+        ]}));
+        assert_eq!(results.len(), 2);
+        assert_eq!(
+            results[0].source_url,
+            "https://www.redgifs.com/watch/ValidWatch123"
+        );
+        assert_eq!(results[0].creator.as_deref(), Some("Creator"));
+        assert!(results[0].item_count.is_none());
+        assert!(results[0].total_bytes.is_none());
+        assert!(results[1].thumbnail.is_none());
+        assert!(results.iter().all(|result| result.gallery_dl_validated));
+    }
 
     #[tokio::test]
     async fn direct_and_http_provider_catalogs_match() {
@@ -1596,6 +1958,7 @@ mod tests {
             provider: "local".into(),
             result_type: "post".into(),
             item_count: None,
+            total_bytes: None,
             date: None,
             gallery_dl_compatible: true,
             gallery_dl_validated: true,
@@ -1687,8 +2050,8 @@ mod tests {
         assert!(registry.providers.iter().all(|provider| provider.curated));
         assert!(registry.providers.iter().any(|provider| {
             provider.id == "kemono"
-                && provider.availability == "direct_url_only"
-                && !provider
+                && provider.availability != "direct_url_only"
+                && provider
                     .capabilities
                     .iter()
                     .any(|capability| capability == "search")
@@ -1853,5 +2216,95 @@ mod tests {
         let query = SearchQuery::default();
         let ids = requested_provider_ids(&query, &["local".to_string(), "balbums".to_string()]);
         assert_eq!(ids, vec!["local", "balbums"]);
+    }
+
+    #[tokio::test]
+    async fn discover_pages_are_stable_and_expire_without_cross_library_access() {
+        let root = tempfile::tempdir().unwrap();
+        let state = crate::test_support::state(root.path());
+        {
+            let conn = state.pool.get().unwrap();
+            for id in 1..=95 {
+                conn.execute("INSERT INTO sources(id,name,url,slug,added_at,item_count) VALUES(?1,?2,?3,?2,'2026',1)", rusqlite::params![id, format!("sample-{id:03}"), format!("https://example.test/{id}")]).unwrap();
+            }
+            conn.execute("INSERT INTO media(id,source_id,filepath,filename,type,added_at,downloaded,file_size_bytes) VALUES(1,1,'sample.png','sample.png','image','2026',1,1024)", []).unwrap();
+            conn.execute("INSERT INTO media(id,source_id,filepath,filename,type,added_at,downloaded) VALUES(2,2,'unknown.png','unknown.png','image','2026',1)", []).unwrap();
+        }
+        let first = search(
+            &state,
+            SearchQuery {
+                query: Some("sample".into()),
+                provider: Some("local".into()),
+                paged: true,
+                limit: Some(40),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(first.results.len(), 40);
+        assert_eq!(first.results[0].total_bytes, Some(1024));
+        assert_eq!(first.results[1].total_bytes, None);
+        assert_eq!(first.results[0].thumbnail.as_deref(), Some("/api/thumb/1"));
+        let cursor = first.next_cursor.unwrap();
+        state
+            .pool
+            .get()
+            .unwrap()
+            .execute("UPDATE sources SET name='changed'", [])
+            .unwrap();
+        let next = search(
+            &state,
+            SearchQuery {
+                cursor: Some(cursor.clone()),
+                limit: Some(40),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(next.results.len(), 40);
+        assert_eq!(next.results[0].title, "sample-041");
+        let last = search(
+            &state,
+            SearchQuery {
+                cursor: next.next_cursor,
+                limit: Some(40),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(last.results.len(), 15);
+        assert!(last.next_cursor.is_none());
+        let other = tempfile::tempdir().unwrap();
+        let other = crate::test_support::state(other.path());
+        assert!(search(
+            &other,
+            SearchQuery {
+                cursor: Some(cursor.clone()),
+                ..Default::default()
+            }
+        )
+        .await
+        .is_err());
+        let id = cursor.split_once(':').unwrap().0;
+        state
+            .discovery_pages
+            .lock()
+            .unwrap()
+            .snapshots
+            .get_mut(id)
+            .unwrap()
+            .0 -= Duration::from_secs(601);
+        assert!(search(
+            &state,
+            SearchQuery {
+                cursor: Some(cursor),
+                ..Default::default()
+            }
+        )
+        .await
+        .is_err());
     }
 }

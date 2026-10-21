@@ -97,9 +97,12 @@ struct VideoFrame {
 struct WorkerCommand {
     generation: u64,
     command: PlayerCommand,
+    clip_range: Option<(f64, f64)>,
 }
 
 pub struct NativePlayer {
+    clip_range: Option<(f64, f64)>,
+    render_size: (u32, u32),
     suspended: Arc<AtomicBool>,
     suspended_since: Option<Instant>,
     loading_since: Option<Instant>,
@@ -120,6 +123,8 @@ pub struct NativePlayer {
 impl Default for NativePlayer {
     fn default() -> Self {
         Self {
+            clip_range: None,
+            render_size: (RENDER_WIDTH, RENDER_HEIGHT),
             commands: None,
             statuses: None,
             frames: None,
@@ -141,6 +146,23 @@ impl Default for NativePlayer {
 }
 
 impl NativePlayer {
+    pub fn set_clip_range(&mut self, start: Option<f64>, end: Option<f64>) -> Result<(), String> {
+        self.clip_range = match (start, end) {
+            (None, None) => None,
+            (Some(start), Some(end))
+                if start.is_finite() && end.is_finite() && start >= 0.0 && end > start =>
+            {
+                Some((start, end))
+            }
+            _ => return Err("Clip has an invalid saved playback range".into()),
+        };
+        Ok(())
+    }
+    pub fn portrait() -> Self {
+        let mut player = Self::default();
+        player.render_size = (480, 960);
+        player
+    }
     /// Out-of-band safety state cannot be lost behind a full command queue.
     pub fn suspend(&mut self, value: bool) {
         if value && self.suspended_since.is_none() {
@@ -179,7 +201,10 @@ impl NativePlayer {
         let suspended = self.suspended.clone();
         let worker = thread::Builder::new()
             .name("curator-libmpv".into())
-            .spawn(move || player_worker(command_rx, status_tx, frame_tx, suspended))
+            .spawn({
+                let render_size = self.render_size;
+                move || player_worker(command_rx, status_tx, frame_tx, suspended, render_size)
+            })
             .map_err(|error| format!("Could not start embedded player worker: {error}"))?;
         self.commands = Some(commands);
         self.statuses = Some(statuses);
@@ -196,6 +221,7 @@ impl NativePlayer {
         match sender.try_send(WorkerCommand {
             generation: self.generation,
             command,
+            clip_range: self.clip_range,
         }) {
             Ok(()) => Ok(()),
             Err(TrySendError::Full(_)) => Err("Embedded player is busy; retry shortly".into()),
@@ -210,6 +236,7 @@ impl NativePlayer {
             let _ = sender.try_send(WorkerCommand {
                 generation: self.generation,
                 command: PlayerCommand::Shutdown,
+                clip_range: None,
             });
         }
         self.statuses.take();
@@ -248,8 +275,15 @@ impl NativePlayer {
                 self.send(command)
             }
             PlayerCommand::Seek(position) => {
-                self.status.position_secs = position.max(0.0);
-                self.send(command)
+                let position = if let Some((start, end)) = self.clip_range {
+                    position.clamp(0.0, end - start)
+                } else {
+                    position.max(0.0)
+                };
+                self.status.position_secs = position;
+                self.send(PlayerCommand::Seek(
+                    position + self.clip_range.map_or(0.0, |range| range.0),
+                ))
             }
             PlayerCommand::SetVolume(volume) => {
                 self.status.volume = volume.clamp(0.0, 100.0);
@@ -336,10 +370,15 @@ impl NativePlayer {
                         paused,
                     }) if generation == self.generation => {
                         if let Some(position_secs) = position_secs {
-                            self.status.position_secs = position_secs;
+                            self.status.position_secs =
+                                self.clip_range.map_or(position_secs, |(start, end)| {
+                                    (position_secs - start).clamp(0.0, end - start)
+                                });
                         }
                         if let Some(duration_secs) = duration_secs {
-                            self.status.duration_secs = duration_secs;
+                            self.status.duration_secs = self
+                                .clip_range
+                                .map_or(duration_secs, |(start, end)| end - start);
                         }
                         if let Some(paused) = paused {
                             self.status.paused = paused;
@@ -406,6 +445,7 @@ fn player_worker(
     statuses: SyncSender<WorkerEvent>,
     frames: SyncSender<VideoFrame>,
     suspended: Arc<AtomicBool>,
+    render_size: (u32, u32),
 ) {
     let mut instance = match MpvInstance::create() {
         Ok(instance) => instance,
@@ -414,7 +454,7 @@ fn player_worker(
             return;
         }
     };
-    let mut renderer = match instance.create_renderer(RENDER_WIDTH, RENDER_HEIGHT) {
+    let mut renderer = match instance.create_renderer(render_size.0, render_size.1) {
         Ok(renderer) => renderer,
         Err(error) => {
             let _ = statuses.try_send(WorkerEvent::StartupError(error));
@@ -442,7 +482,9 @@ fn player_worker(
                 ) {
                     render_ready = false;
                 }
-                if let Err(error) = apply_worker_command(&mut instance, command.command) {
+                if let Err(error) =
+                    apply_worker_command(&mut instance, command.command, command.clip_range)
+                {
                     let _ = statuses.try_send(WorkerEvent::Error(generation, error));
                 }
             }
@@ -537,7 +579,11 @@ fn player_worker(
     }
 }
 
-fn apply_worker_command(instance: &mut MpvInstance, command: PlayerCommand) -> Result<(), String> {
+fn apply_worker_command(
+    instance: &mut MpvInstance,
+    command: PlayerCommand,
+    clip_range: Option<(f64, f64)>,
+) -> Result<(), String> {
     match command {
         PlayerCommand::Load {
             source,
@@ -548,7 +594,17 @@ fn apply_worker_command(instance: &mut MpvInstance, command: PlayerCommand) -> R
             instance.set_property("volume", &volume.clamp(0.0, 100.0).to_string())?;
             instance.set_property("speed", &speed.clamp(0.25, 4.0).to_string())?;
             instance.set_property("loop-file", if looping { "inf" } else { "no" })?;
-            instance.command(&["loadfile", &source, "replace"])
+            if let Some((start, end)) = clip_range {
+                instance.command(&[
+                    "loadfile",
+                    &source,
+                    "replace",
+                    "-1",
+                    &format!("start={start},end={end}"),
+                ])
+            } else {
+                instance.command(&["loadfile", &source, "replace"])
+            }
         }
         PlayerCommand::SetPaused(paused) => {
             instance.set_property("pause", if paused { "yes" } else { "no" })
@@ -573,6 +629,155 @@ fn apply_worker_command(instance: &mut MpvInstance, command: PlayerCommand) -> R
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn saved_clip_ranges_reject_invalid_bounds_and_reset_for_physical_media() {
+        let mut player = NativePlayer::default();
+        for (start, end) in [
+            (0.0, 0.0),
+            (-1.0, 2.0),
+            (2.0, 1.0),
+            (f64::NAN, 2.0),
+            (0.0, f64::INFINITY),
+        ] {
+            assert!(player.set_clip_range(Some(start), Some(end)).is_err());
+        }
+        assert!(player.set_clip_range(Some(0.0), None).is_err());
+        player.set_clip_range(Some(0.5), Some(1.5)).unwrap();
+        assert_eq!(player.clip_range, Some((0.5, 1.5)));
+        player.set_clip_range(None, None).unwrap();
+        assert_eq!(player.clip_range, None);
+    }
+    #[test]
+    #[ignore = "requires CURATOR_LIBMPV_PATH and a disposable video longer than two seconds"]
+    fn virtual_clip_range_survives_pause_and_does_not_leak_into_next_video() {
+        let _environment = LIBMPV_ENV.lock().unwrap();
+        let source = avtohmver::config::env_var("CURATOR_LIVE_RENDERER_MEDIA").unwrap();
+        let mut player = NativePlayer::default();
+        player.set_frame_callback(Box::new(|_, _, _| {}));
+        player.set_clip_range(Some(0.5), Some(1.5)).unwrap();
+        player.apply(PlayerCommand::Load {
+            source: source.clone(),
+            volume: 0.0,
+            speed: 1.0,
+            looping: false,
+        });
+        let deadline = Instant::now() + Duration::from_secs(8);
+        while player.status().position_secs < 0.1 && !player.status().failed {
+            assert!(Instant::now() < deadline, "{:?}", player.status());
+            thread::sleep(Duration::from_millis(20));
+            player.drain_events();
+        }
+        assert!(!player.status().failed, "{:?}", player.status());
+        player.suspend(true);
+        thread::sleep(Duration::from_millis(200));
+        player.drain_events();
+        let position = player.status().position_secs;
+        thread::sleep(Duration::from_millis(500));
+        player.drain_events();
+        assert!((player.status().position_secs - position).abs() < 0.08);
+        assert!(!player.status().ended);
+        player.suspend(false);
+        while !player.status().ended && !player.status().failed {
+            assert!(Instant::now() < deadline, "{:?}", player.status());
+            thread::sleep(Duration::from_millis(20));
+            player.drain_events();
+        }
+        assert!(!player.status().failed, "{:?}", player.status());
+        assert_eq!(player.status().duration_secs, 1.0);
+        player.set_clip_range(None, None).unwrap();
+        player.apply(PlayerCommand::Load {
+            source,
+            volume: 0.0,
+            speed: 1.0,
+            looping: false,
+        });
+        while player.status().duration_secs < 2.0 && !player.status().failed {
+            assert!(Instant::now() < deadline, "{:?}", player.status());
+            thread::sleep(Duration::from_millis(20));
+            player.drain_events();
+        }
+        assert!(!player.status().failed, "{:?}", player.status());
+        assert!(player.status().position_secs < 0.5, "{:?}", player.status());
+        player.apply(PlayerCommand::Shutdown);
+    }
+    #[test]
+    #[ignore = "requires CURATOR_LIBMPV_PATH and CURATOR_LIVE_RENDERER_MEDIA"]
+    fn three_portrait_players_pause_and_teardown_independently() {
+        let _environment = LIBMPV_ENV.lock().unwrap();
+        let media = avtohmver::config::env_var("CURATOR_LIVE_RENDERER_MEDIA")
+            .expect("disposable video required");
+        let counters: Vec<_> = (0..3).map(|_| Arc::new(AtomicUsize::new(0))).collect();
+        let mut players: Vec<_> = counters
+            .iter()
+            .map(|counter| {
+                let counter = counter.clone();
+                let mut player = NativePlayer::portrait();
+                player.set_frame_callback(Box::new(move |pixels, width, height| {
+                    assert_eq!((width, height), (480, 960));
+                    assert_eq!(pixels.len(), 480 * 960 * 4);
+                    counter.fetch_add(1, Ordering::SeqCst);
+                }));
+                player.apply(PlayerCommand::Load {
+                    source: media.clone(),
+                    volume: 0.0,
+                    speed: 1.0,
+                    looping: true,
+                });
+                player
+            })
+            .collect();
+        let deadline = Instant::now() + Duration::from_secs(8);
+        while Instant::now() < deadline
+            && counters
+                .iter()
+                .any(|counter| counter.load(Ordering::SeqCst) == 0)
+        {
+            for player in &mut players {
+                player.drain_events();
+            }
+            thread::sleep(Duration::from_millis(20));
+        }
+        assert!(
+            counters
+                .iter()
+                .all(|counter| counter.load(Ordering::SeqCst) > 0),
+            "Each pane must receive its own frame"
+        );
+        for player in &mut players {
+            player.suspend(true);
+        }
+        thread::sleep(Duration::from_millis(200));
+        for player in &mut players {
+            player.drain_events();
+        }
+        let positions: Vec<_> = players
+            .iter()
+            .map(|player| player.status().position_secs)
+            .collect();
+        thread::sleep(Duration::from_millis(250));
+        for (player, position) in players.iter_mut().zip(positions) {
+            player.drain_events();
+            assert!((player.status().position_secs - position).abs() < 0.08);
+        }
+        players[0].apply(PlayerCommand::Stop);
+        for player in &mut players {
+            player.suspend(false);
+        }
+        let stopped = counters[0].load(Ordering::SeqCst);
+        let previous = counters[1].load(Ordering::SeqCst);
+        let deadline = Instant::now() + Duration::from_secs(3);
+        while Instant::now() < deadline && counters[1].load(Ordering::SeqCst) == previous {
+            for player in &mut players {
+                player.drain_events();
+            }
+            thread::sleep(Duration::from_millis(20));
+        }
+        assert_eq!(counters[0].load(Ordering::SeqCst), stopped);
+        assert!(counters[1].load(Ordering::SeqCst) > previous);
+        for player in &mut players {
+            player.apply(PlayerCommand::Shutdown);
+        }
+    }
     use std::sync::{
         atomic::{AtomicUsize, Ordering},
         Arc,

@@ -2,11 +2,62 @@ import { Button, CheckBox, ComboBox, LineEdit, ScrollView, HorizontalBox, Vertic
 
 export struct MediaRow { title: string, detail: string, selected: bool, thumbnail: image, has-thumbnail: bool }
 export struct DownloadRow { label: string, phase: string, detail: string }
-export struct DiscoveryRow { title: string, detail: string, selected: bool }
+export struct DiscoveryRow { title: string, detail: string, selected: bool, thumbnail: image, has-thumbnail: bool }
 
 export struct NavRow { label: string, count: string, is-group: bool, depth: int }
 export struct GroupCard { name: string, detail: string }
 export struct ProviderRow { name: string, detail: string, enabled: bool, locked: bool }
+export struct SessionTaskRow { id: string, remaining: string }
+export struct SessionInstructionRow { id: string, title: string, description: string, options: [string] }
+
+component MotionStatus inherits Rectangle {
+    in property <bool> reduced-motion: true;
+    in property <string> text;
+    in property <color> text-color;
+    private property <bool> highlight: false;
+    border-width: 1px;
+    border-radius: 4px;
+    border-color: self.highlight && !self.reduced-motion ? self.text-color : transparent;
+    animate border-color { duration: self.reduced-motion ? 0ms : 240ms; easing: ease-out; }
+    changed text => { self.highlight = true; }
+    changed reduced-motion => { if self.reduced-motion { self.highlight = false; } }
+    Timer { interval: 240ms; running: root.highlight && !root.reduced-motion;
+        triggered => { root.highlight = false; }
+    }
+    VerticalBox { padding: 3px; Text { text: root.text; color: root.text-color; wrap: word-wrap; } }
+}
+
+component MotionBox inherits VerticalBox {
+    in property <bool> reduced-motion: true;
+    private property <bool> arrived: false;
+    opacity: self.arrived || self.reduced-motion ? 1 : 0.65;
+    init => { self.arrived = true; }
+    animate opacity { duration: self.reduced-motion ? 0ms : 240ms; easing: ease-out; }
+}
+
+component MotionScroll inherits ScrollView {
+    in property <bool> reduced-motion: true;
+    private property <bool> arrived: false;
+    opacity: self.arrived || self.reduced-motion ? 1 : 0.65;
+    init => { self.arrived = true; }
+    animate opacity { duration: self.reduced-motion ? 0ms : 240ms; easing: ease-out; }
+}
+
+component MotionHorizontal inherits HorizontalBox {
+    in property <bool> reduced-motion: true;
+    private property <bool> arrived: false;
+    opacity: self.arrived || self.reduced-motion ? 1 : 0.65;
+    init => { self.arrived = true; }
+    animate opacity { duration: self.reduced-motion ? 0ms : 240ms; easing: ease-out; }
+}
+
+component MotionPanel inherits Rectangle {
+    in property <bool> reduced-motion: true;
+    private property <bool> arrived: false;
+    opacity: self.arrived || self.reduced-motion ? 1 : 0.65;
+    init => { self.arrived = true; }
+    animate opacity { duration: self.reduced-motion ? 0ms : 240ms; easing: ease-out; }
+}
 
 export component AvtoHmverTray inherits SystemTrayIcon {
     in property <bool> panic-hidden: false;
@@ -23,6 +74,7 @@ export component AvtoHmverTray inherits SystemTrayIcon {
 
 
 export component AvtoHmverNativeWindow inherits Window {
+    in property <bool> reduced-motion: true;
     in property <string> product-version;
     in-out property <[string]> playback-preset-names: ["Current draft"];
     in-out property <int> playback-preset-index: 0;
@@ -47,7 +99,7 @@ export component AvtoHmverNativeWindow inherits Window {
     callback playback-action(string);
     callback playback-select(int);
 
-    title: (root.local-host ? "AvtoHmver Host" : "AvtoHmver Viewer") + " " + root.product-version + " — " + (root.stage-open ? ("Stage — " + (root.stage-mode == 0 ? "Player" : root.stage-mode == 1 ? "Feed" : root.stage-mode == 2 ? "Review" : "GOON")) : (root.workspace == 0 ? root.location-title : root.workspace == 1 ? "Discover" : root.workspace == 2 ? "Organization" : "Activity"));
+    title: (root.local-host ? "AvtoHmver Host" : "AvtoHmver Viewer") + " " + root.product-version + " — " + (root.stage-open ? ("Stage — " + (root.stage-mode == 0 ? "Player" : root.stage-mode == 1 ? "Feed" : root.stage-mode == 2 ? "Review" : root.stage-mode == 4 ? "Portrait Wall" : "GOON")) : (root.workspace == 0 ? root.location-title : root.workspace == 1 ? "Discover" : root.workspace == 2 ? "Organization" : "Activity"));
     preferred-width: 1200px; preferred-height: 800px;
     min-width: 800px; min-height: 560px;
     in-out property <int> workspace: 0;
@@ -86,6 +138,24 @@ export component AvtoHmverNativeWindow inherits Window {
     callback goon-media(bool);
     in-out property <bool> goon-media-enabled: false;
     in-out property <string> session-status;
+    in-out property <[SessionTaskRow]> session-tasks;
+    in-out property <[SessionInstructionRow]> session-instructions;
+    in-out property <string> instructor-status-effects;
+    callback session-choice(string, int);
+    in-out property <string> instructor-preset: "Progressive";
+    in-out property <string> instructor-duration: "900";
+    in-out property <string> instructor-start-bpm: "60";
+    in-out property <string> instructor-end-bpm: "120";
+    in-out property <string> instructor-seed: "";
+    in-out property <bool> instructor-metronome: true;
+    in-out property <string> instructor-volume: "55";
+    in-out property <bool> session-running: false;
+    in-out property <bool> session-paused: false;
+    in-out property <bool> instructor-setup-open: true;
+    changed session-running => { if root.session-running { root.instructor-setup-open = false; } }
+    callback session-task(string, string);
+    callback instructor-config(string);
+    in-out property <string> instructor-config-source: "Built-in preset";
     callback session-control(string);
     // Slideshow: auto-advancing images from the library.
     callback slideshow-control(string);
@@ -96,7 +166,8 @@ export component AvtoHmverNativeWindow inherits Window {
     in-out property <image> wall-preview-0;
     in-out property <image> wall-preview-1;
     in-out property <image> wall-preview-2;
-    in-out property <string> wall-status: "Start the portrait wall to cycle three image panes.";
+    in-out property <string> wall-status: "Start Portrait Wall to play three independent portrait panes. Videos are muted until a pane is focused.";
+    callback close-stage();
     // Cock Hero: beat-paced session from the /api/ch playlist.
     callback cockhero-control(string);
     in-out property <string> cockhero-status: "Start a Cock Hero session to play the configured playlist.";
@@ -158,6 +229,18 @@ export component AvtoHmverNativeWindow inherits Window {
     callback queue-shuffle();
     callback queue-set-repeat(bool);
     in-out property <bool> queue-repeat;
+    in-out property <string> beat-track-id;
+    in-out property <[string]> beat-track-names;
+    in-out property <string> beat-map-id;
+    in-out property <string> beat-bpm: "120";
+    in-out property <string> beat-offset: "0";
+    in-out property <string> beat-marker-text: "";
+    in-out property <[float]> beat-markers;
+    in-out property <float> beat-duration: 1;
+    in-out property <bool> beat-confirmed;
+    in-out property <bool> beat-busy;
+    in-out property <bool> beat-analyzing;
+    in-out property <string> beat-status: "Analyze an imported local track, then review and confirm its beat map.";
     callback add-sources(string);
     callback downloads(bool);
     callback source-download(int, bool);
@@ -191,6 +274,9 @@ export component AvtoHmverNativeWindow inherits Window {
     in-out property <[string]> discovery-providers: ["All providers"];
     callback discover(string, int, string, string);
     callback cancel-discover();
+    callback discover-more();
+    in property <bool> discovery-has-more: false;
+    in property <bool> discovery-load-error: false;
     callback queue-discovery();
     callback discovery-provider-changed(int);
     in-out property <[DiscoveryRow]> discovery-results;
@@ -351,7 +437,7 @@ export component AvtoHmverNativeWindow inherits Window {
     in-out property <string> download-summary;
     in-out property <bool> stage-open: false;
     in-out property <int> stage-mode: 0;
-    private property <string> play-label: root.stage-mode == 0 ? "Player" : root.stage-mode == 1 ? "Feed" : root.stage-mode == 2 ? "Review" : "GOON";
+    private property <string> play-label: root.stage-mode == 0 ? "Player" : root.stage-mode == 1 ? "Feed" : root.stage-mode == 2 ? "Review" : root.stage-mode == 4 ? "Portrait Wall" : "GOON";
     callback open-play-mode(int);
     callback location-history(bool);
     in-out property <bool> location-back: false;
@@ -407,16 +493,16 @@ export component AvtoHmverNativeWindow inherits Window {
                     spacing: 10px; padding: 12px;
                     HorizontalBox { spacing: 8px;
                         Rectangle { width: 34px; height: 34px; background: root.theme-accent; border-radius: 8px;
-                            Text { text: "C"; color: #ffffff; font-weight: 700; font-size: 18px; horizontal-alignment: center; vertical-alignment: center; }
+                            Text { text: "A"; color: root.theme-background; font-weight: 700; font-size: 18px; horizontal-alignment: center; vertical-alignment: center; }
                         }
                         VerticalBox { spacing: 0;
-                            Text { text: "CURATOR"; font-size: 14px; font-weight: 700; color: root.theme-text; }
+                            Text { text: "AVTOHMVER"; font-size: 14px; font-weight: 700; color: root.theme-text; }
                             Text { text: "/ " + (root.workspace == 0 ? "LIBRARY" : root.workspace == 1 ? "DISCOVER" : root.workspace == 2 ? "ORGANIZATION" : "ACTIVITY"); font-size: 11px; color: root.theme-muted; }
                         }
                     }
                     for label[index] in ["Library", "Discover", "Organization", "Activity"]: Button {
                         text: label; primary: root.workspace == index;
-                        clicked => { root.workspace = index; root.stage-open = false; root.menu-open = ""; }
+                        clicked => { root.close-stage(); root.workspace = index; root.stage-open = false; root.menu-open = ""; }
                     }
                     Button { text: "Settings"; clicked => { root.menu-open = ""; root.open-settings(); } }
                     Button { text: "+ Add source"; primary: true; clicked => { root.workspace = 2; } }
@@ -444,7 +530,7 @@ export component AvtoHmverNativeWindow inherits Window {
                 Rectangle { width: 1px; background: root.theme-line; }
                 content := VerticalBox {
                     horizontal-stretch: 1; padding: 12px; spacing: 10px;
-                    if root.workspace == 0: VerticalBox { spacing: 12px;
+                    if root.workspace == 0: MotionBox { reduced-motion: root.reduced-motion || root.player-paused; spacing: 12px;
                         HorizontalBox { spacing: 8px; 
                             Button { text: "Grid"; primary: root.settings-layout == "grid"; clicked => { root.settings-layout = "grid"; } }
                             Button { text: "Table"; primary: root.settings-layout == "table"; clicked => { root.settings-layout = "table"; } }
@@ -510,6 +596,7 @@ export component AvtoHmverNativeWindow inherits Window {
                                     padding: 8px; spacing: 5px;
                                     HorizontalBox { CheckBox { checked: entry.selected; toggled => { root.select-item(index, self.checked); } } Rectangle { horizontal-stretch: 1; } }
                                     Image { source: entry.thumbnail; height: 76px; visible: entry.has-thumbnail; image-fit: contain; }
+                                    if !entry.has-thumbnail: Text { text: "Preview unavailable"; height: 76px; color: root.theme-muted; horizontal-alignment: center; vertical-alignment: center; }
                                     Button { text: entry.title; clicked => { root.select-item(index, !entry.selected); } }
                                     Text { text: entry.detail; color: entry.selected ? root.theme-selection-text : root.theme-text; overflow: elide; }
                                 }
@@ -558,7 +645,9 @@ export component AvtoHmverNativeWindow inherits Window {
                             }
                         }
                     }
-                    if root.workspace == 1: ScrollView { vertical-stretch: 1; content-y <=> root.manage-discover-scroll-y;
+                    if root.workspace == 1: MotionScroll { reduced-motion: root.reduced-motion || root.player-paused; vertical-stretch: 1; content-y <=> root.manage-discover-scroll-y;
+                        property <bool> near-end: root.discovery-has-more && !root.discovery-searching && !root.discovery-load-error && self.content-height + self.content-y <= self.visible-height + 400px;
+                        changed near-end => { if self.near-end { root.discover-more(); } }
                         VerticalBox { spacing: 12px;
                             Text { text: "DISCOVER"; font-size: 11px; font-weight: 700; color: root.theme-muted; }
                             Text { text: "Search"; font-size: 24px; font-weight: 700; color: root.theme-text; }
@@ -586,12 +675,17 @@ export component AvtoHmverNativeWindow inherits Window {
                             Text { text: root.discovery-status; wrap: word-wrap; color: root.theme-text; }
                             for result[index] in root.discovery-results: HorizontalBox { spacing: 8px;
                                 CheckBox { checked: result.selected; toggled => { root.select-discovery(index, self.checked); } }
+                                Rectangle { width: 88px; height: 88px; background: root.theme-elevated;
+                                    Image { source: result.thumbnail; width: parent.width; height: parent.height; image-fit: contain; visible: result.has-thumbnail; }
+                                    if !result.has-thumbnail: Text { text: "Preview unavailable"; wrap: word-wrap; color: root.theme-muted; horizontal-alignment: center; vertical-alignment: center; width: parent.width; height: parent.height; }
+                                }
                                 VerticalBox { Text { text: result.title; color: root.theme-text; } Text { text: result.detail; color: root.theme-muted; wrap: word-wrap; } }
                             }
+                            if root.discovery-has-more: Button { text: "Load more"; enabled: !root.discovery-searching; clicked => { root.discover-more(); } }
                             Rectangle { vertical-stretch: 1; }
                         }
                     }
-                    if root.workspace == 2: ScrollView { vertical-stretch: 1; content-y <=> root.manage-organization-scroll-y;
+                    if root.workspace == 2: MotionScroll { reduced-motion: root.reduced-motion || root.player-paused; vertical-stretch: 1; content-y <=> root.manage-organization-scroll-y;
                         VerticalBox { spacing: 12px;
                             Text { text: "ORGANIZATION"; font-size: 11px; font-weight: 700; color: root.theme-muted; }
                             Text { text: "Groups"; font-size: 24px; font-weight: 700; color: root.theme-text; }
@@ -704,7 +798,7 @@ export component AvtoHmverNativeWindow inherits Window {
                             Rectangle { vertical-stretch: 1; }
                         }
                     }
-                    if root.workspace == 3: ScrollView { vertical-stretch: 1; content-y <=> root.manage-activity-scroll-y;
+                    if root.workspace == 3: MotionScroll { reduced-motion: root.reduced-motion || root.player-paused; vertical-stretch: 1; content-y <=> root.manage-activity-scroll-y;
                         VerticalBox { spacing: 12px;
                             Text { text: "ACTIVITY"; font-size: 11px; font-weight: 700; color: root.theme-muted; }
                             Text { text: "Downloads"; font-size: 24px; font-weight: 700; color: root.theme-text; }
@@ -743,11 +837,11 @@ export component AvtoHmverNativeWindow inherits Window {
         }
         if root.menu-open != "": TouchArea { width: 100%; height: 100%; clicked => { root.menu-open = ""; } }
         if root.menu-open != "": Rectangle {
-            x: root.menu-open == "play" ? root.width - 260px : 8px; y: 48px; width: 250px; height: root.menu-open == "file" ? 236px : 176px;
+            x: root.menu-open == "play" ? root.width - 260px : 8px; y: 48px; width: 250px; height: root.menu-open == "file" ? 236px : root.menu-open == "play" ? 212px : 176px;
             background: root.theme-panel; border-width: 1px; border-color: root.theme-line; border-radius: 8px;
             VerticalBox { padding: 6px; spacing: 2px;
                 if root.menu-open == "play": VerticalBox { spacing: 2px;
-                    for label[index] in ["Player", "Feed", "Review", "GOON"]: Button {
+                    for label[index] in ["Player", "Feed", "Review", "GOON", "Portrait Wall"]: Button {
                         text: label; primary: root.stage-mode == index;
                         clicked => { root.menu-open = ""; root.open-play-mode(index); shortcuts.focus(); }
                     }
@@ -773,12 +867,12 @@ export component AvtoHmverNativeWindow inherits Window {
             width: 100%; height: 100%; background: root.theme-background;
             VerticalBox { padding: 16px; spacing: 12px;
                 HorizontalBox { spacing: 6px;
-                    ComboBox { model: ["Player", "Feed", "Review", "GOON"]; current-index: root.stage-mode; selected => { root.open-play-mode(self.current-index); shortcuts.focus(); } }
+                    ComboBox { model: ["Player", "Feed", "Review", "GOON", "Portrait Wall"]; current-index: root.stage-mode; selected => { root.open-play-mode(self.current-index); shortcuts.focus(); } }
                     Text { text: "Play · " + root.play-label; color: root.theme-text; vertical-alignment: center; }
                     Rectangle { horizontal-stretch: 1; }
-                    Button { text: "Back to library"; clicked => { root.stage-open = false; } }
+                    Button { text: "Back to library"; clicked => { root.close-stage(); root.stage-open = false; } }
                 }
-                if root.playback-loading: HorizontalBox { vertical-stretch: 0;
+                if root.playback-loading: MotionHorizontal { reduced-motion: root.reduced-motion || root.player-paused; vertical-stretch: 0;
                     ProgressIndicator { indeterminate: true; horizontal-stretch: 1; }
                     Text { text: root.playback-step; color: root.theme-text; wrap: word-wrap; }
                 }
@@ -787,10 +881,10 @@ export component AvtoHmverNativeWindow inherits Window {
                     Button { text: "Retry"; clicked => { root.playback-retry(); } }
                     Button { text: "Skip"; clicked => { root.playback-next(); } }
                 }
-        if root.stage-open && root.stage-mode == 0: HorizontalBox { vertical-stretch: 1;
+        if root.stage-open && root.stage-mode == 0: MotionHorizontal { reduced-motion: root.reduced-motion || root.player-paused; vertical-stretch: 1;
             VerticalBox {
                 horizontal-stretch: 3;
-                Text { text: root.playing; wrap: word-wrap; }
+                MotionStatus { text: root.playing; text-color: root.theme-text; reduced-motion: root.reduced-motion || root.player-paused; vertical-stretch: 0; }
                 Text { text: root.player-status; wrap: word-wrap; color: root.theme-muted; }
                 HorizontalBox {
                     Button { text: root.player-paused ? "Resume" : "Pause"; clicked => { root.player-control(root.player-paused ? "resume" : "pause", 0); } }
@@ -829,7 +923,7 @@ export component AvtoHmverNativeWindow inherits Window {
                         Button { text: root.queue-repeat ? "Repeat: on" : "Repeat: off"; clicked => { root.queue-set-repeat(!root.queue-repeat); } }
                         Rectangle { horizontal-stretch: 1; }
                     }
-                    for title[index] in root.queue: HorizontalBox {
+                    for title[index] in root.queue: MotionHorizontal { reduced-motion: root.reduced-motion || root.player-paused;
                         Button { text: title; clicked => { root.play(index); } }
                         Button { text: "↑"; enabled: index > 0; clicked => { root.queue-move(index, index - 1); } }
                         Button { text: "↓"; enabled: index < root.queue.length - 1; clicked => { root.queue-move(index, index + 1); } }
@@ -839,11 +933,11 @@ export component AvtoHmverNativeWindow inherits Window {
                 }
             }
         }
-        if root.stage-open && root.stage-mode == 1: VerticalBox { vertical-stretch: 1;
+        if root.stage-open && root.stage-mode == 1: MotionBox { reduced-motion: root.reduced-motion || root.player-paused; vertical-stretch: 1;
             Text { text: "Feed"; font-size: 22px; }
             Text { text: "Continuous native playback uses the current library order and never repeats the current item."; wrap: word-wrap; color: root.theme-muted; }
             Text { text: root.feed-status; wrap: word-wrap; color: root.theme-muted; }
-            Text { text: root.playing; wrap: word-wrap; }
+            MotionStatus { text: root.playing; text-color: root.theme-text; reduced-motion: root.reduced-motion || root.player-paused; vertical-stretch: 0; }
             Text { text: root.player-status; wrap: word-wrap; }
             HorizontalBox { vertical-stretch: 0;
                 Button { text: "Start / restart feed"; enabled: root.can-playback; clicked => { root.feed-control("start"); } }
@@ -858,10 +952,10 @@ export component AvtoHmverNativeWindow inherits Window {
             }
             Image { source: root.video-active ? root.video-frame : root.preview; image-fit: contain; vertical-stretch: 1; }
         }
-        if root.stage-open && root.stage-mode == 2: VerticalBox { vertical-stretch: 1;
+        if root.stage-open && root.stage-mode == 2: MotionBox { reduced-motion: root.reduced-motion || root.player-paused; vertical-stretch: 1;
             Text { text: "Review"; font-size: 22px; }
-            Text { text: root.review-status; wrap: word-wrap; color: root.theme-muted; }
-            Text { text: root.playing; wrap: word-wrap; }
+            MotionStatus { text: root.review-status; text-color: root.theme-text; reduced-motion: root.reduced-motion || root.player-paused; vertical-stretch: 0; }
+            MotionStatus { text: root.playing; text-color: root.theme-text; reduced-motion: root.reduced-motion || root.player-paused; vertical-stretch: 0; }
             HorizontalBox {
                 Button { text: "Start review"; enabled: root.can-edit-library; clicked => { root.review-control("start", 0); } }
                 Button { text: "Skip"; enabled: root.can-edit-library; clicked => { root.review-control("skip", 0); } }
@@ -871,9 +965,29 @@ export component AvtoHmverNativeWindow inherits Window {
             }
             Image { source: root.video-active ? root.video-frame : root.preview; image-fit: contain; vertical-stretch: 1; }
         }
-        if root.stage-open && root.stage-mode == 3: VerticalBox { vertical-stretch: 1;
+        if root.stage-open && root.stage-mode == 4: MotionBox { reduced-motion: root.reduced-motion || root.player-paused; vertical-stretch: 1;
+            Text { text: "Portrait Wall"; font-size: 22px; color: root.theme-text; }
+            MotionStatus { text: root.wall-status; text-color: root.theme-text; reduced-motion: root.reduced-motion || root.player-paused; vertical-stretch: 0; }
+            HorizontalBox {
+                Button { text: "Start wall"; enabled: root.can-playback; clicked => { root.wall-control("start"); } }
+                Button { text: root.player-paused ? "Resume" : "Pause"; clicked => { root.wall-control("pause"); } }
+                Button { text: "Stop wall"; clicked => { root.wall-control("stop"); } }
+            }
+            HorizontalBox { vertical-stretch: 1; spacing: 8px;
+                for pane in [0, 1, 2]: VerticalBox { horizontal-stretch: 1;
+                    Image { source: pane == 0 ? root.wall-preview-0 : pane == 1 ? root.wall-preview-1 : root.wall-preview-2; image-fit: contain; vertical-stretch: 1; }
+                    HorizontalBox {
+                        Button { text: "Next"; enabled: root.wall-active; clicked => { root.wall-control("next-" + pane); } }
+                        Button { text: "Focus audio"; enabled: root.wall-active; clicked => { root.wall-control("focus-" + pane); } }
+                    }
+                }
+            }
+        }
+        if root.stage-open && root.stage-mode == 3: MotionBox { reduced-motion: root.reduced-motion || root.player-paused; vertical-stretch: 1;
             Text { text: "GOON"; font-size: 22px; }
-            if root.local-host: ScrollView { height: 260px; vertical-stretch: 0; VerticalBox {
+            Button { text: root.instructor-setup-open ? "Hide setup" : "Show setup"; clicked => { root.instructor-setup-open = !root.instructor-setup-open; } }
+            ScrollView { vertical-stretch: 1; VerticalBox {
+            if root.local-host && root.instructor-setup-open: ScrollView { height: 260px; vertical-stretch: 0; VerticalBox {
                 Text { text: root.playback-status; wrap: word-wrap; }
                 HorizontalBox {
                     ComboBox { model: root.playback-preset-names; current-index <=> root.playback-preset-index; selected => { root.playback-select(self.current-index); } }
@@ -884,27 +998,37 @@ export component AvtoHmverNativeWindow inherits Window {
                     Button { text: "Save"; clicked => { root.playback-action("save"); } }
                     Button { text: "Save as new"; clicked => { root.playback-action("new"); } }
                     Button { text: "Rename"; clicked => { root.playback-action("save"); } }
+                }
+                HorizontalBox {
                     Button { text: "Delete"; clicked => { root.playback-action("delete"); } }
                     Button { text: "Reload"; clicked => { root.playback-action("reload"); } }
                 }
                 HorizontalBox {
                     Text { text: "Collection ID"; } LineEdit { text <=> root.playback-collection; }
+                }
+                HorizontalBox {
                     Text { text: "Tags"; } LineEdit { text <=> root.playback-tags; }
+                }
+                HorizontalBox {
                     ComboBox { model: ["image,video", "image", "video", "gif"]; current-value <=> root.playback-types; }
                 }
                 HorizontalBox {
                     ComboBox { model: ["shuffled", "sequential"]; current-value <=> root.playback-order; }
                     ComboBox { model: ["contain", "cover"]; current-value <=> root.playback-fit; }
+                }
+                HorizontalBox {
                     CheckBox { text: "Captions"; checked <=> root.playback-captions; }
                 }
                 HorizontalBox {
                     ComboBox { model: ["none", "local", "spotify", "apple_music", "youtube", "soundcloud"]; current-value <=> root.playback-music-source; }
                     Text { text: "Playlist ID"; } LineEdit { text <=> root.playback-playlist-id; }
+                }
+                HorizontalBox {
                     Text { text: "Music %"; } LineEdit { text <=> root.playback-music-volume; }
                     Button { text: "Apply music"; clicked => { root.playback-action("apply"); } }
                 }
                 ComboBox { model: root.playback-playlist-names; selected => { root.playback-action("playlist-select:" + self.current-value); } }
-                HorizontalBox {
+                VerticalBox {
                     LineEdit { text <=> root.playback-playlist-name; placeholder-text: "Playlist name"; }
                     LineEdit { text <=> root.playback-provider-url; placeholder-text: "Provider HTTPS link"; }
                     LineEdit { text <=> root.playback-track-ids; placeholder-text: "Local track IDs, comma separated"; }
@@ -917,16 +1041,81 @@ export component AvtoHmverNativeWindow inherits Window {
                 HorizontalBox {
                     Button { text: "Import audio files"; clicked => { root.playback-action("import-files"); } }
                     Button { text: "Import audio folder"; clicked => { root.playback-action("import-folder"); } }
+                }
+                HorizontalBox {
                     Button { text: "Music play"; enabled: root.playback-music-source == "local"; clicked => { root.playback-action("music-play"); } }
                     Button { text: "Music pause"; enabled: root.playback-music-source == "local"; clicked => { root.playback-action("music-pause"); } }
                     Button { text: "Music volume"; enabled: root.playback-music-source == "local"; clicked => { root.playback-action("volume"); } }
+                }
+                HorizontalBox {
                     LineEdit { text <=> root.playback-seek; placeholder-text: "Seek seconds"; }
                     Button { text: "Seek music"; enabled: root.playback-music-source == "local"; clicked => { root.playback-action("seek"); } }
                 }
+                Text { text: "Beat maps"; font-size: 18px; color: root.theme-text; }
+                Text { text: root.beat-status; wrap: word-wrap; color: root.theme-text; }
+                HorizontalBox {
+                    ComboBox { model: root.beat-track-names; enabled: !root.beat-busy; selected => { root.playback-action("beat-track:" + self.current-value); } }
+                    Button { text: "Analyze beats"; enabled: !root.beat-busy; clicked => { root.playback-action("beat-analyze"); } }
+                    Button { text: "Cancel analysis"; enabled: root.beat-busy && root.beat-analyzing; clicked => { root.playback-action("beat-cancel"); } }
+                }
+                if root.beat-busy: ProgressIndicator { indeterminate: true; }
+                HorizontalBox {
+                    LineEdit { text <=> root.beat-map-id; enabled: !root.beat-busy; placeholder-text: "Saved map ID"; }
+                    Button { text: "Load map"; enabled: !root.beat-busy; clicked => { root.playback-action("beat-load"); } }
+                }
+                HorizontalBox {
+                    Text { text: "BPM"; } LineEdit { text <=> root.beat-bpm; enabled: !root.beat-busy; }
+                    Text { text: "Offset (s)"; } LineEdit { text <=> root.beat-offset; enabled: !root.beat-busy; }
+                }
+                Rectangle { height: 80px; background: root.theme-background;
+                    for marker in root.beat-markers: Rectangle {
+                        x: (parent.width - 2px) * (marker / max(1, root.beat-duration));
+                        y: 8px; width: 2px; height: 64px; background: root.theme-text;
+                    }
+                }
+                LineEdit { text <=> root.beat-marker-text; enabled: !root.beat-busy; placeholder-text: "Ordered beat markers in seconds, separated by commas"; }
+                HorizontalBox {
+                    CheckBox { text: "I reviewed this beat map"; checked <=> root.beat-confirmed; enabled: !root.beat-busy; }
+                    Button { text: "Preview edits"; enabled: !root.beat-busy; clicked => { root.playback-action("beat-preview"); } }
+                    Button { text: "Save map"; enabled: !root.beat-busy; clicked => { root.playback-action("beat-save"); } }
+                }
             } }
 
-            Text { text: root.goon-status; wrap: word-wrap; color: root.theme-muted; }
+            MotionStatus { text: root.goon-status; text-color: root.theme-text; reduced-motion: root.reduced-motion || root.player-paused; vertical-stretch: 0; }
             Text { text: root.session-status; wrap: word-wrap; }
+            if root.instructor-setup-open: HorizontalBox {
+                ComboBox { model: ["Steady", "Intervals", "Progressive"]; current-value <=> root.instructor-preset; enabled: !root.session-running && !root.session-paused; }
+                Text { text: "Seconds"; } LineEdit { text <=> root.instructor-duration; enabled: !root.session-running && !root.session-paused; }
+                Text { text: "BPM"; } LineEdit { text <=> root.instructor-start-bpm; enabled: !root.session-running && !root.session-paused; }
+                Text { text: "to"; } LineEdit { text <=> root.instructor-end-bpm; enabled: !root.session-running && !root.session-paused; }
+            }
+            if root.instructor-setup-open: HorizontalBox {
+                LineEdit { text <=> root.instructor-seed; placeholder-text: "Optional numeric seed"; enabled: !root.session-running && !root.session-paused; }
+                CheckBox { text: "Metronome"; checked <=> root.instructor-metronome; enabled: !root.session-running && !root.session-paused; }
+                Text { text: "Cue %"; } LineEdit { text <=> root.instructor-volume; enabled: !root.session-running && !root.session-paused; }
+            }
+            if root.instructor-setup-open: HorizontalBox {
+                Text { text: root.instructor-config-source; wrap: word-wrap; }
+                Button { text: "Import config"; enabled: root.can-control-sessions && !root.session-running && !root.session-paused; clicked => { root.instructor-config("import"); } }
+                Button { text: "Export config"; clicked => { root.instructor-config("export"); } }
+                Button { text: "Use preset"; enabled: !root.session-running && !root.session-paused; clicked => { root.instructor-config("preset"); } }
+            }
+            for task in root.session-tasks: HorizontalBox {
+                Text { text: task.id + " · " + task.remaining; }
+                Button { text: "Complete"; enabled: root.can-control-sessions && root.session-running; clicked => { root.session-task("complete", task.id); } }
+            }
+            Text { text: root.instructor-status-effects; wrap: word-wrap; }
+            for instruction in root.session-instructions: VerticalBox {
+                Text { text: instruction.title; font-weight: 700; wrap: word-wrap; }
+                Text { text: instruction.description; wrap: word-wrap; }
+                VerticalBox {
+                    for option[index] in instruction.options: Button {
+                        text: option;
+                        enabled: root.can-control-sessions && root.session-running;
+                        clicked => { root.session-choice(instruction.id, index); }
+                    }
+                }
+            }
             CheckBox {
                 text: "Play rating-matched media during the session";
                 enabled: root.can-playback;
@@ -934,18 +1123,24 @@ export component AvtoHmverNativeWindow inherits Window {
                 toggled => { root.goon-media(self.checked); }
             }
             HorizontalBox {
-                Button { text: "Start GOON session"; enabled: root.can-control-sessions; clicked => { if root.local-host { root.playback-action("start"); } else { root.session-control("Start"); } } }
-                Button { text: "Pause"; enabled: root.can-control-sessions; clicked => { root.session-control("Pause"); } }
-                Button { text: "Resume"; enabled: root.can-control-sessions; clicked => { root.session-control("Resume"); } }
-                Button { text: "End"; enabled: root.can-control-sessions; clicked => { root.session-control("End"); } }
+                Button { text: "Start GOON session"; enabled: root.can-control-sessions && !root.session-running && !root.session-paused; clicked => { if root.local-host { root.playback-action("start"); } else { root.session-control("Start"); } } }
+                Button { text: "Pause"; enabled: root.can-control-sessions && root.session-running; clicked => { root.session-control("Pause"); } }
+                Button { text: "Resume"; enabled: root.can-control-sessions && root.session-paused; clicked => { root.session-control("Resume"); } }
+                Button { text: "End"; enabled: root.can-control-sessions && (root.session-running || root.session-paused); clicked => { root.session-control("End"); } }
+                Button { text: "Next media"; enabled: root.can-control-sessions && root.session-running; clicked => { root.session-control("Skip"); } }
             }
-            Text { text: "GOON uses the existing Rust session timing and media ratings: slow, medium, fast, cum, and succubus phases map to their media ratings."; wrap: word-wrap; }
+            HorizontalBox {
+                Button { text: "Insert checkpoint"; enabled: root.can-control-sessions && root.session-running; clicked => { root.session-task("inject", "checkpoint"); } }
+                Button { text: "Cancel"; enabled: root.can-control-sessions && (root.session-running || root.session-paused); clicked => { root.session-control("Cancel"); } }
+            }
+            Text { text: "Native single-player runtime. Seeded tasks, independent media/music, and a pause-aware metronome. Preset changes apply to the next session."; wrap: word-wrap; }
             Text { text: root.playback-active-captions ? root.playing : ""; color: root.theme-text; }
-            Image { source: root.video-active ? root.video-frame : root.preview; image-fit: root.playback-active-cover ? cover : contain; vertical-stretch: 1; }
+            Image { source: root.video-active ? root.video-frame : root.preview; image-fit: root.playback-active-cover ? cover : contain; height: 320px; vertical-stretch: 0; }
+            } }
         }
             }
         }
-                    if root.settings-open: Rectangle {
+                    if root.settings-open: MotionPanel { reduced-motion: root.reduced-motion || root.player-paused;
                 x: 32px; y: 32px; width: root-rect.width - 64px; height: root-rect.height - 64px;
                 background: root.theme-panel; border-radius: 10px; border-width: 1px; border-color: root.theme-line;
                 VerticalBox {
@@ -1009,7 +1204,7 @@ export component AvtoHmverNativeWindow inherits Window {
                                 spacing: 10px; alignment: start;
                                 Text { vertical-stretch: 0; text: "Appearance"; font-size: 18px; color: root.theme-text; }
                                 Text { vertical-stretch: 0; text: "Theme"; color: root.theme-text; }
-                                ComboBox { height: 36px; vertical-stretch: 0; model: ["system", "gtk-system", "adwaita-light", "adwaita-dark", "yaru-light", "yaru-dark", "arc-light", "arc-dark", "breeze-light", "breeze-dark", "atelier-dark", "midnight", "ember", "linen", "sage", "aurora", "oled", "yotsuba", "yotsuba-b", "futaba", "burichan", "tomorrow", "photon", "light", "oled-dark", "dark"]; current-value <=> root.settings-draft-theme; }
+                                ComboBox { height: 36px; vertical-stretch: 0; model: ["tactical", "system", "gtk-system", "adwaita-light", "adwaita-dark", "yaru-light", "yaru-dark", "arc-light", "arc-dark", "breeze-light", "breeze-dark", "atelier-dark", "midnight", "ember", "linen", "sage", "aurora", "oled", "yotsuba", "yotsuba-b", "futaba", "burichan", "tomorrow", "photon", "light", "oled-dark", "dark"]; current-value <=> root.settings-draft-theme; }
                                 Text { vertical-stretch: 0; text: "Library layout"; color: root.theme-text; }
                                 ComboBox { height: 36px; vertical-stretch: 0; model: ["grid", "table"]; current-value <=> root.settings-draft-layout; }
                             }
@@ -1091,6 +1286,9 @@ export component AvtoHmverNativeWindow inherits Window {
                                     Button { text: "Install P-HAR"; enabled: !root.busy; clicked => { root.classifier("install"); } }
                                     Button { text: "Evaluate / resume"; enabled: !root.busy; clicked => { root.classifier("evaluate"); } }
                                     Button { text: "Repair"; enabled: !root.busy; clicked => { root.classifier("repair"); } }
+                                }
+                                HorizontalBox {
+                                    vertical-stretch: 0;
                                     Button { text: "Self-test"; enabled: !root.busy; clicked => { root.classifier("self-test"); } }
                                     Button { text: "Cancel install"; enabled: !root.busy; clicked => { root.classifier("cancel"); } }
                                     Button { text: "Refresh status"; clicked => { root.classifier("refresh"); } }

@@ -38,7 +38,7 @@ pub async fn get_thumbnail(State(state): State<Arc<AppState>>, Path(id): Path<i6
         },
     );
 
-    let (filepath, kind, downloaded, origin_url, skip_reason, retention_deleted) = match row {
+    let (_filepath, _kind, downloaded, origin_url, skip_reason, retention_deleted) = match row {
         Ok(v) => v,
         Err(_) => {
             return (
@@ -66,7 +66,10 @@ pub async fn get_thumbnail(State(state): State<Arc<AppState>>, Path(id): Path<i6
         };
     }
 
-    let src_path = dunce::simplified(&state.library_dir.join(&filepath)).to_path_buf();
+    let src_path = match crate::media_path(&state, id) {
+        Ok(path) => path,
+        Err(_) => return (StatusCode::NOT_FOUND, "Original is unavailable").into_response(),
+    };
 
     if !src_path.is_file() {
         let Some(_worker) = state.maintenance.try_acquire_background_worker() else {
@@ -82,11 +85,6 @@ pub async fn get_thumbnail(State(state): State<Arc<AppState>>, Path(id): Path<i6
         return (StatusCode::NOT_FOUND, "Media file is unavailable").into_response();
     }
 
-    // Videos — serve the real file (no thumbnail for video)
-    if kind == "video" {
-        return serve_file_with_cache(&src_path).await;
-    }
-
     // Images — generate/serve cached thumbnail
     // Thumbnail generation writes cache files even though this is a GET.
     // Lease it so an administrative cache rebuild has one owner at a time.
@@ -97,7 +95,14 @@ pub async fn get_thumbnail(State(state): State<Arc<AppState>>, Path(id): Path<i6
         )
             .into_response();
     };
-    match get_or_create_thumb(id, src_path.clone(), state.thumbs_dir.clone()).await {
+    match get_or_create_thumb(
+        id,
+        src_path,
+        state.thumbs_dir.clone(),
+        state.ffmpeg_bin.clone(),
+    )
+    .await
+    {
         Ok(bytes) => {
             if let Some(limit) = state.settings.read().await.thumbnail_cache_max_bytes {
                 let thumbs_dir = state.thumbs_dir.clone();
@@ -116,51 +121,6 @@ pub async fn get_thumbnail(State(state): State<Arc<AppState>>, Path(id): Path<i6
             )
                 .into_response()
         }
-        Err(_) => {
-            // Thumbnail failed — fall back to original
-            serve_file_with_cache(&src_path).await
-        }
-    }
-}
-
-async fn serve_file_with_cache(path: &std::path::Path) -> Response {
-    match tokio::fs::read(path).await {
-        Ok(bytes) => {
-            let mime = mime_from_path(path);
-            (
-                StatusCode::OK,
-                [
-                    (header::CONTENT_TYPE, mime),
-                    (header::CACHE_CONTROL, "no-cache"),
-                ],
-                bytes,
-            )
-                .into_response()
-        }
-        Err(_) => (StatusCode::NOT_FOUND, "File not found").into_response(),
-    }
-}
-
-fn mime_from_path(path: &std::path::Path) -> &'static str {
-    let ext = path
-        .extension()
-        .and_then(|e| e.to_str())
-        .unwrap_or("")
-        .to_lowercase();
-    match ext.as_str() {
-        "jpg" | "jpeg" | "jfif" => "image/jpeg",
-        "png" => "image/png",
-        "gif" => "image/gif",
-        "webp" => "image/webp",
-        "avif" => "image/avif",
-        "bmp" => "image/bmp",
-        "tiff" => "image/tiff",
-        "mp4" => "video/mp4",
-        "webm" => "video/webm",
-        "mov" => "video/quicktime",
-        "avi" => "video/x-msvideo",
-        "mkv" => "video/x-matroska",
-        "m4v" => "video/mp4",
-        _ => "application/octet-stream",
+        _ => (StatusCode::NOT_FOUND, "Preview unavailable").into_response(),
     }
 }

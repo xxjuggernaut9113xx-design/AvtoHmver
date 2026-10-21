@@ -14,6 +14,7 @@ use crate::{config::Config, db::Settings, edition::Edition, AppState, StartupReg
 /// Accepted persistent theme names shared by Server validation and native
 /// device preferences. Legacy names remain valid for existing libraries.
 pub const VALID_THEMES: &[&str] = &[
+    "tactical",
     "system",
     "atelier-dark",
     "midnight",
