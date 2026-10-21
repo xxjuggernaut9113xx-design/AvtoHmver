@@ -252,7 +252,7 @@ impl Default for Settings {
             default_slideshow_speed: default_slideshow_speed(),
             default_slideshow_loop: default_slideshow_loop(),
             default_slideshow_shuffle: default_slideshow_shuffle(),
-            theme: default_theme(),
+            theme: "tactical".into(),
             export_reminder_days: default_export_reminder_days(),
             last_export_at: None,
             export_reminder_snoozed_until: None,

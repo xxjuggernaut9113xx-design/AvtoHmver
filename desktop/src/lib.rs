@@ -235,6 +235,7 @@ struct ViewState {
     music: Rc<music::MusicPlayer>,
     session_audio: session_audio::SessionAudio,
     last_session_status: Option<(String, avtohmver::session::SessionStatus)>,
+    session_poll_order: SessionPollOrder,
     instructor_override: Option<avtohmver::session::GameConfig>,
     location_history: Vec<Option<(i64, bool)>>,
     location_position: usize,
@@ -483,6 +484,9 @@ fn set_playback_paused(
         pane.player.suspend(paused || state.panic.is_some());
     }
     window.set_player_paused(paused);
+    if host.is_some() {
+        state.session_poll_order.control_applied();
+    }
 }
 
 fn show_loading(window: &AvtoHmverNativeWindow, step: &str) {
@@ -764,6 +768,7 @@ struct GoonState {
     last_phase: Option<String>,
     last_session: Option<String>,
     last_media_revision: u64,
+    pending_media_advances: u64,
     candidates: VecDeque<MediaItem>,
     recent: VecDeque<i64>,
     request: u64,
@@ -771,6 +776,39 @@ struct GoonState {
     exhausted: bool,
     fetching: bool,
     current: Option<MediaItem>,
+}
+
+impl GoonState {
+    fn observe_media_revision(&mut self, revision: u64) {
+        self.pending_media_advances = self
+            .pending_media_advances
+            .saturating_add(revision.saturating_sub(self.last_media_revision));
+        self.last_media_revision = self.last_media_revision.max(revision);
+    }
+
+    fn settle_media_advance(&mut self, played: bool) {
+        if played {
+            self.pending_media_advances = self.pending_media_advances.saturating_sub(1);
+        }
+    }
+}
+
+/// A poll started before a synchronous control result cannot describe the
+/// state after that control, even if the poll arrives later on the UI lane.
+#[derive(Default)]
+struct SessionPollOrder {
+    control_applied_at: Option<Instant>,
+}
+
+impl SessionPollOrder {
+    fn control_applied(&mut self) {
+        self.control_applied_at = Some(Instant::now());
+    }
+
+    fn accepts(&self, requested_at: Instant) -> bool {
+        self.control_applied_at
+            .is_none_or(|applied_at| requested_at >= applied_at)
+    }
 }
 
 impl ViewState {
@@ -1040,10 +1078,33 @@ fn start_native_instructor(
         view.borrow_mut().player.paused_session = Some(update.state.session_id.clone());
     }
     window.set_session_status(session_text(Some(&update.state)).into());
+    view.borrow_mut().session_poll_order.control_applied();
     Ok(())
 }
 
 fn render_session_snapshot(
+    window: &AvtoHmverNativeWindow,
+    view: &mut ViewState,
+    snapshot: Option<&avtohmver::session::SessionState>,
+) {
+    view.session_poll_order.control_applied();
+    apply_session_snapshot(window, view, snapshot);
+}
+
+fn render_polled_session_snapshot(
+    window: &AvtoHmverNativeWindow,
+    view: &mut ViewState,
+    requested_at: Instant,
+    snapshot: Option<&avtohmver::session::SessionState>,
+) -> bool {
+    if !view.session_poll_order.accepts(requested_at) {
+        return false;
+    }
+    apply_session_snapshot(window, view, snapshot);
+    true
+}
+
+fn apply_session_snapshot(
     window: &AvtoHmverNativeWindow,
     view: &mut ViewState,
     snapshot: Option<&avtohmver::session::SessionState>,
@@ -2477,9 +2538,9 @@ fn goon_advance(
     image_tx: &mpsc::SyncSender<(u64, u8, MediaItem)>,
     tx: &WorkSender,
     rating: i64,
-) {
+) -> bool {
     if state.panic.is_some() {
-        return;
+        return false;
     }
     // Keep a buffer of upcoming candidates while pages remain.
     if state.goon.candidates.len() < 8 {
@@ -2502,7 +2563,7 @@ fn goon_advance(
                 window.set_goon_status(
                     format!("GOON media · rating {rating} · {}", item.filename).into(),
                 );
-                return;
+                return true;
             }
             Err(error) => {
                 window.set_status(format!("GOON skipped {}: {error}", item.filename).into());
@@ -2516,6 +2577,7 @@ fn goon_advance(
     } else {
         window.set_goon_status(format!("GOON · rating {rating} · loading more media…").into());
     }
+    false
 }
 
 /// Reacts to session snapshots: on a phase change with GOON media enabled,
@@ -2536,6 +2598,7 @@ fn goon_drive(
     if session_id != state.goon.last_session {
         state.goon.last_session = session_id;
         state.goon.last_media_revision = 0;
+        state.goon.pending_media_advances = 0;
         state.goon.request = state.goon.request.wrapping_add(1);
         state.goon.last_phase = None;
         state.goon.candidates.clear();
@@ -2547,6 +2610,7 @@ fn goon_drive(
     let running = snapshot
         .is_some_and(|s| matches!(s.status, SessionStatus::Running | SessionStatus::Paused));
     if !running {
+        state.goon.pending_media_advances = 0;
         state.goon.request = state.goon.request.wrapping_add(1);
         state.goon.fetching = false;
         if state.player.driver == PlayDriver::Goon {
@@ -2569,12 +2633,19 @@ fn goon_drive(
                 .count() as u64,
         )
     });
-    let advance = revision != state.goon.last_media_revision;
-    state.goon.last_media_revision = revision;
+    state.goon.observe_media_revision(revision);
+    // Media-free phases intentionally ignore media requests rather than
+    // replaying them when a later phase acquires a media pool.
+    if goon_pace_rating(&phase).is_none() {
+        state.goon.pending_media_advances = 0;
+    }
     if state.goon.last_phase.as_deref() == Some(phase.as_str()) {
-        if advance {
+        if state.goon.pending_media_advances > 0 && state.goon.current.is_some() {
             if let Some(rating) = goon_pace_rating(&phase) {
-                goon_advance(window, state, client, image_tx, tx, rating);
+                // Drain at most one request per snapshot. Failed selection or
+                // a page still in flight retains the entire remaining debt.
+                let played = goon_advance(window, state, client, image_tx, tx, rating);
+                state.goon.settle_media_advance(played);
             }
         }
         return;
@@ -2607,6 +2678,7 @@ fn goon_drive(
             let _ = (client, image_tx);
         }
         None => {
+            state.goon.pending_media_advances = 0;
             state.loading_since = None;
             state.player.pending_since = None;
             window.set_playback_loading(false);
@@ -3892,6 +3964,7 @@ fn run_ui_inner(
     let session_handle = runtime.handle().clone();
     let (session_updates, session_inbox) = mpsc::sync_channel(1);
     let session_worker = std::thread::spawn(move || loop {
+        let requested_at = Instant::now();
         let result = session_handle.block_on(async {
             tokio::select! {
                 result = session_client.session() => Some(result),
@@ -3900,7 +3973,7 @@ fn run_ui_inner(
         });
         let Some(result) = result else { break };
         if matches!(
-            session_updates.try_send(result),
+            session_updates.try_send((requested_at, result)),
             Err(mpsc::TrySendError::Disconnected(_))
         ) {
             break;
@@ -6885,7 +6958,10 @@ fn run_ui_inner(
                 w.set_busy(false);
                 w.set_status(format!("Background queue is full; {rejected} action(s) were not queued. Retry shortly.").into());
             }
-            if let Ok(result) = session_inbox.try_recv() {
+            // Drop obsolete results without skipping the other UI update lanes.
+            let session_result = session_inbox.try_recv().ok()
+                .filter(|(requested_at, _)| v.borrow().session_poll_order.accepts(*requested_at));
+            if let Some((requested_at, result)) = session_result {
                 match &result {
                     Ok(_) => {
                         // The Host is reachable again: drop the banner.
@@ -6906,8 +6982,8 @@ fn run_ui_inner(
                 let snapshot = result.as_ref().ok().and_then(|state| state.as_ref());
                 match &result {
                     Ok(_) => {
-                        render_session_snapshot(&w, &mut v.borrow_mut(), snapshot);
-                        if v.borrow().panic.is_none() && v.borrow().player.paused_since.is_none() { goon_drive(&w, &mut v.borrow_mut(), &client_tick, &image_tick, &tx, snapshot); }
+                        let applied = render_polled_session_snapshot(&w, &mut v.borrow_mut(), requested_at, snapshot);
+                        if applied && v.borrow().panic.is_none() && v.borrow().player.paused_since.is_none() { goon_drive(&w, &mut v.borrow_mut(), &client_tick, &image_tick, &tx, snapshot); }
                     },
                     Err(error) => {
                         v.borrow_mut().session_audio.stop();
@@ -8171,11 +8247,49 @@ mod tests {
         });
         render_session_snapshot(&window, &mut view, Some(&choice.state));
         assert_eq!(window.get_session_instructions().row_count(), 0);
+        let queued_before_pause = Instant::now();
         let paused =
             engine.dispatch(avtohmver::session::SessionCommand::Pause { monotonic_ms: 500 });
         render_session_snapshot(&window, &mut view, Some(&paused.state));
         assert!(window.get_session_paused());
         assert!(view.player.paused_since.is_some());
+        view.player.paused_session = Some(paused.state.session_id.clone());
+        assert!(!render_polled_session_snapshot(
+            &window,
+            &mut view,
+            queued_before_pause,
+            Some(&choice.state),
+        ));
+        assert!(window.get_session_paused());
+        assert!(view.player.paused_since.is_some());
+        assert_eq!(
+            view.player.paused_session.as_deref(),
+            Some(paused.state.session_id.as_str())
+        );
+        assert!(!render_polled_session_snapshot(
+            &window,
+            &mut view,
+            queued_before_pause,
+            None,
+        ));
+        assert!(render_polled_session_snapshot(
+            &window,
+            &mut view,
+            Instant::now(),
+            Some(&paused.state),
+        ));
+        let queued_before_resume = Instant::now();
+        let resumed =
+            engine.dispatch(avtohmver::session::SessionCommand::Resume { monotonic_ms: 750 });
+        render_session_snapshot(&window, &mut view, Some(&resumed.state));
+        assert!(!render_polled_session_snapshot(
+            &window,
+            &mut view,
+            queued_before_resume,
+            Some(&paused.state),
+        ));
+        assert!(window.get_session_running());
+        assert!(view.player.paused_since.is_none());
         let ended = engine.dispatch(avtohmver::session::SessionCommand::End {
             completed: false,
             monotonic_ms: 1_000,
@@ -8595,6 +8709,57 @@ mod tests {
         assert!(text.contains(&update.state.phase.id), "{text}");
         assert!(text.contains("BPM"), "{text}");
         assert_eq!(session_text(None), "No active session");
+    }
+
+    #[test]
+    fn session_poll_order_rejects_requests_started_before_the_latest_control() {
+        let mut order = SessionPollOrder::default();
+        let before = Instant::now();
+        assert!(order.accepts(before));
+        // Use an explicit boundary to make equal active-time pause/resume
+        // ordering deterministic, without sleeping or depending on wall time.
+        let boundary = before + Duration::from_millis(1);
+        order.control_applied_at = Some(boundary);
+        assert!(!order.accepts(before));
+        assert!(order.accepts(boundary));
+        assert!(order.accepts(boundary + Duration::from_millis(1)));
+    }
+
+    #[test]
+    fn goon_media_advances_preserve_coalesced_requests_across_page_loading() {
+        let mut goon = GoonState {
+            current: Some(state_machine_item(1, "image", 3, None)),
+            candidates: VecDeque::from([state_machine_item(2, "image", 3, None)]),
+            ..GoonState::default()
+        };
+        goon.recent.push_back(1);
+        goon.observe_media_revision(2);
+        assert_eq!(goon.pending_media_advances, 2);
+        let next = goon_select_next(&mut goon, 3).unwrap();
+        assert_eq!(next.id, 2);
+        goon.current = Some(next);
+        goon.settle_media_advance(true);
+        assert_eq!(goon.pending_media_advances, 1);
+
+        goon.observe_media_revision(2); // Duplicate snapshots do not requeue.
+        goon.fetching = true;
+        let played = goon_select_next(&mut goon, 3).is_some();
+        goon.settle_media_advance(played);
+        assert_eq!(goon.pending_media_advances, 1);
+
+        // The next page arrives later; the outstanding advance is still owed.
+        goon.fetching = false;
+        goon.candidates
+            .push_back(state_machine_item(3, "image", 3, None));
+        let next = goon_select_next(&mut goon, 3).unwrap();
+        assert_eq!(next.id, 3);
+        goon.current = Some(next);
+        goon.settle_media_advance(true);
+        assert_eq!(goon.pending_media_advances, 0);
+        assert_eq!(goon.current.as_ref().unwrap().id, 3);
+        goon.observe_media_revision(1); // An older counter cannot roll it back.
+        goon.observe_media_revision(3);
+        assert_eq!(goon.pending_media_advances, 1);
     }
 
     #[test]
@@ -9152,6 +9317,63 @@ mod download_formatter_tests {
 
 #[cfg(test)]
 mod playback_feedback_tests {
+    #[test]
+    fn goon_drive_retries_each_coalesced_advance_after_a_page_arrives() {
+        let w = window();
+        let client = Client::Remote(
+            avtohmver::native::RemoteClient::from_validated_peer("http://100.64.1.2:42168")
+                .unwrap(),
+        );
+        let (regular, _regular_rx) = mpsc::sync_channel(8);
+        let (control, _control_rx) = mpsc::sync_channel(8);
+        let tx = WorkSender { regular, control };
+        let (images, image_rx) = mpsc::sync_channel(8);
+        let item = |id| MediaItem {
+            id,
+            kind: "image".into(),
+            rating: 3,
+            filename: format!("frame-{id}.png"),
+            filepath: format!("frame-{id}.png"),
+            ..MediaItem::default()
+        };
+        let mut engine =
+            avtohmver::session::SessionEngine::new(avtohmver::session::GameConfig::quick_default())
+                .unwrap();
+        let mut snapshot = engine
+            .dispatch(avtohmver::session::SessionCommand::Start { monotonic_ms: 0 })
+            .state;
+        snapshot.phase.id = "medium".into();
+        snapshot.statistics.media_skips = 2;
+        let mut state = ViewState {
+            goon: GoonState {
+                media_enabled: true,
+                last_phase: Some("medium".into()),
+                last_session: Some(snapshot.session_id.clone()),
+                current: Some(item(1)),
+                candidates: VecDeque::from([item(2)]),
+                fetching: true,
+                ..GoonState::default()
+            },
+            ..ViewState::default()
+        };
+        state.goon.recent.push_back(1);
+        goon_drive(&w, &mut state, &client, &images, &tx, Some(&snapshot));
+        assert_eq!(state.goon.current.as_ref().unwrap().id, 2);
+        assert_eq!(state.goon.pending_media_advances, 1);
+        assert_eq!(image_rx.try_recv().unwrap().2.id, 2);
+
+        goon_drive(&w, &mut state, &client, &images, &tx, Some(&snapshot));
+        assert_eq!(state.goon.pending_media_advances, 1);
+        assert!(image_rx.try_recv().is_err());
+        state.goon.fetching = false;
+        state.goon.exhausted = true;
+        state.goon.candidates.push_back(item(3));
+        goon_drive(&w, &mut state, &client, &images, &tx, Some(&snapshot));
+        assert_eq!(state.goon.current.as_ref().unwrap().id, 3);
+        assert_eq!(state.goon.pending_media_advances, 0);
+        assert_eq!(image_rx.try_recv().unwrap().2.id, 3);
+    }
+
     #[test]
     fn wall_arrival_waits_for_resume_and_explicit_next_keeps_full_dwell() {
         let w = window();
