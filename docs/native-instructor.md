@@ -138,7 +138,12 @@ Source changes preserve the preexisting dirty worktree. Source tests use
 temporary data. The live `C:/Users/webma/Curator` database and installed
 `C:/Program Files (x86)/AvtoHmver/AvtoHmver.exe` are not modified.
 
-## Verification, 2026-10-21
+## Historical shared-checkout verification, 2026-10-21
+
+The results and binary hashes in this section were recorded in the shared
+development checkout before the native-only review branch was extracted. They
+are historical context, not a claim that the isolated branch contains the
+unfinished Fanservice import/web integration or matches those binary hashes.
 
 - Backend library: 326 passed, 6 ignored, 0 failed.
 - Final desktop library: 70 passed, 3 ignored, 0 failed. This includes native
