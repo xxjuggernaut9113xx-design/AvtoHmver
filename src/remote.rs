@@ -154,6 +154,41 @@ pub async fn start_http_server(state: &AppState) -> Result<u16> {
     start_http_server_on(state, DEFAULT_SERVER_PORT).await
 }
 
+/// A proxy must not turn its loopback TCP connection into Host authority.
+/// This optional listener pins every request to Viewer, including forwarded
+/// headers. Profile writes still require their separate per-profile key.
+pub async fn start_viewer_gateway(state: &AppState, port: u16) -> Result<u16> {
+    async fn viewer(
+        mut request: axum::extract::Request,
+        next: axum::middleware::Next,
+    ) -> axum::response::Response {
+        request
+            .extensions_mut()
+            .insert(axum::extract::ConnectInfo(SocketAddr::from((
+                [100, 64, 0, 1],
+                1,
+            ))));
+        next.run(request).await
+    }
+    let listener = TcpListener::bind(SocketAddr::from((Ipv4Addr::LOCALHOST, port))).await?;
+    let port = listener.local_addr()?.port();
+    let app = crate::router(state.clone()).layer(axum::middleware::from_fn(viewer));
+    let stopping = state.shutdown.clone();
+    state.server_tasks.spawn(async move {
+        if let Err(error) = axum::serve(listener, app)
+            .with_graceful_shutdown(stopping.cancelled_owned())
+            .await
+        {
+            tracing::warn!(%error,"fanservice Viewer gateway stopped");
+        }
+    });
+    info!(
+        port,
+        "fanservice Viewer-only proxy gateway listening on loopback"
+    );
+    Ok(port)
+}
+
 /// Startup body shared by `start_http_server_on` and the refresh-cycle
 /// restart path. The caller must hold `start_lock`; on success the primary
 /// bookkeeping matches the current LAN setting.
@@ -832,6 +867,32 @@ mod tests {
         state.server_tasks.close();
         state.server_tasks.wait().await;
         assert!(!state.remote_server.running());
+    }
+
+    #[tokio::test]
+    async fn viewer_gateway_cannot_gain_host_from_loopback_or_forwarded_headers() {
+        let root = tempfile::tempdir().unwrap();
+        let state = crate::test_support::state(root.path());
+        let port = start_viewer_gateway(&state, 0).await.unwrap();
+        let client = reqwest::Client::new();
+        let response = client
+            .post(format!("http://127.0.0.1:{port}/api/sources"))
+            .header("x-forwarded-for", "127.0.0.1")
+            .header("x-real-ip", "127.0.0.1")
+            .header("content-type", "application/json")
+            .body("{}")
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(response.status(), reqwest::StatusCode::FORBIDDEN);
+        let response = client
+            .put(format!("http://127.0.0.1:{port}/api/fanservice/v1/profiles/test"))
+            .header("content-type", "application/json").body(serde_json::json!({"expected_revision":0,"profile":{"version":1,"up":0,"packs":[]}}).to_string())
+            .send().await.unwrap();
+        assert_eq!(response.status(), reqwest::StatusCode::UNAUTHORIZED);
+        state.shutdown.cancel();
+        state.server_tasks.close();
+        state.server_tasks.wait().await;
     }
 
     #[test]

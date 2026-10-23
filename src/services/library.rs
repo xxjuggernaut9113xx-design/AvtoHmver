@@ -77,6 +77,8 @@ fn sort_order(sort: &str) -> &'static str {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct MediaQuery {
+    /// Explicit IDs for read-only game selections. Combined with other filters.
+    pub ids: Option<String>,
     pub search: Option<String>,
     pub creator: Option<String>,
     pub limit: Option<usize>,
@@ -192,6 +194,23 @@ pub async fn list(state: &AppState, q: MediaQuery) -> Result<MediaPage, LibraryE
     let mut extra = String::from(
         " AND (m.missing=0 OR COALESCE(m.retention_deleted,0)=1 OR m.skip_reason IS NOT NULL)",
     );
+    if let Some(raw) = q.ids.as_deref() {
+        let ids = raw
+            .split(',')
+            .map(|s| s.trim().parse::<i64>())
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|_| LibraryError::BadRequest("Invalid media IDs".into()))?;
+        if ids.is_empty() || ids.len() > 500 || ids.iter().any(|id| *id <= 0) {
+            return Err(LibraryError::BadRequest(
+                "Select between 1 and 500 positive media IDs".into(),
+            ));
+        }
+        // Parsed integers only; this avoids consuming SQLite's parameter limit.
+        extra.push_str(&format!(
+            " AND m.id IN ({})",
+            ids.iter().map(i64::to_string).collect::<Vec<_>>().join(",")
+        ));
+    }
     if let Some(search) = q.search.as_deref().filter(|s| !s.trim().is_empty()) {
         // Literal substring matching avoids interpreting user-entered SQL
         // wildcard characters. Apply before keyset pagination.

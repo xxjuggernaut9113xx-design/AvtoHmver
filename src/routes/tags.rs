@@ -167,22 +167,31 @@ pub async fn delete_tag(
     State(state): State<Arc<AppState>>,
     Path(id): Path<i64>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
-    let conn = state.pool.get().map_err(db_err)?;
-    let exists: bool = conn
-        .query_row("SELECT COUNT(*) FROM tags WHERE id=?1", [id], |r| {
-            r.get::<_, i64>(0)
-        })
-        .unwrap_or(0)
-        > 0;
-    if !exists {
-        return Err((
-            StatusCode::NOT_FOUND,
-            Json(json!({"error": "Tag not found"})),
-        ));
-    }
-    conn.execute("DELETE FROM tags WHERE id=?1", [id])
+    {
+        let conn = state.pool.get().map_err(db_err)?;
+        let exists: bool = conn
+            .query_row("SELECT COUNT(*) FROM tags WHERE id=?1", [id], |r| {
+                r.get::<_, i64>(0)
+            })
+            .unwrap_or(0)
+            > 0;
+        if !exists {
+            return Err((
+                StatusCode::NOT_FOUND,
+                Json(json!({"error": "Tag not found"})),
+            ));
+        }
+        let tx = conn.unchecked_transaction().map_err(db_err)?;
+        tx.execute(
+            "INSERT OR IGNORE INTO media_tag_removals(media_id,name)
+         SELECT media_id,t.name FROM media_tags mt JOIN tags t ON t.id=mt.tag_id WHERE t.id=?1",
+            [id],
+        )
         .map_err(db_err)?;
-    drop(conn);
+        tx.execute("DELETE FROM tags WHERE id=?1", [id])
+            .map_err(db_err)?;
+        tx.commit().map_err(db_err)?;
+    }
     *state.group_tag_cache.write().await = None;
     Ok(Json(json!({ "status": "deleted" })))
 }

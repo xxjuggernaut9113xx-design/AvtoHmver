@@ -1,0 +1,1 @@
+Original fanservice vector artwork, procedural stills and synthesized timing sound are distributed under the repository GPL-3.0-only license. Editable SVG sources and the deterministic generator are included. Third-party assets retain their own included licenses.

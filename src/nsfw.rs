@@ -738,6 +738,37 @@ pub fn phar_fast_suggestion(windows: &[ActionWindow]) -> Option<f32> {
     None
 }
 
+fn phar_position_tags(windows: &[ActionWindow]) -> std::collections::BTreeSet<String> {
+    windows
+        .windows(2)
+        .filter_map(|pair| {
+            let a = &pair[0];
+            let b = &pair[1];
+            let label = a.label.trim().to_ascii_lowercase();
+            let position = matches!(
+                label.as_str(),
+                "doggy" | "the-snake" | "anal" | "missionary" | "cowgirl" | "scoop-up" | "69"
+            );
+            (position
+                && label == b.label.trim().to_ascii_lowercase()
+                && a.score.is_finite()
+                && b.score.is_finite()
+                && a.score >= 0.70
+                && b.score >= 0.70
+                && a.start_secs.is_finite()
+                && a.end_secs.is_finite()
+                && b.start_secs.is_finite()
+                && b.end_secs.is_finite()
+                && a.start_secs >= 0.0
+                && a.end_secs > a.start_secs
+                && b.end_secs > b.start_secs
+                && b.start_secs > a.start_secs
+                && b.start_secs <= a.end_secs + 0.75)
+                .then(|| format!("position:{label}"))
+        })
+        .collect()
+}
+
 pub(crate) fn persist_nudenet(
     conn: &rusqlite::Connection,
     id: i64,
@@ -788,12 +819,22 @@ fn persist_action(
     id: i64,
     result: &ActionResult,
 ) -> rusqlite::Result<usize> {
+    let tx = conn.unchecked_transaction()?;
+    let conn = &tx;
     let fast = phar_fast_suggestion(&result.windows);
     let evidence = json!(result.windows.iter().take(48).map(|window| json!({"start_secs":window.start_secs,"end_secs":window.end_secs,"label":window.label,"score":(f64::from(window.score)*1000.0).round()/1000.0})).collect::<Vec<_>>());
-    conn.execute(
+    let updated = conn.execute(
         "UPDATE media SET action_model=?1,action_model_version=?2,action_score=?3,action_evidence=?4,action_rating=?5,classification_label=CASE WHEN ?5=4 THEN 'fast' ELSE classification_label END,rating=CASE WHEN human_rating IS NULL AND ?5=4 THEN 4 ELSE COALESCE(human_rating,NULLIF(action_rating,0),NULLIF(auto_rating,0),0) END,rating_source=CASE WHEN human_rating IS NOT NULL THEN 'human' WHEN ?5=4 THEN 'auto_action' WHEN auto_rating>0 THEN 'auto' ELSE 'none' END,rating_reviewed=CASE WHEN human_rating IS NULL THEN 0 ELSE 1 END,nsfw_state='done',classification_updated_at=datetime('now') WHERE id=?6 AND downloaded=1 AND missing=0",
         rusqlite::params![result.model,result.version,fast,evidence.to_string(),if fast.is_some(){4}else{0},id],
-    )
+    )?;
+    if updated > 0 {
+        for tag in phar_position_tags(&result.windows) {
+            crate::provenance::attach_tag(conn, id, &tag, crate::provenance::AUTOMATIC, None)
+                .map_err(|error| rusqlite::Error::ToSqlConversionFailure(error.into()))?;
+        }
+    }
+    tx.commit()?;
+    Ok(updated)
 }
 
 fn mark_manual_review(conn: &rusqlite::Connection, id: i64, reason: &str) {
@@ -1250,5 +1291,98 @@ mod tests {
             )
             .unwrap();
         assert_eq!(row, (4, 0, "fast".into()));
+    }
+    #[test]
+    fn position_confirmation_and_rescans_preserve_human_overrides() {
+        let conn = rusqlite::Connection::open_in_memory().unwrap();
+        crate::db::run_migrations(&conn).unwrap();
+        conn.execute(
+            "INSERT INTO sources(id,name,url,slug,added_at) VALUES(1,'test','test','test','2026')",
+            [],
+        )
+        .unwrap();
+        conn.execute("INSERT INTO media(id,source_id,filepath,filename,type,added_at,downloaded) VALUES(1,1,'a','a','video','2026',1)", []).unwrap();
+        let mut result = ActionResult {
+            model: "P-HAR".into(),
+            version: "fixture".into(),
+            windows: vec![
+                ActionWindow {
+                    start_secs: 0.0,
+                    end_secs: 2.0,
+                    label: "missionary".into(),
+                    score: 0.70,
+                },
+                ActionWindow {
+                    start_secs: 1.0,
+                    end_secs: 3.0,
+                    label: "missionary".into(),
+                    score: 0.90,
+                },
+            ],
+        };
+        assert_eq!(phar_position_tags(&result.windows).len(), 1);
+        persist_action(&conn, 1, &result).unwrap();
+        let provenance = || {
+            conn.query_row(
+                "SELECT provenance FROM media_tag_provenance WHERE media_id=1",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .unwrap()
+        };
+        assert_eq!(provenance(), "automatic");
+        crate::provenance::attach_tag(
+            &conn,
+            1,
+            "position:missionary",
+            crate::provenance::HUMAN_EDITED,
+            None,
+        )
+        .unwrap();
+        persist_action(&conn, 1, &result).unwrap();
+        assert_eq!(provenance(), "human_edited");
+        conn.execute("DELETE FROM media_tags WHERE media_id=1", [])
+            .unwrap();
+        persist_action(&conn, 1, &result).unwrap();
+        assert_eq!(
+            conn.query_row("SELECT COUNT(*) FROM media_tags", [], |row| row
+                .get::<_, i64>(0))
+                .unwrap(),
+            0
+        );
+        crate::db::run_migrations(&conn).unwrap();
+        persist_action(&conn, 1, &result).unwrap();
+        assert_eq!(
+            conn.query_row("SELECT COUNT(*) FROM media_tags", [], |row| row
+                .get::<_, i64>(0))
+                .unwrap(),
+            0
+        );
+        crate::provenance::attach_tag(
+            &conn,
+            1,
+            "position:missionary",
+            crate::provenance::HUMAN,
+            None,
+        )
+        .unwrap();
+        assert_eq!(
+            conn.query_row("SELECT COUNT(*) FROM media_tags", [], |row| row
+                .get::<_, i64>(0))
+                .unwrap(),
+            1
+        );
+        result.windows[1].score = 0.69;
+        assert!(phar_position_tags(&result.windows).is_empty());
+        result.windows[1].score = 0.90;
+        result.windows[1].label = "cowgirl".into();
+        assert!(phar_position_tags(&result.windows).is_empty());
+        result.windows[1].label = "missionary".into();
+        result.windows[1].start_secs = 4.0;
+        assert!(phar_position_tags(&result.windows).is_empty());
+        result.windows[1].start_secs = 0.0;
+        assert!(phar_position_tags(&result.windows).is_empty());
+        conn.execute("PRAGMA foreign_keys=ON", []).unwrap();
+        conn.execute("DELETE FROM media WHERE id=1", []).unwrap();
     }
 }

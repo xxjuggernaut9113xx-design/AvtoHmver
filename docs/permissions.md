@@ -52,6 +52,8 @@ The following table is generated from `routes::MUTATION_PERMISSIONS`. Tests comp
 | POST | `/api/downloads/sources/{id}/pause` | Allow | Allow | Deny |
 | POST | `/api/downloads/sources/{id}/resume` | Allow | Allow | Deny |
 | POST | `/api/export/chpack` | Allow | Allow | Deny |
+| POST | `/api/fanservice/v1/export/chpack` | Allow | Allow | Allow |
+| POST | `/api/fanservice/v1/music/{id}/analyze` | Allow | Allow | Deny |
 | POST | `/api/goon/beat-maps/analyze` | Allow | Allow | Deny |
 | POST | `/api/goon/oauth/callback` | Allow | Allow | Deny |
 | POST | `/api/goon/playlists` | Allow | Allow | Deny |
@@ -85,6 +87,8 @@ The following table is generated from `routes::MUTATION_PERMISSIONS`. Tests comp
 | POST | `/api/storage/sources/{id}/cleanup` | Allow | Allow | Deny |
 | POST | `/api/storage/sources/{id}/permit-once` | Allow | Allow | Deny |
 | POST | `/api/storage/thumbnails/clear` | Allow | Allow | Deny |
+| PUT | `/api/fanservice/v1/music/{id}/beatmap` | Allow | Allow | Deny |
+| PUT | `/api/fanservice/v1/profiles/{id}` | Allow | Allow | Allow |
 | PUT | `/api/goon/playlists/{id}` | Allow | Allow | Deny |
 | PUT | `/api/media/{id}/duration` | Allow | Allow | Deny |
 | PUT | `/api/media/{id}/rating` | Allow | Allow | Deny |

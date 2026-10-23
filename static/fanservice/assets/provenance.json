@@ -1,0 +1,387 @@
+[
+  {
+    "file": "button_rectangle_flat.png",
+    "source": "https://kenney.nl/assets/ui-pack",
+    "license": "CC0",
+    "sha256": "0aad0fc500f42740ba1976ee01e9649164584e12e7ef672ac04bb03f013cc52c"
+  },
+  {
+    "file": "button_rectangle_border.png",
+    "source": "https://kenney.nl/assets/ui-pack",
+    "license": "CC0",
+    "sha256": "d5289ba4ce88501efd20a0a46033069623538218377fadc7b8223c0c43ada878"
+  },
+  {
+    "file": "check_round_color.png",
+    "source": "https://kenney.nl/assets/ui-pack",
+    "license": "CC0",
+    "sha256": "9736519f13ce5e19732b32008b24ae6cea93e91fe6cc606624793d065dd4e3d6"
+  },
+  {
+    "file": "click_001.ogg",
+    "source": "https://kenney.nl/assets/interface-sounds",
+    "license": "CC0",
+    "sha256": "ccfb7fa0cccdd9faec0eb16033c732b1e308d139d80f799161495d58f7adcdb9"
+  },
+  {
+    "file": "click_001.wav",
+    "derived_from": "click_001.ogg",
+    "license": "CC0",
+    "sha256": "5a4a1b688d3429ee86586ffd0edd55706623c911355554c0531f4242ac5978bd"
+  },
+  {
+    "file": "confirmation_001.ogg",
+    "source": "https://kenney.nl/assets/interface-sounds",
+    "license": "CC0",
+    "sha256": "063564703b6094d70718a3e787a55cc9141611e4ecd6b6637f8828f79b4a8c3a"
+  },
+  {
+    "file": "confirmation_001.wav",
+    "derived_from": "confirmation_001.ogg",
+    "license": "CC0",
+    "sha256": "fe6354eedb4745cd4af8ca24b8161ca52fae832af8932e77000b60ef8a3c70aa"
+  },
+  {
+    "file": "back_001.ogg",
+    "source": "https://kenney.nl/assets/interface-sounds",
+    "license": "CC0",
+    "sha256": "07db973f79f6ae0f2edc34561e7592e24d0577455919fb602cb8ecc0da991dcf"
+  },
+  {
+    "file": "back_001.wav",
+    "derived_from": "back_001.ogg",
+    "license": "CC0",
+    "sha256": "143fc0a31289e47509685b6d07fbea04ba3ea2ffaf12759f6943fc06fc30aded"
+  },
+  {
+    "author": "Delapouite",
+    "license": "CC BY 3.0",
+    "file": "film-projector.svg",
+    "modifications": "None; displayed at reduced size",
+    "source": "https://github.com/game-icons/icons/blob/master/delapouite/film-projector.svg",
+    "license_url": "https://creativecommons.org/licenses/by/3.0/",
+    "sha256": "35dcff50d61ef4a551b4a7281517f351d9b25b62f2f3dcaa656e8e6b902cda8e"
+  },
+  {
+    "author": "Lorc",
+    "license": "CC BY 3.0",
+    "file": "padlock.svg",
+    "modifications": "None; displayed at reduced size",
+    "source": "https://github.com/game-icons/icons/blob/master/lorc/padlock.svg",
+    "license_url": "https://creativecommons.org/licenses/by/3.0/",
+    "sha256": "6357f13cc4d14f535a47a8fe2635ea34def7c4b21e205a5c34c8f5fdba3c8cd3"
+  },
+  {
+    "sha256": "6e1fc228a8318251a6e569502ec57bac1e4656c582f92f59ccecc4688e039b98",
+    "license": "OFL-1.1",
+    "file": "Rajdhani-Regular.ttf",
+    "source": "https://raw.githubusercontent.com/google/fonts/45e3d5269e4a17d823f6d84470bc084dc5ae46f6/ofl/rajdhani/Rajdhani-Regular.ttf"
+  },
+  {
+    "sha256": "f42db2dd16e642258e35782916eceb1dcdbea06fb958d77ad71dc5963587e8fd",
+    "license": "OFL-1.1",
+    "file": "Orbitron-Variable.ttf",
+    "source": "https://raw.githubusercontent.com/google/fonts/45e3d5269e4a17d823f6d84470bc084dc5ae46f6/ofl/orbitron/Orbitron%5Bwght%5D.ttf"
+  },
+  {
+    "file": "shopkeeper-body.svg",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "3cfb183f7c5b5e46a242fb314ad8368967b018970892d9c3f884db421d7572f9"
+  },
+  {
+    "file": "shopkeeper-body.png",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "8505736f94001759c82a102e01f4e982d72062d2c9fd07dbbf1a7351a12b58db"
+  },
+  {
+    "file": "shopkeeper-face.svg",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "d15fafb4b8acb4df8cfe0f768b9be52940bfefb2580000de0ea47d8fbef8c42e"
+  },
+  {
+    "file": "shopkeeper-face.png",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "700ed7c95183c8c84c7019cffd04e1a2cadae522d5c3db257c69b8bf9a7e255b"
+  },
+  {
+    "file": "shopkeeper-hair.svg",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "1b2b627b07b787f28a1292b29934fdc27434ca952a861fbbe590ca1c1c99fce4"
+  },
+  {
+    "file": "shopkeeper-hair.png",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "841b96547dbd081d730a035983aeec954fa237658c6454e32715e50b8d7cf2df"
+  },
+  {
+    "file": "shopkeeper-eyes.svg",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "ef98391c3ac8ac1315dc1348f33d5429647a824e053b89db4161ed8e858f60ca"
+  },
+  {
+    "file": "shopkeeper-eyes.png",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "d0f72945197ce02f080fcf3dd8da73056d9265f142b3afd8c651b6f493826396"
+  },
+  {
+    "file": "fanservice-brand.svg",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "ed741b67ebe6596d31d8600ce7bd05a433827e75e513be9234676a19b34fb44f"
+  },
+  {
+    "file": "fanservice-brand.png",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "84e3568e83c4ec9c708709d8c5b83cb59b913506888e8c800eb73db8955fd188"
+  },
+  {
+    "file": "background-menu.svg",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "8756602dc47f5aeb384f9e4526db9ca4ff7106c09adcdb9c92c8e2c675582801"
+  },
+  {
+    "file": "background-menu.png",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "23b9414d5c8f0a0cbcccf9184261956dd333167dfb6d242897175994337739cf"
+  },
+  {
+    "file": "background-slow.svg",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "e4ba7a6d9360645bb7b83de3218b90e9d717cf9f559fd4b1ba085250bdb066b3"
+  },
+  {
+    "file": "background-slow.png",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "ffb4eb11a97787da361e5f4044722b8d1b2e1c7b0faf54ad86d0c6e6df3b5d70"
+  },
+  {
+    "file": "background-medium.svg",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "242aba7865f9c98ffb277024de7ed484219d7b038dc652ef6fca6aeec6dd9d5b"
+  },
+  {
+    "file": "background-medium.png",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "789dbf39d04fa722ad3207a67050a9cd0fbcecf2b42847801af9d0ec531dfa3d"
+  },
+  {
+    "file": "background-fast.svg",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "105464423c6b977100d2f510b273651a83f85d7a508798f094326a77cdd607c2"
+  },
+  {
+    "file": "background-fast.png",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "6a0d1e329f8373698cec4f231ffdfc1964e85f9b25fdf15928f302ae317f464a"
+  },
+  {
+    "file": "background-event.svg",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "5e48efea06441dcf356225e35554446a121efed8e24d5d636d370351145b17dd"
+  },
+  {
+    "file": "background-event.png",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "05c1d241727e0827114fbcd801e00a167e270b2691240a550cdef106b2aaf720"
+  },
+  {
+    "file": "background-failure.svg",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "ead6cd9bf93d6ce155ade9e7e46f5ebf3f1aaab7f914c62769ab78a5a381652a"
+  },
+  {
+    "file": "background-failure.png",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "90301290e68e255b990bda485284dbd5b2d947a26e11b2d76b6515e02921d4f9"
+  },
+  {
+    "file": "background-reward.svg",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "3ef18f3e343839bb77f11f1aae3db982c80852ba5c611e6a756415750c2d0cb6"
+  },
+  {
+    "file": "background-reward.png",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "1ae825b59680ea2150c56023e7dabb2c4ff41b6810d22a433d788116a44ca071"
+  },
+  {
+    "file": "card-slow.svg",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "67c128b11542f0722f2a9430c76c8d755daafd4035498d800096c78a429738dd"
+  },
+  {
+    "file": "card-slow.png",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "8054c10eeedf280c5e4692bf9aff3aab75ddb1fdeb4ffad8212e090e094d176f"
+  },
+  {
+    "file": "card-medium.svg",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "22755a6aea095de6d79037a52c03d253a72a25046743bbfed7e9acfc70abecea"
+  },
+  {
+    "file": "card-medium.png",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "b3c3ffd47c87e3c95687efd136924595916d0f2ad2b37824b90bce8cc696517f"
+  },
+  {
+    "file": "card-fast.svg",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "3b0c67059f8f079cbfe2c414d117d4d561893802e0edb00531eef894c996e535"
+  },
+  {
+    "file": "card-fast.png",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "bad0aed44eea77e274d0cf02157b1b9effa7d62f06b053fa490f69a8da177709"
+  },
+  {
+    "file": "card-succubus.svg",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "a5e6aab5fe4e2a6965fe0163416669cbf22e46919e4c4638cba7dc68689e20dc"
+  },
+  {
+    "file": "card-succubus.png",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "08999ccf6c0cef33e321ba400d52a337ea0f450838fdc008facfd2eda2454a04"
+  },
+  {
+    "file": "card-cum.svg",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "2ed3beab3f9d7c9ece12c35b11eaeef977b55231eeb3fd9ca0b3f066f2ac487d"
+  },
+  {
+    "file": "card-cum.png",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "1bf8c2ae0483f04bdd1bcd82f4e2adbdfe27c34f6916f658a3c899674bf3a209"
+  },
+  {
+    "file": "card-ass.svg",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "a45996598ce5b370f036cf994ae01afabcbc4f6e0d9cb24ae7050e80c9c7b5b8"
+  },
+  {
+    "file": "card-ass.png",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "31baff2abf88f94b85858179484b0db8d124e3cc9039bd0d39acd2e16fcf78ec"
+  },
+  {
+    "file": "card-boobs.svg",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "1e493254b9bf594cb6d337898ad1e1f10359941ea3fb7e846aa5ebb78d9d6d68"
+  },
+  {
+    "file": "card-boobs.png",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "77b6a636dc316867c0b43342fc4487f2491c79988545d015550c9e819b8c6a2b"
+  },
+  {
+    "file": "card-inventory.svg",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "022da7ec9df42f50ed833227585c1a848070be429c92888a48c25da64fc07bc4"
+  },
+  {
+    "file": "card-inventory.png",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "a38ad2b4fa67bcba5077d291e5810905063c2342d08c500e7c69510d624bd7df"
+  },
+  {
+    "file": "card-modifier.svg",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "3b0f176cf055b7909f0333c6dbc9d0939b31569833a77d4ed63a0adb12eb26a5"
+  },
+  {
+    "file": "card-modifier.png",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "b006b27b1a36cb1000eeac0c60c80670f32ad2134d166f6c416f9e1d054c2b71"
+  },
+  {
+    "file": "card-challenge.svg",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "1fc1b5018d9cf18a15f58120909ff02f50f70245580399caeabac64dbffc2735"
+  },
+  {
+    "file": "card-challenge.png",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "7dc3eb081cbc4ce5da574ff49669b5743ab6638030edb86098af9651761b58fc"
+  },
+  {
+    "file": "timing.wav",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "86dceccf25d79f00cf36d13f44e537c9a725e34c5acc5526b2ef5c8a80150ce7"
+  },
+  {
+    "file": "app-icon-512.svg",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "df50cced14024f01c20d05ed29f72a9a558137c52333c74039d7547c24bf27b1"
+  },
+  {
+    "file": "app-icon-512.png",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "85b2f4e934c029863fb83bfc5414251f69326b156c0e175d0aa4020bb6b0d206"
+  },
+  {
+    "file": "app-icon-192.svg",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "f870f5c13605a9ad7f7ede8dc1fedd9425cdec3523d6be1ef1345fa02c64790c"
+  },
+  {
+    "file": "app-icon-192.png",
+    "source": "packaging/generate-fanservice-presentation.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "eacfb29b4184cfb147474e5e7f8e82a41461adae8587274542345b44a8cd0edc"
+  },
+  {
+    "file": "fanservice.ico",
+    "derived_from": "app-icon-512.svg",
+    "source": "packaging/generate-windows-icon.cjs",
+    "license": "GPL-3.0-only",
+    "sha256": "bbf9f4b73d18fa9fb5fa3f721844af77ccce7c70c6dafaab020a39c1b4ed295f"
+  }
+]

@@ -1,0 +1,55 @@
+ M Cargo.toml
+ M desktop/src/lib.rs
+ M desktop/src/music.rs
+ M desktop/src/playback_setup.rs
+ M desktop/src/player.rs
+ M desktop/ui/main.slint
+ M docs/parity/STATUS.md
+ M docs/parity/evidence/L-01.md
+ M docs/parity/evidence/M-01.md
+ M docs/parity/evidence/M-04.md
+ M docs/parity/evidence/P-02.md
+ M docs/parity/evidence/P-03.md
+ M docs/parity/evidence/P-06.md
+ M docs/parity/evidence/S-06.md
+ M docs/parity/evidence/U-04.md
+ M docs/parity/evidence/V-02.md
+ M src/beat.rs
+ M src/chpack.rs
+ M src/db.rs
+ M src/lib.rs
+ M src/native.rs
+ M src/nsfw.rs
+ M src/process.rs
+ M src/provenance.rs
+ M src/routes/export.rs
+ M src/routes/goon.rs
+ M src/routes/tags.rs
+ M src/routes/thumb.rs
+ M src/services/discovery.rs
+ M src/services/session.rs
+ M src/services/settings.rs
+ M src/session.rs
+ M src/test_support.rs
+ M src/thumb_worker.rs
+ M static/app.js
+ M static/index.html
+ M static/library.js
+ M static/oobe.html
+ M static/playback.js
+ M static/style.css
+ M tests/feed.test.js
+ M tests/layout_contract.test.js
+?? docs/discover-providers.md
+?? docs/linked-packages.md
+?? docs/music-connectors.md
+?? fanservice-baselines/
+?? src/linked_packages.rs
+?? static/motion.js
+?? static/music-connectors.js
+?? static/playback-clock.js
+?? tests/discover_scrolling.test.js
+?? tests/grid_thumbnails.test.js
+?? tests/motion.test.js
+?? tests/music_connectors.test.js
+?? tests/playback_pause.test.js

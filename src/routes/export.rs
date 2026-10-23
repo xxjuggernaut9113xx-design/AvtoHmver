@@ -7,12 +7,13 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
+use futures::StreamExt;
 use serde::Deserialize;
 use serde_json::{json, Value};
 use tokio::fs::File;
 use tokio_util::io::ReaderStream;
 
-use crate::chpack::{build_chpack, safe_pack_filename, ExportRow};
+use crate::chpack::{build_chpack_cancellable, safe_pack_filename, ExportRow};
 use crate::AppState;
 
 // ─── GET /api/export ─────────────────────────────────────────────────────────
@@ -97,6 +98,20 @@ pub async fn export_chpack(
     State(state): State<Arc<AppState>>,
     Json(body): Json<ChpackBody>,
 ) -> Response {
+    if state.shutdown.is_cancelled() {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({"error": "AvtoHmver is shutting down"})),
+        )
+            .into_response();
+    }
+    let Some(lease) = state.maintenance.try_acquire_background_worker() else {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({"error": "A local maintenance job is active"})),
+        )
+            .into_response();
+    };
     let conn = match state.pool.get() {
         Ok(c) => c,
         Err(e) => {
@@ -135,7 +150,7 @@ pub async fn export_chpack(
         let mut stmt = conn.prepare(
             "SELECT m.filepath, m.type, m.rating, \
                 (SELECT GROUP_CONCAT(t.name, ',') FROM media_tags mt JOIN tags t ON t.id=mt.tag_id WHERE mt.media_id=m.id) AS tags_csv \
-             FROM media m WHERE m.source_id=?1 AND m.downloaded=1 ORDER BY m.id"
+             FROM media m WHERE m.source_id=?1 AND m.downloaded=1 AND m.clip_start_secs IS NULL AND m.type IN ('image','video','gif','clip') AND m.missing=0 AND m.retention_deleted=0 ORDER BY m.id"
         ).unwrap();
         let rows: Vec<Row> = stmt
             .query_map([sid], |r| {
@@ -160,7 +175,7 @@ pub async fn export_chpack(
         let mut stmt = conn.prepare(
             "SELECT m.filepath, m.type, m.rating, \
                 (SELECT GROUP_CONCAT(t.name, ',') FROM media_tags mt JOIN tags t ON t.id=mt.tag_id WHERE mt.media_id=m.id) AS tags_csv \
-             FROM media m WHERE m.downloaded=1 ORDER BY m.id"
+             FROM media m WHERE m.downloaded=1 AND m.clip_start_secs IS NULL AND m.type IN ('image','video','gif','clip') AND m.missing=0 AND m.retention_deleted=0 ORDER BY m.id"
         ).unwrap();
         let rows: Vec<Row> = stmt
             .query_map([], |r| {
@@ -208,15 +223,18 @@ pub async fn export_chpack(
     let author = body.author.clone();
     let description = body.description.clone();
     let unlock_cost = body.unlock_cost;
+    let shutdown = state.shutdown.clone();
 
     let result = tokio::task::spawn_blocking(move || {
-        build_chpack(
+        let _lease = lease;
+        build_chpack_cancellable(
             pack_name,
             author,
             description,
             unlock_cost,
             export_rows,
             &library_dir,
+            &|| shutdown.is_cancelled(),
         )
     })
     .await;
@@ -224,7 +242,12 @@ pub async fn export_chpack(
     match result {
         Ok(Ok(tmp)) => match File::open(tmp.path()).await {
             Ok(f) => {
-                let stream = ReaderStream::new(f);
+                // The response owns the archive until the last byte or a
+                // disconnected reader drops the stream.
+                let stream = ReaderStream::new(f).map(move |chunk| {
+                    let _keep_archive_alive = &tmp;
+                    chunk
+                });
                 let body = Body::from_stream(stream);
                 let cd = format!("attachment; filename=\"{}\"", filename);
                 let mut resp = body.into_response();
@@ -250,5 +273,60 @@ pub async fn export_chpack(
             Json(json!({"error": e.to_string()})),
         )
             .into_response(),
+    }
+}
+
+#[cfg(test)]
+mod package_tests {
+    use super::*;
+    fn request() -> ChpackBody {
+        ChpackBody {
+            source_id: None,
+            name: Some("Round trip".into()),
+            author: default_author(),
+            description: String::new(),
+            unlock_cost: 0,
+        }
+    }
+    #[tokio::test]
+    async fn portable_response_keeps_archive_alive_and_shutdown_denies_new_exports() {
+        let root = tempfile::tempdir().unwrap();
+        let state = crate::test_support::state(root.path());
+        std::fs::write(state.library_dir.join("source.png"), b"original bytes").unwrap();
+        let conn = state.pool.get().unwrap();
+        conn.execute(
+            "INSERT INTO sources(url,name,slug,added_at) VALUES('https://example.com/a','Source','source','2026-10-01')",
+            [],
+        )
+        .unwrap();
+        let source = conn.last_insert_rowid();
+        conn.execute("INSERT INTO media(source_id,filepath,filename,type,added_at,downloaded,rating) VALUES(?1,'source.png','source.png','image','2026-10-01',1,2)", [source]).unwrap();
+        drop(conn);
+        let response = export_chpack(State(state.clone()), Json(request())).await;
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(state.maintenance.active_background_workers(), 0);
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        let bytes = axum::body::to_bytes(response.into_body(), 1024 * 1024)
+            .await
+            .unwrap();
+        let mut archive = zip::ZipArchive::new(std::io::Cursor::new(bytes)).unwrap();
+        let manifest: Value =
+            serde_json::from_reader(archive.by_name("manifest.json").unwrap()).unwrap();
+        assert_eq!(manifest["version"], "0.02a");
+        assert_eq!(manifest["image_count"], 1);
+        assert_eq!(manifest["video_count"], 0);
+        assert_eq!(manifest["total_media"], 1);
+        let mut media = Vec::new();
+        std::io::Read::read_to_end(
+            &mut archive.by_name("media/0_medium.png").unwrap(),
+            &mut media,
+        )
+        .unwrap();
+        assert_eq!(media, b"original bytes");
+        state.shutdown.cancel();
+        assert_eq!(
+            export_chpack(State(state), Json(request())).await.status(),
+            StatusCode::SERVICE_UNAVAILABLE
+        );
     }
 }

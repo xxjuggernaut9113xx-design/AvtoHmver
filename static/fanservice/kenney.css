@@ -1,0 +1,8 @@
+/* Selected Kenney UI Pack components, CC0. See assets/ui-pack-LICENSE.txt. */
+button{background-image:url('assets/button_rectangle_flat.png');background-size:100% 100%;color:#101d22;border-color:#bad8b2}
+button:hover,button[aria-selected=true]{filter:brightness(1.1);color:#101d22}
+button[aria-selected=true]{background-image:url('assets/button_rectangle_flat.png');outline:2px solid #eef3f8;outline-offset:2px}
+.tile label{align-items:flex-start;justify-content:flex-start}
+.tile label input{display:inline-block;width:auto;flex:0 0 auto;margin:2px 0 0}
+#pack-error{color:#ffd09b;white-space:pre-wrap}
+#tab-library::before,#unlocks::before{content:"";display:inline-block;width:1.1em;height:1.1em;margin-right:.4em;vertical-align:middle;background:center/contain no-repeat} #tab-library::before{background-image:url("assets/film-projector.svg")} #unlocks::before{background-image:url("assets/padlock.svg")} .credits{font-size:.8rem;color:#b9c8d8;max-width:65ch;margin:2rem 0}

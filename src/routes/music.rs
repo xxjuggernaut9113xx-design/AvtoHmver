@@ -58,6 +58,8 @@ pub async fn import(
 pub struct StreamQuery {
     #[serde(default)]
     browser: bool,
+    #[serde(default)]
+    native: bool,
 }
 pub async fn stream(
     State(state): State<Arc<AppState>>,
@@ -78,20 +80,25 @@ pub async fn stream(
         Ok(p) => p,
         Err(e) => return (StatusCode::NOT_FOUND, Json(json!({"error":e}))).into_response(),
     };
-    if q.browser
-        && !matches!(
-            path.extension().and_then(|s| s.to_str()),
-            Some("mp3" | "wav" | "m4a")
-        )
+    if q.native
+        || q.browser
+            && (q.native
+                || !matches!(
+                    path.extension().and_then(|s| s.to_str()),
+                    Some("mp3" | "wav" | "m4a")
+                ))
     {
-        let converted = path.with_extension("browser.mp3");
+        let converted = match music::converted_path(&state, id, q.native) {
+            Ok(path) => path,
+            Err(e) => return bad(e).into_response(),
+        };
         if !converted.is_file() {
             let _lease = match state.maintenance.try_acquire_background_worker() {
                 Some(l) => l,
                 None => return StatusCode::SERVICE_UNAVAILABLE.into_response(),
             };
             let tmp = match tempfile::Builder::new()
-                .suffix(".mp3")
+                .suffix(if q.native { ".m4a" } else { ".mp3" })
                 .tempfile_in(state.data_dir.join("music"))
             {
                 Ok(t) => t,
@@ -102,8 +109,13 @@ pub async fn stream(
             command
                 .args(["-nostdin", "-v", "error", "-y", "-i"])
                 .arg(&path)
-                .args(["-vn", "-codec:a", "libmp3lame", "-q:a", "2"])
-                .arg(tmp.path());
+                .arg("-vn");
+            if q.native {
+                command.args(["-codec:a", "aac", "-b:a", "192k", "-movflags", "+faststart"]);
+            } else {
+                command.args(["-codec:a", "libmp3lame", "-q:a", "2"]);
+            }
+            command.arg(tmp.path());
             let output =
                 tokio::time::timeout(std::time::Duration::from_secs(300), command.output()).await;
             if !output.is_ok_and(|o| o.is_ok_and(|o| o.status.success())) {
@@ -242,9 +254,7 @@ mod tests {
             assert_eq!(response.headers()[header::CONTENT_TYPE], "audio/mpeg");
             let bytes = to_bytes(response.into_body(), 1024 * 1024).await.unwrap();
             assert!(!bytes.is_empty());
-            let cache = music::track_path(&state, track.id)
-                .unwrap()
-                .with_extension("browser.mp3");
+            let cache = music::converted_path(&state, track.id, false).unwrap();
             assert_eq!(std::fs::read(&cache).unwrap(), bytes.as_ref());
             let modified = std::fs::metadata(&cache).unwrap().modified().unwrap();
             let response = app

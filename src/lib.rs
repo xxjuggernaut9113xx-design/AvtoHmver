@@ -10,6 +10,9 @@ mod downloader;
 mod duration;
 pub mod edition;
 mod hierarchy;
+pub mod instructor;
+pub mod instructor_processor;
+pub mod linked_packages;
 pub mod local_import;
 pub mod maintenance;
 mod media_files;
@@ -165,6 +168,7 @@ pub struct AppState {
     /// rows that still have NULL file_size_bytes.
     pub size_backfill: Arc<RwLock<media_files::SizeBackfillProgress>>,
     /// Version-aware discovery registry built once at process startup.
+    pub(crate) discovery_pages: Arc<std::sync::Mutex<services::discovery::SearchPages>>,
     pub search_registry: Arc<services::discovery::ProviderRegistry>,
     pub data_dir: PathBuf,
     pub library_dir: PathBuf,
@@ -507,6 +511,7 @@ pub async fn initialize_with_options(options: InitializeOptions) -> Result<AppSt
         sessions: session::SessionService::default(),
         settings: Arc::new(RwLock::new(settings)),
         size_backfill: Arc::new(RwLock::new(media_files::SizeBackfillProgress::default())),
+        discovery_pages: Default::default(),
         search_registry,
         data_dir: data_dir.clone(),
         library_dir: library_dir.clone(),
@@ -524,6 +529,7 @@ pub async fn initialize_with_options(options: InitializeOptions) -> Result<AppSt
     };
 
     spawn_session_summary_persistence(&state);
+    linked_packages::start_monitor(&state);
 
     // File size migration is schema-only. Reading metadata for legacy rows is
     // deferred to a bounded background job so startup stays responsive and

@@ -1,0 +1,4 @@
+[2026-10-22 18:24:08.3638443] UE4SS - v3.0.1 Beta #0 - Git SHA #83330635
+[2026-10-22 18:24:10.5106882] [Lua] [FanserviceProbe] loaded
+[2026-10-22 18:24:14.0853158] [Lua] [FSERROR] [string "ForEachUObject(function(obj)..."]:8: attempt to concatenate a nil value
+[2026-10-22 18:25:06.6311850] [Lua] [FSACCESS] menu true

@@ -6,7 +6,8 @@ function fixture(wakeLock) {
   const scroll = {children:[],scrollTop:0};
   const nodes = {'#feed-scroll':scroll,'#feed':{hidden:false},'#feed-status':{}};
   const ctx = vm.createContext({console,Set,Map,Math,Promise,setTimeout,clearTimeout,setInterval,clearInterval,
-    document:{visibilityState:'visible'},navigator:{wakeLock},el:id=>nodes[id]});
+    performance, document:{visibilityState:'visible', addEventListener(){}, querySelectorAll(){return [];}, dispatchEvent(){}},navigator:{wakeLock},el:id=>nodes[id]});
+  vm.runInContext(fs.readFileSync('static/playback-clock.js','utf8'),ctx);
   const source = fs.readFileSync('static/app.js','utf8');
   vm.runInContext(source.slice(source.indexOf('const FEED_TARGET_BUFFER'), source.indexOf('// VR ')),ctx);
   const run = code=>vm.runInContext(code,ctx);

@@ -31,7 +31,7 @@ static THUMB_WORK: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(8)
 // also resets naturally on restart.
 type Fingerprint = Option<(u64, Option<SystemTime>)>;
 
-static FAILED_THUMBS: Lazy<Mutex<HashMap<i64, (Fingerprint, String)>>> =
+static FAILED_THUMBS: Lazy<Mutex<HashMap<i64, (String, String)>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
 
 /// Administrative cache rebuilds remove the on-disk thumbnails as well as
@@ -52,13 +52,21 @@ pub async fn get_or_create_thumb(
     media_id: i64,
     src: PathBuf,
     thumbs_dir: PathBuf,
+    ffmpeg: String,
 ) -> Result<Vec<u8>> {
     let _permit = THUMB_WORK.acquire().await?;
-    tokio::task::spawn_blocking(move || get_or_create_thumb_sync(media_id, &src, &thumbs_dir))
-        .await?
+    tokio::task::spawn_blocking(move || {
+        get_or_create_thumb_with_tool(media_id, &src, &thumbs_dir, &ffmpeg)
+    })
+    .await?
 }
 
-pub fn get_or_create_thumb_sync(media_id: i64, src: &Path, thumbs_dir: &Path) -> Result<Vec<u8>> {
+pub fn get_or_create_thumb_with_tool(
+    media_id: i64,
+    src: &Path,
+    thumbs_dir: &Path,
+    ffmpeg: &str,
+) -> Result<Vec<u8>> {
     let _guard = THUMB_LOCKS[media_id.unsigned_abs() as usize % 64]
         .lock()
         .unwrap_or_else(|e| e.into_inner());
@@ -91,13 +99,14 @@ pub fn get_or_create_thumb_sync(media_id: i64, src: &Path, thumbs_dir: &Path) ->
 
     // Already know this exact file (same size/mtime, or same "still missing")
     // failed last time — skip straight to the cached error, no I/O.
-    if let Some((cached_fp, msg)) = FAILED_THUMBS.lock().unwrap().get(&media_id) {
-        if *cached_fp == current_fp {
+    if let Some((cached_stamp, msg)) = FAILED_THUMBS.lock().unwrap().get(&media_id) {
+        if *cached_stamp == stamp {
             return Err(anyhow::anyhow!("{}", msg));
         }
     }
 
-    let img = match image::open(&src) {
+    std::fs::create_dir_all(thumbs_dir)?;
+    let img = match decode_preview(&src, ffmpeg) {
         Ok(img) => img,
         Err(e) => {
             let msg = e.to_string();
@@ -105,13 +114,13 @@ pub fn get_or_create_thumb_sync(media_id: i64, src: &Path, thumbs_dir: &Path) ->
             if failures.len() >= 4096 {
                 failures.clear();
             }
-            failures.insert(media_id, (current_fp, msg.clone()));
+            failures.insert(media_id, (stamp.clone(), msg.clone()));
             let _ = std::fs::write(&failed_path, &stamp);
             warn!(
                 "Could not decode image for thumbnail, media {}: {}",
                 media_id, msg
             );
-            return Err(e.into());
+            return Err(e);
         }
     };
     let thumb = img.thumbnail(THUMB_MAX_DIM, THUMB_MAX_DIM);
@@ -144,9 +153,92 @@ pub fn get_or_create_thumb_sync(media_id: i64, src: &Path, thumbs_dir: &Path) ->
     Ok(bytes)
 }
 
+fn decode_preview(src: &Path, ffmpeg: &str) -> Result<image::DynamicImage> {
+    let extension = src
+        .extension()
+        .and_then(|value| value.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    if !matches!(
+        extension.as_str(),
+        "mp4" | "m4v" | "mov" | "webm" | "mkv" | "avi" | "wmv" | "flv" | "mpeg" | "mpg" | "ts"
+    ) {
+        return Ok(image::open(src)?);
+    }
+    let mut command = crate::process::blocking_command(ffmpeg);
+    command
+        .args(["-nostdin", "-v", "error", "-i"])
+        .arg(src)
+        .args([
+            "-frames:v",
+            "1",
+            "-an",
+            "-vf",
+            "scale=360:360:force_original_aspect_ratio=decrease",
+            "-f",
+            "image2pipe",
+            "-vcodec",
+            "mjpeg",
+            "pipe:1",
+        ]);
+    let output = crate::process::output_timeout_limited(
+        &mut command,
+        std::time::Duration::from_secs(15),
+        2 * 1024 * 1024,
+    )?;
+    anyhow::ensure!(output.status.success(), "Video preview generation failed");
+    Ok(image::load_from_memory(&output.stdout)?)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[ignore = "requires the installed FFmpeg runtime"]
+    fn video_preview_cache_round_trip_and_replacement() {
+        let dir = tempfile::tempdir().unwrap();
+        let src = dir.path().join("video.mp4");
+        let cache = dir.path().join("cache");
+        let ffmpeg = crate::config::resolve_tool_bin(
+            None,
+            "FFMPEG_BIN",
+            &crate::config::tool_file_name("ffmpeg"),
+        );
+        let generate = |color: &str| {
+            let mut command = crate::process::blocking_command(&ffmpeg);
+            command
+                .args(["-nostdin", "-v", "error", "-y", "-f", "lavfi", "-i"])
+                .arg(format!("color=c={color}:s=640x480:d=0.2"))
+                .args(["-c:v", "mpeg4"])
+                .arg(&src);
+            assert!(crate::process::output_timeout(
+                &mut command,
+                std::time::Duration::from_secs(15)
+            )
+            .unwrap()
+            .status
+            .success());
+        };
+        generate("red");
+        let first = get_or_create_thumb_with_tool(923, &src, &cache, &ffmpeg).unwrap();
+        let image = image::load_from_memory(&first).unwrap();
+        assert!(image.width() <= 360 && image.height() <= 360);
+        // A valid cache hit needs no functioning decoder.
+        assert_eq!(
+            first,
+            get_or_create_thumb_with_tool(923, &src, &cache, "missing-ffmpeg").unwrap()
+        );
+        generate("blue");
+        let changed = get_or_create_thumb_with_tool(923, &src, &cache, &ffmpeg).unwrap();
+        assert_ne!(first, changed);
+        std::fs::write(&src, b"corrupt video").unwrap();
+        assert!(get_or_create_thumb_with_tool(923, &src, &cache, &ffmpeg).is_err());
+        assert!(cache.join("923.failed").is_file());
+        generate("green");
+        assert!(get_or_create_thumb_with_tool(923, &src, &cache, &ffmpeg).is_ok());
+        assert!(!cache.join("923.failed").exists());
+    }
     #[tokio::test]
     async fn concurrent_requests_and_file_version_invalidation() {
         let dir = tempfile::tempdir().unwrap();
@@ -155,34 +247,42 @@ mod tests {
             .save(&src)
             .unwrap();
         let (a, b) = tokio::join!(
-            get_or_create_thumb(922, src.clone(), dir.path().into()),
-            get_or_create_thumb(922, src.clone(), dir.path().into())
+            get_or_create_thumb(922, src.clone(), dir.path().into(), "ffmpeg".into()),
+            get_or_create_thumb(922, src.clone(), dir.path().into(), "ffmpeg".into())
         );
         let first = a.unwrap();
         assert_eq!(first, b.unwrap());
         image::RgbImage::from_pixel(12, 12, image::Rgb([0, 0, 255]))
             .save(&src)
             .unwrap();
-        let changed = get_or_create_thumb(922, src.clone(), dir.path().into())
+        let changed = get_or_create_thumb(922, src.clone(), dir.path().into(), "ffmpeg".into())
             .await
             .unwrap();
         assert_ne!(first, changed);
         std::fs::remove_file(&src).unwrap();
-        assert!(get_or_create_thumb(922, src.clone(), dir.path().into())
-            .await
-            .is_err());
+        assert!(
+            get_or_create_thumb(922, src.clone(), dir.path().into(), "ffmpeg".into())
+                .await
+                .is_err()
+        );
         std::fs::write(&src, b"broken").unwrap();
-        assert!(get_or_create_thumb(922, src.clone(), dir.path().into())
-            .await
-            .is_err());
+        assert!(
+            get_or_create_thumb(922, src.clone(), dir.path().into(), "ffmpeg".into())
+                .await
+                .is_err()
+        );
         assert!(dir.path().join("922.failed").is_file());
         FAILED_THUMBS.lock().unwrap().clear(); // Simulate a restart; persistent negative cache still applies.
-        assert!(get_or_create_thumb(922, src.clone(), dir.path().into())
-            .await
-            .is_err());
+        assert!(
+            get_or_create_thumb(922, src.clone(), dir.path().into(), "ffmpeg".into())
+                .await
+                .is_err()
+        );
         image::RgbImage::new(16, 16).save(&src).unwrap();
-        assert!(get_or_create_thumb(922, src, dir.path().into())
-            .await
-            .is_ok());
+        assert!(
+            get_or_create_thumb(922, src, dir.path().into(), "ffmpeg".into())
+                .await
+                .is_ok()
+        );
     }
 }

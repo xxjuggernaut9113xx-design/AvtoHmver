@@ -1,0 +1,8 @@
+{
+ "appId":"org.fanservice.viewer",
+ "appName":"fanservice Viewer+",
+ "webDir":"www",
+ "server":{"androidScheme":"https"},
+ "android":{"allowMixedContent":true},
+ "plugins":{"SplashScreen":{"launchShowDuration":0}}
+}

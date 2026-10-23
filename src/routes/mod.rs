@@ -3,6 +3,10 @@ pub mod ch;
 pub mod clips;
 pub mod downloads;
 pub mod export;
+pub mod fanservice;
+pub mod fanservice_export;
+pub mod fanservice_music;
+pub mod fanservice_profiles;
 pub mod goon;
 pub mod groups;
 pub mod library;
@@ -96,7 +100,7 @@ pub struct MutationPermission {
 
 macro_rules! owner_mutations {
     ($(($method:literal, $path:literal)),* $(,)?) => {
-        &[$(MutationPermission {
+        &[MutationPermission {method:"POST",path:"/api/fanservice/v1/export/chpack",host:true,server:true,viewer:true},MutationPermission {method:"PUT",path:"/api/fanservice/v1/profiles/{id}",host:true,server:true,viewer:true},$(MutationPermission {
             method: $method,
             path: $path,
             host: true,
@@ -107,6 +111,8 @@ macro_rules! owner_mutations {
 }
 
 pub const MUTATION_PERMISSIONS: &[MutationPermission] = owner_mutations![
+    ("POST", "/api/fanservice/v1/music/{id}/analyze"),
+    ("PUT", "/api/fanservice/v1/music/{id}/beatmap"),
     ("POST", "/api/music/tracks"),
     ("POST", "/api/music/import"),
     ("PUT", "/api/goon/playlists/{id}"),
@@ -196,6 +202,18 @@ async fn maintenance_write_guard(
             .extensions()
             .get::<ConnectInfo<SocketAddr>>()
             .is_some_and(|peer| !peer.0.ip().is_loopback())
+            && !(request.method() == Method::POST
+                && request.uri().path() == "/api/fanservice/v1/export/chpack")
+            && !(request.method() == Method::PUT
+                && request
+                    .uri()
+                    .path()
+                    .strip_prefix("/api/fanservice/v1/profiles/")
+                    .is_some_and(|id| {
+                        !id.is_empty()
+                            && id.len() <= 80
+                            && id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-')
+                    }))
         {
             return (
                 StatusCode::FORBIDDEN,
@@ -223,6 +241,39 @@ async fn maintenance_write_guard(
 
 pub fn build_router(state: Arc<AppState>) -> Router {
     Router::new()
+        .route(
+            "/api/fanservice/v1/capabilities",
+            get(fanservice::capabilities),
+        )
+        .route(
+            "/api/fanservice/v1/profiles/{id}",
+            get(fanservice_profiles::read)
+                .put(fanservice_profiles::write)
+                .layer(axum::extract::DefaultBodyLimit::max(2 * 1024 * 1024)),
+        )
+        .route(
+            "/api/fanservice/v1/music/{id}",
+            get(fanservice_music::inspect),
+        )
+        .route(
+            "/api/fanservice/v1/music/{id}/analyze",
+            post(fanservice_music::analyze),
+        )
+        .route(
+            "/api/fanservice/v1/music/{id}/beatmap",
+            axum::routing::put(fanservice_music::save)
+                .layer(axum::extract::DefaultBodyLimit::max(8 * 1024 * 1024)),
+        )
+        .route(
+            "/api/fanservice/v1/music/{id}/manifest",
+            get(fanservice_music::manifest),
+        )
+        .route("/api/fanservice/v1/library", get(fanservice::browse))
+        .route("/api/fanservice/v1/resolve", get(fanservice::resolve))
+        .route(
+            "/api/fanservice/v1/export/chpack",
+            post(fanservice_export::export),
+        )
         .route("/api/music/access", get(music::access))
         .route(
             "/api/music/apple-configuration",
@@ -415,6 +466,32 @@ pub fn build_router(state: Arc<AppState>) -> Router {
             Arc::clone(&state),
             maintenance_write_guard,
         ))
+        .layer(
+            tower_http::cors::CorsLayer::new()
+                .allow_origin([
+                    "https://localhost"
+                        .parse::<axum::http::HeaderValue>()
+                        .unwrap(),
+                    "http://localhost".parse().unwrap(),
+                    "capacitor://localhost".parse().unwrap(),
+                ])
+                .allow_methods([
+                    Method::GET,
+                    Method::HEAD,
+                    Method::PUT,
+                    Method::POST,
+                    Method::OPTIONS,
+                ])
+                .allow_headers([
+                    axum::http::header::CONTENT_TYPE,
+                    axum::http::header::RANGE,
+                    axum::http::HeaderName::from_static("x-fanservice-profile-key"),
+                ])
+                .expose_headers([
+                    axum::http::header::CONTENT_LENGTH,
+                    axum::http::header::CONTENT_RANGE,
+                ]),
+        )
         .with_state(state)
 }
 

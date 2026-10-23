@@ -1,0 +1,5026 @@
+{
+	"version": 1,
+	"source": "Active reconstruction native rule library",
+	"draw_multipliers": [
+		{
+			"tier": 0,
+			"difficulty": 0.75,
+			"count": 0.60000000000000009,
+			"time": 1.0499999999999998
+		},
+		{
+			"tier": 0,
+			"difficulty": 1,
+			"count": 0.80000000000000004,
+			"time": 1.3999999999999999
+		},
+		{
+			"tier": 0,
+			"difficulty": 1.5,
+			"count": 1.2000000000000002,
+			"time": 2.0999999999999996
+		},
+		{
+			"tier": 1,
+			"difficulty": 0.75,
+			"count": 0.60000000000000009,
+			"time": 0.9375
+		},
+		{
+			"tier": 1,
+			"difficulty": 1,
+			"count": 0.80000000000000004,
+			"time": 1.25
+		},
+		{
+			"tier": 1,
+			"difficulty": 1.5,
+			"count": 1.2000000000000002,
+			"time": 1.875
+		},
+		{
+			"tier": 2,
+			"difficulty": 0.75,
+			"count": 0.75,
+			"time": 0.75
+		},
+		{
+			"tier": 2,
+			"difficulty": 1,
+			"count": 1,
+			"time": 1
+		},
+		{
+			"tier": 2,
+			"difficulty": 1.5,
+			"count": 1.5,
+			"time": 1.5
+		},
+		{
+			"tier": 3,
+			"difficulty": 0.75,
+			"count": 0.9375,
+			"time": 0.71249999999999991
+		},
+		{
+			"tier": 3,
+			"difficulty": 1,
+			"count": 1.25,
+			"time": 0.94999999999999996
+		},
+		{
+			"tier": 3,
+			"difficulty": 1.5,
+			"count": 1.875,
+			"time": 1.4249999999999998
+		},
+		{
+			"tier": 4,
+			"difficulty": 0.75,
+			"count": 1.125,
+			"time": 0.84999999999999998
+		},
+		{
+			"tier": 4,
+			"difficulty": 1,
+			"count": 1.5,
+			"time": 0.84999999999999998
+		},
+		{
+			"tier": 4,
+			"difficulty": 1.5,
+			"count": 2.25,
+			"time": 0.84999999999999998
+		},
+		{
+			"tier": 5,
+			"difficulty": 0.75,
+			"count": 1.3125,
+			"time": 0.60000000000000009
+		},
+		{
+			"tier": 5,
+			"difficulty": 1,
+			"count": 1.75,
+			"time": 0.80000000000000004
+		},
+		{
+			"tier": 5,
+			"difficulty": 1.5,
+			"count": 2.625,
+			"time": 1.2000000000000002
+		},
+		{
+			"tier": 6,
+			"difficulty": 0.75,
+			"count": 1.6875,
+			"time": 0.5625
+		},
+		{
+			"tier": 6,
+			"difficulty": 1,
+			"count": 2.25,
+			"time": 0.75
+		},
+		{
+			"tier": 6,
+			"difficulty": 1.5,
+			"count": 3.375,
+			"time": 1.125
+		},
+		{
+			"tier": 7,
+			"difficulty": 0.75,
+			"count": 2.25,
+			"time": 0.44999999999999996
+		},
+		{
+			"tier": 7,
+			"difficulty": 1,
+			"count": 3,
+			"time": 0.59999999999999998
+		},
+		{
+			"tier": 7,
+			"difficulty": 1.5,
+			"count": 4.5,
+			"time": 0.89999999999999991
+		}
+	],
+	"level_thresholds": [ 100, 120, 145, 175, 210, 250, 300, 360, 430, 515, 620, 750, 910, 1100, 1330, 1600, 1920, 2300, 2750, 3300 ],
+	"coin_awards": [ 1, 1, 1, 2, 0, 2, 1, 1, 1, 0 ],
+	"pool_cases": [
+		{
+			"options":
+			{
+				"ass": false,
+				"boobs": false,
+				"feet": false,
+				"excluded": []
+			},
+			"media": [
+				{
+					"file": "p0.png",
+					"type": "image",
+					"tags": []
+				},
+				{
+					"file": "p1.mp4",
+					"type": "video",
+					"tags": [
+						"medium",
+						"ass"
+					]
+				},
+				{
+					"file": "p2.png",
+					"type": "image",
+					"tags": [
+						"FAST",
+						"boobs"
+					]
+				},
+				{
+					"file": "p3.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"cum",
+						"succubus",
+						"feet"
+					]
+				},
+				{
+					"file": "p4.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"slow"
+					]
+				},
+				{
+					"file": "p5.png",
+					"type": "image",
+					"tags": [
+						"unrelated",
+						"exclude"
+					]
+				}
+			],
+			"expected":
+			{
+				"slow": [
+					"p0.png",
+					"p3.png",
+					"p4.png",
+					"p4.png"
+				],
+				"medium": [
+					"p1.mp4",
+					"p5.png"
+				],
+				"fast": [
+					"p2.png"
+				],
+				"succubus": [
+					"p3.png"
+				],
+				"cum": [
+					"p3.png"
+				],
+				"ass": [
+					"p1.mp4"
+				],
+				"boobs": [
+					"p2.png"
+				],
+				"video": [
+					"p1.mp4"
+				]
+			}
+		},
+		{
+			"options":
+			{
+				"ass": false,
+				"boobs": false,
+				"feet": false,
+				"excluded": [
+					"medium"
+				]
+			},
+			"media": [
+				{
+					"file": "p0.png",
+					"type": "image",
+					"tags": []
+				},
+				{
+					"file": "p1.mp4",
+					"type": "video",
+					"tags": [
+						"medium",
+						"ass"
+					]
+				},
+				{
+					"file": "p2.png",
+					"type": "image",
+					"tags": [
+						"FAST",
+						"boobs"
+					]
+				},
+				{
+					"file": "p3.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"cum",
+						"succubus",
+						"feet"
+					]
+				},
+				{
+					"file": "p4.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"slow"
+					]
+				},
+				{
+					"file": "p5.png",
+					"type": "image",
+					"tags": [
+						"unrelated",
+						"exclude"
+					]
+				}
+			],
+			"expected":
+			{
+				"slow": [
+					"p0.png",
+					"p3.png",
+					"p4.png",
+					"p4.png"
+				],
+				"medium": [
+					"p5.png"
+				],
+				"fast": [
+					"p2.png"
+				],
+				"succubus": [
+					"p3.png"
+				],
+				"cum": [
+					"p3.png"
+				],
+				"ass": [],
+				"boobs": [
+					"p2.png"
+				],
+				"video": []
+			}
+		},
+		{
+			"options":
+			{
+				"ass": false,
+				"boobs": false,
+				"feet": false,
+				"excluded": [
+					"unrelated"
+				]
+			},
+			"media": [
+				{
+					"file": "p0.png",
+					"type": "image",
+					"tags": []
+				},
+				{
+					"file": "p1.mp4",
+					"type": "video",
+					"tags": [
+						"medium",
+						"ass"
+					]
+				},
+				{
+					"file": "p2.png",
+					"type": "image",
+					"tags": [
+						"FAST",
+						"boobs"
+					]
+				},
+				{
+					"file": "p3.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"cum",
+						"succubus",
+						"feet"
+					]
+				},
+				{
+					"file": "p4.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"slow"
+					]
+				},
+				{
+					"file": "p5.png",
+					"type": "image",
+					"tags": [
+						"unrelated",
+						"exclude"
+					]
+				}
+			],
+			"expected":
+			{
+				"slow": [
+					"p0.png",
+					"p3.png",
+					"p4.png",
+					"p4.png"
+				],
+				"medium": [
+					"p1.mp4"
+				],
+				"fast": [
+					"p2.png"
+				],
+				"succubus": [
+					"p3.png"
+				],
+				"cum": [
+					"p3.png"
+				],
+				"ass": [
+					"p1.mp4"
+				],
+				"boobs": [
+					"p2.png"
+				],
+				"video": [
+					"p1.mp4"
+				]
+			}
+		},
+		{
+			"options":
+			{
+				"ass": false,
+				"boobs": false,
+				"feet": false,
+				"excluded": [
+					"cum"
+				]
+			},
+			"media": [
+				{
+					"file": "p0.png",
+					"type": "image",
+					"tags": []
+				},
+				{
+					"file": "p1.mp4",
+					"type": "video",
+					"tags": [
+						"medium",
+						"ass"
+					]
+				},
+				{
+					"file": "p2.png",
+					"type": "image",
+					"tags": [
+						"FAST",
+						"boobs"
+					]
+				},
+				{
+					"file": "p3.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"cum",
+						"succubus",
+						"feet"
+					]
+				},
+				{
+					"file": "p4.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"slow"
+					]
+				},
+				{
+					"file": "p5.png",
+					"type": "image",
+					"tags": [
+						"unrelated",
+						"exclude"
+					]
+				}
+			],
+			"expected":
+			{
+				"slow": [
+					"p0.png",
+					"p4.png",
+					"p4.png"
+				],
+				"medium": [
+					"p1.mp4",
+					"p5.png"
+				],
+				"fast": [
+					"p2.png"
+				],
+				"succubus": [],
+				"cum": [],
+				"ass": [
+					"p1.mp4"
+				],
+				"boobs": [
+					"p2.png"
+				],
+				"video": [
+					"p1.mp4"
+				]
+			}
+		},
+		{
+			"options":
+			{
+				"ass": true,
+				"boobs": false,
+				"feet": false,
+				"excluded": []
+			},
+			"media": [
+				{
+					"file": "p0.png",
+					"type": "image",
+					"tags": []
+				},
+				{
+					"file": "p1.mp4",
+					"type": "video",
+					"tags": [
+						"medium",
+						"ass"
+					]
+				},
+				{
+					"file": "p2.png",
+					"type": "image",
+					"tags": [
+						"FAST",
+						"boobs"
+					]
+				},
+				{
+					"file": "p3.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"cum",
+						"succubus",
+						"feet"
+					]
+				},
+				{
+					"file": "p4.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"slow"
+					]
+				},
+				{
+					"file": "p5.png",
+					"type": "image",
+					"tags": [
+						"unrelated",
+						"exclude"
+					]
+				}
+			],
+			"expected":
+			{
+				"slow": [],
+				"medium": [
+					"p1.mp4"
+				],
+				"fast": [],
+				"succubus": [],
+				"cum": [],
+				"ass": [
+					"p1.mp4"
+				],
+				"boobs": [],
+				"video": [
+					"p1.mp4"
+				]
+			}
+		},
+		{
+			"options":
+			{
+				"ass": true,
+				"boobs": false,
+				"feet": false,
+				"excluded": [
+					"medium"
+				]
+			},
+			"media": [
+				{
+					"file": "p0.png",
+					"type": "image",
+					"tags": []
+				},
+				{
+					"file": "p1.mp4",
+					"type": "video",
+					"tags": [
+						"medium",
+						"ass"
+					]
+				},
+				{
+					"file": "p2.png",
+					"type": "image",
+					"tags": [
+						"FAST",
+						"boobs"
+					]
+				},
+				{
+					"file": "p3.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"cum",
+						"succubus",
+						"feet"
+					]
+				},
+				{
+					"file": "p4.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"slow"
+					]
+				},
+				{
+					"file": "p5.png",
+					"type": "image",
+					"tags": [
+						"unrelated",
+						"exclude"
+					]
+				}
+			],
+			"expected":
+			{
+				"slow": [],
+				"medium": [],
+				"fast": [],
+				"succubus": [],
+				"cum": [],
+				"ass": [],
+				"boobs": [],
+				"video": []
+			}
+		},
+		{
+			"options":
+			{
+				"ass": true,
+				"boobs": false,
+				"feet": false,
+				"excluded": [
+					"unrelated"
+				]
+			},
+			"media": [
+				{
+					"file": "p0.png",
+					"type": "image",
+					"tags": []
+				},
+				{
+					"file": "p1.mp4",
+					"type": "video",
+					"tags": [
+						"medium",
+						"ass"
+					]
+				},
+				{
+					"file": "p2.png",
+					"type": "image",
+					"tags": [
+						"FAST",
+						"boobs"
+					]
+				},
+				{
+					"file": "p3.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"cum",
+						"succubus",
+						"feet"
+					]
+				},
+				{
+					"file": "p4.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"slow"
+					]
+				},
+				{
+					"file": "p5.png",
+					"type": "image",
+					"tags": [
+						"unrelated",
+						"exclude"
+					]
+				}
+			],
+			"expected":
+			{
+				"slow": [],
+				"medium": [
+					"p1.mp4"
+				],
+				"fast": [],
+				"succubus": [],
+				"cum": [],
+				"ass": [
+					"p1.mp4"
+				],
+				"boobs": [],
+				"video": [
+					"p1.mp4"
+				]
+			}
+		},
+		{
+			"options":
+			{
+				"ass": true,
+				"boobs": false,
+				"feet": false,
+				"excluded": [
+					"cum"
+				]
+			},
+			"media": [
+				{
+					"file": "p0.png",
+					"type": "image",
+					"tags": []
+				},
+				{
+					"file": "p1.mp4",
+					"type": "video",
+					"tags": [
+						"medium",
+						"ass"
+					]
+				},
+				{
+					"file": "p2.png",
+					"type": "image",
+					"tags": [
+						"FAST",
+						"boobs"
+					]
+				},
+				{
+					"file": "p3.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"cum",
+						"succubus",
+						"feet"
+					]
+				},
+				{
+					"file": "p4.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"slow"
+					]
+				},
+				{
+					"file": "p5.png",
+					"type": "image",
+					"tags": [
+						"unrelated",
+						"exclude"
+					]
+				}
+			],
+			"expected":
+			{
+				"slow": [],
+				"medium": [
+					"p1.mp4"
+				],
+				"fast": [],
+				"succubus": [],
+				"cum": [],
+				"ass": [
+					"p1.mp4"
+				],
+				"boobs": [],
+				"video": [
+					"p1.mp4"
+				]
+			}
+		},
+		{
+			"options":
+			{
+				"ass": false,
+				"boobs": true,
+				"feet": false,
+				"excluded": []
+			},
+			"media": [
+				{
+					"file": "p0.png",
+					"type": "image",
+					"tags": []
+				},
+				{
+					"file": "p1.mp4",
+					"type": "video",
+					"tags": [
+						"medium",
+						"ass"
+					]
+				},
+				{
+					"file": "p2.png",
+					"type": "image",
+					"tags": [
+						"FAST",
+						"boobs"
+					]
+				},
+				{
+					"file": "p3.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"cum",
+						"succubus",
+						"feet"
+					]
+				},
+				{
+					"file": "p4.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"slow"
+					]
+				},
+				{
+					"file": "p5.png",
+					"type": "image",
+					"tags": [
+						"unrelated",
+						"exclude"
+					]
+				}
+			],
+			"expected":
+			{
+				"slow": [],
+				"medium": [],
+				"fast": [
+					"p2.png"
+				],
+				"succubus": [],
+				"cum": [],
+				"ass": [],
+				"boobs": [
+					"p2.png"
+				],
+				"video": []
+			}
+		},
+		{
+			"options":
+			{
+				"ass": false,
+				"boobs": true,
+				"feet": false,
+				"excluded": [
+					"medium"
+				]
+			},
+			"media": [
+				{
+					"file": "p0.png",
+					"type": "image",
+					"tags": []
+				},
+				{
+					"file": "p1.mp4",
+					"type": "video",
+					"tags": [
+						"medium",
+						"ass"
+					]
+				},
+				{
+					"file": "p2.png",
+					"type": "image",
+					"tags": [
+						"FAST",
+						"boobs"
+					]
+				},
+				{
+					"file": "p3.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"cum",
+						"succubus",
+						"feet"
+					]
+				},
+				{
+					"file": "p4.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"slow"
+					]
+				},
+				{
+					"file": "p5.png",
+					"type": "image",
+					"tags": [
+						"unrelated",
+						"exclude"
+					]
+				}
+			],
+			"expected":
+			{
+				"slow": [],
+				"medium": [],
+				"fast": [
+					"p2.png"
+				],
+				"succubus": [],
+				"cum": [],
+				"ass": [],
+				"boobs": [
+					"p2.png"
+				],
+				"video": []
+			}
+		},
+		{
+			"options":
+			{
+				"ass": false,
+				"boobs": true,
+				"feet": false,
+				"excluded": [
+					"unrelated"
+				]
+			},
+			"media": [
+				{
+					"file": "p0.png",
+					"type": "image",
+					"tags": []
+				},
+				{
+					"file": "p1.mp4",
+					"type": "video",
+					"tags": [
+						"medium",
+						"ass"
+					]
+				},
+				{
+					"file": "p2.png",
+					"type": "image",
+					"tags": [
+						"FAST",
+						"boobs"
+					]
+				},
+				{
+					"file": "p3.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"cum",
+						"succubus",
+						"feet"
+					]
+				},
+				{
+					"file": "p4.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"slow"
+					]
+				},
+				{
+					"file": "p5.png",
+					"type": "image",
+					"tags": [
+						"unrelated",
+						"exclude"
+					]
+				}
+			],
+			"expected":
+			{
+				"slow": [],
+				"medium": [],
+				"fast": [
+					"p2.png"
+				],
+				"succubus": [],
+				"cum": [],
+				"ass": [],
+				"boobs": [
+					"p2.png"
+				],
+				"video": []
+			}
+		},
+		{
+			"options":
+			{
+				"ass": false,
+				"boobs": true,
+				"feet": false,
+				"excluded": [
+					"cum"
+				]
+			},
+			"media": [
+				{
+					"file": "p0.png",
+					"type": "image",
+					"tags": []
+				},
+				{
+					"file": "p1.mp4",
+					"type": "video",
+					"tags": [
+						"medium",
+						"ass"
+					]
+				},
+				{
+					"file": "p2.png",
+					"type": "image",
+					"tags": [
+						"FAST",
+						"boobs"
+					]
+				},
+				{
+					"file": "p3.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"cum",
+						"succubus",
+						"feet"
+					]
+				},
+				{
+					"file": "p4.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"slow"
+					]
+				},
+				{
+					"file": "p5.png",
+					"type": "image",
+					"tags": [
+						"unrelated",
+						"exclude"
+					]
+				}
+			],
+			"expected":
+			{
+				"slow": [],
+				"medium": [],
+				"fast": [
+					"p2.png"
+				],
+				"succubus": [],
+				"cum": [],
+				"ass": [],
+				"boobs": [
+					"p2.png"
+				],
+				"video": []
+			}
+		},
+		{
+			"options":
+			{
+				"ass": true,
+				"boobs": true,
+				"feet": false,
+				"excluded": []
+			},
+			"media": [
+				{
+					"file": "p0.png",
+					"type": "image",
+					"tags": []
+				},
+				{
+					"file": "p1.mp4",
+					"type": "video",
+					"tags": [
+						"medium",
+						"ass"
+					]
+				},
+				{
+					"file": "p2.png",
+					"type": "image",
+					"tags": [
+						"FAST",
+						"boobs"
+					]
+				},
+				{
+					"file": "p3.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"cum",
+						"succubus",
+						"feet"
+					]
+				},
+				{
+					"file": "p4.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"slow"
+					]
+				},
+				{
+					"file": "p5.png",
+					"type": "image",
+					"tags": [
+						"unrelated",
+						"exclude"
+					]
+				}
+			],
+			"expected":
+			{
+				"slow": [],
+				"medium": [
+					"p1.mp4"
+				],
+				"fast": [
+					"p2.png"
+				],
+				"succubus": [],
+				"cum": [],
+				"ass": [
+					"p1.mp4"
+				],
+				"boobs": [
+					"p2.png"
+				],
+				"video": [
+					"p1.mp4"
+				]
+			}
+		},
+		{
+			"options":
+			{
+				"ass": true,
+				"boobs": true,
+				"feet": false,
+				"excluded": [
+					"medium"
+				]
+			},
+			"media": [
+				{
+					"file": "p0.png",
+					"type": "image",
+					"tags": []
+				},
+				{
+					"file": "p1.mp4",
+					"type": "video",
+					"tags": [
+						"medium",
+						"ass"
+					]
+				},
+				{
+					"file": "p2.png",
+					"type": "image",
+					"tags": [
+						"FAST",
+						"boobs"
+					]
+				},
+				{
+					"file": "p3.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"cum",
+						"succubus",
+						"feet"
+					]
+				},
+				{
+					"file": "p4.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"slow"
+					]
+				},
+				{
+					"file": "p5.png",
+					"type": "image",
+					"tags": [
+						"unrelated",
+						"exclude"
+					]
+				}
+			],
+			"expected":
+			{
+				"slow": [],
+				"medium": [],
+				"fast": [
+					"p2.png"
+				],
+				"succubus": [],
+				"cum": [],
+				"ass": [],
+				"boobs": [
+					"p2.png"
+				],
+				"video": []
+			}
+		},
+		{
+			"options":
+			{
+				"ass": true,
+				"boobs": true,
+				"feet": false,
+				"excluded": [
+					"unrelated"
+				]
+			},
+			"media": [
+				{
+					"file": "p0.png",
+					"type": "image",
+					"tags": []
+				},
+				{
+					"file": "p1.mp4",
+					"type": "video",
+					"tags": [
+						"medium",
+						"ass"
+					]
+				},
+				{
+					"file": "p2.png",
+					"type": "image",
+					"tags": [
+						"FAST",
+						"boobs"
+					]
+				},
+				{
+					"file": "p3.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"cum",
+						"succubus",
+						"feet"
+					]
+				},
+				{
+					"file": "p4.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"slow"
+					]
+				},
+				{
+					"file": "p5.png",
+					"type": "image",
+					"tags": [
+						"unrelated",
+						"exclude"
+					]
+				}
+			],
+			"expected":
+			{
+				"slow": [],
+				"medium": [
+					"p1.mp4"
+				],
+				"fast": [
+					"p2.png"
+				],
+				"succubus": [],
+				"cum": [],
+				"ass": [
+					"p1.mp4"
+				],
+				"boobs": [
+					"p2.png"
+				],
+				"video": [
+					"p1.mp4"
+				]
+			}
+		},
+		{
+			"options":
+			{
+				"ass": true,
+				"boobs": true,
+				"feet": false,
+				"excluded": [
+					"cum"
+				]
+			},
+			"media": [
+				{
+					"file": "p0.png",
+					"type": "image",
+					"tags": []
+				},
+				{
+					"file": "p1.mp4",
+					"type": "video",
+					"tags": [
+						"medium",
+						"ass"
+					]
+				},
+				{
+					"file": "p2.png",
+					"type": "image",
+					"tags": [
+						"FAST",
+						"boobs"
+					]
+				},
+				{
+					"file": "p3.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"cum",
+						"succubus",
+						"feet"
+					]
+				},
+				{
+					"file": "p4.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"slow"
+					]
+				},
+				{
+					"file": "p5.png",
+					"type": "image",
+					"tags": [
+						"unrelated",
+						"exclude"
+					]
+				}
+			],
+			"expected":
+			{
+				"slow": [],
+				"medium": [
+					"p1.mp4"
+				],
+				"fast": [
+					"p2.png"
+				],
+				"succubus": [],
+				"cum": [],
+				"ass": [
+					"p1.mp4"
+				],
+				"boobs": [
+					"p2.png"
+				],
+				"video": [
+					"p1.mp4"
+				]
+			}
+		},
+		{
+			"options":
+			{
+				"ass": false,
+				"boobs": false,
+				"feet": true,
+				"excluded": []
+			},
+			"media": [
+				{
+					"file": "p0.png",
+					"type": "image",
+					"tags": []
+				},
+				{
+					"file": "p1.mp4",
+					"type": "video",
+					"tags": [
+						"medium",
+						"ass"
+					]
+				},
+				{
+					"file": "p2.png",
+					"type": "image",
+					"tags": [
+						"FAST",
+						"boobs"
+					]
+				},
+				{
+					"file": "p3.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"cum",
+						"succubus",
+						"feet"
+					]
+				},
+				{
+					"file": "p4.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"slow"
+					]
+				},
+				{
+					"file": "p5.png",
+					"type": "image",
+					"tags": [
+						"unrelated",
+						"exclude"
+					]
+				}
+			],
+			"expected":
+			{
+				"slow": [
+					"p3.png"
+				],
+				"medium": [],
+				"fast": [],
+				"succubus": [
+					"p3.png"
+				],
+				"cum": [
+					"p3.png"
+				],
+				"ass": [],
+				"boobs": [],
+				"video": []
+			}
+		},
+		{
+			"options":
+			{
+				"ass": false,
+				"boobs": false,
+				"feet": true,
+				"excluded": [
+					"medium"
+				]
+			},
+			"media": [
+				{
+					"file": "p0.png",
+					"type": "image",
+					"tags": []
+				},
+				{
+					"file": "p1.mp4",
+					"type": "video",
+					"tags": [
+						"medium",
+						"ass"
+					]
+				},
+				{
+					"file": "p2.png",
+					"type": "image",
+					"tags": [
+						"FAST",
+						"boobs"
+					]
+				},
+				{
+					"file": "p3.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"cum",
+						"succubus",
+						"feet"
+					]
+				},
+				{
+					"file": "p4.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"slow"
+					]
+				},
+				{
+					"file": "p5.png",
+					"type": "image",
+					"tags": [
+						"unrelated",
+						"exclude"
+					]
+				}
+			],
+			"expected":
+			{
+				"slow": [
+					"p3.png"
+				],
+				"medium": [],
+				"fast": [],
+				"succubus": [
+					"p3.png"
+				],
+				"cum": [
+					"p3.png"
+				],
+				"ass": [],
+				"boobs": [],
+				"video": []
+			}
+		},
+		{
+			"options":
+			{
+				"ass": false,
+				"boobs": false,
+				"feet": true,
+				"excluded": [
+					"unrelated"
+				]
+			},
+			"media": [
+				{
+					"file": "p0.png",
+					"type": "image",
+					"tags": []
+				},
+				{
+					"file": "p1.mp4",
+					"type": "video",
+					"tags": [
+						"medium",
+						"ass"
+					]
+				},
+				{
+					"file": "p2.png",
+					"type": "image",
+					"tags": [
+						"FAST",
+						"boobs"
+					]
+				},
+				{
+					"file": "p3.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"cum",
+						"succubus",
+						"feet"
+					]
+				},
+				{
+					"file": "p4.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"slow"
+					]
+				},
+				{
+					"file": "p5.png",
+					"type": "image",
+					"tags": [
+						"unrelated",
+						"exclude"
+					]
+				}
+			],
+			"expected":
+			{
+				"slow": [
+					"p3.png"
+				],
+				"medium": [],
+				"fast": [],
+				"succubus": [
+					"p3.png"
+				],
+				"cum": [
+					"p3.png"
+				],
+				"ass": [],
+				"boobs": [],
+				"video": []
+			}
+		},
+		{
+			"options":
+			{
+				"ass": false,
+				"boobs": false,
+				"feet": true,
+				"excluded": [
+					"cum"
+				]
+			},
+			"media": [
+				{
+					"file": "p0.png",
+					"type": "image",
+					"tags": []
+				},
+				{
+					"file": "p1.mp4",
+					"type": "video",
+					"tags": [
+						"medium",
+						"ass"
+					]
+				},
+				{
+					"file": "p2.png",
+					"type": "image",
+					"tags": [
+						"FAST",
+						"boobs"
+					]
+				},
+				{
+					"file": "p3.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"cum",
+						"succubus",
+						"feet"
+					]
+				},
+				{
+					"file": "p4.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"slow"
+					]
+				},
+				{
+					"file": "p5.png",
+					"type": "image",
+					"tags": [
+						"unrelated",
+						"exclude"
+					]
+				}
+			],
+			"expected":
+			{
+				"slow": [],
+				"medium": [],
+				"fast": [],
+				"succubus": [],
+				"cum": [],
+				"ass": [],
+				"boobs": [],
+				"video": []
+			}
+		},
+		{
+			"options":
+			{
+				"ass": true,
+				"boobs": false,
+				"feet": true,
+				"excluded": []
+			},
+			"media": [
+				{
+					"file": "p0.png",
+					"type": "image",
+					"tags": []
+				},
+				{
+					"file": "p1.mp4",
+					"type": "video",
+					"tags": [
+						"medium",
+						"ass"
+					]
+				},
+				{
+					"file": "p2.png",
+					"type": "image",
+					"tags": [
+						"FAST",
+						"boobs"
+					]
+				},
+				{
+					"file": "p3.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"cum",
+						"succubus",
+						"feet"
+					]
+				},
+				{
+					"file": "p4.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"slow"
+					]
+				},
+				{
+					"file": "p5.png",
+					"type": "image",
+					"tags": [
+						"unrelated",
+						"exclude"
+					]
+				}
+			],
+			"expected":
+			{
+				"slow": [
+					"p3.png"
+				],
+				"medium": [
+					"p1.mp4"
+				],
+				"fast": [],
+				"succubus": [
+					"p3.png"
+				],
+				"cum": [
+					"p3.png"
+				],
+				"ass": [
+					"p1.mp4"
+				],
+				"boobs": [],
+				"video": [
+					"p1.mp4"
+				]
+			}
+		},
+		{
+			"options":
+			{
+				"ass": true,
+				"boobs": false,
+				"feet": true,
+				"excluded": [
+					"medium"
+				]
+			},
+			"media": [
+				{
+					"file": "p0.png",
+					"type": "image",
+					"tags": []
+				},
+				{
+					"file": "p1.mp4",
+					"type": "video",
+					"tags": [
+						"medium",
+						"ass"
+					]
+				},
+				{
+					"file": "p2.png",
+					"type": "image",
+					"tags": [
+						"FAST",
+						"boobs"
+					]
+				},
+				{
+					"file": "p3.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"cum",
+						"succubus",
+						"feet"
+					]
+				},
+				{
+					"file": "p4.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"slow"
+					]
+				},
+				{
+					"file": "p5.png",
+					"type": "image",
+					"tags": [
+						"unrelated",
+						"exclude"
+					]
+				}
+			],
+			"expected":
+			{
+				"slow": [
+					"p3.png"
+				],
+				"medium": [],
+				"fast": [],
+				"succubus": [
+					"p3.png"
+				],
+				"cum": [
+					"p3.png"
+				],
+				"ass": [],
+				"boobs": [],
+				"video": []
+			}
+		},
+		{
+			"options":
+			{
+				"ass": true,
+				"boobs": false,
+				"feet": true,
+				"excluded": [
+					"unrelated"
+				]
+			},
+			"media": [
+				{
+					"file": "p0.png",
+					"type": "image",
+					"tags": []
+				},
+				{
+					"file": "p1.mp4",
+					"type": "video",
+					"tags": [
+						"medium",
+						"ass"
+					]
+				},
+				{
+					"file": "p2.png",
+					"type": "image",
+					"tags": [
+						"FAST",
+						"boobs"
+					]
+				},
+				{
+					"file": "p3.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"cum",
+						"succubus",
+						"feet"
+					]
+				},
+				{
+					"file": "p4.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"slow"
+					]
+				},
+				{
+					"file": "p5.png",
+					"type": "image",
+					"tags": [
+						"unrelated",
+						"exclude"
+					]
+				}
+			],
+			"expected":
+			{
+				"slow": [
+					"p3.png"
+				],
+				"medium": [
+					"p1.mp4"
+				],
+				"fast": [],
+				"succubus": [
+					"p3.png"
+				],
+				"cum": [
+					"p3.png"
+				],
+				"ass": [
+					"p1.mp4"
+				],
+				"boobs": [],
+				"video": [
+					"p1.mp4"
+				]
+			}
+		},
+		{
+			"options":
+			{
+				"ass": true,
+				"boobs": false,
+				"feet": true,
+				"excluded": [
+					"cum"
+				]
+			},
+			"media": [
+				{
+					"file": "p0.png",
+					"type": "image",
+					"tags": []
+				},
+				{
+					"file": "p1.mp4",
+					"type": "video",
+					"tags": [
+						"medium",
+						"ass"
+					]
+				},
+				{
+					"file": "p2.png",
+					"type": "image",
+					"tags": [
+						"FAST",
+						"boobs"
+					]
+				},
+				{
+					"file": "p3.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"cum",
+						"succubus",
+						"feet"
+					]
+				},
+				{
+					"file": "p4.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"slow"
+					]
+				},
+				{
+					"file": "p5.png",
+					"type": "image",
+					"tags": [
+						"unrelated",
+						"exclude"
+					]
+				}
+			],
+			"expected":
+			{
+				"slow": [],
+				"medium": [
+					"p1.mp4"
+				],
+				"fast": [],
+				"succubus": [],
+				"cum": [],
+				"ass": [
+					"p1.mp4"
+				],
+				"boobs": [],
+				"video": [
+					"p1.mp4"
+				]
+			}
+		},
+		{
+			"options":
+			{
+				"ass": false,
+				"boobs": true,
+				"feet": true,
+				"excluded": []
+			},
+			"media": [
+				{
+					"file": "p0.png",
+					"type": "image",
+					"tags": []
+				},
+				{
+					"file": "p1.mp4",
+					"type": "video",
+					"tags": [
+						"medium",
+						"ass"
+					]
+				},
+				{
+					"file": "p2.png",
+					"type": "image",
+					"tags": [
+						"FAST",
+						"boobs"
+					]
+				},
+				{
+					"file": "p3.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"cum",
+						"succubus",
+						"feet"
+					]
+				},
+				{
+					"file": "p4.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"slow"
+					]
+				},
+				{
+					"file": "p5.png",
+					"type": "image",
+					"tags": [
+						"unrelated",
+						"exclude"
+					]
+				}
+			],
+			"expected":
+			{
+				"slow": [
+					"p3.png"
+				],
+				"medium": [],
+				"fast": [
+					"p2.png"
+				],
+				"succubus": [
+					"p3.png"
+				],
+				"cum": [
+					"p3.png"
+				],
+				"ass": [],
+				"boobs": [
+					"p2.png"
+				],
+				"video": []
+			}
+		},
+		{
+			"options":
+			{
+				"ass": false,
+				"boobs": true,
+				"feet": true,
+				"excluded": [
+					"medium"
+				]
+			},
+			"media": [
+				{
+					"file": "p0.png",
+					"type": "image",
+					"tags": []
+				},
+				{
+					"file": "p1.mp4",
+					"type": "video",
+					"tags": [
+						"medium",
+						"ass"
+					]
+				},
+				{
+					"file": "p2.png",
+					"type": "image",
+					"tags": [
+						"FAST",
+						"boobs"
+					]
+				},
+				{
+					"file": "p3.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"cum",
+						"succubus",
+						"feet"
+					]
+				},
+				{
+					"file": "p4.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"slow"
+					]
+				},
+				{
+					"file": "p5.png",
+					"type": "image",
+					"tags": [
+						"unrelated",
+						"exclude"
+					]
+				}
+			],
+			"expected":
+			{
+				"slow": [
+					"p3.png"
+				],
+				"medium": [],
+				"fast": [
+					"p2.png"
+				],
+				"succubus": [
+					"p3.png"
+				],
+				"cum": [
+					"p3.png"
+				],
+				"ass": [],
+				"boobs": [
+					"p2.png"
+				],
+				"video": []
+			}
+		},
+		{
+			"options":
+			{
+				"ass": false,
+				"boobs": true,
+				"feet": true,
+				"excluded": [
+					"unrelated"
+				]
+			},
+			"media": [
+				{
+					"file": "p0.png",
+					"type": "image",
+					"tags": []
+				},
+				{
+					"file": "p1.mp4",
+					"type": "video",
+					"tags": [
+						"medium",
+						"ass"
+					]
+				},
+				{
+					"file": "p2.png",
+					"type": "image",
+					"tags": [
+						"FAST",
+						"boobs"
+					]
+				},
+				{
+					"file": "p3.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"cum",
+						"succubus",
+						"feet"
+					]
+				},
+				{
+					"file": "p4.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"slow"
+					]
+				},
+				{
+					"file": "p5.png",
+					"type": "image",
+					"tags": [
+						"unrelated",
+						"exclude"
+					]
+				}
+			],
+			"expected":
+			{
+				"slow": [
+					"p3.png"
+				],
+				"medium": [],
+				"fast": [
+					"p2.png"
+				],
+				"succubus": [
+					"p3.png"
+				],
+				"cum": [
+					"p3.png"
+				],
+				"ass": [],
+				"boobs": [
+					"p2.png"
+				],
+				"video": []
+			}
+		},
+		{
+			"options":
+			{
+				"ass": false,
+				"boobs": true,
+				"feet": true,
+				"excluded": [
+					"cum"
+				]
+			},
+			"media": [
+				{
+					"file": "p0.png",
+					"type": "image",
+					"tags": []
+				},
+				{
+					"file": "p1.mp4",
+					"type": "video",
+					"tags": [
+						"medium",
+						"ass"
+					]
+				},
+				{
+					"file": "p2.png",
+					"type": "image",
+					"tags": [
+						"FAST",
+						"boobs"
+					]
+				},
+				{
+					"file": "p3.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"cum",
+						"succubus",
+						"feet"
+					]
+				},
+				{
+					"file": "p4.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"slow"
+					]
+				},
+				{
+					"file": "p5.png",
+					"type": "image",
+					"tags": [
+						"unrelated",
+						"exclude"
+					]
+				}
+			],
+			"expected":
+			{
+				"slow": [],
+				"medium": [],
+				"fast": [
+					"p2.png"
+				],
+				"succubus": [],
+				"cum": [],
+				"ass": [],
+				"boobs": [
+					"p2.png"
+				],
+				"video": []
+			}
+		},
+		{
+			"options":
+			{
+				"ass": true,
+				"boobs": true,
+				"feet": true,
+				"excluded": []
+			},
+			"media": [
+				{
+					"file": "p0.png",
+					"type": "image",
+					"tags": []
+				},
+				{
+					"file": "p1.mp4",
+					"type": "video",
+					"tags": [
+						"medium",
+						"ass"
+					]
+				},
+				{
+					"file": "p2.png",
+					"type": "image",
+					"tags": [
+						"FAST",
+						"boobs"
+					]
+				},
+				{
+					"file": "p3.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"cum",
+						"succubus",
+						"feet"
+					]
+				},
+				{
+					"file": "p4.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"slow"
+					]
+				},
+				{
+					"file": "p5.png",
+					"type": "image",
+					"tags": [
+						"unrelated",
+						"exclude"
+					]
+				}
+			],
+			"expected":
+			{
+				"slow": [
+					"p3.png"
+				],
+				"medium": [
+					"p1.mp4"
+				],
+				"fast": [
+					"p2.png"
+				],
+				"succubus": [
+					"p3.png"
+				],
+				"cum": [
+					"p3.png"
+				],
+				"ass": [
+					"p1.mp4"
+				],
+				"boobs": [
+					"p2.png"
+				],
+				"video": [
+					"p1.mp4"
+				]
+			}
+		},
+		{
+			"options":
+			{
+				"ass": true,
+				"boobs": true,
+				"feet": true,
+				"excluded": [
+					"medium"
+				]
+			},
+			"media": [
+				{
+					"file": "p0.png",
+					"type": "image",
+					"tags": []
+				},
+				{
+					"file": "p1.mp4",
+					"type": "video",
+					"tags": [
+						"medium",
+						"ass"
+					]
+				},
+				{
+					"file": "p2.png",
+					"type": "image",
+					"tags": [
+						"FAST",
+						"boobs"
+					]
+				},
+				{
+					"file": "p3.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"cum",
+						"succubus",
+						"feet"
+					]
+				},
+				{
+					"file": "p4.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"slow"
+					]
+				},
+				{
+					"file": "p5.png",
+					"type": "image",
+					"tags": [
+						"unrelated",
+						"exclude"
+					]
+				}
+			],
+			"expected":
+			{
+				"slow": [
+					"p3.png"
+				],
+				"medium": [],
+				"fast": [
+					"p2.png"
+				],
+				"succubus": [
+					"p3.png"
+				],
+				"cum": [
+					"p3.png"
+				],
+				"ass": [],
+				"boobs": [
+					"p2.png"
+				],
+				"video": []
+			}
+		},
+		{
+			"options":
+			{
+				"ass": true,
+				"boobs": true,
+				"feet": true,
+				"excluded": [
+					"unrelated"
+				]
+			},
+			"media": [
+				{
+					"file": "p0.png",
+					"type": "image",
+					"tags": []
+				},
+				{
+					"file": "p1.mp4",
+					"type": "video",
+					"tags": [
+						"medium",
+						"ass"
+					]
+				},
+				{
+					"file": "p2.png",
+					"type": "image",
+					"tags": [
+						"FAST",
+						"boobs"
+					]
+				},
+				{
+					"file": "p3.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"cum",
+						"succubus",
+						"feet"
+					]
+				},
+				{
+					"file": "p4.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"slow"
+					]
+				},
+				{
+					"file": "p5.png",
+					"type": "image",
+					"tags": [
+						"unrelated",
+						"exclude"
+					]
+				}
+			],
+			"expected":
+			{
+				"slow": [
+					"p3.png"
+				],
+				"medium": [
+					"p1.mp4"
+				],
+				"fast": [
+					"p2.png"
+				],
+				"succubus": [
+					"p3.png"
+				],
+				"cum": [
+					"p3.png"
+				],
+				"ass": [
+					"p1.mp4"
+				],
+				"boobs": [
+					"p2.png"
+				],
+				"video": [
+					"p1.mp4"
+				]
+			}
+		},
+		{
+			"options":
+			{
+				"ass": true,
+				"boobs": true,
+				"feet": true,
+				"excluded": [
+					"cum"
+				]
+			},
+			"media": [
+				{
+					"file": "p0.png",
+					"type": "image",
+					"tags": []
+				},
+				{
+					"file": "p1.mp4",
+					"type": "video",
+					"tags": [
+						"medium",
+						"ass"
+					]
+				},
+				{
+					"file": "p2.png",
+					"type": "image",
+					"tags": [
+						"FAST",
+						"boobs"
+					]
+				},
+				{
+					"file": "p3.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"cum",
+						"succubus",
+						"feet"
+					]
+				},
+				{
+					"file": "p4.png",
+					"type": "image",
+					"tags": [
+						"slow",
+						"slow"
+					]
+				},
+				{
+					"file": "p5.png",
+					"type": "image",
+					"tags": [
+						"unrelated",
+						"exclude"
+					]
+				}
+			],
+			"expected":
+			{
+				"slow": [],
+				"medium": [
+					"p1.mp4"
+				],
+				"fast": [
+					"p2.png"
+				],
+				"succubus": [],
+				"cum": [],
+				"ass": [
+					"p1.mp4"
+				],
+				"boobs": [
+					"p2.png"
+				],
+				"video": [
+					"p1.mp4"
+				]
+			}
+		}
+	],
+	"DT_LevelData": [
+		{
+			"Name": "NewRow",
+			"Level": 1,
+			"XPRequired": 100,
+			"UnlockPointsReward": 5,
+			"ContentUnlocks": [],
+			"TitleUnlock": "NSLOCTEXT(\"DT_LevelData [FA76C2D55385A6A79132DA0F30CDD41C]\", \"NewRow_TitleUnlock\", \"First Time Tugger\")",
+			"LevelIcon": "/Game/UI/PostGameFlow/LevelIcons/Level_1_-First_Time_Tugger.Level_1_-First_Time_Tugger"
+		},
+		{
+			"Name": "NewRow_0",
+			"Level": 2,
+			"XPRequired": 120,
+			"UnlockPointsReward": 5,
+			"ContentUnlocks": [],
+			"TitleUnlock": "NSLOCTEXT(\"DT_LevelData [FA76C2D55385A6A79132DA0F30CDD41C]\", \"NewRow_0_TitleUnlock\", \"Stroke Scout\")",
+			"LevelIcon": "/Game/UI/PostGameFlow/LevelIcons/Level_2_-_Stroke_Scout.Level_2_-_Stroke_Scout"
+		},
+		{
+			"Name": "NewRow_1",
+			"Level": 3,
+			"XPRequired": 145,
+			"UnlockPointsReward": 6,
+			"ContentUnlocks": [],
+			"TitleUnlock": "NSLOCTEXT(\"DT_LevelData [FA76C2D55385A6A79132DA0F30CDD41C]\", \"NewRow_1_TitleUnlock\", \"Sophomore Slapper\")",
+			"LevelIcon": "/Game/UI/PostGameFlow/LevelIcons/Level_3_-_Sophomore_Slapper.Level_3_-_Sophomore_Slapper"
+		},
+		{
+			"Name": "NewRow_2",
+			"Level": 4,
+			"XPRequired": 175,
+			"UnlockPointsReward": 7,
+			"ContentUnlocks": [],
+			"TitleUnlock": "NSLOCTEXT(\"DT_LevelData [FA76C2D55385A6A79132DA0F30CDD41C]\", \"NewRow_2_TitleUnlock\", \"Shaft Shaman\")",
+			"LevelIcon": "/Game/UI/PostGameFlow/LevelIcons/Level_4_-_Shaft_Shaman.Level_4_-_Shaft_Shaman"
+		},
+		{
+			"Name": "NewRow_3",
+			"Level": 5,
+			"XPRequired": 210,
+			"UnlockPointsReward": 8,
+			"ContentUnlocks": [],
+			"TitleUnlock": "NSLOCTEXT(\"DT_LevelData [FA76C2D55385A6A79132DA0F30CDD41C]\", \"NewRow_3_TitleUnlock\", \"Meat Maestro\")",
+			"LevelIcon": "/Game/UI/PostGameFlow/LevelIcons/Level_5_-_Meat_Maestro.Level_5_-_Meat_Maestro"
+		},
+		{
+			"Name": "NewRow_4",
+			"Level": 6,
+			"XPRequired": 250,
+			"UnlockPointsReward": 8,
+			"ContentUnlocks": [],
+			"TitleUnlock": "NSLOCTEXT(\"DT_LevelData [FA76C2D55385A6A79132DA0F30CDD41C]\", \"NewRow_4_TitleUnlock\", \"Meat Beater\")",
+			"LevelIcon": "/Game/UI/PostGameFlow/LevelIcons/Level_6_-_Meat_Beater.Level_6_-_Meat_Beater"
+		},
+		{
+			"Name": "NewRow_5",
+			"Level": 7,
+			"XPRequired": 300,
+			"UnlockPointsReward": 9,
+			"ContentUnlocks": [],
+			"TitleUnlock": "NSLOCTEXT(\"DT_LevelData [FA76C2D55385A6A79132DA0F30CDD41C]\", \"NewRow_5_TitleUnlock\", \"Deathgripper\")",
+			"LevelIcon": "/Game/UI/PostGameFlow/LevelIcons/Level_7_-_Deathgripper.Level_7_-_Deathgripper"
+		},
+		{
+			"Name": "NewRow_6",
+			"Level": 8,
+			"XPRequired": 360,
+			"UnlockPointsReward": 10,
+			"ContentUnlocks": [],
+			"TitleUnlock": "NSLOCTEXT(\"DT_LevelData [FA76C2D55385A6A79132DA0F30CDD41C]\", \"NewRow_6_TitleUnlock\", \"Edge Cadet\")",
+			"LevelIcon": "/Game/UI/PostGameFlow/LevelIcons/Level_8_-_Edge_Cadet.Level_8_-_Edge_Cadet"
+		},
+		{
+			"Name": "NewRow_7",
+			"Level": 9,
+			"XPRequired": 430,
+			"UnlockPointsReward": 10,
+			"ContentUnlocks": [],
+			"TitleUnlock": "NSLOCTEXT(\"DT_LevelData [FA76C2D55385A6A79132DA0F30CDD41C]\", \"NewRow_7_TitleUnlock\", \"Hand Solo\")",
+			"LevelIcon": "/Game/UI/PostGameFlow/LevelIcons/Level_9_-_Hand_Solo.Level_9_-_Hand_Solo"
+		},
+		{
+			"Name": "NewRow_8",
+			"Level": 10,
+			"XPRequired": 515,
+			"UnlockPointsReward": 12,
+			"ContentUnlocks": [],
+			"TitleUnlock": "NSLOCTEXT(\"DT_LevelData [FA76C2D55385A6A79132DA0F30CDD41C]\", \"NewRow_8_TitleUnlock\", \"Stroke Sergeant\")",
+			"LevelIcon": "/Game/UI/PostGameFlow/LevelIcons/Level_10_-_Stroke_Sergeant.Level_10_-_Stroke_Sergeant"
+		},
+		{
+			"Name": "NewRow_9",
+			"Level": 11,
+			"XPRequired": 620,
+			"UnlockPointsReward": 12,
+			"ContentUnlocks": [],
+			"TitleUnlock": "NSLOCTEXT(\"DT_LevelData [FA76C2D55385A6A79132DA0F30CDD41C]\", \"NewRow_9_TitleUnlock\", \"Edgeineer\")",
+			"LevelIcon": "/Game/UI/PostGameFlow/LevelIcons/Level_11_-_Edgineer.Level_11_-_Edgineer"
+		},
+		{
+			"Name": "NewRow_10",
+			"Level": 12,
+			"XPRequired": 750,
+			"UnlockPointsReward": 12,
+			"ContentUnlocks": [],
+			"TitleUnlock": "NSLOCTEXT(\"DT_LevelData [FA76C2D55385A6A79132DA0F30CDD41C]\", \"NewRow_10_TitleUnlock\", \"Beat Boss\")",
+			"LevelIcon": "/Game/UI/PostGameFlow/LevelIcons/Level_12_-_Beat_Boss.Level_12_-_Beat_Boss"
+		},
+		{
+			"Name": "NewRow_11",
+			"Level": 13,
+			"XPRequired": 910,
+			"UnlockPointsReward": 13,
+			"ContentUnlocks": [],
+			"TitleUnlock": "NSLOCTEXT(\"DT_LevelData [FA76C2D55385A6A79132DA0F30CDD41C]\", \"NewRow_11_TitleUnlock\", \"Vagina Villain\")",
+			"LevelIcon": "/Game/UI/PostGameFlow/LevelIcons/Level_13_-_Vagina_Villain.Level_13_-_Vagina_Villain"
+		},
+		{
+			"Name": "NewRow_12",
+			"Level": 14,
+			"XPRequired": 1100,
+			"UnlockPointsReward": 13,
+			"ContentUnlocks": [],
+			"TitleUnlock": "NSLOCTEXT(\"DT_LevelData [FA76C2D55385A6A79132DA0F30CDD41C]\", \"NewRow_12_TitleUnlock\", \"Stroke Shogun\")",
+			"LevelIcon": "/Game/UI/PostGameFlow/LevelIcons/Level_14_-_Stroke_Shogun.Level_14_-_Stroke_Shogun"
+		},
+		{
+			"Name": "NewRow_13",
+			"Level": 15,
+			"XPRequired": 1330,
+			"UnlockPointsReward": 14,
+			"ContentUnlocks": [],
+			"TitleUnlock": "NSLOCTEXT(\"DT_LevelData [FA76C2D55385A6A79132DA0F30CDD41C]\", \"NewRow_13_TitleUnlock\", \"Master Balls\")",
+			"LevelIcon": "/Game/UI/PostGameFlow/LevelIcons/Level_15_-_Master_Balls.Level_15_-_Master_Balls"
+		},
+		{
+			"Name": "NewRow_14",
+			"Level": 16,
+			"XPRequired": 1600,
+			"UnlockPointsReward": 14,
+			"ContentUnlocks": [],
+			"TitleUnlock": "NSLOCTEXT(\"DT_LevelData [FA76C2D55385A6A79132DA0F30CDD41C]\", \"NewRow_14_TitleUnlock\", \"Edge Lord\")",
+			"LevelIcon": "/Game/UI/PostGameFlow/LevelIcons/Level_16_-_Edge_Lord.Level_16_-_Edge_Lord"
+		},
+		{
+			"Name": "NewRow_15",
+			"Level": 17,
+			"XPRequired": 1920,
+			"UnlockPointsReward": 14,
+			"ContentUnlocks": [],
+			"TitleUnlock": "NSLOCTEXT(\"DT_LevelData [FA76C2D55385A6A79132DA0F30CDD41C]\", \"NewRow_15_TitleUnlock\", \"General Goon\")",
+			"LevelIcon": "/Game/UI/PostGameFlow/LevelIcons/Level_17_-_Goon_General.Level_17_-_Goon_General"
+		},
+		{
+			"Name": "NewRow_16",
+			"Level": 18,
+			"XPRequired": 2300,
+			"UnlockPointsReward": 15,
+			"ContentUnlocks": [],
+			"TitleUnlock": "NSLOCTEXT(\"DT_LevelData [FA76C2D55385A6A79132DA0F30CDD41C]\", \"NewRow_16_TitleUnlock\", \"Commander Cum\")",
+			"LevelIcon": "/Game/UI/PostGameFlow/LevelIcons/Level_18_-_Commander_Cum.Level_18_-_Commander_Cum"
+		},
+		{
+			"Name": "NewRow_17",
+			"Level": 19,
+			"XPRequired": 2750,
+			"UnlockPointsReward": 15,
+			"ContentUnlocks": [],
+			"TitleUnlock": "NSLOCTEXT(\"DT_LevelData [FA76C2D55385A6A79132DA0F30CDD41C]\", \"NewRow_17_TitleUnlock\", \"Cock Hero\")",
+			"LevelIcon": "/Game/UI/PostGameFlow/LevelIcons/Level_19_-_Cock_Hero.Level_19_-_Cock_Hero"
+		},
+		{
+			"Name": "NewRow_18",
+			"Level": 20,
+			"XPRequired": 3300,
+			"UnlockPointsReward": 16,
+			"ContentUnlocks": [],
+			"TitleUnlock": "NSLOCTEXT(\"DT_LevelData [FA76C2D55385A6A79132DA0F30CDD41C]\", \"NewRow_18_TitleUnlock\", \"Cock Legend\")",
+			"LevelIcon": "/Game/UI/PostGameFlow/LevelIcons/Level_20_-_Cock_Legend.Level_20_-_Cock_Legend"
+		}
+	],
+	"DT_HeatCategories": [
+		{
+			"Name": "HighHeat",
+			"MinStrokeCount": 20,
+			"MaxStrokeCount": 30,
+			"MinIntervalSeconds": 0.20000000000000001,
+			"MaxIntervalSeconds": 0.34999999999999998
+		},
+		{
+			"Name": "MediumHeat",
+			"MinStrokeCount": 10,
+			"MaxStrokeCount": 16,
+			"MinIntervalSeconds": 0.45000000000000001,
+			"MaxIntervalSeconds": 0.69999999999999996
+		},
+		{
+			"Name": "SlowHeat",
+			"MinStrokeCount": 8,
+			"MaxStrokeCount": 12,
+			"MinIntervalSeconds": 0.80000000000000004,
+			"MaxIntervalSeconds": 1.2
+		},
+		{
+			"Name": "Succubus",
+			"MinStrokeCount": 25,
+			"MaxStrokeCount": 50,
+			"MinIntervalSeconds": 0.20000000000000001,
+			"MaxIntervalSeconds": 0.29999999999999999
+		}
+	],
+	"DT_Modifiers": [
+		{
+			"Name": "NewRow",
+			"ModifierTitle": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_ModifierTitle\", \"Pheromones\")",
+			"ModifierDescription": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_ModifierDescription\", \"Increases Succubi Spawn Rates by 100%\")",
+			"ModifierIcon": "/Script/Engine.Texture2D'/Game/Recovery/Newer20261017/Resources/UI/ModifierIcons/Pheromones.Pheromones'"
+		},
+		{
+			"Name": "NewRow_0",
+			"ModifierTitle": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_0_ModifierTitle\", \"Mr. Money Bandz\")",
+			"ModifierDescription": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_0_ModifierDescription\", \"2x loot bar gain but -50% objective gain.\")",
+			"ModifierIcon": "/Script/Engine.Texture2D'/Game/Recovery/Newer20261017/Resources/UI/ModifierIcons/Mr_Money_Bandz.Mr_Money_Bandz'"
+		},
+		{
+			"Name": "NewRow_1",
+			"ModifierTitle": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_1_ModifierTitle\", \"Ass Fanatic\")",
+			"ModifierDescription": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_1_ModifierDescription\", \"Only Ass Media Shows.\")",
+			"ModifierIcon": "/Script/Engine.Texture2D'/Game/Recovery/Newer20261017/Resources/UI/ModifierIcons/Ass_Fanatic.Ass_Fanatic'"
+		},
+		{
+			"Name": "NewRow_2",
+			"ModifierTitle": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_2_ModifierTitle\", \"Boobs Fanatic\")",
+			"ModifierDescription": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_2_ModifierDescription\", \"Only Boobs Media Shows.\")",
+			"ModifierIcon": "/Script/Engine.Texture2D'/Game/Recovery/Newer20261017/Resources/UI/ModifierIcons/Boobs_Fanatic.Boobs_Fanatic'"
+		},
+		{
+			"Name": "NewRow_3",
+			"ModifierTitle": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_3_ModifierTitle\", \"Hungry Succubi\")",
+			"ModifierDescription": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_3_ModifierDescription\", \"Succubi drain your objective meter.\")",
+			"ModifierIcon": "/Script/Engine.Texture2D'/Game/Recovery/Newer20261017/Resources/UI/ModifierIcons/Hungry_Succubus.Hungry_Succubus'"
+		},
+		{
+			"Name": "NewRow_4",
+			"ModifierTitle": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_4_ModifierTitle\", \"Succufrenzy\")",
+			"ModifierDescription": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_4_ModifierDescription\", \"Nothing but succubi spawns, UP rewards are doubled.\")",
+			"ModifierIcon": "/Script/Engine.Texture2D'/Game/Recovery/Newer20261017/Resources/UI/ModifierIcons/SuccuFrenzy.SuccuFrenzy'"
+		},
+		{
+			"Name": "NewRow_5",
+			"ModifierTitle": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_5_ModifierTitle\", \"Slow and Steady\")",
+			"ModifierDescription": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_5_ModifierDescription\", \"Nothing but Slow & Medium Tasks\")",
+			"ModifierIcon": "/Script/Engine.Texture2D'/Game/Recovery/Newer20261017/Resources/UI/ModifierIcons/Slow_and_Steady.Slow_and_Steady'"
+		},
+		{
+			"Name": "NewRow_6",
+			"ModifierTitle": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_6_ModifierTitle\", \"Sacrificial\")",
+			"ModifierDescription": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_6_ModifierDescription\", \"Objective Only Increases when Edging.\")",
+			"ModifierIcon": "/Script/Engine.Texture2D'/Game/Recovery/Newer20261017/Resources/UI/ModifierIcons/Sacrificial_Icon.Sacrificial_Icon'"
+		},
+		{
+			"Name": "NewRow_7",
+			"ModifierTitle": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_7_ModifierTitle\", \"Feet Fanatic\")",
+			"ModifierDescription": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_7_ModifierDescription\", \"Only feet content shows.\")",
+			"ModifierIcon": "/Script/Engine.Texture2D'/Game/Recovery/Newer20261017/Resources/UI/ModifierIcons/Feet_Fanatic.Feet_Fanatic'"
+		},
+		{
+			"Name": "NewRow_8",
+			"ModifierTitle": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_8_ModifierTitle\", \"Iron Man\")",
+			"ModifierDescription": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_8_ModifierDescription\", \"Losing the session locks all of your store content & resets UP to 0. \")",
+			"ModifierIcon": "/Script/Engine.Texture2D'/Game/Recovery/Newer20261017/Resources/UI/ModifierIcons/Iron_Man_Icon.Iron_Man_Icon'"
+		},
+		{
+			"Name": "NewRow_9",
+			"ModifierTitle": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_9_ModifierTitle\", \"Raw Dog\")",
+			"ModifierDescription": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_9_ModifierDescription\", \"Disables all items but earned UP is increased by x2.\")",
+			"ModifierIcon": "/Script/Engine.Texture2D'/Game/Recovery/Newer20261017/Resources/UI/ModifierIcons/Raw_Dog_Icon.Raw_Dog_Icon'"
+		},
+		{
+			"Name": "NewRow_10",
+			"ModifierTitle": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_10_ModifierTitle\", \"Demon Proof\")",
+			"ModifierDescription": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_10_ModifierDescription\", \"No Succubi Spawns.\")",
+			"ModifierIcon": "/Script/Engine.Texture2D'/Game/Recovery/Newer20261017/Resources/UI/ModifierIcons/Demon_Proof_Icon.Demon_Proof_Icon'"
+		},
+		{
+			"Name": "NewRow_11",
+			"ModifierTitle": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_11_ModifierTitle\", \"All or Nothing\")",
+			"ModifierDescription": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_11_ModifierDescription\", \"Using a defensive item resets your coins & objective to 0%.\")",
+			"ModifierIcon": "/Script/Engine.Texture2D'/Game/Recovery/Newer20261017/Resources/UI/ModifierIcons/All_or_Nothing_Icon.All_or_Nothing_Icon'"
+		},
+		{
+			"Name": "NewRow_13",
+			"ModifierTitle": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_13_ModifierTitle\", \"Hivemind\")",
+			"ModifierDescription": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_13_ModifierDescription\", \"Each Succubus you beat makes the next require more strokes.\")",
+			"ModifierIcon": "/Script/Engine.Texture2D'/Game/Recovery/Newer20261017/Resources/UI/ModifierIcons/Hivemind_Icon.Hivemind_Icon'"
+		},
+		{
+			"Name": "NewRow_14",
+			"ModifierTitle": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_14_ModifierTitle\", \"Deal With The Devil\")",
+			"ModifierDescription": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_14_ModifierDescription\", \"Objective only increases during Succubus Encounters. \")",
+			"ModifierIcon": "/Script/Engine.Texture2D'/Game/Recovery/Newer20261017/Resources/UI/ModifierIcons/Deal_With_The_Devil_Icon.Deal_With_The_Devil_Icon'"
+		},
+		{
+			"Name": "NewRow_15",
+			"ModifierTitle": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_15_ModifierTitle\", \"Double Time\")",
+			"ModifierDescription": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_15_ModifierDescription\", \"Nothing but fast & succubus tasks.\")",
+			"ModifierIcon": "/Script/Engine.Texture2D'/Game/Recovery/Newer20261017/Resources/UI/ModifierIcons/Double_Time.Double_Time'"
+		},
+		{
+			"Name": "NewRow_12",
+			"ModifierTitle": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_12_ModifierTitle\", \"Prize Machine\")",
+			"ModifierDescription": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_12_ModifierDescription\", \"Item drop chance is increased by 4x.\")",
+			"ModifierIcon": "/Script/Engine.Texture2D'/Game/Recovery/Newer20261017/Resources/UI/ModifierIcons/Prize_Machine.Prize_Machine'"
+		},
+		{
+			"Name": "NewRow_16",
+			"ModifierTitle": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_16_ModifierTitle\", \"Fap Tax\")",
+			"ModifierDescription": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_16_ModifierDescription\", \"Filling the Lootbar costs 5% of your coins.\")",
+			"ModifierIcon": "/Script/Engine.Texture2D'/Game/Recovery/Newer20261017/Resources/UI/ModifierIcons/Fap_Tax.Fap_Tax'"
+		},
+		{
+			"Name": "NewRow_17",
+			"ModifierTitle": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_17_ModifierTitle\", \"Bad RNG\")",
+			"ModifierDescription": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_17_ModifierDescription\", \"Item drop chance is reduced by 50%.\")",
+			"ModifierIcon": "/Script/Engine.Texture2D'/Game/Recovery/Newer20261017/Resources/UI/ModifierIcons/Bad_RNG.Bad_RNG'"
+		},
+		{
+			"Name": "NewRow_18",
+			"ModifierTitle": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_18_ModifierTitle\", \"Overencumbered\")",
+			"ModifierDescription": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_18_ModifierDescription\", \"Holding 2+ items slows Lootbar gain.\")",
+			"ModifierIcon": "/Script/Engine.Texture2D'/Game/Recovery/Newer20261017/Resources/UI/ModifierIcons/Overencumbered.Overencumbered'"
+		},
+		{
+			"Name": "NewRow_19",
+			"ModifierTitle": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_19_ModifierTitle\", \"Dry Spell\")",
+			"ModifierDescription": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_19_ModifierDescription\", \"Lootbar rewards cannot give items.\")",
+			"ModifierIcon": "/Script/Engine.Texture2D'/Game/Recovery/Newer20261017/Resources/UI/ModifierIcons/Dry_Spell.Dry_Spell'"
+		},
+		{
+			"Name": "NewRow_20",
+			"ModifierTitle": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_20_ModifierTitle\", \"Double Devil\")",
+			"ModifierDescription": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_20_ModifierDescription\", \"Succubus Encounters require double strokes.\")",
+			"ModifierIcon": "/Script/Engine.Texture2D'/Game/Recovery/Newer20261017/Resources/UI/ModifierIcons/Double_Devil.Double_Devil'"
+		},
+		{
+			"Name": "NewRow_21",
+			"ModifierTitle": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_21_ModifierTitle\", \"Panic Button\")",
+			"ModifierDescription": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_21_ModifierDescription\", \"Defensive Items can only be used at 75%+ Heat.\")",
+			"ModifierIcon": "/Script/Engine.Texture2D'/Game/Recovery/Newer20261017/Resources/UI/ModifierIcons/Panic_Button.Panic_Button'"
+		},
+		{
+			"Name": "NewRow_22",
+			"ModifierTitle": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_22_ModifierTitle\", \"Hot Hands\")",
+			"ModifierDescription": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_22_ModifierDescription\", \"Using any item except Decrease Heat adds Heat.\")",
+			"ModifierIcon": "/Script/Engine.Texture2D'/Game/Recovery/Newer20261017/Resources/UI/ModifierIcons/Hot_Hands.Hot_Hands'"
+		},
+		{
+			"Name": "NewRow_23",
+			"ModifierTitle": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_23_ModifierTitle\", \"Jackpot Drops\")",
+			"ModifierDescription": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_23_ModifierDescription\", \"Item drops are rarer, but give +1 to all items.\")",
+			"ModifierIcon": "/Script/Engine.Texture2D'/Game/Recovery/Newer20261017/Resources/UI/ModifierIcons/Jackpot_Drops.Jackpot_Drops'"
+		},
+		{
+			"Name": "NewRow_24",
+			"ModifierTitle": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_24_ModifierTitle\", \"Greed Machine\")",
+			"ModifierDescription": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_24_ModifierDescription\", \"Higher combo increases Lootbar gain.\")",
+			"ModifierIcon": "/Script/Engine.Texture2D'/Game/Recovery/Newer20261017/Resources/UI/ModifierIcons/Greed_Machine.Greed_Machine'"
+		},
+		{
+			"Name": "NewRow_25",
+			"ModifierTitle": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_25_ModifierTitle\", \"Those Are Mine\")",
+			"ModifierDescription": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_25_ModifierDescription\", \"Succubi empty all item charges.\")",
+			"ModifierIcon": "/Script/Engine.Texture2D'/Game/Recovery/Newer20261017/Resources/UI/ModifierIcons/Those_are_Mine.Those_are_Mine'"
+		},
+		{
+			"Name": "NewRow_26",
+			"ModifierTitle": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_26_ModifierTitle\", \"Avarice\")",
+			"ModifierDescription": "NSLOCTEXT(\"DT_Modifiers [E1EE280E5AEA25F3A2EFC860CB865750]\", \"NewRow_26_ModifierDescription\", \"Each stroke during Succubus events consumes 1 Coin.\")",
+			"ModifierIcon": "/Script/Engine.Texture2D'/Game/Recovery/Newer20261017/Resources/UI/ModifierIcons/Avarice.Avarice'"
+		}
+	],
+	"DT_PlayerCards": [
+		{
+			"Name": "NewRow",
+			"CardID": "catgirl_booties_pc_1",
+			"CardName": "NSLOCTEXT(\"DT_PlayerCards [AEC1505B07AC8F7701687421CA16C716]\", \"NewRow_CardName\", \"Catgirl Booties\")",
+			"CardImage": "/Game/PlayerCards/Cat_Girl_Booties.Cat_Girl_Booties",
+			"RequiredChallengeID": "quickshot",
+			"RequiredLevel": 0,
+			"CardColor": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)"
+		},
+		{
+			"Name": "NewRow_0",
+			"CardID": "cybergirls_pc_1",
+			"CardName": "NSLOCTEXT(\"DT_PlayerCards [AEC1505B07AC8F7701687421CA16C716]\", \"NewRow_0_CardName\", \"Cyber Cameltoe\")",
+			"CardImage": "/Game/PlayerCards/Cyber_Cameltoe.Cyber_Cameltoe",
+			"RequiredChallengeID": "easily_tempted",
+			"RequiredLevel": 0,
+			"CardColor": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)"
+		},
+		{
+			"Name": "NewRow_1",
+			"CardID": "cybergirls_pc_2",
+			"CardName": "NSLOCTEXT(\"DT_PlayerCards [AEC1505B07AC8F7701687421CA16C716]\", \"NewRow_1_CardName\", \"Cyber Girl\")",
+			"CardImage": "/Game/PlayerCards/Cyber_Girl.Cyber_Girl",
+			"RequiredChallengeID": "",
+			"RequiredLevel": 0,
+			"CardColor": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)"
+		},
+		{
+			"Name": "NewRow_3",
+			"CardID": "hypnoboobs_pc_1",
+			"CardName": "NSLOCTEXT(\"DT_PlayerCards [AEC1505B07AC8F7701687421CA16C716]\", \"NewRow_3_CardName\", \"Hypnoboobs\")",
+			"CardImage": "/Game/PlayerCards/Hypno_Boobs_-_Vol__1.Hypno_Boobs_-_Vol__1",
+			"RequiredChallengeID": "oops",
+			"RequiredLevel": 0,
+			"CardColor": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)"
+		},
+		{
+			"Name": "NewRow_4",
+			"CardID": "moomoomilkers_pc_1",
+			"CardName": "NSLOCTEXT(\"DT_PlayerCards [AEC1505B07AC8F7701687421CA16C716]\", \"NewRow_4_CardName\", \"MooMoo Milkers\")",
+			"CardImage": "/Game/PlayerCards/Moomoo_Milkers.Moomoo_Milkers",
+			"RequiredChallengeID": "trash_talker",
+			"RequiredLevel": 0,
+			"CardColor": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)"
+		},
+		{
+			"Name": "NewRow_5",
+			"CardID": "skunk_pc_1",
+			"CardName": "NSLOCTEXT(\"DT_PlayerCards [AEC1505B07AC8F7701687421CA16C716]\", \"NewRow_5_CardName\", \"Skunk Hypnosis\")",
+			"CardImage": "/Game/PlayerCards/Skunk_Hypnosis.Skunk_Hypnosis",
+			"RequiredChallengeID": "clit_eastwood",
+			"RequiredLevel": 0,
+			"CardColor": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)"
+		},
+		{
+			"Name": "NewRow_6",
+			"CardID": "tomboys_pc_1",
+			"CardName": "NSLOCTEXT(\"DT_PlayerCards [AEC1505B07AC8F7701687421CA16C716]\", \"NewRow_6_CardName\", \"Tomboys\")",
+			"CardImage": "/Game/PlayerCards/Tomboys.Tomboys",
+			"RequiredChallengeID": "chicken_dinner",
+			"RequiredLevel": 0,
+			"CardColor": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)"
+		},
+		{
+			"Name": "NewRow_7",
+			"CardID": "upskirtmayhem_pc_1",
+			"CardName": "NSLOCTEXT(\"DT_PlayerCards [AEC1505B07AC8F7701687421CA16C716]\", \"NewRow_7_CardName\", \"Upskirt Mayhem\")",
+			"CardImage": "/Game/PlayerCards/Upskirt_Mayhem_PC_-_1.Upskirt_Mayhem_PC_-_1",
+			"RequiredChallengeID": "the_names_danger",
+			"RequiredLevel": 0,
+			"CardColor": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)"
+		},
+		{
+			"Name": "NewRow_8",
+			"CardID": "vaelithassets_pc_1",
+			"CardName": "NSLOCTEXT(\"DT_PlayerCards [AEC1505B07AC8F7701687421CA16C716]\", \"NewRow_8_CardName\", \"Vaelith Assets\")",
+			"CardImage": "/Game/PlayerCards/Vaelith_PC_-_1.Vaelith_PC_-_1",
+			"RequiredChallengeID": "bricked_up",
+			"RequiredLevel": 0,
+			"CardColor": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)"
+		},
+		{
+			"Name": "NewRow_9",
+			"CardID": "vaelith_pc_1",
+			"CardName": "NSLOCTEXT(\"DT_PlayerCards [AEC1505B07AC8F7701687421CA16C716]\", \"NewRow_9_CardName\", \"Vaelith\")",
+			"CardImage": "/Game/PlayerCards/Vaelith_PC_-_2.Vaelith_PC_-_2",
+			"RequiredChallengeID": "master_edger",
+			"RequiredLevel": 0,
+			"CardColor": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)"
+		},
+		{
+			"Name": "NewRow_10",
+			"CardID": "witches_pc_1",
+			"CardName": "NSLOCTEXT(\"DT_PlayerCards [AEC1505B07AC8F7701687421CA16C716]\", \"NewRow_10_CardName\", \"Witch\")",
+			"CardImage": "/Game/PlayerCards/Witch.Witch",
+			"RequiredChallengeID": "goon_gambit",
+			"RequiredLevel": 0,
+			"CardColor": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)"
+		},
+		{
+			"Name": "NewRow_11",
+			"CardID": "assnjeans_pc_1",
+			"CardName": "NSLOCTEXT(\"DT_PlayerCards [AEC1505B07AC8F7701687421CA16C716]\", \"NewRow_11_CardName\", \"Denim Fanatic\")",
+			"CardImage": "/Game/PlayerCards/Denim_Fanatic.Denim_Fanatic",
+			"RequiredChallengeID": "obedient",
+			"RequiredLevel": 0,
+			"CardColor": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)"
+		},
+		{
+			"Name": "NewRow_12",
+			"CardID": "gothgirls_pc_1",
+			"CardName": "NSLOCTEXT(\"DT_PlayerCards [AEC1505B07AC8F7701687421CA16C716]\", \"NewRow_12_CardName\", \"Goth Girls\")",
+			"CardImage": "/Game/PlayerCards/gothgirls_pc_1.gothgirls_pc_1",
+			"RequiredChallengeID": "master_of_control",
+			"RequiredLevel": 0,
+			"CardColor": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)"
+		},
+		{
+			"Name": "NewRow_13",
+			"CardID": "monstergirls_pc_1",
+			"CardName": "NSLOCTEXT(\"DT_PlayerCards [AEC1505B07AC8F7701687421CA16C716]\", \"NewRow_13_CardName\", \"Monster Girls\")",
+			"CardImage": "/Game/PlayerCards/Monster_Girls.Monster_Girls",
+			"RequiredChallengeID": "edgewalker",
+			"RequiredLevel": 0,
+			"CardColor": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)"
+		},
+		{
+			"Name": "NewRow_14",
+			"CardID": "vera_pc_1",
+			"CardName": "NSLOCTEXT(\"DT_PlayerCards [AEC1505B07AC8F7701687421CA16C716]\", \"NewRow_14_CardName\", \"Vera\")",
+			"CardImage": "/Game/PlayerCards/Vera_Galaxy.Vera_Galaxy",
+			"RequiredChallengeID": "intermediate_edger",
+			"RequiredLevel": 0,
+			"CardColor": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)"
+		},
+		{
+			"Name": "NewRow_2",
+			"CardID": "blue_pantsu",
+			"CardName": "NSLOCTEXT(\"DT_PlayerCards [AEC1505B07AC8F7701687421CA16C716]\", \"NewRow_2_CardName\", \"Blue Pantsu!\")",
+			"CardImage": "/Game/PlayerCards/Blue_Pantsu_.Blue_Pantsu_",
+			"RequiredChallengeID": "built_different",
+			"RequiredLevel": 0,
+			"CardColor": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)"
+		},
+		{
+			"Name": "NewRow_15",
+			"CardID": "bookworm",
+			"CardName": "NSLOCTEXT(\"DT_PlayerCards [AEC1505B07AC8F7701687421CA16C716]\", \"NewRow_15_CardName\", \"Bookworm\")",
+			"CardImage": "/Game/PlayerCards/Bookworm.Bookworm",
+			"RequiredChallengeID": "tony_stank",
+			"RequiredLevel": 0,
+			"CardColor": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)"
+		},
+		{
+			"Name": "NewRow_16",
+			"CardID": "bunny_booties",
+			"CardName": "NSLOCTEXT(\"DT_PlayerCards [AEC1505B07AC8F7701687421CA16C716]\", \"NewRow_16_CardName\", \"Bunny Booties\")",
+			"CardImage": "/Game/PlayerCards/Bunny_Booties.Bunny_Booties",
+			"RequiredChallengeID": "like_a_rabbit",
+			"RequiredLevel": 0,
+			"CardColor": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)"
+		},
+		{
+			"Name": "NewRow_17",
+			"CardID": "creampie_trifecta",
+			"CardName": "NSLOCTEXT(\"DT_PlayerCards [AEC1505B07AC8F7701687421CA16C716]\", \"NewRow_17_CardName\", \"Creampie Trifecta\")",
+			"CardImage": "/Game/PlayerCards/Creampie_Trifecta.Creampie_Trifecta",
+			"RequiredChallengeID": "crankin_my_hog",
+			"RequiredLevel": 0,
+			"CardColor": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)"
+		},
+		{
+			"Name": "NewRow_18",
+			"CardID": "cum_crazy",
+			"CardName": "NSLOCTEXT(\"DT_PlayerCards [AEC1505B07AC8F7701687421CA16C716]\", \"NewRow_18_CardName\", \"Cum Crazy\")",
+			"CardImage": "/Game/PlayerCards/Cum_Crazy.Cum_Crazy",
+			"RequiredChallengeID": "demon_proof",
+			"RequiredLevel": 0,
+			"CardColor": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)"
+		},
+		{
+			"Name": "NewRow_19",
+			"CardID": "cummy_buttz",
+			"CardName": "NSLOCTEXT(\"DT_PlayerCards [AEC1505B07AC8F7701687421CA16C716]\", \"NewRow_19_CardName\", \"Cummy Buttz\")",
+			"CardImage": "/Game/PlayerCards/Cummy_Buttz.Cummy_Buttz",
+			"RequiredChallengeID": "its_called_motion",
+			"RequiredLevel": 0,
+			"CardColor": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)"
+		},
+		{
+			"Name": "NewRow_20",
+			"CardID": "devil_remedy",
+			"CardName": "NSLOCTEXT(\"DT_PlayerCards [AEC1505B07AC8F7701687421CA16C716]\", \"NewRow_20_CardName\", \"Devil Remedy\")",
+			"CardImage": "/Game/PlayerCards/Devil_Remedy.Devil_Remedy",
+			"RequiredChallengeID": "masochist",
+			"RequiredLevel": 0,
+			"CardColor": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)"
+		},
+		{
+			"Name": "NewRow_21",
+			"CardID": "extraterrestial",
+			"CardName": "NSLOCTEXT(\"DT_PlayerCards [AEC1505B07AC8F7701687421CA16C716]\", \"NewRow_21_CardName\", \"Extraterrestial\")",
+			"CardImage": "/Game/PlayerCards/Extraterrestial.Extraterrestial",
+			"RequiredChallengeID": "bag_of_tricks",
+			"RequiredLevel": 0,
+			"CardColor": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)"
+		},
+		{
+			"Name": "NewRow_22",
+			"CardID": "fishnet_boobs",
+			"CardName": "NSLOCTEXT(\"DT_PlayerCards [AEC1505B07AC8F7701687421CA16C716]\", \"NewRow_22_CardName\", \"Fishnet Boobs\")",
+			"CardImage": "/Game/PlayerCards/Fishnet_Boobs.Fishnet_Boobs",
+			"RequiredChallengeID": "the_lamb",
+			"RequiredLevel": 0,
+			"CardColor": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)"
+		},
+		{
+			"Name": "NewRow_23",
+			"CardID": "fishnet_creampies",
+			"CardName": "NSLOCTEXT(\"DT_PlayerCards [AEC1505B07AC8F7701687421CA16C716]\", \"NewRow_23_CardName\", \"Fishnet Creampies\")",
+			"CardImage": "/Game/PlayerCards/Fishnet_Creampies.Fishnet_Creampies",
+			"RequiredChallengeID": "death_spiral",
+			"RequiredLevel": 0,
+			"CardColor": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)"
+		},
+		{
+			"Name": "NewRow_24",
+			"CardID": "juggz",
+			"CardName": "NSLOCTEXT(\"DT_PlayerCards [AEC1505B07AC8F7701687421CA16C716]\", \"NewRow_24_CardName\", \"Juggz\")",
+			"CardImage": "/Game/PlayerCards/Juggz.Juggz",
+			"RequiredChallengeID": "my_arm_hurts",
+			"RequiredLevel": 0,
+			"CardColor": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)"
+		},
+		{
+			"Name": "NewRow_25",
+			"CardID": "kitty",
+			"CardName": "NSLOCTEXT(\"DT_PlayerCards [AEC1505B07AC8F7701687421CA16C716]\", \"NewRow_25_CardName\", \"Kitty\")",
+			"CardImage": "/Game/PlayerCards/Kitty.Kitty",
+			"RequiredChallengeID": "nice",
+			"RequiredLevel": 0,
+			"CardColor": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)"
+		},
+		{
+			"Name": "NewRow_26",
+			"CardID": "maid_mayhem",
+			"CardName": "NSLOCTEXT(\"DT_PlayerCards [AEC1505B07AC8F7701687421CA16C716]\", \"NewRow_26_CardName\", \"Maid Mayhem\")",
+			"CardImage": "/Game/PlayerCards/Maid_Mayhem.Maid_Mayhem",
+			"RequiredChallengeID": "meter_maid",
+			"RequiredLevel": 0,
+			"CardColor": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)"
+		},
+		{
+			"Name": "NewRow_27",
+			"CardID": "massive_underboob",
+			"CardName": "NSLOCTEXT(\"DT_PlayerCards [AEC1505B07AC8F7701687421CA16C716]\", \"NewRow_27_CardName\", \"Massive Underboob\")",
+			"CardImage": "/Game/PlayerCards/Massive_Underboob.Massive_Underboob",
+			"RequiredChallengeID": "feeding_hour",
+			"RequiredLevel": 0,
+			"CardColor": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)"
+		},
+		{
+			"Name": "NewRow_28",
+			"CardID": "muscular_beauty",
+			"CardName": "NSLOCTEXT(\"DT_PlayerCards [AEC1505B07AC8F7701687421CA16C716]\", \"NewRow_28_CardName\", \"Muscular Beauty\")",
+			"CardImage": "/Game/PlayerCards/Muscular_Beauty.Muscular_Beauty",
+			"RequiredChallengeID": "strokeaholic",
+			"RequiredLevel": 0,
+			"CardColor": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)"
+		},
+		{
+			"Name": "NewRow_29",
+			"CardID": "red_pantsu",
+			"CardName": "NSLOCTEXT(\"DT_PlayerCards [AEC1505B07AC8F7701687421CA16C716]\", \"NewRow_29_CardName\", \"Red Pantsu!\")",
+			"CardImage": "/Game/PlayerCards/Red_Pantsu_.Red_Pantsu_",
+			"RequiredChallengeID": "swarm_protocol",
+			"RequiredLevel": 0,
+			"CardColor": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)"
+		},
+		{
+			"Name": "NewRow_30",
+			"CardID": "slimy_succubi",
+			"CardName": "NSLOCTEXT(\"DT_PlayerCards [AEC1505B07AC8F7701687421CA16C716]\", \"NewRow_30_CardName\", \"Slimy Succubi\")",
+			"CardImage": "/Game/PlayerCards/Slimy_Succubi.Slimy_Succubi",
+			"RequiredChallengeID": "speed_freak",
+			"RequiredLevel": 0,
+			"CardColor": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)"
+		},
+		{
+			"Name": "NewRow_31",
+			"CardID": "temptresses",
+			"CardName": "NSLOCTEXT(\"DT_PlayerCards [AEC1505B07AC8F7701687421CA16C716]\", \"NewRow_31_CardName\", \"Temptresses\")",
+			"CardImage": "/Game/PlayerCards/Temptresses.Temptresses",
+			"RequiredChallengeID": "monk_of_lust",
+			"RequiredLevel": 0,
+			"CardColor": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)"
+		},
+		{
+			"Name": "NewRow_32",
+			"CardID": "tentabus",
+			"CardName": "NSLOCTEXT(\"DT_PlayerCards [AEC1505B07AC8F7701687421CA16C716]\", \"NewRow_32_CardName\", \"Tentabus\")",
+			"CardImage": "/Game/PlayerCards/Tentacle_Succubus.Tentacle_Succubus",
+			"RequiredChallengeID": "carpet_burn",
+			"RequiredLevel": 0,
+			"CardColor": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)"
+		},
+		{
+			"Name": "NewRow_33",
+			"CardID": "the_best_medicine",
+			"CardName": "NSLOCTEXT(\"DT_PlayerCards [AEC1505B07AC8F7701687421CA16C716]\", \"NewRow_33_CardName\", \"The Best Medicine\")",
+			"CardImage": "/Game/PlayerCards/The_Best_Medicine.The_Best_Medicine",
+			"RequiredChallengeID": "gambler",
+			"RequiredLevel": 0,
+			"CardColor": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)"
+		},
+		{
+			"Name": "NewRow_34",
+			"CardID": "verajob",
+			"CardName": "NSLOCTEXT(\"DT_PlayerCards [AEC1505B07AC8F7701687421CA16C716]\", \"NewRow_34_CardName\", \"Verajob\")",
+			"CardImage": "/Game/PlayerCards/Verajob.Verajob",
+			"RequiredChallengeID": "cock_hero",
+			"RequiredLevel": 0,
+			"CardColor": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)"
+		},
+		{
+			"Name": "NewRow_35",
+			"CardID": "behind_the_counter",
+			"CardName": "NSLOCTEXT(\"DT_PlayerCards [AEC1505B07AC8F7701687421CA16C716]\", \"NewRow_35_CardName\", \"Behind the Counter\")",
+			"CardImage": "/Game/PlayerCards/Behind_the_Counter.Behind_the_Counter",
+			"RequiredChallengeID": "ember's fave",
+			"RequiredLevel": 0,
+			"CardColor": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)"
+		},
+		{
+			"Name": "NewRow_36",
+			"CardID": "bootcamp",
+			"CardName": "NSLOCTEXT(\"DT_PlayerCards [AEC1505B07AC8F7701687421CA16C716]\", \"NewRow_36_CardName\", \"Boot Camp\")",
+			"CardImage": "/Game/PlayerCards/Boot_Camp.Boot_Camp",
+			"RequiredChallengeID": "disciplined",
+			"RequiredLevel": 0,
+			"CardColor": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)"
+		},
+		{
+			"Name": "NewRow_37",
+			"CardID": "cheerleader_upskirt",
+			"CardName": "NSLOCTEXT(\"DT_PlayerCards [AEC1505B07AC8F7701687421CA16C716]\", \"NewRow_37_CardName\", \"Cheerleader Upskirt\")",
+			"CardImage": "/Game/PlayerCards/Cheerleader_Upskirt.Cheerleader_Upskirt",
+			"RequiredChallengeID": "the_whole_record",
+			"RequiredLevel": 0,
+			"CardColor": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)"
+		},
+		{
+			"Name": "NewRow_38",
+			"CardID": "cummy_pitz",
+			"CardName": "NSLOCTEXT(\"DT_PlayerCards [AEC1505B07AC8F7701687421CA16C716]\", \"NewRow_38_CardName\", \"Cummy Pitz\")",
+			"CardImage": "/Game/PlayerCards/Cummy_Pits.Cummy_Pits",
+			"RequiredChallengeID": "pump_and_dump",
+			"RequiredLevel": 0,
+			"CardColor": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)"
+		},
+		{
+			"Name": "NewRow_39",
+			"CardID": "dommy_milkers",
+			"CardName": "NSLOCTEXT(\"DT_PlayerCards [AEC1505B07AC8F7701687421CA16C716]\", \"NewRow_39_CardName\", \"Dommy Milkers\")",
+			"CardImage": "/Game/PlayerCards/Dommy_Mommy_Milkers.Dommy_Mommy_Milkers",
+			"RequiredChallengeID": "aggravator",
+			"RequiredLevel": 0,
+			"CardColor": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)"
+		},
+		{
+			"Name": "NewRow_40",
+			"CardID": "futa_fiend",
+			"CardName": "NSLOCTEXT(\"DT_PlayerCards [AEC1505B07AC8F7701687421CA16C716]\", \"NewRow_40_CardName\", \"Futa Fiend\")",
+			"CardImage": "/Game/PlayerCards/Futa_Fiend.Futa_Fiend",
+			"RequiredChallengeID": "fap_sensei",
+			"RequiredLevel": 0,
+			"CardColor": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)"
+		},
+		{
+			"Name": "NewRow_41",
+			"CardID": "kitsune_girl",
+			"CardName": "NSLOCTEXT(\"DT_PlayerCards [AEC1505B07AC8F7701687421CA16C716]\", \"NewRow_41_CardName\", \"Kitsune Girl\")",
+			"CardImage": "/Game/PlayerCards/Kitsune_Girl.Kitsune_Girl",
+			"RequiredChallengeID": "test_your_might",
+			"RequiredLevel": 0,
+			"CardColor": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)"
+		},
+		{
+			"Name": "NewRow_42",
+			"CardID": "pepper_buns",
+			"CardName": "NSLOCTEXT(\"DT_PlayerCards [AEC1505B07AC8F7701687421CA16C716]\", \"NewRow_42_CardName\", \"Pepper Buns\")",
+			"CardImage": "/Game/PlayerCards/Pepper_Buns.Pepper_Buns",
+			"RequiredChallengeID": "loot_goblin",
+			"RequiredLevel": 0,
+			"CardColor": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)"
+		},
+		{
+			"Name": "NewRow_43",
+			"CardID": "redhead_jeans",
+			"CardName": "NSLOCTEXT(\"DT_PlayerCards [AEC1505B07AC8F7701687421CA16C716]\", \"NewRow_43_CardName\", \"Redhead Jeans\")",
+			"CardImage": "/Game/PlayerCards/Redhead_Jeans.Redhead_Jeans",
+			"RequiredChallengeID": "budget_run",
+			"RequiredLevel": 0,
+			"CardColor": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)"
+		},
+		{
+			"Name": "NewRow_44",
+			"CardID": "unimpressed",
+			"CardName": "NSLOCTEXT(\"DT_PlayerCards [AEC1505B07AC8F7701687421CA16C716]\", \"NewRow_44_CardName\", \"Unimpressed\")",
+			"CardImage": "/Game/PlayerCards/Unimpressed.Unimpressed",
+			"RequiredChallengeID": "aint_got_rhythm",
+			"RequiredLevel": 0,
+			"CardColor": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)"
+		},
+		{
+			"Name": "NewRow_45",
+			"CardID": "waifu_paradise",
+			"CardName": "NSLOCTEXT(\"DT_PlayerCards [AEC1505B07AC8F7701687421CA16C716]\", \"NewRow_45_CardName\", \"Waifu Paradise\")",
+			"CardImage": "/Game/PlayerCards/Waifu_Paradise.Waifu_Paradise",
+			"RequiredChallengeID": "public_safety",
+			"RequiredLevel": 0,
+			"CardColor": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)"
+		},
+		{
+			"Name": "NewRow_46",
+			"CardID": "war_devil",
+			"CardName": "NSLOCTEXT(\"DT_PlayerCards [AEC1505B07AC8F7701687421CA16C716]\", \"NewRow_46_CardName\", \"War Devil\")",
+			"CardImage": "/Game/PlayerCards/War_Devil.War_Devil",
+			"RequiredChallengeID": "dead_or_alive",
+			"RequiredLevel": 0,
+			"CardColor": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)"
+		}
+	],
+	"DT_Challenges": [
+		{
+			"Name": "NewRow",
+			"ChallengeID": "rookie_edger",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_DisplayName\", \"Rookie Edger\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_Description\", \"Win a game with 5+ edges.\")",
+			"Icon": "/Game/ChallengeIcons/RookieEdgerIcon.RookieEdgerIcon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::SessionsWon\",TargetValue=1,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)",
+				"(MetricType=\"EMetricType::Edges\",TargetValue=5,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Session",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=150,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=4,ItemIdentifier=\"\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_1",
+			"ChallengeID": "intermediate_edger",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_1_DisplayName\", \"Intermediate Edger\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_1_Description\", \"Win a game with 15+ edges.\")",
+			"Icon": "/Game/ChallengeIcons/IntermediateEdgerIcon.IntermediateEdgerIcon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::Edges\",TargetValue=15,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)",
+				"(MetricType=\"EMetricType::SessionsWon\",TargetValue=1,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Session",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=500,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=12,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::PlayerCard\",Value=0,ItemIdentifier=\"vera_pc_1\")",
+				"(RewardType=\"ECHRewardType::UnlockModifier\",Value=0,ItemIdentifier=\"Pheromones\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_2",
+			"ChallengeID": "master_edger",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_2_DisplayName\", \"Master Edger\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_2_Description\", \"Win a game with 30+ edges.\")",
+			"Icon": "/Game/ChallengeIcons/Master_Edger_Icon.Master_Edger_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::Edges\",TargetValue=30,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)",
+				"(MetricType=\"EMetricType::SessionsWon\",TargetValue=1,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Session",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=500,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=12,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::PlayerCard\",Value=0,ItemIdentifier=\"vaelith_pc_1\")",
+				"(RewardType=\"ECHRewardType::UnlockModifier\",Value=0,ItemIdentifier=\"Succufrenzy\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_0",
+			"ChallengeID": "quickshot",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_0_DisplayName\", \"Quickshot\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_0_Description\", \"Lose a game in under 5 minutes.\")",
+			"Icon": "/Game/ChallengeIcons/QuickshotIcon.QuickshotIcon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::TimesLost\",TargetValue=1,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)",
+				"(MetricType=\"EMetricType::SessionDuration\",TargetValue=300,ComparisonType=\"EComparisonType::LessOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Session",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=75,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=2,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::PlayerCard\",Value=0,ItemIdentifier=\"catgirl_booties_pc_1\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_3",
+			"ChallengeID": "master_of_control",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_3_DisplayName\", \"Master of Control\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_3_Description\", \"Win a game without using any items.\")",
+			"Icon": "/Game/ChallengeIcons/Master_of_Control_Icon.Master_of_Control_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::ItemsUsed\",TargetValue=0,ComparisonType=\"EComparisonType::LessOrEqual\",CurrentValue=0)",
+				"(MetricType=\"EMetricType::SessionsWon\",TargetValue=1,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Session",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=500,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=12,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::PlayerCard\",Value=0,ItemIdentifier=\"gothgirls_pc_1\")",
+				"(RewardType=\"ECHRewardType::UnlockModifier\",Value=0,ItemIdentifier=\"Raw Dog\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_4",
+			"ChallengeID": "succubus_lunch",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_4_DisplayName\", \"Succubus Lunch\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_4_Description\", \"Lose a game to a succubus.\")",
+			"Icon": "/Game/ChallengeIcons/SuccubusLunchIcon.SuccubusLunchIcon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::LostToSuccubus\",TargetValue=1,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Lifetime",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=75,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=2,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockModifier\",Value=0,ItemIdentifier=\"Ass Fanatic\")",
+				"(RewardType=\"ECHRewardType::UnlockPack\",Value=0,ItemIdentifier=\"cum_covered_succubi_vol._1\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_5",
+			"ChallengeID": "oops",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_5_DisplayName\", \"Oops...\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_5_Description\", \"Lose a game.\")",
+			"Icon": "/Game/ChallengeIcons/Oops_Icon.Oops_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::TimesLost\",TargetValue=1,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Lifetime",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=75,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=2,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::PlayerCard\",Value=0,ItemIdentifier=\"hypnoboobs_pc_1\")",
+				"(RewardType=\"ECHRewardType::UnlockModifier\",Value=0,ItemIdentifier=\"Slow and Steady\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_6",
+			"ChallengeID": "the_cockfather",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_6_DisplayName\", \"The CockFather\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_6_Description\", \"Win a session that\\'s 2 hours and 55 minutes or longer.\")",
+			"Icon": "/Game/ChallengeIcons/The_Cock_Father_Icon.The_Cock_Father_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::SessionDuration\",TargetValue=10500,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)",
+				"(MetricType=\"EMetricType::SessionsWon\",TargetValue=1,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Session",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=1500,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=40,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPack\",Value=0,ItemIdentifier=\"footjobs_vol._1\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_7",
+			"ChallengeID": "like_a_rabbit",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_7_DisplayName\", \"Like a Rabbit\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_7_Description\", \"Win a session with 10+ minutes at high heat.\")",
+			"Icon": "/Game/ChallengeIcons/Like_a_Rabbit_Icon.Like_a_Rabbit_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::SessionsWon\",TargetValue=1,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)",
+				"(MetricType=\"EMetricType::TimeAtHighHeat\",TargetValue=600,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Session",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=300,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=8,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::PlayerCard\",Value=0,ItemIdentifier=\"bunny_booties\")",
+				"(RewardType=\"ECHRewardType::UnlockModifier\",Value=0,ItemIdentifier=\"Hungry Succubi\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_8",
+			"ChallengeID": "demon_proof",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_8_DisplayName\", \"Demon Proof\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_8_Description\", \"Survive 3x Succubi Encounters in a row.\")",
+			"Icon": "/Game/ChallengeIcons/Demon_Proof_Icon.Demon_Proof_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::ConsecutiveSuccubiSurvived\",TargetValue=3,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Session",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=300,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=8,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::PlayerCard\",Value=0,ItemIdentifier=\"cum_crazy\")",
+				"(RewardType=\"ECHRewardType::UnlockModifier\",Value=0,ItemIdentifier=\"Demon Proof\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_9",
+			"ChallengeID": "succubus_initiative",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_9_DisplayName\", \"Succubus Initiative\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_9_Description\", \"Lose to a Succubus with 1 or more missed cum windows.\")",
+			"Icon": "/Game/ChallengeIcons/Demon_Proof_Icon__2_.Demon_Proof_Icon__2_",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::MissedCumWindows\",TargetValue=1,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)",
+				"(MetricType=\"EMetricType::LostToSuccubus\",TargetValue=1,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Session",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=75,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=2,ItemIdentifier=\"\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_10",
+			"ChallengeID": "goonlight_sonata",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_10_DisplayName\", \"Goonlight Sonata\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_10_Description\", \"Win a session that\\'s 1 hour or longer.\")",
+			"Icon": "/Game/ChallengeIcons/Goonlight_Sonata_Icon.Goonlight_Sonata_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::SessionDuration\",TargetValue=3600,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)",
+				"(MetricType=\"EMetricType::SessionsWon\",TargetValue=1,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Session",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=500,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=12,ItemIdentifier=\"\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_11",
+			"ChallengeID": "goon_ronin",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_11_DisplayName\", \"Goon Ronin\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_11_Description\", \"Achieve a 30x edge streak.\")",
+			"Icon": "/Game/ChallengeIcons/Goon_Ronin_Icon.Goon_Ronin_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::EdgeStreak\",TargetValue=30,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Session",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=500,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=12,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockModifier\",Value=0,ItemIdentifier=\"Iron Man\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_12",
+			"ChallengeID": "carpet_burn",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_12_DisplayName\", \"Carpet Burn\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_12_Description\", \"Complete 20,000 strokes in one game.\")",
+			"Icon": "/Game/ChallengeIcons/Carpet_Burn_Icon.Carpet_Burn_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::Strokes\",TargetValue=20000,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Session",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=500,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=12,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::PlayerCard\",Value=0,ItemIdentifier=\"tentabus\")",
+				"(RewardType=\"ECHRewardType::UnlockModifier\",Value=0,ItemIdentifier=\"Hivemind\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_13",
+			"ChallengeID": "clit_eastwood",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_13_DisplayName\", \"Clit Eastwood\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_13_Description\", \"Lose a game in under 30 seconds.\")",
+			"Icon": "/Game/ChallengeIcons/Clit_Eastwood_Icon.Clit_Eastwood_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::SessionDuration\",TargetValue=30,ComparisonType=\"EComparisonType::LessOrEqual\",CurrentValue=0)",
+				"(MetricType=\"EMetricType::TimesLost\",TargetValue=1,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Session",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=75,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=2,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::PlayerCard\",Value=0,ItemIdentifier=\"skunk_pc_1\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_14",
+			"ChallengeID": "customer_loyalty",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_14_DisplayName\", \"Customer Loyalty\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_14_Description\", \"Completely undress the shopkeeper.\")",
+			"Icon": "/Game/ChallengeIcons/Customer_Loyalty_Icon.Customer_Loyalty_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::MoneySpent\",TargetValue=7000,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Session",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=300,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=8,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPack\",Value=0,ItemIdentifier=\"shopkeeper_vol._1\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_15",
+			"ChallengeID": "crankin_my_hog",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_15_DisplayName\", \"Crankin\\' my Hog\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_15_Description\", \"Achieve a 5,000+ Stroke Combo.\")",
+			"Icon": "/Game/ChallengeIcons/Crankin_My_Hog_Icon.Crankin_My_Hog_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::MaxCombo\",TargetValue=5000,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Session",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=300,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=8,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::PlayerCard\",Value=0,ItemIdentifier=\"creampie_trifecta\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_16",
+			"ChallengeID": "chicken_dinner",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_16_DisplayName\", \"Chicken Dinner\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_16_Description\", \"Win 10x Sessions.\")",
+			"Icon": "/Game/ChallengeIcons/Chicken_Dinner_Icon.Chicken_Dinner_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::SessionsWon\",TargetValue=10,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Lifetime",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=300,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=8,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::PlayerCard\",Value=0,ItemIdentifier=\"tomboys_pc_1\")",
+				"(RewardType=\"ECHRewardType::UnlockModifier\",Value=0,ItemIdentifier=\"Double Time\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_17",
+			"ChallengeID": "the_names_danger",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_17_DisplayName\", \"The Name\\'s Danger\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_17_Description\", \"Maintain high heat for 30 lifetime minutes.\")",
+			"Icon": "/Game/ChallengeIcons/The_Name_s_Danger_Icon.The_Name_s_Danger_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::TimeAtHighHeat\",TargetValue=1800,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Lifetime",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=500,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=12,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::PlayerCard\",Value=0,ItemIdentifier=\"upskirtmayhem_pc_1\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_18",
+			"ChallengeID": "trash_talker",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_18_DisplayName\", \"Trash Talker\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_18_Description\", \"Taunt 3 times in one game and win.\")",
+			"Icon": "/Game/ChallengeIcons/Trash_Talker_Icon.Trash_Talker_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::TimesTaunted\",TargetValue=3,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)",
+				"(MetricType=\"EMetricType::SessionsWon\",TargetValue=1,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Session",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=150,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=4,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::PlayerCard\",Value=0,ItemIdentifier=\"moomoomilkers_pc_1\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_19",
+			"ChallengeID": "skill_issue",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_19_DisplayName\", \"Skill Issue\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_19_Description\", \"Lose 10 games.\")",
+			"Icon": "/Game/ChallengeIcons/Skill_Issue_Icon.Skill_Issue_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::TimesLost\",TargetValue=10,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Lifetime",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=75,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=2,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockModifier\",Value=0,ItemIdentifier=\"Feet Fanatic\")"
+			],
+			"XPReward": 50,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_20",
+			"ChallengeID": "edgewalker",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_20_DisplayName\", \"Edge Walker\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_20_Description\", \"Complete 50 lifetime edges.\")",
+			"Icon": "/Game/ChallengeIcons/Edge_Walker_Icon.Edge_Walker_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::Edges\",TargetValue=50,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Lifetime",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=500,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=12,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::PlayerCard\",Value=0,ItemIdentifier=\"monstergirls_pc_1\")",
+				"(RewardType=\"ECHRewardType::UnlockModifier\",Value=0,ItemIdentifier=\"Sacrificial\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_22",
+			"ChallengeID": "my_arm_hurts",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_22_DisplayName\", \"My Arm Hurts...\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_22_Description\", \"Achieve 50,000 lifetime strokes.\")",
+			"Icon": "/Game/ChallengeIcons/My_Arm_Hurts_Icon.My_Arm_Hurts_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::Strokes\",TargetValue=50000,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Lifetime",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=750,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=20,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::PlayerCard\",Value=0,ItemIdentifier=\"juggz\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_23",
+			"ChallengeID": "meter_maid",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_23_DisplayName\", \"Meter Maid\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_23_Description\", \"Fill the cum meter to 100% 10 times.\")",
+			"Icon": "/Game/ChallengeIcons/Meter_Maid_Icon.Meter_Maid_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::CumWindowsHit\",TargetValue=10,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Lifetime",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=300,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=8,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::PlayerCard\",Value=0,ItemIdentifier=\"maid_mayhem\")",
+				"(RewardType=\"ECHRewardType::UnlockModifier\",Value=0,ItemIdentifier=\"All or Nothing\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_24",
+			"ChallengeID": "its_called_motion",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_24_DisplayName\", \"It\\'s Called Motion\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_24_Description\", \"Spend 15,000 in the in-game store.\")",
+			"Icon": "/Game/ChallengeIcons/Its_Called_Motion_Icon.Its_Called_Motion_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::MoneySpent\",TargetValue=15000,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Session",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=500,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=12,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::PlayerCard\",Value=0,ItemIdentifier=\"cummy_buttz\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_25",
+			"ChallengeID": "good_boy",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_25_DisplayName\", \"Good Boy\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_25_Description\", \"Complete 20 lifetime perfect edges.\")",
+			"Icon": "/Game/ChallengeIcons/Good_Boy_Icon.Good_Boy_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::PerfectEdges\",TargetValue=20,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Lifetime",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=300,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=8,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockModifier\",Value=0,ItemIdentifier=\"Mr. Money Bandz\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_26",
+			"ChallengeID": "succubus_buffet",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_26_DisplayName\", \"Succubus Buffet\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_26_Description\", \"Lose 10 games to Succubi.\")",
+			"Icon": "/Game/ChallengeIcons/Succubus_Buffet_Icon.Succubus_Buffet_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::LostToSuccubus\",TargetValue=10,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Lifetime",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=75,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=2,ItemIdentifier=\"\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_27",
+			"ChallengeID": "bricked_up",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_27_DisplayName\", \"Bricked Up\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_27_Description\", \"Use 10x boner pills in one session.\")",
+			"Icon": "/Game/ChallengeIcons/Bricked_Up_Icon.Bricked_Up_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::BonerPillsUsed\",TargetValue=10,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Session",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=300,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=8,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::PlayerCard\",Value=0,ItemIdentifier=\"vaelithassets_pc_1\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_28",
+			"ChallengeID": "goon_gambit",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_28_DisplayName\", \"Goon Gambit\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_28_Description\", \"Accept a temptation prompt.\")",
+			"Icon": "/Game/ChallengeIcons/Goon_Gambit_Icon.Goon_Gambit_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::AcceptedTemptation\",TargetValue=1,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Lifetime",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=75,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=2,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::PlayerCard\",Value=0,ItemIdentifier=\"witches_pc_1\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_29",
+			"ChallengeID": "the_price_of_hubris",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_29_DisplayName\", \"The Price of Hubris\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_29_Description\", \"Cum during a taunt.\")",
+			"Icon": "/Game/ChallengeIcons/The_Price_of_Hubris_Icon.The_Price_of_Hubris_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::CameDuringTaunt\",TargetValue=1,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Lifetime",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=150,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=4,ItemIdentifier=\"\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_21",
+			"ChallengeID": "provoker",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_21_DisplayName\", \"Provoker\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_21_Description\", \"Taunt 50 times (lifetime). \")",
+			"Icon": "/Game/ChallengeIcons/Provoker_Icon.Provoker_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::TimesTaunted\",TargetValue=50,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Lifetime",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=500,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=12,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPack\",Value=0,ItemIdentifier=\"upskirts_remake\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_30",
+			"ChallengeID": "nice",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_30_DisplayName\", \"Nice\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_30_Description\", \"Win 69 lifetime sessions.\")",
+			"Icon": "/Game/ChallengeIcons/Nice_Icon.Nice_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::SessionsWon\",TargetValue=69,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Lifetime",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=750,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=20,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::PlayerCard\",Value=0,ItemIdentifier=\"kitty\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_31",
+			"ChallengeID": "i_see_god",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_31_DisplayName\", \"I see God\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_31_Description\", \"Use 30x boner pills in one session.\")",
+			"Icon": "/Game/ChallengeIcons/ISeeGodIcon.ISeeGodIcon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::BonerPillsUsed\",TargetValue=30,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Session",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=500,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=12,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPack\",Value=0,ItemIdentifier=\"leggings_remake\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_32",
+			"ChallengeID": "obedient",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_32_DisplayName\", \"Obedient\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_32_Description\", \"Complete 5x perfect edges in one session.\")",
+			"Icon": "/Game/ChallengeIcons/ObedientIcon.ObedientIcon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::PerfectEdges\",TargetValue=5,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Session",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=150,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=4,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::PlayerCard\",Value=0,ItemIdentifier=\"assnjeans_pc_1\")"
+			],
+			"XPReward": 50,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_33",
+			"ChallengeID": "easily_tempted",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_33_DisplayName\", \"Easily Tempted\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_33_Description\", \"Accept 5x Temptation Prompts (lifetime).\")",
+			"Icon": "/Game/ChallengeIcons/Easily_Tempted_Icon.Easily_Tempted_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::AcceptedTemptation\",TargetValue=5,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Lifetime",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=75,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=2,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::PlayerCard\",Value=0,ItemIdentifier=\"cybergirls_pc_1\")",
+				"(RewardType=\"ECHRewardType::UnlockModifier\",Value=0,ItemIdentifier=\"Boobs Fanatic\")"
+			],
+			"XPReward": 50,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_35",
+			"ChallengeID": "master_of_restraint",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_35_DisplayName\", \"Master of Restraint\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_35_Description\", \"Fill the cum meter 3 times in 1 session.\")",
+			"Icon": "/Game/ChallengeIcons/Master_of_Restraint_Icon.Master_of_Restraint_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::CumWindowsHit\",TargetValue=3,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Session",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=500,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=12,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPack\",Value=0,ItemIdentifier=\"elves_vol._1\")"
+			],
+			"XPReward": 50,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_37",
+			"ChallengeID": "built_different",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_37_DisplayName\", \"Built Different\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_37_Description\", \"Win a session on insane difficulty.\")",
+			"Icon": "/Game/ChallengeIcons/Built_Different_Icon.Built_Different_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::SessionsWonAtMaxDifficulty\",TargetValue=1,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Lifetime",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=500,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=12,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::PlayerCard\",Value=0,ItemIdentifier=\"blue_pantsu\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_36",
+			"ChallengeID": "strokeaholic",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_36_DisplayName\", \"Strokeaholic\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_36_Description\", \"Achieve an 1,000+ Stroke Combo\")",
+			"Icon": "/Game/ChallengeIcons/StrokeaholicIcon.StrokeaholicIcon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::MaxCombo\",TargetValue=1000,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Session",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=300,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=8,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::PlayerCard\",Value=0,ItemIdentifier=\"muscular_beauty\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_34",
+			"ChallengeID": "bag_of_tricks",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_34_DisplayName\", \"Bag of Tricks\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_34_Description\", \"Use 10x Items in One Session & Win.\")",
+			"Icon": "/Game/ChallengeIcons/StrokeaholicIcon__2_.StrokeaholicIcon__2_",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::ItemsUsed\",TargetValue=10,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)",
+				"(MetricType=\"EMetricType::SessionsWon\",TargetValue=1,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Session",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=300,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=8,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::PlayerCard\",Value=0,ItemIdentifier=\"extraterrestial\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_38",
+			"ChallengeID": "monk_of_lust",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_38_DisplayName\", \"Monk of Lust\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_38_Description\", \"Achieve 10x Lifetime Missed Cum Windows.\")",
+			"Icon": "/Game/ChallengeIcons/Monk_of_Lust_Icon.Monk_of_Lust_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::MissedCumWindows\",TargetValue=10,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Lifetime",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=500,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=12,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::PlayerCard\",Value=0,ItemIdentifier=\"temptresses\")",
+				"(RewardType=\"ECHRewardType::UnlockModifier\",Value=0,ItemIdentifier=\"Deal With The Devil\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_39",
+			"ChallengeID": "speed_freak",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_39_DisplayName\", \"Speed Freak\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_39_Description\", \"Win 5x Sessions on Insane Difficulty.\")",
+			"Icon": "/Game/ChallengeIcons/Speed_Freak_Icon.Speed_Freak_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::SessionsWonAtMaxDifficulty\",TargetValue=5,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Lifetime",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=500,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=12,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::PlayerCard\",Value=0,ItemIdentifier=\"slimy_succubi\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_40",
+			"ChallengeID": "tony_stank",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_40_DisplayName\", \"Tony Stank\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_40_Description\", \"Win a session with the \\\"Iron Man\\\" modifier enabled.\")",
+			"Icon": "/Game/ChallengeIcons/Tony_Stank_Icon.Tony_Stank_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::SessionsWon\",TargetValue=1,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Session",
+			"Conditions": [
+				"(ConditionType=\"modifier\",ConditionValue=\"Iron Man\")"
+			],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=750,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=20,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::PlayerCard\",Value=0,ItemIdentifier=\"bookworm\")",
+				"(RewardType=\"ECHRewardType::UnlockPack\",Value=0,ItemIdentifier=\"winter_wonderland_vol._1\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_41",
+			"ChallengeID": "swarm_protocol",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_41_DisplayName\", \"Swarm Protocol\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_41_Description\", \"Win a session with the \\\"Hungry Succubi\\\" & \\\"Pheromones\\\" Modifiers Enabled\")",
+			"Icon": "/Game/ChallengeIcons/Swarm_Protocol_Icon.Swarm_Protocol_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::SessionsWon\",TargetValue=1,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Session",
+			"Conditions": [
+				"(ConditionType=\"modifier\",ConditionValue=\"Pheromones\")",
+				"(ConditionType=\"modifier\",ConditionValue=\"Hungry Succubi\")"
+			],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=500,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=12,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::PlayerCard\",Value=0,ItemIdentifier=\"red_pantsu\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_42",
+			"ChallengeID": "overclocked",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_42_DisplayName\", \"Overclocked\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_42_Description\", \"Win a session with the \\\"Double Time\\\" modifier enabled.\")",
+			"Icon": "/Game/ChallengeIcons/Overclocked_Icon.Overclocked_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::SessionsWon\",TargetValue=1,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Session",
+			"Conditions": [
+				"(ConditionType=\"modifier\",ConditionValue=\"Double Time\")"
+			],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=300,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=8,ItemIdentifier=\"\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_43",
+			"ChallengeID": "gambler",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_43_DisplayName\", \"Gambler\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_43_Description\", \"Win a session with the \\\"All or Nothing\\\" Modifier Enabled.\")",
+			"Icon": "/Game/ChallengeIcons/Gambler_Icon.Gambler_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::SessionsWon\",TargetValue=1,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Session",
+			"Conditions": [
+				"(ConditionType=\"modifier\",ConditionValue=\"All or Nothing\")"
+			],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=750,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=20,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::PlayerCard\",Value=0,ItemIdentifier=\"the_best_medicine\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_44",
+			"ChallengeID": "the_lamb",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_44_DisplayName\", \"The Lamb\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_44_Description\", \"Win a session with the \\\"Sacrificial\\\" modifier enabled.\")",
+			"Icon": "/Game/ChallengeIcons/The_Lamb_Icon.The_Lamb_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::SessionsWon\",TargetValue=1,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Session",
+			"Conditions": [
+				"(ConditionType=\"modifier\",ConditionValue=\"Sacrificial\")"
+			],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=500,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=12,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::PlayerCard\",Value=0,ItemIdentifier=\"fishnet_boobs\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_45",
+			"ChallengeID": "feeding_hour",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_45_DisplayName\", \"Feeding Hour\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_45_Description\", \"Win a session with the \\\"Succufrenzy\\\" modifier enabled.\")",
+			"Icon": "/Game/ChallengeIcons/Feeding_Hour_Icon.Feeding_Hour_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::SessionsWon\",TargetValue=1,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Lifetime",
+			"Conditions": [
+				"(ConditionType=\"modifier\",ConditionValue=\"Succufrenzy\")"
+			],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=500,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=12,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::PlayerCard\",Value=0,ItemIdentifier=\"massive_underboob\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_46",
+			"ChallengeID": "masochist",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_46_DisplayName\", \"Masochist\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_46_Description\", \"Win a session with the \\\"Iron Man\\\", \\\"Raw Dog\\\", and \\\"Hivemind\\\" modifiers enabled.\")",
+			"Icon": "/Game/ChallengeIcons/Masochist_Icon.Masochist_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::SessionsWon\",TargetValue=1,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Session",
+			"Conditions": [
+				"(ConditionType=\"modifier\",ConditionValue=\"Iron Man\")",
+				"(ConditionType=\"modifier\",ConditionValue=\"Raw Dog\")",
+				"(ConditionType=\"modifier\",ConditionValue=\"Hivemind\")"
+			],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=750,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=20,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::PlayerCard\",Value=0,ItemIdentifier=\"devil_remedy\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_47",
+			"ChallengeID": "devils_toll",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_47_DisplayName\", \"Devil\\'s Toll\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_47_Description\", \"Win a session with the \\\"Deal With the Devil\\\" Modifier Enabled.\")",
+			"Icon": "/Game/ChallengeIcons/Devils_Toll_Icon.Devils_Toll_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::SessionsWon\",TargetValue=1,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Session",
+			"Conditions": [
+				"(ConditionType=\"modifier\",ConditionValue=\"Cum Meter only increases during Succubus Encounters. \")"
+			],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=750,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=20,ItemIdentifier=\"\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_48",
+			"ChallengeID": "cock_hero",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_48_DisplayName\", \"Cock Hero\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_48_Description\", \"Complete all 69 challenges.\")",
+			"Icon": "/Game/ChallengeIcons/Cock_Hero_Icon.Cock_Hero_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [],
+			"Scope": "EChallengeScope::Lifetime",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=1000,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=100,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::PlayerCard\",Value=0,ItemIdentifier=\"verajob\")",
+				"(RewardType=\"ECHRewardType::UnlockPack\",Value=0,ItemIdentifier=\"anal_vol._1\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_49",
+			"ChallengeID": "death_spiral",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_49_DisplayName\", \"Death Spiral\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_49_Description\", \"Win a session with the \\\"Hivemind\\\" & \\\"Succufrenzy\\\" modifiers enabled.\")",
+			"Icon": "/Game/ChallengeIcons/Death_Spiral_Icon.Death_Spiral_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::SessionsWon\",TargetValue=1,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Session",
+			"Conditions": [
+				"(ConditionType=\"modifier\",ConditionValue=\"Succufrenzy\")",
+				"(ConditionType=\"modifier\",ConditionValue=\"Hivemind\")"
+			],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=750,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=20,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::PlayerCard\",Value=0,ItemIdentifier=\"fishnet_creampies\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_50",
+			"ChallengeID": "reach_level_5",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_50_DisplayName\", \"Reach Level 5\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_50_Description\", \"Gain enough XP to reach level 5.\")",
+			"Icon": "/Game/ChallengeIcons/Reach_Level_5_Icon.Reach_Level_5_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::TotalXPEarned\",TargetValue=750,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Lifetime",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=150,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=10,ItemIdentifier=\"\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_51",
+			"ChallengeID": "reach_level_10",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_51_DisplayName\", \"Reach Level 10\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_51_Description\", \"Gain enough XP to reach level 10.\")",
+			"Icon": "/Game/ChallengeIcons/Reach_Level_10_Icon.Reach_Level_10_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::TotalXPEarned\",TargetValue=2605,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Lifetime",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=300,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=15,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPack\",Value=0,ItemIdentifier=\"vera_vol._2\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_52",
+			"ChallengeID": "reach_level_15",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_52_DisplayName\", \"Reach Level 15\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_52_Description\", \"Gain enough XP to reach level 15.\")",
+			"Icon": "/Game/ChallengeIcons/Reach_Level_15_Icon.Reach_Level_15_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::TotalXPEarned\",TargetValue=7315,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Lifetime",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=600,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=20,ItemIdentifier=\"\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_53",
+			"ChallengeID": "reach_level_20",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_53_DisplayName\", \"Reach Level 20\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_53_Description\", \"Gain enough XP to reach level 20.\")",
+			"Icon": "/Game/ChallengeIcons/Reach_Level_20_Icon.Reach_Level_20_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::TotalXPEarned\",TargetValue=19185,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Lifetime",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=750,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=40,ItemIdentifier=\"\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_54",
+			"ChallengeID": "im_outta_here",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_54_DisplayName\", \"I\\'m Outta Here!\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_54_Description\", \"Use the Escape Rope 5 times (lifetime).\")",
+			"Icon": "/Game/ChallengeIcons/Im_Outta_Here__Icon.Im_Outta_Here__Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::EscapeRopesUsed\",TargetValue=5,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Lifetime",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=150,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=3,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockModifier\",Value=0,ItemIdentifier=\"Panic Button\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_55",
+			"ChallengeID": "dead_or_alive",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_55_DisplayName\", \"Dead or Alive\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_55_Description\", \"Collect 50 lifetime bounties.\")",
+			"Icon": "/Game/ChallengeIcons/Dead_or_Alive_Icon.Dead_or_Alive_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::BountiesCollected\",TargetValue=50,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Lifetime",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=450,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=12,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::PlayerCard\",Value=0,ItemIdentifier=\"war_devil\")",
+				"(RewardType=\"ECHRewardType::UnlockModifier\",Value=0,ItemIdentifier=\"Jackpot Drops\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_56",
+			"ChallengeID": "django_unclaimed",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_56_DisplayName\", \"Django Unclaimed\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_56_Description\", \"Fail 10 bounties (lifetime).\")",
+			"Icon": "/Game/ChallengeIcons/Django_Unclaimed_Icon.Django_Unclaimed_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::BountyCollectionFailures\",TargetValue=10,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Lifetime",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=100,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=3,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockModifier\",Value=0,ItemIdentifier=\"Bad RNG\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_57",
+			"ChallengeID": "loot_goblin",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_57_DisplayName\", \"Loot Goblin\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_57_Description\", \"Use loot rush 3x times in 1 game. \")",
+			"Icon": "/Game/ChallengeIcons/Loot_Goblin_Icon.Loot_Goblin_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::LootRushesUsed\",TargetValue=3,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Session",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=4,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::PlayerCard\",Value=0,ItemIdentifier=\"pepper_buns\")",
+				"(RewardType=\"ECHRewardType::UnlockModifier\",Value=0,ItemIdentifier=\"Prize Machine\")",
+				"(RewardType=\"ECHRewardType::UnlockModifier\",Value=0,ItemIdentifier=\"Greed Machine\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_58",
+			"ChallengeID": "disciplined",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_58_DisplayName\", \"disciplined\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_58_Description\", \"Deny 5 temptation prompts (lifetime).\")",
+			"Icon": "/Game/ChallengeIcons/Abstainer_Icon.Abstainer_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::DeclinedTemptation\",TargetValue=5,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Lifetime",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=5,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::PlayerCard\",Value=0,ItemIdentifier=\"bootcamp\")",
+				"(RewardType=\"ECHRewardType::UnlockModifier\",Value=0,ItemIdentifier=\"Dry Spell\")",
+				"(RewardType=\"ECHRewardType::UnlockPack\",Value=0,ItemIdentifier=\"chariot_vol._1\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_59",
+			"ChallengeID": "aint_got_rhythm",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_59_DisplayName\", \"Ain\\'t Got Rhythm\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_59_Description\", \"Fail a Music Mode run during a disabled-break section.\")",
+			"Icon": "/Game/ChallengeIcons/Aint_Got_No_Rhythm_icon.Aint_Got_No_Rhythm_icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::DisabledBreakSectionFailures\",TargetValue=1,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Lifetime",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=150,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=2,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::PlayerCard\",Value=0,ItemIdentifier=\"unimpressed\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_60",
+			"ChallengeID": "not_quite_my_tempo",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_60_DisplayName\", \"Not Quite My Tempo\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_60_Description\", \"Use 5 breaks in Music Mode (lifetime).\")",
+			"Icon": "/Game/ChallengeIcons/Not_Quite_My_Tempo_Icon.Not_Quite_My_Tempo_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::MusicBreaksUsed\",TargetValue=5,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Lifetime",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=200,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=5,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPack\",Value=0,ItemIdentifier=\"pepper_vol._1\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_61",
+			"ChallengeID": "pump_and_dump",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_61_DisplayName\", \"Pump and Dump\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_61_Description\", \"Use Combo Cruncher 2 times in one session.\")",
+			"Icon": "/Game/ChallengeIcons/Pump_and_Dump_Icon.Pump_and_Dump_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::ComboCrunchersUsed\",TargetValue=2,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Session",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=6,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::PlayerCard\",Value=0,ItemIdentifier=\"cummy_pitz\")",
+				"(RewardType=\"ECHRewardType::UnlockModifier\",Value=0,ItemIdentifier=\"Greed Machine\")",
+				"(RewardType=\"ECHRewardType::UnlockPack\",Value=0,ItemIdentifier=\"armpits_vol._1\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_62",
+			"ChallengeID": "public_safety",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_62_DisplayName\", \"Public Safety\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_62_Description\", \"Win 10 SuccuSlayer sessions in classic mode.\")",
+			"Icon": "/Game/ChallengeIcons/Public_Safety_Icon.Public_Safety_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::SuccuSlayerSessionsWon\",TargetValue=10,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Lifetime",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=1000,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=20,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::PlayerCard\",Value=0,ItemIdentifier=\"waifu_paradise\")",
+				"(RewardType=\"ECHRewardType::UnlockModifier\",Value=0,ItemIdentifier=\"Double Devil\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_63",
+			"ChallengeID": "test_your_might",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_63_DisplayName\", \"Test Your Might\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_63_Description\", \"Win a tower session with 20 rounds or more.\")",
+			"Icon": "/Game/ChallengeIcons/Test_your_Might_Icon.Test_your_Might_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::BestTowerWinRounds\",TargetValue=20,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Lifetime",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=1000,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockModifier\",Value=0,ItemIdentifier=\"Overencumbered\")",
+				"(RewardType=\"ECHRewardType::UnlockPack\",Value=0,ItemIdentifier=\"soldiers_vol._1\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=20,ItemIdentifier=\"\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_64",
+			"ChallengeID": "the_whole_record",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_64_DisplayName\", \"The Whole Record\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_64_Description\", \"Win a game of 15 rounds or more in Music Mode.\")",
+			"Icon": "/Game/ChallengeIcons/The_Whole_Record_Icon.The_Whole_Record_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::BestMusicModeWinRounds\",TargetValue=15,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Lifetime",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=1000,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=15,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::PlayerCard\",Value=0,ItemIdentifier=\"cheerleader_upskirt\")",
+				"(RewardType=\"ECHRewardType::UnlockModifier\",Value=0,ItemIdentifier=\"Those Are Mine\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_65",
+			"ChallengeID": "aggravator",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_65_DisplayName\", \"Aggravator\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_65_Description\", \"Use 10 offensive items in one classic mode session and win.\")",
+			"Icon": "/Game/ChallengeIcons/Aggravator_Icon.Aggravator_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::OffensiveItemsUsed\",TargetValue=10,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)",
+				"(MetricType=\"EMetricType::SessionsWon\",TargetValue=1,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Session",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=500,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::PlayerCard\",Value=0,ItemIdentifier=\"dommy_milkers\")",
+				"(RewardType=\"ECHRewardType::UnlockModifier\",Value=0,ItemIdentifier=\"Hot Hands\")",
+				"(RewardType=\"ECHRewardType::UnlockPack\",Value=0,ItemIdentifier=\"naughty_nuns_vol._1\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_66",
+			"ChallengeID": "fap_sensei",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_66_DisplayName\", \"Fap Sensei\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_66_Description\", \"Achieve 204 edges in one game. \")",
+			"Icon": "/Game/ChallengeIcons/Fap_Sensei_Icon.Fap_Sensei_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::Edges\",TargetValue=204,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Session",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=1000,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=50,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::PlayerCard\",Value=0,ItemIdentifier=\"futa_fiend\")",
+				"(RewardType=\"ECHRewardType::UnlockModifier\",Value=0,ItemIdentifier=\"Fap Tax\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_67",
+			"ChallengeID": "ember's fave",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_67_DisplayName\", \"Ember\\'s Fave\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_67_Description\", \"Purchase everything from the SuccuStore in Classic Mode.\")",
+			"Icon": "/Game/ChallengeIcons/Embers_Favorite_Icon.Embers_Favorite_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::SuccuCoinsSpent\",TargetValue=169,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Session",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::UnlockModifier\",Value=0,ItemIdentifier=\"Avarice\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=20,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::PlayerCard\",Value=0,ItemIdentifier=\"behind_the_counter\")",
+				"(RewardType=\"ECHRewardType::UnlockPack\",Value=0,ItemIdentifier=\"ember_vol._1\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		},
+		{
+			"Name": "NewRow_68",
+			"ChallengeID": "budget_run",
+			"DisplayName": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_68_DisplayName\", \"Budget Run\")",
+			"Description": "NSLOCTEXT(\"DT_Challenges [43387244D0D3DB0A7620FC14296BD839]\", \"NewRow_68_Description\", \"Win a session without spending any coins or SuccuCoins.\")",
+			"Icon": "/Game/ChallengeIcons/Budget_Run_Icon.Budget_Run_Icon",
+			"IconTint": "(R=1.000000,G=1.000000,B=1.000000,A=1.000000)",
+			"Requirements": [
+				"(MetricType=\"EMetricType::SuccuCoinsSpent\",TargetValue=0,ComparisonType=\"EComparisonType::LessOrEqual\",CurrentValue=0)",
+				"(MetricType=\"EMetricType::MoneySpent\",TargetValue=0,ComparisonType=\"EComparisonType::LessOrEqual\",CurrentValue=0)",
+				"(MetricType=\"EMetricType::SessionsWon\",TargetValue=1,ComparisonType=\"EComparisonType::GreaterOrEqual\",CurrentValue=0)"
+			],
+			"Scope": "EChallengeScope::Session",
+			"Conditions": [],
+			"Rewards": [
+				"(RewardType=\"ECHRewardType::XP\",Value=350,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::UnlockPoints\",Value=10,ItemIdentifier=\"\")",
+				"(RewardType=\"ECHRewardType::PlayerCard\",Value=0,ItemIdentifier=\"redhead_jeans\")",
+				"(RewardType=\"ECHRewardType::UnlockPack\",Value=0,ItemIdentifier=\"milfs_vol._1\")"
+			],
+			"XPReward": 0,
+			"UnlockPointsReward": 0,
+			"bHidden": false
+		}
+	]
+}

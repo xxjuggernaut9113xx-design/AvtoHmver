@@ -2,6 +2,29 @@
 use crate::AppState;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
+pub fn recording_id(state: &AppState, id: i64) -> Result<String, String> {
+    use sha1::{Digest, Sha1};
+    use std::io::Read;
+    let mut file = std::fs::File::open(track_path(state, id)?).map_err(|e| e.to_string())?;
+    let mut hash = Sha1::new();
+    let mut buffer = [0u8; 65536];
+    loop {
+        let n = file.read(&mut buffer).map_err(|e| e.to_string())?;
+        if n == 0 {
+            break;
+        }
+        hash.update(&buffer[..n]);
+    }
+    Ok(format!("sha1:{:x}", hash.finalize()))
+}
+pub fn converted_path(state: &AppState, id: i64, native: bool) -> Result<PathBuf, String> {
+    let identity = recording_id(state, id)?;
+    Ok(track_path(state, id)?.with_extension(format!(
+        "{}.{}",
+        &identity[5..],
+        if native { "native.m4a" } else { "browser.mp3" }
+    )))
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Track {

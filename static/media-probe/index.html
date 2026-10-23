@@ -1,0 +1,17 @@
+﻿<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>fanservice · Media feasibility</title>
+<style>body{font:17px system-ui;background:#111622;color:#eef;padding:max(20px,env(safe-area-inset-top)) 20px;max-width:800px;margin:auto}button,input,select{font:inherit;margin:8px 0;padding:10px;max-width:100%}video{width:100%;max-height:45vh;background:black}pre{white-space:pre-wrap;overflow-wrap:anywhere}label{display:block}button{cursor:pointer}</style>
+<h1>Media feasibility</h1><p>Selected media stays on this device. Nothing is uploaded. Saving makes a separate browser copy; storage may be evicted. Hidden Photos availability must be observed on your iPhone.</p>
+<label>Files / iCloud Drive <input id="files" type="file" accept="video/*,audio/*"></label>
+<label>Photos picker <input id="photos" type="file" accept="video/*,image/*"></label>
+<video id="player" controls playsinline preload="metadata"></video>
+<img id="picture" alt="Selected photo" hidden style="max-width:100%">
+<p id="status" role="status">No media selected.</p>
+<button id="play">Activate audio / play</button> <button id="seek">Seek +10 seconds</button>
+<button id="save">Save selected media in browser</button> <button id="reopen">Reopen saved copy</button> <button id="remove">Remove saved copy</button>
+<button id="persist">Request persistent storage</button> <button id="install">Cache test page for offline use</button>
+<label>Observation <select id="case"><option>Local Files</option><option>iCloud Drive cloud-only</option><option>Photos cloud-only</option><option>Explicitly selected Hidden Photos</option><option>Seeking and audio activation</option><option>Interruption and resume</option><option>Offline playback</option><option>Reopen after browser restart</option></select></label>
+<button id="pass">Record passed</button> <button id="fail">Record failed</button> <button id="export">Export diagnostics</button>
+<p>After saving, close Safari completely and reopen this same address. Tap Reopen saved copy, then test airplane mode. A file selection alone does not prove offline storage. If Hidden Photos is unavailable, record failure and stop that feature for the user decision; do not unhide or export as a substitute.</p>
+<pre id="log"></pre><script src="probe.js"></script></html>

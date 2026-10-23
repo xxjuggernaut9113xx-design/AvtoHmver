@@ -128,6 +128,21 @@ pub fn output_timeout_limited(
     timeout: Duration,
     output_limit: u64,
 ) -> io::Result<Output> {
+    output_timeout_limited_cancellable(cmd, timeout, output_limit, &|| false)
+}
+
+pub fn output_timeout_limited_cancellable(
+    cmd: &mut Command,
+    timeout: Duration,
+    output_limit: u64,
+    cancelled: &dyn Fn() -> bool,
+) -> io::Result<Output> {
+    if cancelled() {
+        return Err(io::Error::new(
+            io::ErrorKind::Interrupted,
+            "subprocess cancelled",
+        ));
+    }
     // Files avoid pipe deadlock and unbounded reader threads on broken subprocesses.
     let mut stdout = tempfile::tempfile()?;
     let mut stderr = tempfile::tempfile()?;
@@ -137,6 +152,14 @@ pub fn output_timeout_limited(
         .spawn()?;
     let start = Instant::now();
     let status = loop {
+        if cancelled() {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(io::Error::new(
+                io::ErrorKind::Interrupted,
+                "subprocess cancelled",
+            ));
+        }
         match child.try_wait() {
             Ok(Some(status)) => break status,
             Ok(None) if start.elapsed() < timeout => std::thread::sleep(Duration::from_millis(20)),
@@ -166,6 +189,52 @@ pub fn output_timeout_limited(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn cancelling_a_running_subprocess_is_bounded_and_does_not_wait_for_its_timeout() {
+        #[cfg(windows)]
+        let mut command = {
+            let mut command = blocking_command("powershell.exe");
+            command.args([
+                "-NoProfile",
+                "-NonInteractive",
+                "-Command",
+                "Start-Sleep -Seconds 30",
+            ]);
+            command
+        };
+        #[cfg(not(windows))]
+        let mut command = {
+            let mut command = blocking_command("sleep");
+            command.arg("30");
+            command
+        };
+        let checks = std::cell::Cell::new(0);
+        let started = Instant::now();
+        let error = output_timeout_limited_cancellable(
+            &mut command,
+            Duration::from_secs(30),
+            1024,
+            &|| {
+                checks.set(checks.get() + 1);
+                checks.get() >= 4
+            },
+        )
+        .unwrap_err();
+        assert_eq!(error.kind(), io::ErrorKind::Interrupted);
+        assert!(started.elapsed() < Duration::from_secs(5));
+        let mut never_spawned = blocking_command("avtohmver_nonexistent_cancelled_command");
+        assert_eq!(
+            output_timeout_limited_cancellable(
+                &mut never_spawned,
+                Duration::from_secs(1),
+                1024,
+                &|| true
+            )
+            .unwrap_err()
+            .kind(),
+            io::ErrorKind::Interrupted
+        );
+    }
 
     #[test]
     fn production_helpers_do_not_bypass_the_process_factory() {

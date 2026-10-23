@@ -6,3 +6,10 @@ config.json
 /desktop/gen/
 __pycache__/
 *.py[cod]
+/tests/browser/node_modules/
+/fanservice-ci-results/
+/mobile/node_modules/
+/mobile/www/
+/mobile/android/.gradle/
+/mobile/android/local.properties
+/mobile/android/**/build/

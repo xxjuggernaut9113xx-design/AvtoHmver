@@ -51,6 +51,10 @@ pub struct MediaItem {
     #[serde(default)]
     pub duration_secs: Option<f64>,
     #[serde(default)]
+    pub clip_start_secs: Option<f64>,
+    #[serde(default)]
+    pub clip_end_secs: Option<f64>,
+    #[serde(default)]
     pub auto_rating: Option<i64>,
     #[serde(default)]
     pub human_rating: Option<i64>,
@@ -76,6 +80,7 @@ pub struct MediaPage {
 
 pub enum Command {
     StartSession,
+    StartConfiguredSession(Box<crate::session::GameConfig>),
     Session(crate::session::SessionControl),
     CreateGroup(String),
     CreateChildGroup(String, i64),
@@ -761,7 +766,7 @@ impl Default for NativePreferences {
             width: 1200,
             height: 800,
             workspace: 0,
-            theme: default_native_theme(),
+            theme: "tactical".into(),
             layout: default_native_layout(),
             extra: Default::default(),
         }
@@ -991,6 +996,116 @@ impl Client {
         Ok(())
     }
 
+    pub async fn discover_more(&self, cursor: String) -> Result<Value, String> {
+        match self {
+            Self::Local(client) => response(
+                routes::search::search(
+                    State(client.state.clone()),
+                    Query(routes::search::SearchQuery {
+                        cursor: Some(cursor),
+                        paged: true,
+                        ..Default::default()
+                    }),
+                )
+                .await,
+            ),
+            Self::Remote(client) => {
+                if !client.permissions.discovery {
+                    return Err("Viewer role cannot use discovery".into());
+                }
+                let mut url = client.url("/api/search")?;
+                url.query_pairs_mut()
+                    .append_pair("cursor", &cursor)
+                    .append_pair("limit", "40");
+                let bytes = client.bytes(reqwest::Method::GET, url, None).await?;
+                serde_json::from_slice(&bytes).map_err(|error| error.to_string())
+            }
+        }
+    }
+
+    pub async fn discovery_thumbnail(&self, source: &str) -> Result<NativeImage, String> {
+        if let Self::Remote(client) = self {
+            if !client.permissions.discovery {
+                return Err("Viewer role cannot use discovery".into());
+            }
+        }
+        let bytes = if let Some(id) = source
+            .strip_prefix("/api/thumb/")
+            .and_then(|value| value.parse::<i64>().ok())
+        {
+            match self {
+                Self::Local(client) => {
+                    let response = routes::thumb::get_thumbnail(
+                        State(client.state.clone()),
+                        axum::extract::Path(id),
+                    )
+                    .await;
+                    if !response.status().is_success() {
+                        return Err("Preview unavailable".into());
+                    }
+                    axum::body::to_bytes(response.into_body(), 4 * 1024 * 1024)
+                        .await
+                        .map_err(|error| error.to_string())?
+                        .to_vec()
+                }
+                Self::Remote(client) => {
+                    client
+                        .bytes(
+                            reqwest::Method::GET,
+                            client.url(&format!("/api/thumb/{id}"))?,
+                            None,
+                        )
+                        .await?
+                }
+            }
+        } else {
+            let url = reqwest::Url::parse(source).map_err(|error| error.to_string())?;
+            crate::url_guard::validate_public_http_url(&url)?;
+            let client = reqwest::Client::builder()
+                .timeout(std::time::Duration::from_secs(5))
+                .redirect(crate::url_guard::public_redirect_policy())
+                .build()
+                .map_err(|error| error.to_string())?;
+            let mut response = client
+                .get(url)
+                .send()
+                .await
+                .map_err(|error| error.to_string())?
+                .error_for_status()
+                .map_err(|error| error.to_string())?;
+            let mut bytes = Vec::new();
+            while let Some(chunk) = response.chunk().await.map_err(|error| error.to_string())? {
+                if bytes.len().saturating_add(chunk.len()) > 4 * 1024 * 1024 {
+                    return Err("Preview is too large".into());
+                }
+                bytes.extend_from_slice(&chunk);
+            }
+            bytes
+        };
+        tokio::task::spawn_blocking(move || {
+            let mut reader = image::ImageReader::new(std::io::Cursor::new(bytes))
+                .with_guessed_format()
+                .map_err(|error| error.to_string())?;
+            let mut limits = image::Limits::default();
+            limits.max_image_width = Some(8192);
+            limits.max_image_height = Some(8192);
+            limits.max_alloc = Some(32 * 1024 * 1024);
+            reader.limits(limits);
+            let image = reader
+                .decode()
+                .map_err(|error| error.to_string())?
+                .thumbnail(160, 160)
+                .to_rgba8();
+            Ok(NativeImage {
+                width: image.width(),
+                height: image.height(),
+                pixels: image.into_raw(),
+            })
+        })
+        .await
+        .map_err(|error| error.to_string())?
+    }
+
     pub async fn discover(
         &self,
         query: String,
@@ -1009,6 +1124,7 @@ impl Client {
                     State(client.state.clone()),
                     Query(routes::search::SearchQuery {
                         query: Some(query),
+                        paged: true,
                         provider,
                         result_type,
                         sort,
@@ -1022,6 +1138,7 @@ impl Client {
                 {
                     let mut pairs = url.query_pairs_mut();
                     pairs.append_pair("query", &query);
+                    pairs.append_pair("paged", "true");
                     if let Some(provider) =
                         provider.as_deref().filter(|value| !value.trim().is_empty())
                     {
@@ -1198,6 +1315,18 @@ impl Client {
         }
     }
 
+    pub async fn stage_linked_package(
+        &self,
+        cancel: Arc<std::sync::atomic::AtomicBool>,
+    ) -> Result<std::path::PathBuf, String> {
+        let Self::Local(client) = self else {
+            return Err("Linked packages can only be staged on the local Host".into());
+        };
+        crate::linked_packages::stage_with_cancel(&client.state, cancel)
+            .await
+            .map_err(|error| error.to_string())
+    }
+
     pub async fn export_source_list(&self) -> Result<crate::services::export::SourceList, String> {
         let Self::Local(client) = self else {
             return Err("Source-list export is available only on the Host device".into());
@@ -1247,18 +1376,27 @@ impl Client {
 
     /// Best-effort cached thumbnail for a library item. Generates the
     /// thumbnail from the local file on first use and returns its cache
-    /// path; `None` for remote viewers, non-image media, or files that
+    /// path; `None` for remote viewers, unsupported media, or files that
     /// cannot be decoded. Never performs network I/O.
     pub fn thumbnail_path(&self, item: &MediaItem) -> Option<std::path::PathBuf> {
         let Self::Local(client) = self else {
             return None;
         };
-        if item.kind != "image" {
+        if !matches!(item.kind.as_str(), "image" | "video" | "clip") {
             return None;
         }
-        let source = std::path::Path::new(&item.filepath);
-        crate::thumb_worker::get_or_create_thumb_sync(item.id, source, &client.state.thumbs_dir)
-            .ok()?;
+        if client.state.shutdown.is_cancelled() {
+            return None;
+        }
+        let _lease = client.state.maintenance.try_acquire_background_worker()?;
+        let source = client.media_path(item.id).ok()?;
+        crate::thumb_worker::get_or_create_thumb_with_tool(
+            item.id,
+            &source,
+            &client.state.thumbs_dir,
+            &client.state.ffmpeg_bin,
+        )
+        .ok()?;
         Some(client.state.thumbs_dir.join(format!("{}.jpg", item.id)))
     }
 
@@ -1362,9 +1500,9 @@ impl Client {
             Self::Local(client) => client.execute(command).await,
             Self::Remote(client) => {
                 let permitted = match &command {
-                    Command::StartSession | Command::Session(_) => {
-                        client.permissions.session_control
-                    }
+                    Command::StartSession
+                    | Command::StartConfiguredSession(_)
+                    | Command::Session(_) => client.permissions.session_control,
                     Command::CreateGroup(_)
                     | Command::CreateChildGroup(_, _)
                     | Command::MoveGroup(_, _)
@@ -1488,9 +1626,18 @@ impl Client {
                 let (path, body) = match command {
                     Command::StartSession => (
                         "/api/session/start".into(),
-                        serde_json::to_value(crate::session::GameConfig::quick_default())
-                            .map_err(|e| e.to_string())?,
+                        serde_json::to_value(
+                            crate::instructor::InstructorOptions::default().compile()?,
+                        )
+                        .map_err(|e| e.to_string())?,
                     ),
+                    Command::StartConfiguredSession(config) => {
+                        config.validate()?;
+                        (
+                            "/api/session/start".into(),
+                            serde_json::to_value(config).map_err(|e| e.to_string())?,
+                        )
+                    }
                     Command::Session(control) => (
                         "/api/session/command".into(),
                         serde_json::to_value(control).map_err(|e| e.to_string())?,
@@ -1583,7 +1730,12 @@ impl Client {
         }
         let mut reader = match self {
             Self::Local(client) => {
-                let path = client.media_path(item.id)?;
+                let path = if item.kind == "video" || item.kind == "clip" {
+                    self.thumbnail_path(item)
+                        .ok_or_else(|| "Video preview unavailable".to_owned())?
+                } else {
+                    client.media_path(item.id)?
+                };
                 if std::fs::metadata(&path).map_err(|e| e.to_string())?.len() > 32 * 1024 * 1024 {
                     return Err("Image exceeds 32 MiB limit".into());
                 }
@@ -1595,7 +1747,11 @@ impl Client {
                 let bytes = client
                     .bytes(
                         reqwest::Method::GET,
-                        client.media_stream_url(item.id)?,
+                        if item.kind == "video" || item.kind == "clip" {
+                            client.url(&format!("/api/thumb/{}", item.id))?
+                        } else {
+                            client.media_stream_url(item.id)?
+                        },
                         None,
                     )
                     .await?;
@@ -1777,11 +1933,15 @@ impl LocalClient {
             Command::StartSession => serde_json::to_value(
                 crate::services::session::start(
                     &self.state,
-                    crate::session::GameConfig::quick_default(),
+                    crate::instructor::InstructorOptions::default().compile()?,
                 )
                 .map_err(|error| error.to_string())?,
             )
             .map_err(|e| e.to_string()),
+            Command::StartConfiguredSession(config) => serde_json::to_value(
+                crate::services::session::start(&self.state, *config)
+                    .map_err(|error| error.to_string())?,
+            ).map_err(|e| e.to_string()),
             Command::Session(control) => serde_json::to_value(
                 crate::services::session::control(&self.state, control)
                     .map_err(|error| error.to_string())?,
@@ -2086,6 +2246,12 @@ mod tests {
 
     #[test]
     fn native_preferences_migrate_device_appearance_defaults() {
+        assert_eq!(NativePreferences::default().theme, "tactical");
+        assert_eq!(crate::db::Settings::default().theme, "tactical");
+        let mut saved_value = serde_json::to_value(NativePreferences::default()).unwrap();
+        saved_value["theme"] = json!("ember");
+        let saved: NativePreferences = serde_json::from_value(saved_value).unwrap();
+        assert_eq!(saved.theme, "ember");
         let old = json!({"version":1,"queue":[],"width":1200,"height":800,"workspace":0,"future_option":{"enabled":true}});
         let preferences: NativePreferences = serde_json::from_value(old).unwrap();
         assert_eq!(preferences.theme, "system");
@@ -2121,6 +2287,8 @@ mod tests {
             added_at: None,
             creator: None,
             downloaded: None,
+            clip_start_secs: None,
+            clip_end_secs: None,
         });
         write_preferences(&path, &preferences).unwrap();
         preferences.queue.clear();
@@ -2621,6 +2789,7 @@ mod tests {
             Command::MoveGroup(1, Some(2)),
             Command::AddSources("https://example.com".into()),
             Command::StartSession,
+            Command::StartConfiguredSession(Box::new(crate::session::GameConfig::quick_default())),
             Command::RenameSource(1, "renamed".into()),
             Command::UpdateSource(
                 1,

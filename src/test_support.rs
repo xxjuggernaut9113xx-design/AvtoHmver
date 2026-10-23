@@ -34,6 +34,7 @@ pub fn state(root: &std::path::Path) -> Arc<AppState> {
         sessions: session::SessionService::default(),
         settings: Arc::new(RwLock::new(db::Settings::default())),
         size_backfill: Arc::new(RwLock::new(media_files::SizeBackfillProgress::default())),
+        discovery_pages: Default::default(),
         search_registry: Arc::new(routes::search::default_provider_registry()),
         data_dir: root.into(),
         library_dir: root.join("library"),

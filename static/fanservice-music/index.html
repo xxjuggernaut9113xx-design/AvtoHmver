@@ -1,0 +1,10 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>fanservice soundtrack preparation</title><link rel="stylesheet" href="/fanservice/style.css"></head><body>
+<header><strong>fanservice · Soundtrack preparation</strong><a href="/">Full library</a><a href="/fanservice/">Lite import</a></header>
+<main><p>Import your own recordings, analyze an initial beat proposal, then review and confirm it. Beatmaps are bound to the exact recording. Only the local Server owner can make changes.</p>
+<p id="message" role="status"></p><label>Import recording <input id="file" type="file" accept="audio/*"></label><button id="upload">Import selected audio</button>
+<label>Recording <select id="tracks"></select></label><button id="inspect">Load saved beatmap</button><button id="analyze">Analyze recording</button>
+<audio id="audio" controls preload="none"></audio><p id="identity"></p>
+<label>BPM <input id="bpm" type="number" min="20" max="400" step="0.01" value="120"></label><label>Offset in seconds <input id="offset" type="number" step="0.001" value="0"></label>
+<button id="grid">Generate regular beat grid from BPM</button><p>Beat times are seconds before the offset. Control events use the same clock. Edit individual times, stroke/rest/accent types, and control events below.</p>
+<label>Beats and control events (JSON) <textarea id="document" rows="18" spellcheck="false">{"beats":[],"events":[]}</textarea></label>
+<label><input id="confirmed" type="checkbox"> I reviewed this map against this recording</label><button id="save">Save beatmap</button></main><script src="app.js"></script></body></html>

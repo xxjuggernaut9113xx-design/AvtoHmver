@@ -1875,23 +1875,18 @@ function buildTile(item, index) {
   const unavailable = mediaUnavailable(item);
   tile.className = 'tile' + (item.type === 'video' ? ' tile-video' : '') + (unavailable ? ' tile-unavailable' : '');
 
-  let mediaEl;
-  if (item.type === 'video' && !unavailable) {
-    mediaEl = document.createElement('video');
-    reportVideoDuration(mediaEl, item);
-    mediaEl.dataset.src = mediaFullSrc(item);
-    mediaEl.preload = 'metadata';
-    mediaEl.muted = true;
-    videoLazyObserver.observe(mediaEl);
-  } else {
-    mediaEl = document.createElement('img');
-    // Small cached JPEG, not the multi-MB original — see /api/thumb.
-    // (Not-yet-downloaded items skip that cache entirely — see mediaThumbSrc.)
-    mediaEl.src = mediaThumbSrc(item);
-    mediaEl.loading = 'lazy';
-    mediaEl.decoding = 'async';
-    mediaEl.alt = item.filename;
-  }
+  const mediaEl = document.createElement('img');
+  mediaEl.src = mediaThumbSrc(item);
+  mediaEl.loading = 'lazy';
+  mediaEl.decoding = 'async';
+  mediaEl.alt = item.filename;
+  mediaEl.addEventListener('error', () => {
+    mediaEl.hidden = true;
+    const fallback = document.createElement('span');
+    fallback.className = 'tile-preview-fallback mono';
+    fallback.textContent = 'Preview unavailable';
+    tile.appendChild(fallback);
+  }, { once: true });
   tile.appendChild(mediaEl);
 
   const frame = document.createElement('span');
@@ -1942,6 +1937,9 @@ function openLightbox(index) {
 }
 
 function closeLightbox() {
+  for (const video of el('#lightbox-stage').querySelectorAll('video')) {
+    avtoPlaybackClock.forget(video); video.pause(); video._clipCleanup?.(); video.removeAttribute('src'); video.load();
+  }
   el('#lightbox').hidden = true;
   el('#lightbox-stage').innerHTML = '';
 }
@@ -1999,6 +1997,9 @@ function renderLightboxItem() {
   el('#lightbox-reveal-native').hidden = !nativeFileActions;
   el('#lightbox-clip-tools').hidden = item.type !== 'video' || item.downloaded === 0 || item.clip_parent_id != null || (item.duration_secs != null && item.duration_secs <= clipMaxSeconds());
   const stage = el('#lightbox-stage');
+  for (const video of stage.querySelectorAll('video')) {
+    avtoPlaybackClock.forget(video); video.pause(); video._clipCleanup?.(); video.removeAttribute('src'); video.load();
+  }
   stage.innerHTML = '';
   const src = mediaFullSrc(item);
 
@@ -2381,20 +2382,27 @@ async function pwAdvance(i) {
   }
   const next = pw.ready[i].shift();
   if (!next) { pwShowEmpty(i); return; }
-  pwMountPane(i, next.item, next.el);
-  pwFillReady(i); // top the queue back up in the background — don't wait on this
+  // A preload may finish after Pause. Keep that exact candidate until resume.
+  avtoPlaybackClock.cancel(pw.timers[i]);
+  pw.timers[i] = avtoPlaybackClock.timeout(() => {
+    if (!pw.active) return;
+    pwMountPane(i, next.item, next.el);
+    pwFillReady(i);
+  }, 0);
 }
 
 function pwShowEmpty(i) {
-  if (pw.timers[i]) { clearTimeout(pw.timers[i]); pw.timers[i] = null; }
+  if (pw.timers[i]) { avtoPlaybackClock.cancel(pw.timers[i]); pw.timers[i] = null; }
   const media = el(`#pw-pane-media-${i}`);
   media.innerHTML = '<div class="pw-pane-empty">No more portrait files here</div>';
 }
 
 function pwMountPane(i, item, mediaEl) {
-  if (pw.timers[i]) { clearTimeout(pw.timers[i]); pw.timers[i] = null; }
+  if (pw.timers[i]) { avtoPlaybackClock.cancel(pw.timers[i]); pw.timers[i] = null; }
 
   const media = el(`#pw-pane-media-${i}`);
+  const previous = media.querySelector('video, img');
+  if (previous) { avtoPlaybackClock.forget(previous); if (previous.tagName === 'VIDEO') previous.pause(); }
   media.innerHTML = '';
   mediaEl.className = 'pw-media';
   media.appendChild(mediaEl);
@@ -2402,17 +2410,17 @@ function pwMountPane(i, item, mediaEl) {
   if (item.type === 'video') {
     // Metadata already loaded during the check phase, so playback here is
     // effectively immediate — no separate "wait for load" step needed.
-    mediaEl.addEventListener('ended', () => { if (pw.active) pwAdvance(i); });
-    mediaEl.addEventListener('error', () => { if (pw.active) pwAdvance(i); });
-    const p = mediaEl.play();
+    mediaEl.addEventListener('ended', () => avtoPlaybackClock.end(mediaEl, () => { if (pw.active) pwAdvance(i); }));
+    mediaEl.addEventListener('error', () => avtoPlaybackClock.end(mediaEl, () => { if (pw.active) pwAdvance(i); }));
+    const p = avtoPlaybackClock.play(mediaEl);
     if (p && p.catch) {
       // Some browsers block unmuted autoplay outright — fall back to
       // muted rather than leaving the video stuck paused. No "tap to
       // unmute" prompt here; keeping this view hands-off.
-      p.catch(() => { mediaEl.muted = true; mediaEl.play().catch(() => {}); });
+      p.catch(() => { mediaEl.muted = true; avtoPlaybackClock.play(mediaEl).catch(() => {}); });
     }
   } else {
-    mediaEl.addEventListener('error', () => { if (pw.active) pwAdvance(i); });
+    mediaEl.addEventListener('error', () => avtoPlaybackClock.end(mediaEl, () => { if (pw.active) pwAdvance(i); }));
     // The timer only starts once the image is actually, visibly loaded —
     // it was very likely finished during prefetch already (mediaEl.complete
     // covers that instantly), but if it's still in flight (a big file, or
@@ -2420,7 +2428,7 @@ function pwMountPane(i, item, mediaEl) {
     // burning part of the display duration on a still-loading image.
     const startTimer = () => {
       if (!pw.active) return;
-      pw.timers[i] = setTimeout(() => { if (pw.active) pwAdvance(i); }, ss.speed);
+      pw.timers[i] = avtoPlaybackClock.timeout(() => { if (pw.active) pwAdvance(i); }, ss.speed);
     };
     if (mediaEl.complete && mediaEl.naturalWidth > 0) {
       startTimer();
@@ -2450,10 +2458,10 @@ function exitPortraitWall() {
   pw.items = [];
   pw.loadingMore = false;
   for (let i = 0; i < 3; i++) {
-    if (pw.timers[i]) { clearTimeout(pw.timers[i]); pw.timers[i] = null; }
+    if (pw.timers[i]) { avtoPlaybackClock.cancel(pw.timers[i]); pw.timers[i] = null; }
     const media = el(`#pw-pane-media-${i}`);
     const v = media && media.querySelector('video');
-    if (v) v.pause();
+    if (v) { avtoPlaybackClock.forget(v); v.pause(); }
     if (media) media.innerHTML = '';
   }
   pw.ready = [[], [], []];
@@ -2595,7 +2603,7 @@ function feedBuildItem(item) {
       fill.style.transition = 'none';
       fill.style.width = ((mediaEl.currentTime / mediaEl.duration) * 100) + '%';
     });
-    mediaEl.addEventListener('ended', () => { if (feed.active && !feed.review && feed.activeSection === section) feedGoNext(section); });
+    mediaEl.addEventListener('ended', () => avtoPlaybackClock.end(mediaEl, () => { if (feed.active && !feed.review && feed.activeSection === section) feedGoNext(section); }));
 
     // Tap the video to pause/resume. userPaused only controls whether a
     // scrub-release (below) resumes playback — scrolling away and back
@@ -2604,13 +2612,11 @@ function feedBuildItem(item) {
     // stick past leaving the item.
     let userPaused = false;
     mediaEl.addEventListener('click', () => {
-      if (mediaEl.paused) {
-        mediaEl.play();
-        userPaused = false;
+      avtoPlaybackClock.setPaused(!avtoPlaybackClock.paused);
+      userPaused = avtoPlaybackClock.paused;
+      if (!userPaused) {
         feedFlashIcon(pauseIcon, '▶');
       } else {
-        mediaEl.pause();
-        userPaused = true;
         feedFlashIcon(pauseIcon, '⏸');
       }
     });
@@ -2723,7 +2729,7 @@ function feedActivate(section) {
         fill.style.transition = `width ${ss.speed}ms linear`;
         fill.style.width = '100%';
       });
-      section._timer = setTimeout(() => { if (feed.active) feedGoNext(section); }, ss.speed);
+      section._timer = avtoPlaybackClock.timeout(() => { if (feed.active) feedGoNext(section); }, ss.speed);
     };
     if (mediaEl.complete && mediaEl.naturalWidth > 0) startTimer();
     else mediaEl.addEventListener('load', startTimer, { once: true });
@@ -2732,9 +2738,10 @@ function feedActivate(section) {
 }
 
 function feedDeactivate(section) {
-  clearInterval(section._countdownTimer); section._countdownTimer = null;
-  if (section._timer) { clearTimeout(section._timer); section._timer = null; }
+  avtoPlaybackClock.cancel(section._countdownTimer); section._countdownTimer = null;
+  if (section._timer) { avtoPlaybackClock.cancel(section._timer); section._timer = null; }
   const mediaEl = section._mediaEl;
+  if (mediaEl) avtoPlaybackClock.forget(mediaEl);
   if (mediaEl && mediaEl.tagName === 'VIDEO') mediaEl.pause();
   if (feed.activeSection === section) feed.activeSection = null;
 }
@@ -2833,7 +2840,7 @@ async function feedLoadAndAppend(item, session) {
   if (ok) {
     el('#feed-scroll').appendChild(section);
     feed.itemObserver.observe(section);
-    if (feed.waitingNext === feed.activeSection && feed.waitingNext) feedGoNext(feed.waitingNext);
+    if (feed.waitingNext === feed.activeSection && feed.waitingNext) avtoPlaybackClock.end(feed.waitingNext._mediaEl, () => { if (feed.waitingNext === feed.activeSection && feed.waitingNext) feedGoNext(feed.waitingNext); });
   } else { feed.failedIds.add(item.id); feedDispose(section); }
   feedPumpPrefetch();
 }
@@ -2951,8 +2958,8 @@ function feedBuildReviewControls(section, item) {
   const countdown = document.createElement('small'); countdown.className = 'feed-review-countdown';
   panel.appendChild(countdown);
   const stopTimer = () => {
-    clearTimeout(section._timer); section._timer = null;
-    clearInterval(section._countdownTimer); section._countdownTimer = null;
+    avtoPlaybackClock.cancel(section._timer); section._timer = null;
+    avtoPlaybackClock.cancel(section._countdownTimer); section._countdownTimer = null;
     countdown.textContent = '';
   };
   const startTimer = () => {
@@ -2960,8 +2967,8 @@ function feedBuildReviewControls(section, item) {
     if (!feed.active || feed.activeSection !== section || saving) return;
     let remaining = 10;
     countdown.textContent = 'Skip in 10s';
-    section._countdownTimer = setInterval(() => { countdown.textContent = `Skip in ${Math.max(0, --remaining)}s`; }, 1000);
-    section._timer = setTimeout(() => {
+    section._countdownTimer = avtoPlaybackClock.interval(() => { countdown.textContent = `Skip in ${Math.max(0, --remaining)}s`; }, 1000);
+    section._timer = avtoPlaybackClock.timeout(() => {
       stopTimer();
       if (feed.active && feed.activeSection === section && !saving) feedGoNext(section);
     }, 10000);
@@ -3283,11 +3290,11 @@ function renderSlide() {
 }
 
 function attemptVideoPlay(v, container) {
-  const p = v.play();
+  const p = avtoPlaybackClock.play(v);
   if (p && p.catch) {
     p.catch(() => {
       v.muted = true;
-      v.play().catch(() => {});
+      avtoPlaybackClock.play(v).catch(() => {});
       showUnmuteHint(v, container);
     });
   }

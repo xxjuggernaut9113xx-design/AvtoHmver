@@ -1,0 +1,5942 @@
+{
+  "fixtures": [
+    {
+      "function": "SetEdgingPaceModifier",
+      "inputs": {
+        "GameInstance.CurrentSave.EdgePacingMultiplierEnum": 0,
+        "EdgePacingMultiplier": 17.0
+      },
+      "writes": {
+        "EdgePacingMultiplier": 1.0
+      },
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        11,
+        12,
+        20
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "99765637c12e2904c08583380a6c0b7c7e02ed82386ef1a13c6c5e29e806dfe0"
+    },
+    {
+      "function": "SetEdgingPaceModifier",
+      "inputs": {
+        "GameInstance.CurrentSave.EdgePacingMultiplierEnum": 1,
+        "EdgePacingMultiplier": 17.0
+      },
+      "writes": {
+        "EdgePacingMultiplier": 2.0
+      },
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        13,
+        14,
+        20
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "99765637c12e2904c08583380a6c0b7c7e02ed82386ef1a13c6c5e29e806dfe0"
+    },
+    {
+      "function": "SetEdgingPaceModifier",
+      "inputs": {
+        "GameInstance.CurrentSave.EdgePacingMultiplierEnum": 2,
+        "EdgePacingMultiplier": 17.0
+      },
+      "writes": {
+        "EdgePacingMultiplier": 3.0
+      },
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        15,
+        16,
+        20
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "99765637c12e2904c08583380a6c0b7c7e02ed82386ef1a13c6c5e29e806dfe0"
+    },
+    {
+      "function": "SetEdgingPaceModifier",
+      "inputs": {
+        "GameInstance.CurrentSave.EdgePacingMultiplierEnum": 3,
+        "EdgePacingMultiplier": 17.0
+      },
+      "writes": {
+        "EdgePacingMultiplier": 4.0
+      },
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        17,
+        18,
+        20
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "99765637c12e2904c08583380a6c0b7c7e02ed82386ef1a13c6c5e29e806dfe0"
+    },
+    {
+      "function": "SetEdgingPaceModifier",
+      "inputs": {
+        "GameInstance.CurrentSave.EdgePacingMultiplierEnum": 4,
+        "EdgePacingMultiplier": 17.0
+      },
+      "writes": {
+        "EdgePacingMultiplier": 8.0
+      },
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        19,
+        20
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "99765637c12e2904c08583380a6c0b7c7e02ed82386ef1a13c6c5e29e806dfe0"
+    },
+    {
+      "function": "SetEdgingPaceModifier",
+      "inputs": {
+        "GameInstance.CurrentSave.EdgePacingMultiplierEnum": 5,
+        "EdgePacingMultiplier": 17.0
+      },
+      "writes": {},
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        20
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "99765637c12e2904c08583380a6c0b7c7e02ed82386ef1a13c6c5e29e806dfe0"
+    },
+    {
+      "function": "SetEdgingPaceModifier",
+      "inputs": {
+        "GameInstance.CurrentSave.EdgePacingMultiplierEnum": 255,
+        "EdgePacingMultiplier": 17.0
+      },
+      "writes": {},
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        20
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "99765637c12e2904c08583380a6c0b7c7e02ed82386ef1a13c6c5e29e806dfe0"
+    },
+    {
+      "function": "SetUserStrokeMultiplier",
+      "inputs": {
+        "GameInstance.CurrentSave.StrokeMultiplierEnum": 0,
+        "UserStrokeCountMultiplier": 17.0
+      },
+      "writes": {
+        "UserStrokeCountMultiplier": 1.0
+      },
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        11,
+        12,
+        20
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "3c83772e89b479bd0578989c8286a786bbb21a8bc4e49f4847849e4c6840b608"
+    },
+    {
+      "function": "SetUserStrokeMultiplier",
+      "inputs": {
+        "GameInstance.CurrentSave.StrokeMultiplierEnum": 1,
+        "UserStrokeCountMultiplier": 17.0
+      },
+      "writes": {
+        "UserStrokeCountMultiplier": 2.0
+      },
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        13,
+        14,
+        20
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "3c83772e89b479bd0578989c8286a786bbb21a8bc4e49f4847849e4c6840b608"
+    },
+    {
+      "function": "SetUserStrokeMultiplier",
+      "inputs": {
+        "GameInstance.CurrentSave.StrokeMultiplierEnum": 2,
+        "UserStrokeCountMultiplier": 17.0
+      },
+      "writes": {
+        "UserStrokeCountMultiplier": 3.0
+      },
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        15,
+        16,
+        20
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "3c83772e89b479bd0578989c8286a786bbb21a8bc4e49f4847849e4c6840b608"
+    },
+    {
+      "function": "SetUserStrokeMultiplier",
+      "inputs": {
+        "GameInstance.CurrentSave.StrokeMultiplierEnum": 3,
+        "UserStrokeCountMultiplier": 17.0
+      },
+      "writes": {
+        "UserStrokeCountMultiplier": 4.0
+      },
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        17,
+        18,
+        20
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "3c83772e89b479bd0578989c8286a786bbb21a8bc4e49f4847849e4c6840b608"
+    },
+    {
+      "function": "SetUserStrokeMultiplier",
+      "inputs": {
+        "GameInstance.CurrentSave.StrokeMultiplierEnum": 4,
+        "UserStrokeCountMultiplier": 17.0
+      },
+      "writes": {
+        "UserStrokeCountMultiplier": 8.0
+      },
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        19,
+        20
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "3c83772e89b479bd0578989c8286a786bbb21a8bc4e49f4847849e4c6840b608"
+    },
+    {
+      "function": "SetUserStrokeMultiplier",
+      "inputs": {
+        "GameInstance.CurrentSave.StrokeMultiplierEnum": 5,
+        "UserStrokeCountMultiplier": 17.0
+      },
+      "writes": {},
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        20
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "3c83772e89b479bd0578989c8286a786bbb21a8bc4e49f4847849e4c6840b608"
+    },
+    {
+      "function": "SetUserStrokeMultiplier",
+      "inputs": {
+        "GameInstance.CurrentSave.StrokeMultiplierEnum": 255,
+        "UserStrokeCountMultiplier": 17.0
+      },
+      "writes": {},
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        20
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "3c83772e89b479bd0578989c8286a786bbb21a8bc4e49f4847849e4c6840b608"
+    },
+    {
+      "function": "DetermineComboType",
+      "inputs": {
+        "PlayerVariablesStruct.CurrentComboCount": -1,
+        "CurrentComboTypeEnum": 6
+      },
+      "writes": {
+        "CurrentComboTypeEnum": 5
+      },
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        4,
+        5,
+        8,
+        9,
+        12,
+        13,
+        16,
+        17,
+        20,
+        21,
+        22,
+        23
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "da4dcba34769898ad2f8bd2eef90abbb7cf70ad318ac910623c6a02deb995abe"
+    },
+    {
+      "function": "DetermineComboType",
+      "inputs": {
+        "PlayerVariablesStruct.CurrentComboCount": 0,
+        "CurrentComboTypeEnum": 6
+      },
+      "writes": {
+        "CurrentComboTypeEnum": 0
+      },
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        23
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "da4dcba34769898ad2f8bd2eef90abbb7cf70ad318ac910623c6a02deb995abe"
+    },
+    {
+      "function": "DetermineComboType",
+      "inputs": {
+        "PlayerVariablesStruct.CurrentComboCount": 99,
+        "CurrentComboTypeEnum": 6
+      },
+      "writes": {
+        "CurrentComboTypeEnum": 0
+      },
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        23
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "da4dcba34769898ad2f8bd2eef90abbb7cf70ad318ac910623c6a02deb995abe"
+    },
+    {
+      "function": "DetermineComboType",
+      "inputs": {
+        "PlayerVariablesStruct.CurrentComboCount": 100,
+        "CurrentComboTypeEnum": 6
+      },
+      "writes": {
+        "CurrentComboTypeEnum": 1
+      },
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        4,
+        5,
+        6,
+        7,
+        23
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "da4dcba34769898ad2f8bd2eef90abbb7cf70ad318ac910623c6a02deb995abe"
+    },
+    {
+      "function": "DetermineComboType",
+      "inputs": {
+        "PlayerVariablesStruct.CurrentComboCount": 249,
+        "CurrentComboTypeEnum": 6
+      },
+      "writes": {
+        "CurrentComboTypeEnum": 1
+      },
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        4,
+        5,
+        6,
+        7,
+        23
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "da4dcba34769898ad2f8bd2eef90abbb7cf70ad318ac910623c6a02deb995abe"
+    },
+    {
+      "function": "DetermineComboType",
+      "inputs": {
+        "PlayerVariablesStruct.CurrentComboCount": 250,
+        "CurrentComboTypeEnum": 6
+      },
+      "writes": {
+        "CurrentComboTypeEnum": 2
+      },
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        4,
+        5,
+        8,
+        9,
+        10,
+        11,
+        23
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "da4dcba34769898ad2f8bd2eef90abbb7cf70ad318ac910623c6a02deb995abe"
+    },
+    {
+      "function": "DetermineComboType",
+      "inputs": {
+        "PlayerVariablesStruct.CurrentComboCount": 499,
+        "CurrentComboTypeEnum": 6
+      },
+      "writes": {
+        "CurrentComboTypeEnum": 2
+      },
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        4,
+        5,
+        8,
+        9,
+        10,
+        11,
+        23
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "da4dcba34769898ad2f8bd2eef90abbb7cf70ad318ac910623c6a02deb995abe"
+    },
+    {
+      "function": "DetermineComboType",
+      "inputs": {
+        "PlayerVariablesStruct.CurrentComboCount": 500,
+        "CurrentComboTypeEnum": 6
+      },
+      "writes": {
+        "CurrentComboTypeEnum": 3
+      },
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        4,
+        5,
+        8,
+        9,
+        12,
+        13,
+        14,
+        15,
+        23
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "da4dcba34769898ad2f8bd2eef90abbb7cf70ad318ac910623c6a02deb995abe"
+    },
+    {
+      "function": "DetermineComboType",
+      "inputs": {
+        "PlayerVariablesStruct.CurrentComboCount": 749,
+        "CurrentComboTypeEnum": 6
+      },
+      "writes": {
+        "CurrentComboTypeEnum": 3
+      },
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        4,
+        5,
+        8,
+        9,
+        12,
+        13,
+        14,
+        15,
+        23
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "da4dcba34769898ad2f8bd2eef90abbb7cf70ad318ac910623c6a02deb995abe"
+    },
+    {
+      "function": "DetermineComboType",
+      "inputs": {
+        "PlayerVariablesStruct.CurrentComboCount": 750,
+        "CurrentComboTypeEnum": 6
+      },
+      "writes": {
+        "CurrentComboTypeEnum": 4
+      },
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        4,
+        5,
+        8,
+        9,
+        12,
+        13,
+        16,
+        17,
+        18,
+        19,
+        23
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "da4dcba34769898ad2f8bd2eef90abbb7cf70ad318ac910623c6a02deb995abe"
+    },
+    {
+      "function": "DetermineComboType",
+      "inputs": {
+        "PlayerVariablesStruct.CurrentComboCount": 1249,
+        "CurrentComboTypeEnum": 6
+      },
+      "writes": {
+        "CurrentComboTypeEnum": 4
+      },
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        4,
+        5,
+        8,
+        9,
+        12,
+        13,
+        16,
+        17,
+        18,
+        19,
+        23
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "da4dcba34769898ad2f8bd2eef90abbb7cf70ad318ac910623c6a02deb995abe"
+    },
+    {
+      "function": "DetermineComboType",
+      "inputs": {
+        "PlayerVariablesStruct.CurrentComboCount": 1250,
+        "CurrentComboTypeEnum": 6
+      },
+      "writes": {
+        "CurrentComboTypeEnum": 5
+      },
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        4,
+        5,
+        8,
+        9,
+        12,
+        13,
+        16,
+        17,
+        20,
+        21,
+        22,
+        23
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "da4dcba34769898ad2f8bd2eef90abbb7cf70ad318ac910623c6a02deb995abe"
+    },
+    {
+      "function": "DetermineComboType",
+      "inputs": {
+        "PlayerVariablesStruct.CurrentComboCount": 1999,
+        "CurrentComboTypeEnum": 6
+      },
+      "writes": {
+        "CurrentComboTypeEnum": 5
+      },
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        4,
+        5,
+        8,
+        9,
+        12,
+        13,
+        16,
+        17,
+        20,
+        21,
+        22,
+        23
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "da4dcba34769898ad2f8bd2eef90abbb7cf70ad318ac910623c6a02deb995abe"
+    },
+    {
+      "function": "DetermineComboType",
+      "inputs": {
+        "PlayerVariablesStruct.CurrentComboCount": 2000,
+        "CurrentComboTypeEnum": 6
+      },
+      "writes": {
+        "CurrentComboTypeEnum": 5
+      },
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        4,
+        5,
+        8,
+        9,
+        12,
+        13,
+        16,
+        17,
+        20,
+        21,
+        22,
+        23
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "da4dcba34769898ad2f8bd2eef90abbb7cf70ad318ac910623c6a02deb995abe"
+    },
+    {
+      "function": "DetermineComboType",
+      "inputs": {
+        "PlayerVariablesStruct.CurrentComboCount": 5000,
+        "CurrentComboTypeEnum": 6
+      },
+      "writes": {
+        "CurrentComboTypeEnum": 5
+      },
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        4,
+        5,
+        8,
+        9,
+        12,
+        13,
+        16,
+        17,
+        20,
+        21,
+        22,
+        23
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "da4dcba34769898ad2f8bd2eef90abbb7cf70ad318ac910623c6a02deb995abe"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 0,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.28
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        10,
+        11,
+        19,
+        20,
+        29,
+        30,
+        36,
+        37,
+        38,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 0,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.28
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        10,
+        11,
+        19,
+        20,
+        29,
+        30,
+        36,
+        37,
+        38,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 0,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.28
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        10,
+        11,
+        19,
+        20,
+        21,
+        48,
+        49,
+        61,
+        62,
+        63,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 0,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.28
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        10,
+        11,
+        19,
+        20,
+        21,
+        22,
+        23,
+        64,
+        65,
+        66,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 0,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.28
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        10,
+        11,
+        12,
+        13,
+        39,
+        40,
+        41,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 0,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.28
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        10,
+        11,
+        12,
+        13,
+        39,
+        40,
+        41,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 0,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.28
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        10,
+        11,
+        12,
+        13,
+        39,
+        40,
+        41,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 0,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.28
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        10,
+        11,
+        12,
+        13,
+        39,
+        40,
+        41,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 0,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.24
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        7,
+        8,
+        9,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 0,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.24
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        7,
+        8,
+        9,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 0,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.24
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        7,
+        8,
+        9,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 0,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.24
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        7,
+        8,
+        9,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 0,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.24
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        7,
+        8,
+        9,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 0,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.24
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        7,
+        8,
+        9,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 0,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.24
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        7,
+        8,
+        9,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 0,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.24
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        7,
+        8,
+        9,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 0,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 0,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 0,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 0,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 0,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 0,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 0,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 0,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 0,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 0,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 0,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 0,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 0,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 0,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 0,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 0,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 1,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.18
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        10,
+        11,
+        19,
+        20,
+        29,
+        30,
+        31,
+        32,
+        73,
+        74,
+        75,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 1,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.18
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        10,
+        11,
+        19,
+        20,
+        29,
+        30,
+        31,
+        32,
+        73,
+        74,
+        75,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 1,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.18
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        10,
+        11,
+        19,
+        20,
+        21,
+        48,
+        49,
+        50,
+        51,
+        58,
+        59,
+        60,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 1,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.2
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        10,
+        11,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        67,
+        68,
+        69,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 1,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.25
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        42,
+        43,
+        44,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 1,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.25
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        42,
+        43,
+        44,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 1,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.25
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        42,
+        43,
+        44,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 1,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.25
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        42,
+        43,
+        44,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 1,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.24
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        7,
+        8,
+        9,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 1,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.24
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        7,
+        8,
+        9,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 1,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.24
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        7,
+        8,
+        9,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 1,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.24
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        7,
+        8,
+        9,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 1,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.24
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        7,
+        8,
+        9,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 1,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.24
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        7,
+        8,
+        9,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 1,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.24
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        7,
+        8,
+        9,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 1,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.24
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        7,
+        8,
+        9,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 1,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 1,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 1,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 1,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 1,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 1,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 1,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 1,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 1,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 1,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 1,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 1,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 1,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 1,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 1,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 1,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 2,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.14
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        10,
+        11,
+        19,
+        20,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        76,
+        77,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 2,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.14
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        10,
+        11,
+        19,
+        20,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        76,
+        77,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 2,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.14
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        10,
+        11,
+        19,
+        20,
+        21,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        55,
+        56,
+        57,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 2,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.2
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        10,
+        11,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        70,
+        71,
+        72,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 2,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.25
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        45,
+        46,
+        47,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 2,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.25
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        45,
+        46,
+        47,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 2,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.25
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        45,
+        46,
+        47,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 2,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.25
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        45,
+        46,
+        47,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 2,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.24
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        7,
+        8,
+        9,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 2,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.24
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        7,
+        8,
+        9,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 2,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.24
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        7,
+        8,
+        9,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 2,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.24
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        7,
+        8,
+        9,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 2,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.24
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        7,
+        8,
+        9,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 2,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.24
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        7,
+        8,
+        9,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 2,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.24
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        7,
+        8,
+        9,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 2,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.24
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        7,
+        8,
+        9,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 2,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 2,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 2,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 2,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 2,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 2,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 2,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 2,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 2,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 2,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 2,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 2,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 2,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 2,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 2,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 2,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 255,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        10,
+        11,
+        19,
+        20,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 255,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        10,
+        11,
+        19,
+        20,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 255,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        10,
+        11,
+        19,
+        20,
+        21,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 255,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        10,
+        11,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 255,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 255,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 255,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 255,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 255,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.24
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        7,
+        8,
+        9,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 255,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.24
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        7,
+        8,
+        9,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 255,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.24
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        7,
+        8,
+        9,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 255,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.24
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        7,
+        8,
+        9,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 255,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.24
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        7,
+        8,
+        9,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 255,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.24
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        7,
+        8,
+        9,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 255,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.24
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        7,
+        8,
+        9,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 255,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": false,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.24
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        5,
+        6,
+        7,
+        8,
+        9,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 255,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 255,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 255,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 255,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 255,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 255,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 255,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 255,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": false,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 255,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 255,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 255,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 255,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": false,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 255,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 255,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": false
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 255,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": false,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "SetMinimumBeatSpawnerInterval",
+      "inputs": {
+        "CurrentDifficulty": 255,
+        "GameInstance.AdultToyManager.bButtplugFullStrokePerBeat": true,
+        "call:HasConnectedLovenseDevices": true,
+        "call:IsHandyConnected": true,
+        "call:HasConnectedButtplugVibrators": true,
+        "call:HasConnectedButtplugStrokers": true
+      },
+      "writes": {},
+      "external_effects": [
+        {
+          "call": "SetMinimumBeatInterval",
+          "arguments": [
+            0.42
+          ]
+        },
+        {
+          "call": "PrintString",
+          "presentation_only": true
+        }
+      ],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        78
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "aed75aa2751597ac209adbd89da4c10f143c88f6503f9886c81b631cf31a06f1"
+    },
+    {
+      "function": "CalculateBeatPitch",
+      "inputs": {
+        "call:GetTotalBeatsInQueue": 10,
+        "call:GetBeatsRemaining": 10
+      },
+      "writes": {
+        "BeatPitch": 1.0,
+        "MoanPitch": 1.0
+      },
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "7a77847f4ab58eecb1cbee54818e4583bd21003043be5a6fd4d9f023b2eb52da"
+    },
+    {
+      "function": "CalculateBeatPitch",
+      "inputs": {
+        "call:GetTotalBeatsInQueue": 10,
+        "call:GetBeatsRemaining": 4
+      },
+      "writes": {
+        "BeatPitch": 1.0,
+        "MoanPitch": 1.0
+      },
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "7a77847f4ab58eecb1cbee54818e4583bd21003043be5a6fd4d9f023b2eb52da"
+    },
+    {
+      "function": "CalculateBeatPitch",
+      "inputs": {
+        "call:GetTotalBeatsInQueue": 10,
+        "call:GetBeatsRemaining": 2
+      },
+      "writes": {
+        "BeatPitch": 1.25,
+        "MoanPitch": 1.2000000000000002
+      },
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "7a77847f4ab58eecb1cbee54818e4583bd21003043be5a6fd4d9f023b2eb52da"
+    },
+    {
+      "function": "CalculateBeatPitch",
+      "inputs": {
+        "call:GetTotalBeatsInQueue": 10,
+        "call:GetBeatsRemaining": 0
+      },
+      "writes": {
+        "BeatPitch": 1.5,
+        "MoanPitch": 1.4
+      },
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "7a77847f4ab58eecb1cbee54818e4583bd21003043be5a6fd4d9f023b2eb52da"
+    },
+    {
+      "function": "CalculateBeatPitch",
+      "inputs": {
+        "call:GetTotalBeatsInQueue": 0,
+        "call:GetBeatsRemaining": 0
+      },
+      "writes": {
+        "BeatPitch": 1.5,
+        "MoanPitch": 1.4
+      },
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "7a77847f4ab58eecb1cbee54818e4583bd21003043be5a6fd4d9f023b2eb52da"
+    },
+    {
+      "function": "CalculateBeatPitch",
+      "inputs": {
+        "call:GetTotalBeatsInQueue": 10,
+        "call:GetBeatsRemaining": 15
+      },
+      "writes": {
+        "BeatPitch": 1.0,
+        "MoanPitch": 1.0
+      },
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "7a77847f4ab58eecb1cbee54818e4583bd21003043be5a6fd4d9f023b2eb52da"
+    },
+    {
+      "function": "CalculateBeatPitch",
+      "inputs": {
+        "call:GetTotalBeatsInQueue": 10,
+        "call:GetBeatsRemaining": -1
+      },
+      "writes": {
+        "BeatPitch": 1.5,
+        "MoanPitch": 1.4
+      },
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "7a77847f4ab58eecb1cbee54818e4583bd21003043be5a6fd4d9f023b2eb52da"
+    },
+    {
+      "function": "AddCoins",
+      "inputs": {
+        "CoinAdd": 5,
+        "PlayerVariablesStruct.CoinEarnMultiplier": 1.5,
+        "PlayerVariablesStruct.PlayerCoins": 10
+      },
+      "writes": {
+        "PlayerVariablesStruct.PlayerCoins": 17
+      },
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "memory_size_verified": true,
+      "prefix_only": true,
+      "source_sha256": "5128d3f2062d14e98ac2d06e8543796d096874dd642d419e93b065e6dda8b297"
+    },
+    {
+      "function": "AddCoins",
+      "inputs": {
+        "CoinAdd": -5,
+        "PlayerVariablesStruct.CoinEarnMultiplier": 1.5,
+        "PlayerVariablesStruct.PlayerCoins": 10
+      },
+      "writes": {
+        "PlayerVariablesStruct.PlayerCoins": 3
+      },
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "memory_size_verified": true,
+      "prefix_only": true,
+      "source_sha256": "5128d3f2062d14e98ac2d06e8543796d096874dd642d419e93b065e6dda8b297"
+    },
+    {
+      "function": "AddCoins",
+      "inputs": {
+        "CoinAdd": 5,
+        "PlayerVariablesStruct.CoinEarnMultiplier": 0,
+        "PlayerVariablesStruct.PlayerCoins": 10
+      },
+      "writes": {
+        "PlayerVariablesStruct.PlayerCoins": 10
+      },
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "memory_size_verified": true,
+      "prefix_only": true,
+      "source_sha256": "5128d3f2062d14e98ac2d06e8543796d096874dd642d419e93b065e6dda8b297"
+    },
+    {
+      "function": "AddCoins",
+      "inputs": {
+        "CoinAdd": 5,
+        "PlayerVariablesStruct.CoinEarnMultiplier": 0.5,
+        "PlayerVariablesStruct.PlayerCoins": 10
+      },
+      "writes": {
+        "PlayerVariablesStruct.PlayerCoins": 12
+      },
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "memory_size_verified": true,
+      "prefix_only": true,
+      "source_sha256": "5128d3f2062d14e98ac2d06e8543796d096874dd642d419e93b065e6dda8b297"
+    },
+    {
+      "function": "AddToCumMeter",
+      "inputs": {
+        "CumMeterPercentage": 0.95,
+        "Percentage (0-1.0)": 0.1
+      },
+      "writes": {
+        "CumMeterPercentage": 1.05
+      },
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        2
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "fedcbc7ea32c286da6067755bbbfb397a77abdd47ebdf1763aac0b58c99290f4"
+    },
+    {
+      "function": "AddToLootBar",
+      "inputs": {
+        "LootBarPercentage": 0.95,
+        "Add (0.0-1.0)": 0.1,
+        "LootBarMultiplier": 2.0
+      },
+      "writes": {
+        "LootBarPercentage": 1.15
+      },
+      "external_effects": [],
+      "visited_statements": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "memory_size_verified": true,
+      "prefix_only": false,
+      "source_sha256": "bc30d707e4e79edc0ba2613a886a21bd996c2f293e64bc4ba4a3d65afd19b0dc"
+    }
+  ],
+  "original_game_executed": false,
+  "limitations": [
+    "Static traces validate selected state effects; widget, audio and complete progression behavior are not verified.",
+    "Injected hardware/query results test rule branches, not real device compatibility.",
+    "AddCoins traces stop before presentation statements."
+  ]
+}

@@ -12,6 +12,212 @@ use avtohmver::{
 use slint::{ComponentHandle, ModelRc, VecModel};
 use std::{cell::RefCell, rc::Rc, sync::Arc};
 
+#[derive(Default)]
+struct BeatWork {
+    generation: u64,
+    cancel: Option<Arc<std::sync::atomic::AtomicBool>>,
+}
+impl BeatWork {
+    fn cancel(&mut self) {
+        self.generation = self.generation.wrapping_add(1);
+        if let Some(cancel) = self.cancel.take() {
+            cancel.store(true, std::sync::atomic::Ordering::Release);
+        }
+    }
+}
+impl Drop for BeatWork {
+    fn drop(&mut self) {
+        self.cancel();
+    }
+}
+
+fn preview_beat_markers(w: &AvtoHmverNativeWindow, markers: &[f64]) {
+    w.set_beat_duration(markers.last().copied().unwrap_or(1.0).max(1.0) as f32);
+    w.set_beat_markers(ModelRc::new(VecModel::from(
+        markers.iter().map(|v| *v as f32).collect::<Vec<_>>(),
+    )));
+}
+
+fn read_beat_markers(w: &AvtoHmverNativeWindow) -> Result<Vec<f64>, String> {
+    let values = w.get_beat_marker_text();
+    let markers = values
+        .split(',')
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
+        .map(|v| {
+            v.parse::<f64>()
+                .map_err(|_| "Beat markers must be seconds separated by commas".to_string())
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    if markers.len() > 4096
+        || markers.iter().any(|v| !v.is_finite() || *v < 0.0)
+        || markers.windows(2).any(|pair| pair[1] <= pair[0])
+    {
+        return Err("Use at most 4096 finite, increasing, nonnegative beat markers".into());
+    }
+    Ok(markers)
+}
+
+fn render_beat(w: &AvtoHmverNativeWindow, value: &serde_json::Value) {
+    let analysis = value.get("analysis").unwrap_or(value);
+    w.set_beat_map_id(value["id"].as_i64().unwrap_or(0).to_string().into());
+    w.set_beat_bpm(analysis["bpm"].as_f64().unwrap_or(120.0).to_string().into());
+    w.set_beat_offset(
+        analysis["first_beat_offset_secs"]
+            .as_f64()
+            .or_else(|| analysis["beat_offset_secs"].as_f64())
+            .unwrap_or(0.0)
+            .to_string()
+            .into(),
+    );
+    w.set_beat_confirmed(analysis["confirmed"].as_bool().unwrap_or(false));
+    let markers: Vec<f64> = analysis["markers"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|v| v.as_f64())
+        .collect();
+    preview_beat_markers(w, &markers);
+    w.set_beat_marker_text(
+        markers
+            .iter()
+            .map(|v| v.to_string())
+            .collect::<Vec<_>>()
+            .join(", ")
+            .into(),
+    );
+    w.set_beat_status(
+        format!(
+            "Map {}: confidence {:.0}%. Review BPM, offset and markers before confirming.",
+            value["id"],
+            analysis["confidence"].as_f64().unwrap_or(0.0) * 100.0
+        )
+        .into(),
+    );
+}
+
+fn beat_action(
+    w: &AvtoHmverNativeWindow,
+    action: &str,
+    state: &Arc<AppState>,
+    runtime: &tokio::runtime::Handle,
+    work: &Rc<RefCell<BeatWork>>,
+    replies: &std::sync::mpsc::Sender<(u64, Result<serde_json::Value, String>)>,
+) -> Result<(), String> {
+    use avtohmver::routes::goon::{BeatMapAnalyzeBody, BeatMapUpdateBody};
+    if let Some(track) = action.strip_prefix("beat-track:") {
+        w.set_beat_track_id(track.split(':').next().unwrap_or_default().into());
+        return Ok(());
+    }
+    if action == "beat-cancel" {
+        if w.get_beat_busy() && !w.get_beat_analyzing() {
+            return Err("Wait for the beat-map save to finish".into());
+        }
+        work.borrow_mut().cancel();
+        w.set_beat_busy(false);
+        w.set_beat_analyzing(false);
+        w.set_beat_status("Beat analysis cancelled.".into());
+        return Ok(());
+    }
+    if action == "beat-preview" {
+        preview_beat_markers(w, &read_beat_markers(w)?);
+        return Ok(());
+    }
+    if action == "beat-load" {
+        let id: i64 = w
+            .get_beat_map_id()
+            .parse()
+            .map_err(|_| "Choose a saved map ID")?;
+        let conn = state.pool.get().map_err(|e| e.to_string())?;
+        let value = conn.query_row("SELECT id,bpm,beat_offset_secs,confidence,markers,confirmed FROM beat_maps WHERE id=?1",[id],|row| Ok(serde_json::json!({"id":row.get::<_,i64>(0)?,"bpm":row.get::<_,f64>(1)?,"beat_offset_secs":row.get::<_,f64>(2)?,"confidence":row.get::<_,f64>(3)?,"markers":serde_json::from_str::<serde_json::Value>(&row.get::<_,String>(4)?).unwrap_or_else(|_|serde_json::json!([])),"confirmed":row.get::<_,bool>(5)?}))).map_err(|e| e.to_string())?;
+        render_beat(w, &value);
+        return Ok(());
+    }
+    let analyze = if action == "beat-analyze" {
+        let id: i64 = w
+            .get_beat_track_id()
+            .parse()
+            .map_err(|_| "Choose an imported local track")?;
+        let path = music::track_path(state, id)?;
+        let playlist_id = if w.get_playback_playlist_id().trim().is_empty() {
+            None
+        } else {
+            Some(
+                w.get_playback_playlist_id()
+                    .parse()
+                    .map_err(|_| "Playlist ID must be a number")?,
+            )
+        };
+        Some(BeatMapAnalyzeBody {
+            track_path: path.to_string_lossy().into_owned(),
+            playlist_id,
+        })
+    } else {
+        None
+    };
+    let save = if action == "beat-save" {
+        let id: i64 = w
+            .get_beat_map_id()
+            .parse()
+            .map_err(|_| "Analyze or load a beat map first")?;
+        let markers = read_beat_markers(w)?;
+        Some((
+            id,
+            BeatMapUpdateBody {
+                bpm: w
+                    .get_beat_bpm()
+                    .parse()
+                    .map_err(|_| "BPM must be a number")?,
+                beat_offset_secs: w
+                    .get_beat_offset()
+                    .parse()
+                    .map_err(|_| "Offset must be seconds")?,
+                markers,
+                confirmed: w.get_beat_confirmed(),
+            },
+        ))
+    } else {
+        None
+    };
+    if analyze.is_none() && save.is_none() {
+        return Err("Unknown beat-map action".into());
+    }
+    let mut work = work.borrow_mut();
+    work.cancel();
+    let generation = work.generation;
+    let cancel = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    work.cancel = Some(cancel.clone());
+    let state = state.clone();
+    let replies = replies.clone();
+    w.set_beat_busy(true);
+    w.set_beat_analyzing(analyze.is_some());
+    w.set_beat_status(
+        if analyze.is_some() {
+            "Analyzing local audio..."
+        } else {
+            "Saving beat map..."
+        }
+        .into(),
+    );
+    runtime.spawn(async move {
+        let result = if let Some(body) = analyze {
+            avtohmver::routes::goon::analyze_beat_map_cancellable(state, body, cancel).await
+        } else {
+            let (id, body) = save.unwrap();
+            avtohmver::routes::goon::update_beat_map_local(state, id, body).await
+        }
+        .map(|value| value.0)
+        .map_err(|(_, error)| {
+            error.0["error"]
+                .as_str()
+                .unwrap_or("Beat-map operation failed")
+                .to_owned()
+        });
+        let _ = replies.send((generation, result));
+    });
+    Ok(())
+}
+
 fn read(w: &AvtoHmverNativeWindow, saved: &PlaybackPreset) -> Result<PlaybackPreset, String> {
     let mut p = saved.clone();
     p.name = w.get_playback_name().into();
@@ -105,6 +311,13 @@ fn refresh(w: &AvtoHmverNativeWindow, state: &AppState) -> Result<Vec<PlaybackPr
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| e.to_string())?;
     w.set_playback_playlist_names(ModelRc::new(VecModel::from(names)));
+    let mut tracks = vec![slint::SharedString::from("Select an imported track")];
+    tracks.extend(
+        music::list(state)?
+            .into_iter()
+            .map(|track| slint::SharedString::from(format!("{}: {}", track.id, track.title))),
+    );
+    w.set_beat_track_names(ModelRc::new(VecModel::from(tracks)));
     Ok(presets)
 }
 fn apply_music(
@@ -175,7 +388,10 @@ pub(super) fn attach(
     };
     let presets = Rc::new(RefCell::new(refresh(w, &state).unwrap_or_default()));
     let draft = Rc::new(RefCell::new(PlaybackPreset::default()));
-    let player = Rc::new(MusicPlayer::new());
+    let player = view.borrow().music.clone();
+    let beat_work = Rc::new(RefCell::new(BeatWork::default()));
+    let action_beat_work = beat_work.clone();
+    let (beat_replies, beat_results) = std::sync::mpsc::channel();
     let weak = w.as_weak();
     let select_presets = presets.clone();
     let select_draft = draft.clone();
@@ -213,6 +429,19 @@ pub(super) fn attach(
         let Some(w) = weak.upgrade() else {
             return;
         };
+        if action.starts_with("beat-") {
+            if let Err(error) = beat_action(
+                &w,
+                &action,
+                &action_state,
+                &runtime,
+                &action_beat_work,
+                &beat_replies,
+            ) {
+                w.set_beat_status(format!("Beat-map error: {error}").into());
+            }
+            return;
+        }
         let result = (|| -> Result<String, String> {
             let mut p = read(&w, &draft.borrow())?;
             if let Some(label) = action.strip_prefix("playlist-select:") {
@@ -331,20 +560,29 @@ pub(super) fn attach(
                     Ok("Preset deleted".into())
                 }
                 "start" => {
+                    // Reject malformed gameplay settings before resolving or
+                    // replacing any active media draft.
+                    super::configured_instructor(&w, &view.borrow())?;
                     if p.id.is_none() && p.media_ids.is_empty() {
                         p.media_ids = view.borrow().selected.keys().copied().collect();
                     }
-                    let items = runtime
-                        .block_on(playback::resolve(&action_state, p.clone()))
-                        .map_err(|e| e.to_string())?;
+                    let items = if w.get_goon_media_enabled() {
+                        runtime
+                            .block_on(playback::resolve(&action_state, p.clone()))
+                            .map_err(|e| e.to_string())?
+                    } else {
+                        vec![]
+                    };
+                    let media = items
+                        .iter()
+                        .cloned()
+                        .map(serde_json::from_value)
+                        .collect::<Result<Vec<_>, _>>()
+                        .map_err(|e| format!("Invalid media response: {e}"))?;
+                    super::start_native_instructor(&w, &view, &action_state, &runtime)?;
                     {
                         let mut v = view.borrow_mut();
-                        v.goon.preset_media = items
-                            .iter()
-                            .cloned()
-                            .map(serde_json::from_value)
-                            .collect::<Result<Vec<_>, _>>()
-                            .map_err(|e| format!("Invalid media response: {e}"))?;
+                        v.goon.preset_media = media;
                         v.goon.request = v.goon.request.wrapping_add(1);
                         v.goon.fetching = false;
                         v.goon.active_order =
@@ -356,12 +594,10 @@ pub(super) fn attach(
                         v.goon.exhausted = false;
                         v.goon.cursor = None;
                         v.goon.last_phase = None;
-                        v.goon.media_enabled = true;
+                        v.goon.media_enabled = w.get_goon_media_enabled();
                     }
-                    w.set_goon_media_enabled(true);
                     w.set_playback_active_cover(p.display_fit == "cover");
                     w.set_playback_active_captions(p.captions);
-                    w.invoke_session_control("Start".into());
                     apply_music(&action_state, &p, &action_player)
                 }
                 "apply" => apply_music(&action_state, &p, &action_player),
@@ -441,6 +677,26 @@ pub(super) fn attach(
         slint::TimerMode::Repeated,
         std::time::Duration::from_millis(250),
         move || {
+            if let Some(w) = weak.upgrade() {
+                for (generation, result) in beat_results.try_iter() {
+                    if generation != beat_work.borrow().generation {
+                        continue;
+                    }
+                    beat_work.borrow_mut().cancel = None;
+                    w.set_beat_busy(false);
+                    w.set_beat_analyzing(false);
+                    match result {
+                        Ok(value) if value["updated"].as_bool() == Some(true) => {
+                            if let Ok(markers) = read_beat_markers(&w) {
+                                preview_beat_markers(&w, &markers);
+                            }
+                            w.set_beat_status("Beat map saved.".into())
+                        }
+                        Ok(value) => render_beat(&w, &value),
+                        Err(error) => w.set_beat_status(format!("Beat-map error: {error}").into()),
+                    }
+                }
+            }
             if let Some(error) = player.error() {
                 if let Some(w) = weak.upgrade() {
                     w.set_playback_status(error.into());

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AvtoHmver — a gallery-dl browser</title>
+<title>fanservice — library server</title>
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="/style.css">
 </head>
@@ -22,7 +22,7 @@
     <header class="brand">
       <span class="brand-mark">◧</span>
       <div>
-        <h1>AvtoHmver <small>0.3.4</small></h1>
+        <h1>fanservice <small>0.3.4</small></h1>
         <p class="tagline">site-agnostic gallery-dl browser</p>
       </div>
       <button id="sidebar-close-btn" class="sidebar-close-btn" aria-label="Close menu">✕</button>
@@ -38,6 +38,7 @@
     </div>
 
     <button type="button" class="btn" id="playback-setup-open">Playback setup</button>
+    <a class="btn" href="/fanservice-music/">Soundtrack preparation</a>
     <div class="quick-add">
       <input id="quick-add-input" type="text" class="quick-add-input" placeholder="paste a creator URL…" autocomplete="off">
       <button id="quick-add-btn" class="btn btn-accent" title="Add this source">+</button>
@@ -218,7 +219,7 @@
 
         <section data-settings-tab-panel="appearance" role="tabpanel" hidden>
           <h3>Appearance</h3>
-          <label class="settings-field mono small">theme <select id="settings-theme"><option value="system">System</option><option value="gtk-system">GTK System (local app)</option><option value="adwaita-light">Adwaita Light</option><option value="adwaita-dark">Adwaita Dark</option><option value="yaru-light">Yaru Light</option><option value="yaru-dark">Yaru Dark</option><option value="arc-light">Arc Light</option><option value="arc-dark">Arc Dark</option><option value="breeze-light">Breeze Light</option><option value="breeze-dark">Breeze Dark</option><option value="atelier-dark">Atelier Dark</option><option value="midnight">Midnight</option><option value="ember">Ember</option><option value="linen">Linen</option><option value="sage">Sage</option><option value="aurora">Aurora</option><option value="oled">OLED</option></select></label>
+          <label class="settings-field mono small">theme <select id="settings-theme"><option value="tactical">Tactical</option><option value="system">System</option><option value="gtk-system">GTK System (local app)</option><option value="adwaita-light">Adwaita Light</option><option value="adwaita-dark">Adwaita Dark</option><option value="yaru-light">Yaru Light</option><option value="yaru-dark">Yaru Dark</option><option value="arc-light">Arc Light</option><option value="arc-dark">Arc Dark</option><option value="breeze-light">Breeze Light</option><option value="breeze-dark">Breeze Dark</option><option value="atelier-dark">Atelier Dark</option><option value="midnight">Midnight</option><option value="ember">Ember</option><option value="linen">Linen</option><option value="sage">Sage</option><option value="aurora">Aurora</option><option value="oled">OLED</option></select></label>
         </section>
 
         <section data-settings-tab-panel="playback-goon" role="tabpanel" hidden>
@@ -263,6 +264,7 @@
 <!-- Lightbox -->
 <div id="lightbox" class="lightbox" hidden>
   <button class="lightbox-close" id="lightbox-close" title="Close (Esc)">✕</button>
+  <button class="shared-playback-pause" data-playback-pause aria-pressed="false">Pause</button>
   <button class="lightbox-nav prev" id="lightbox-prev" title="Previous (←)">‹</button>
   <div class="lightbox-stage" id="lightbox-stage"></div>
   <button class="lightbox-nav next" id="lightbox-next" title="Next (→)">›</button>
@@ -319,6 +321,7 @@
 
 <div id="portrait-wall" class="portrait-wall" hidden>
   <button class="pw-fullscreen" id="pw-fullscreen" title="Fullscreen (f)">⛶</button>
+  <button class="shared-playback-pause" data-playback-pause aria-pressed="false">Pause</button>
   <button class="pw-close" id="pw-close" title="Exit (Esc)">✕</button>
   <div class="pw-panes">
     <div class="pw-pane">
@@ -336,6 +339,7 @@
 
 <div id="feed" class="feed" hidden>
   <button class="feed-close" id="feed-close" title="Exit (Esc)">✕</button>
+  <button class="shared-playback-pause" data-playback-pause aria-pressed="false">Pause</button>
   <div id="feed-status" role="status"></div>
   <div class="feed-scroll" id="feed-scroll"></div>
 </div>
@@ -350,9 +354,12 @@
 </div>
 
 <script src="/virtual-clips.js"></script>
+<script src="/playback-clock.js"></script>
+<script src="/music-connectors.js"></script>
 <script src="/app.js"></script>
 <script src="/library.js"></script>
 <script src="/playback.js"></script>
+<script src="/motion.js"></script>
 <link rel="stylesheet" href="/playback.css">
 </body>
 </html>

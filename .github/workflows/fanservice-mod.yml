@@ -1,0 +1,36 @@
+name: fanservice mod compatibility and export
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compatibility:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Validate build registry and fail-closed identification
+        run: |
+          python -m unittest discover -s tests -p 'test_fanservice_mod.py'
+          python mod/verify_compatibility.py > mod-readiness.json
+          node --test tests/fanservice_chpack.test.js tests/fanservice_archive_save.test.js
+      - name: Publish compatibility status, not a game or mod installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: fanservice-mod-readiness
+          path: |
+            mod-readiness.json
+            mod/compatibility.json
+            mod/README.md
+            mod/evidence/

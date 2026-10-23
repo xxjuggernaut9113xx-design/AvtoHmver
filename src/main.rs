@@ -14,6 +14,9 @@ struct Cli {
     /// Used by service definitions to make the selected mode explicit.
     #[arg(long)]
     background: bool,
+    /// Optional read-only loopback gateway for an authenticated HTTPS reverse proxy.
+    #[arg(long)]
+    fanservice_gateway_port: Option<u16>,
     #[arg(long, value_enum, global = true)]
     install_scope: Option<ScopeArg>,
     #[arg(long, global = true)]
@@ -132,6 +135,9 @@ async fn main() -> anyhow::Result<()> {
         "AvtoHmver Server started"
     );
     avtohmver::remote::start_http_server(&state).await?;
+    if let Some(port) = cli.fanservice_gateway_port {
+        avtohmver::remote::start_viewer_gateway(&state, port).await?;
+    }
     let _ = tokio::signal::ctrl_c().await;
     avtohmver::shutdown(&state).await;
     Ok(())

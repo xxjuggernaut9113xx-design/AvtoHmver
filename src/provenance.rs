@@ -132,6 +132,24 @@ pub fn attach_tag(
         bail!("Unknown tag provenance");
     }
     let tag_id = get_or_create_tag(conn, name)?;
+    if provenance == AUTOMATIC {
+        let removed: bool = conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM media_tag_removals WHERE media_id=?1 AND name=(SELECT name FROM tags WHERE id=?2))",
+            params![media_id, tag_id], |row| row.get(0),
+        )?;
+        if removed {
+            return Ok(tag_id);
+        }
+    } else if matches!(provenance, HUMAN | HUMAN_EDITED) {
+        conn.execute(
+            "DELETE FROM media_tag_removals WHERE media_id=?1 AND name=(SELECT name FROM tags WHERE id=?2)",
+            params![media_id, tag_id],
+        )?;
+        conn.execute(
+            "UPDATE media_tag_provenance SET provenance=?3 WHERE media_id=?1 AND tag_id=?2 AND provenance='automatic'",
+            params![media_id, tag_id, provenance],
+        )?;
+    }
     conn.execute(
         "INSERT OR IGNORE INTO media_tags(media_id,tag_id) VALUES(?1,?2)",
         params![media_id, tag_id],

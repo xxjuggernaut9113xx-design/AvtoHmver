@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::Path;
 
 use anyhow::{Context, Result};
@@ -40,10 +40,13 @@ struct Manifest {
     name: String,
     author: String,
     description: String,
-    preview: &'static str,
+    preview: String,
     unlock_cost: i64,
     required_challenge: &'static str,
     patreon_exclusive: bool,
+    image_count: usize,
+    video_count: usize,
+    total_media: usize,
     media: Vec<ManifestEntry>,
     social_links: SocialLinks,
 }
@@ -74,13 +77,59 @@ pub struct ExportRow {
 // ─── build_chpack ─────────────────────────────────────────────────────────────
 // Streams files directly into a NamedTempFile — no full-library RAM bomb.
 
-pub fn build_chpack(
+pub(crate) fn copy_cancellable(
+    mut source: impl Read,
+    mut target: impl Write,
+    cancelled: &dyn Fn() -> bool,
+) -> Result<()> {
+    let mut buffer = [0u8; 128 * 1024];
+    loop {
+        anyhow::ensure!(!cancelled(), "Package staging cancelled");
+        let count = source.read(&mut buffer)?;
+        if count == 0 {
+            break;
+        }
+        target.write_all(&buffer[..count])?;
+    }
+    Ok(())
+}
+
+pub(crate) fn build_chpack_cancellable(
     pack_name: String,
     author: String,
     description: String,
     unlock_cost: i64,
     rows: Vec<ExportRow>,
     library_dir: &Path,
+    cancelled: &dyn Fn() -> bool,
+) -> Result<NamedTempFile> {
+    build_selected_chpack(
+        PackMetadata {
+            name: pack_name,
+            author,
+            description,
+            unlock_cost,
+            cover: None,
+        },
+        rows,
+        library_dir,
+        cancelled,
+    )
+}
+
+pub(crate) struct PackMetadata {
+    pub name: String,
+    pub author: String,
+    pub description: String,
+    pub unlock_cost: i64,
+    pub cover: Option<String>,
+}
+
+pub(crate) fn build_selected_chpack(
+    metadata: PackMetadata,
+    rows: Vec<ExportRow>,
+    library_dir: &Path,
+    cancelled: &dyn Fn() -> bool,
 ) -> Result<NamedTempFile> {
     let tmp = NamedTempFile::new().context("creating temp file for .chpack")?;
     let tmp_file = tmp.reopen().context("reopening temp file")?;
@@ -91,13 +140,21 @@ pub fn build_chpack(
         .compression_level(Some(6));
 
     let mut media_entries = Vec::new();
-    let mut idx = 0usize;
+    let library_root = dunce::canonicalize(library_dir).context("resolving package library")?;
 
-    for row in &rows {
+    for (idx, row) in rows.iter().enumerate() {
+        anyhow::ensure!(!cancelled(), "Package staging cancelled");
         let src_path = dunce::simplified(&library_dir.join(&row.filepath)).to_path_buf();
-        if !src_path.exists() {
-            continue;
-        }
+        anyhow::ensure!(
+            src_path.exists(),
+            "Selected media is missing: {}. Correct the selection or explicitly exclude this item.",
+            row.filepath
+        );
+        let src_path = dunce::canonicalize(&src_path).context("resolving package source")?;
+        anyhow::ensure!(
+            src_path.starts_with(&library_root) && src_path.is_file(),
+            "Package source is outside the library or is not a file"
+        );
 
         let ext = src_path
             .extension()
@@ -111,19 +168,23 @@ pub fn build_chpack(
         let own_tags: Vec<String> = row
             .tags
             .iter()
-            .filter(|t| !is_speed_tag(t.as_str()))
+            .filter(|t| speed_tag.is_none() || !is_speed_tag(t.as_str()))
             .cloned()
             .collect();
 
         let archive_filename = build_archive_filename(idx, &own_tags, speed_tag, &ext);
+        anyhow::ensure!(
+            archive_filename.len() <= 240,
+            "Export filename exceeds the portable filename limit; shorten this item's tags"
+        );
         let arc_path = format!("media/{}", archive_filename);
 
         zip.start_file(&arc_path, options)?;
         let mut f =
             std::fs::File::open(&src_path).with_context(|| format!("opening {:?}", src_path))?;
-        std::io::copy(&mut f, &mut zip)?;
+        copy_cancellable(&mut f, &mut zip, cancelled)?;
 
-        let file_kind = if row.kind == "video" {
+        let file_kind = if matches!(row.kind.as_str(), "video" | "clip") {
             "video"
         } else {
             "image"
@@ -132,23 +193,50 @@ pub fn build_chpack(
             file: archive_filename,
             kind: file_kind.to_string(),
         });
-
-        idx += 1;
     }
 
     if media_entries.is_empty() {
         anyhow::bail!("No accessible files on disk for this selection");
     }
 
+    let mut preview = String::new();
+    if let Some(cover) = metadata.cover {
+        let path = dunce::canonicalize(library_dir.join(cover)).context("resolving cover")?;
+        anyhow::ensure!(
+            path.starts_with(&library_root) && path.is_file(),
+            "Cover is outside the library or unavailable"
+        );
+        let ext = path
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("")
+            .to_lowercase();
+        anyhow::ensure!(
+            matches!(ext.as_str(), "png" | "jpg" | "jpeg" | "webp" | "bmp"),
+            "Unsupported cover image"
+        );
+        preview = format!("preview.{ext}");
+        zip.start_file(&preview, options)?;
+        copy_cancellable(std::fs::File::open(path)?, &mut zip, cancelled)?;
+    }
     let manifest = Manifest {
         version: "0.02a",
-        name: pack_name,
-        author,
-        description,
-        preview: "",
-        unlock_cost,
+        name: metadata.name,
+        author: metadata.author,
+        description: metadata.description,
+        preview,
+        unlock_cost: metadata.unlock_cost,
         required_challenge: "",
         patreon_exclusive: false,
+        image_count: media_entries
+            .iter()
+            .filter(|entry| entry.kind == "image")
+            .count(),
+        video_count: media_entries
+            .iter()
+            .filter(|entry| entry.kind == "video")
+            .count(),
+        total_media: media_entries.len(),
         media: media_entries,
         social_links: SocialLinks::default(),
     };
@@ -156,6 +244,7 @@ pub fn build_chpack(
     zip.start_file("manifest.json", options)?;
     zip.write_all(serde_json::to_string_pretty(&manifest)?.as_bytes())?;
 
+    anyhow::ensure!(!cancelled(), "Package staging cancelled");
     zip.finish()?;
     Ok(tmp)
 }
@@ -184,20 +273,126 @@ fn build_archive_filename(
     speed_tag: Option<&str>,
     ext: &str,
 ) -> String {
-    let mut tag_parts: Vec<String> = own_tags.to_vec();
+    // Tags are human/provider data and may contain path separators or the
+    // position namespace colon. Keep every archive entry a portable leaf.
+    let mut tag_parts: Vec<String> = own_tags
+        .iter()
+        .map(|tag| {
+            tag.chars()
+                .map(|character| {
+                    if character.is_control()
+                        || matches!(
+                            character,
+                            '/' | '\\' | ':' | '<' | '>' | '"' | '|' | '?' | '*'
+                        )
+                    {
+                        '-'
+                    } else {
+                        character
+                    }
+                })
+                .collect::<String>()
+                .trim_matches([' ', '.'])
+                .to_owned()
+        })
+        .filter(|tag| !tag.is_empty())
+        .collect();
     if let Some(spd) = speed_tag {
         tag_parts.push(spd.to_string());
     }
     tag_parts.sort();
+    tag_parts.dedup();
 
     let mut parts = vec![idx.to_string()];
     parts.extend(tag_parts);
-    format!("{}{}", parts.join("_"), ext)
+    let extension: String = ext
+        .chars()
+        .filter(|character| character.is_ascii_alphanumeric() || *character == '.')
+        .collect();
+    format!("{}{}", parts.join("_"), extension)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn portable_manifest_counts_physical_clips_as_video_and_rejects_library_escape() {
+        let root = tempfile::tempdir().unwrap();
+        let library = root.path().join("library");
+        std::fs::create_dir(&library).unwrap();
+        let mut rows = Vec::new();
+        for (name, kind) in [
+            ("image.png", "image"),
+            ("video.mp4", "video"),
+            ("clip.mp4", "clip"),
+        ] {
+            std::fs::write(library.join(name), b"disposable bytes").unwrap();
+            rows.push(ExportRow {
+                filepath: name.into(),
+                kind: kind.into(),
+                rating: 2,
+                tags: vec![],
+            });
+        }
+        let package = build_chpack_cancellable(
+            "Test".into(),
+            "AvtoHmver".into(),
+            String::new(),
+            0,
+            rows,
+            &library,
+            &|| false,
+        )
+        .unwrap();
+        let mut zip = zip::ZipArchive::new(package.reopen().unwrap()).unwrap();
+        let manifest: serde_json::Value =
+            serde_json::from_reader(zip.by_name("manifest.json").unwrap()).unwrap();
+        assert_eq!(manifest["version"], "0.02a");
+        assert_eq!(manifest["image_count"], 1);
+        assert_eq!(manifest["video_count"], 2);
+        assert_eq!(manifest["total_media"], 3);
+        assert_eq!(manifest["media"][2]["type"], "video");
+        std::fs::write(root.path().join("outside.png"), b"original").unwrap();
+        let escaped = build_chpack_cancellable(
+            "Test".into(),
+            "AvtoHmver".into(),
+            String::new(),
+            0,
+            vec![ExportRow {
+                filepath: "../outside.png".into(),
+                kind: "image".into(),
+                rating: 0,
+                tags: vec![],
+            }],
+            &library,
+            &|| false,
+        );
+        assert!(escaped
+            .unwrap_err()
+            .to_string()
+            .contains("outside the library"));
+        assert_eq!(
+            std::fs::read(root.path().join("outside.png")).unwrap(),
+            b"original"
+        );
+    }
+
+    #[test]
+    fn archive_tags_are_portable_leaves_including_position_namespaces() {
+        assert_eq!(
+            build_archive_filename(
+                0,
+                &[
+                    "position:missionary".into(),
+                    "../escape\\name".into(),
+                    "..".into()
+                ],
+                Some("slow"),
+                ".jpg"
+            ),
+            "0_-escape-name_position-missionary_slow.jpg"
+        );
+    }
 
     #[test]
     fn archive_filename_sorts_speed_tag_with_the_rest_alphabetically() {

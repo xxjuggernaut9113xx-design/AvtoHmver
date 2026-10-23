@@ -29,6 +29,11 @@ const explorer = {
   searchTimer: null,
   panelRequest: 0,
   searchResults: [],
+  searchGeneration: 0,
+  searchCursor: null,
+  searchPending: false,
+  searchObserver: null,
+  searchErrors: [],
   searchSelected: new Set(),
   playMode: localStorage.getItem('curator-last-play-mode') || 'slideshow',
   layout: localStorage.getItem('curator-library-layout') || 'grid',
@@ -163,7 +168,7 @@ function updateExplorerLocation(label) {
   const category = ['search', 'sources', 'creators'].includes(explorer.nav) ? 'Discover'
     : ['groups', 'tags', 'ratings', 'review'].includes(explorer.nav) ? 'Organization'
       : ['downloads', 'recent'].includes(explorer.nav) ? 'Activity' : 'Library';
-  const route = explorerEl('#explorer-route-label'); if (route) route.textContent = `CURATOR / ${category}`;
+  const route = explorerEl('#explorer-route-label'); if (route) route.textContent = `AVTOHMVER / ${category}`;
   const kicker = explorerEl('.explorer-kicker'); if (kicker) kicker.textContent = category;
 }
 
@@ -755,11 +760,13 @@ function goonBuildBeatMap(session) {
 }
 function goonStartClock(session) {
   if (session.running) return;
+  if (avtoPlaybackClock.paused) { session.resumeAfterPause = true; return; }
   const AudioCtor = window.AudioContext || window.webkitAudioContext;
   if (!AudioCtor) { toast('This browser has no Web Audio clock; the beat map remains text-only.', true); return; }
   session.audio ||= new AudioCtor();
   session.audio.resume().then(() => {
     if (explorer.goon !== session || session.ended) return;
+    if (avtoPlaybackClock.paused) { session.resumeAfterPause = true; session.audio.suspend(); return; }
     session.running = true;
     session.startedAt ||= performance.now();
     session.activeStartedAt = performance.now();
@@ -777,6 +784,17 @@ function goonPauseClock(session) {
     const pause = explorerEl('#goon-pause'); if (pause) pause.textContent = 'Resume';
   } else goonStartClock(session);
 }
+function goonSharedPause(session, paused) {
+  if (!session || session.ended) return;
+  if (paused) {
+    session.resumeAfterPause = session.running || !!session.resumeAfterPause;
+    if (session.running) goonPauseClock(session);
+  } else if (session.resumeAfterPause) {
+    session.resumeAfterPause = false;
+    goonStartClock(session);
+  }
+}
+document.addEventListener('avto-playback-pause', event => goonSharedPause(explorer.goon, event.detail.paused));
 function goonSetBpm(session, value, correctionKind = 'bpm') {
   const bpm = Number(value); if (!Number.isFinite(bpm) || bpm < 40 || bpm > 300) return;
   const beat = goonCurrentBeat(session); session.bpm = bpm; goonRebase(session, beat);
@@ -836,42 +854,80 @@ exitSlideshow = function explorerExitSlideshow() {
 };
 
 function normalizeSearchResult(result) {
+  const knownNumber = value => value != null && Number.isFinite(Number(value)) && Number(value) >= 0 ? Number(value) : null;
   return {
     title: result.title || result.name || result.source_url || 'Untitled result', creator: result.creator || result.author || 'Unknown creator',
     thumbnail: result.thumbnail || result.thumbnail_url || '', source: result.source || result.provider || '', source_url: result.source_url || result.url || '',
     provider: result.provider || result.source || 'gallery-dl', result_type: result.result_type || result.type || 'Collection',
-    item_count: result.item_count ?? result.count ?? null, date: result.date || result.published_at || '', gallery_dl_compatible: result.gallery_dl_compatible !== false,
+    total_bytes: knownNumber(result.total_bytes),
+    item_count: knownNumber(result.item_count ?? result.count), date: result.date || result.published_at || '', gallery_dl_compatible: result.gallery_dl_compatible !== false,
     gallery_dl_validated: result.gallery_dl_validated === true,
   };
 }
 
+
+function discoverTotals() {
+  let count = 0, bytes = 0, unknownCount = 0, unknownBytes = 0;
+  for (const result of explorer.searchResults) {
+    if (result.item_count == null) unknownCount++; else count += result.item_count;
+    if (result.total_bytes == null) unknownBytes++; else bytes += result.total_bytes;
+  }
+  return `${explorer.searchResults.length} loaded results · ${count} known files${unknownCount ? `; Unknown for ${unknownCount} results` : ''} · ${formatBytes(bytes)} known${unknownBytes ? `; Unknown for ${unknownBytes} results` : ''}`;
+}
+function updateDiscoverStatus(message = '') {
+  const status = explorerEl('#discover-status');
+  if (status) status.textContent = `${discoverTotals()}${message ? ` · ${message}` : ''}${explorer.searchErrors.length ? ` · ${explorer.searchErrors.map(entry => `${entry.provider}: ${entry.error}`).join('; ')}` : ''}`;
+}
 async function runUnifiedSearch() {
   const panel = explorerEl('#explorer-panel'); const query = explorerEl('#discover-query')?.value.trim() || ''; if (!query) return;
-  const providers = explorerAll('#discover-providers input[type="checkbox"]:checked').map((input) => input.value);
+  const generation = ++explorer.searchGeneration;
+  explorer.searchObserver?.disconnect(); explorer.searchCursor = null; explorer.searchPending = true;
+  const providers = explorerAll('#discover-providers input[type="checkbox"]:checked').map(input => input.value);
   const resultType = explorerEl('#discover-result-type')?.value || ''; const sort = explorerEl('#discover-sort')?.value || 'relevance';
-  const status = explorerEl('#discover-status'); if (status) status.textContent = 'Searching providers…';
+  const status = explorerEl('#discover-status'); if (status) status.textContent = 'Searching providers...';
   try {
-    const params = new URLSearchParams({ query, sort }); if (providers.length) params.set('providers', providers.join(',')); if (resultType) params.set('result_type', resultType);
-    const data = await api(`/api/search?${params}`); explorer.searchResults = (data.results || data.items || []).map(normalizeSearchResult); explorer.searchSelected.clear();
-    if (status) {
-      const unavailable = (data.provider_errors || []).map((entry) => entry.provider).filter(Boolean);
-      status.textContent = `${explorer.searchResults.length} results${unavailable.length ? ` · ${unavailable.join(', ')} unavailable` : ''}`;
-    }
-    renderSearchResults(panel);
-  } catch (error) { if (status) status.textContent = `Search unavailable: ${error.message}`; }
+    const params = new URLSearchParams({ query, sort, paged: 'true', limit: '40' }); if (providers.length) params.set('providers', providers.join(',')); if (resultType) params.set('result_type', resultType);
+    const data = await api(`/api/search?${params}`);
+    if (generation !== explorer.searchGeneration || panel.hidden || !panel.isConnected || explorer.nav !== 'search') return;
+    explorer.searchResults = (data.results || data.items || []).map(normalizeSearchResult); explorer.searchSelected.clear();
+    explorer.searchCursor = data.next_cursor || null; explorer.searchErrors = data.provider_errors || [];
+    panel.scrollTop = 0; renderSearchResults(panel); updateDiscoverStatus();
+  } catch (error) { if (generation === explorer.searchGeneration && status) status.textContent = `Search unavailable: ${error.message}`; }
+  finally { if (generation === explorer.searchGeneration) explorer.searchPending = false; }
+}
+async function loadMoreDiscovery() {
+  if (explorer.searchPending || !explorer.searchCursor) return;
+  const panel = explorerEl('#explorer-panel'); if (!panel || panel.hidden || explorer.nav !== 'search') return;
+  const generation = explorer.searchGeneration; const cursor = explorer.searchCursor;
+  explorer.searchPending = true; updateDiscoverStatus('Loading more...');
+  try {
+    const data = await api(`/api/search?${new URLSearchParams({ cursor, limit: '40' })}`);
+    if (generation !== explorer.searchGeneration || panel.hidden || explorer.nav !== 'search') return;
+    const start = explorer.searchResults.length;
+    explorer.searchResults.push(...(data.results || []).map(normalizeSearchResult));
+    explorer.searchCursor = data.next_cursor || null;
+    renderSearchResults(panel, start); updateDiscoverStatus();
+  } catch (error) { if (generation === explorer.searchGeneration) updateDiscoverStatus(`Load failed: ${error.message}. Retry loading below.`); }
+  finally { if (generation === explorer.searchGeneration) explorer.searchPending = false; }
 }
 
-function renderSearchResults(panel) {
-  explorerEl('#discover-results', panel)?.remove();
-  const results = document.createElement('div'); results.id = 'discover-results'; results.className = 'discover-results';
-  const tableHead = document.createElement('div'); tableHead.className = 'discover-result head'; tableHead.innerHTML = '<span></span><span>Result</span><span>Creator</span><span>Provider</span><span>Type</span><span>Date</span><span></span>'; results.append(tableHead);
-  explorer.searchResults.forEach((result, index) => {
+function renderSearchResults(panel, start = 0) {
+  let results = explorerEl('#discover-results', panel);
+  if (start === 0 || !results) {
+    results?.remove(); results = document.createElement('div'); results.id = 'discover-results'; results.className = 'discover-results'; panel.append(results);
+  }
+  explorerEl('#discover-load-more', panel)?.remove();
+  explorer.searchResults.slice(start).forEach((result, relativeIndex) => {
+    const index = start + relativeIndex;
     const row = document.createElement('article'); row.className = 'discover-result';
     const check = document.createElement('input'); check.type = 'checkbox'; check.checked = explorer.searchSelected.has(index);
     check.addEventListener('change', () => { if (check.checked) explorer.searchSelected.add(index); else explorer.searchSelected.delete(index); updateSearchSelection(); });
     const resultCell = document.createElement('div'); resultCell.className = 'discover-result-title';
-    if (result.thumbnail) { const image = document.createElement('img'); image.src = result.thumbnail; image.alt = ''; image.loading = 'lazy'; resultCell.append(image); }
+    const fallback = () => { const placeholder = document.createElement('div'); placeholder.className = 'discover-preview-fallback'; placeholder.textContent = 'Preview unavailable'; return placeholder; };
+    if (result.thumbnail) { const image = document.createElement('img'); image.src = result.thumbnail; image.alt = ''; image.loading = 'lazy'; image.addEventListener('error', () => { image.replaceWith(fallback()); }, { once: true }); resultCell.append(image); }
+    else resultCell.append(fallback());
     const text = document.createElement('span'); text.textContent = result.title; resultCell.append(text);
+    const totals = document.createElement('small'); totals.textContent = `${result.item_count ?? 'Unknown'} files · ${result.total_bytes == null ? 'Unknown' : formatBytes(result.total_bytes)}`; resultCell.append(totals);
     const creator = document.createElement('span'); creator.textContent = result.creator;
     const provider = document.createElement('span'); provider.textContent = result.provider;
     const type = document.createElement('span'); type.textContent = result.result_type;
@@ -881,7 +937,13 @@ function renderSearchResults(panel) {
     const source = panelButton('Open'); source.addEventListener('click', () => result.source_url && window.open(result.source_url, '_blank', 'noopener,noreferrer'));
     actions.append(preview, source); row.append(check, resultCell, creator, provider, type, date, actions); results.append(row);
   });
-  panel.append(results); updateSearchSelection();
+  if (explorer.searchCursor) {
+    const more = panelButton('Load more'); more.id = 'discover-load-more'; more.addEventListener('click', loadMoreDiscovery); panel.append(more);
+    explorer.searchObserver?.disconnect();
+    explorer.searchObserver = new IntersectionObserver(entries => { if (entries.some(entry => entry.isIntersecting)) loadMoreDiscovery(); }, { root: panel, rootMargin: '400px' });
+    explorer.searchObserver.observe(more);
+  } else explorer.searchObserver?.disconnect();
+  updateSearchSelection();
 }
 
 function updateSearchSelection() {
@@ -894,7 +956,7 @@ function previewSearchResult(result) {
   showExplorerDialog(result.title, (dialog) => {
     if (result.thumbnail) { const image = document.createElement('img'); image.src = result.thumbnail; image.alt = ''; image.className = 'search-preview-image'; dialog.append(image); }
     const info = document.createElement('dl'); info.className = 'search-preview';
-    [['Creator', result.creator], ['Provider', result.provider], ['Type', result.result_type], ['Items', result.item_count ?? '—'], ['Date', formatDate(result.date)], ['Source', result.source_url]].forEach(([label, value]) => {
+    [['Creator', result.creator], ['Provider', result.provider], ['Type', result.result_type], ['Files', result.item_count ?? 'Unknown'], ['Size', result.total_bytes == null ? 'Unknown' : formatBytes(result.total_bytes)], ['Date', formatDate(result.date)], ['Source', result.source_url]].forEach(([label, value]) => {
       const term = document.createElement('dt'); term.textContent = label; const description = document.createElement('dd'); description.textContent = String(value || '—'); info.append(term, description);
     }); dialog.append(info);
   });
@@ -1256,11 +1318,11 @@ function installExplorerUi() {
   const legacySidebar = document.createElement('div'); legacySidebar.className = 'legacy-sidebar'; legacySidebar.hidden = true;
   while (sidebar.firstChild) legacySidebar.append(sidebar.firstChild); sidebar.append(legacySidebar); sidebar.classList.add('explorer-sidebar');
   const navigation = document.createElement('div'); navigation.className = 'explorer-sidebar-content';
-  navigation.innerHTML = '<header class="explorer-brand"><span class="brand-mark">C</span><span>CURATOR</span><button type="button" class="explorer-sidebar-close" aria-label="Close navigation">×</button></header><button id="explorer-add-source" class="explorer-add-source" type="button">+ Add source</button><nav class="explorer-navigation" aria-label="AvtoHmver navigation"><section><h2>Library</h2><button data-nav="all" type="button">All Media</button><button data-nav="images" type="button">Images</button><button data-nav="clips" type="button">Clips</button><button data-nav="videos" type="button">Videos</button></section><section><h2>Discover</h2><button data-nav="search" type="button">Search</button><button data-nav="sources" type="button">Sources</button><button data-nav="creators" type="button">Creators</button></section><section><h2>Organization</h2><button data-nav="groups" type="button">Groups</button><button data-nav="tags" type="button">Tags</button><button data-nav="ratings" type="button">Ratings</button><button data-nav="review" type="button">Review Queue</button></section><section><h2>Activity</h2><button data-nav="downloads" type="button">Downloads <span id="sidebar-download-count" class="nav-count" hidden></span></button><button data-nav="recent" type="button">Recent</button></section></nav><footer><button id="explorer-settings" type="button">Settings</button><span id="explorer-stats" class="mono small muted"></span></footer>';
+  navigation.innerHTML = '<header class="explorer-brand"><span class="brand-mark">A</span><span>AVTOHMVER</span><button type="button" class="explorer-sidebar-close" aria-label="Close navigation">×</button></header><button id="explorer-add-source" class="explorer-add-source" type="button">+ Add source</button><nav class="explorer-navigation" aria-label="AvtoHmver navigation"><section><h2>Library</h2><button data-nav="all" type="button">All Media</button><button data-nav="images" type="button">Images</button><button data-nav="clips" type="button">Clips</button><button data-nav="videos" type="button">Videos</button></section><section><h2>Discover</h2><button data-nav="search" type="button">Search</button><button data-nav="sources" type="button">Sources</button><button data-nav="creators" type="button">Creators</button></section><section><h2>Organization</h2><button data-nav="groups" type="button">Groups</button><button data-nav="tags" type="button">Tags</button><button data-nav="ratings" type="button">Ratings</button><button data-nav="review" type="button">Review Queue</button></section><section><h2>Activity</h2><button data-nav="downloads" type="button">Downloads <span id="sidebar-download-count" class="nav-count" hidden></span></button><button data-nav="recent" type="button">Recent</button></section></nav><footer><button id="explorer-settings" type="button">Settings</button><span id="explorer-stats" class="mono small muted"></span></footer>';
   // The sidebar is intentionally source-centric.  Navigation and global
   // actions live in the compact Tools disclosure, leaving room for the
   // expandable groups → subgroups → sources hierarchy below it.
-  const brandRoute = explorerEl('.explorer-brand > span:nth-child(2)', navigation); if (brandRoute) { brandRoute.id = 'explorer-route-label'; brandRoute.textContent = 'CURATOR / Library'; }
+  const brandRoute = explorerEl('.explorer-brand > span:nth-child(2)', navigation); if (brandRoute) { brandRoute.id = 'explorer-route-label'; brandRoute.textContent = 'AVTOHMVER / Library'; }
   const tools = explorerEl('.explorer-navigation', navigation);
   tools.innerHTML = '<details class="explorer-tools" open><summary>Tools</summary><section><h2>Library</h2><button data-nav="all" type="button">Library</button></section><section><h2>Discover</h2><button data-nav="search" type="button">Discover</button><button data-nav="sources" type="button">Sources</button><button data-nav="creators" type="button">Creators</button></section><section><h2>Organization</h2><button data-nav="groups" type="button">Groups</button><button data-nav="tags" type="button">Tags</button><button data-nav="ratings" type="button">Ratings</button><button data-nav="review" type="button">Review</button></section><section><h2>Activity</h2><button data-nav="downloads" type="button">Activity <span id="sidebar-download-count" class="nav-count" hidden></span></button><button data-nav="recent" type="button">Recent</button></section><section class="explorer-tool-actions"><h2>Actions</h2><button id="explorer-add-source" type="button">Add Source</button><button id="explorer-resync-all" type="button">Sync all</button><button id="explorer-pause-downloads" type="button">Pause / resume</button><button id="explorer-settings" type="button">Settings</button><button id="explorer-export" type="button">Export</button><button id="explorer-import" type="button">Import</button><a href="/api/log" target="_blank" rel="noopener noreferrer">View log</a></section></details><section class="explorer-source-tree"><h2>Source hierarchy</h2><div id="explorer-source-hierarchy"></div></section>';
   // Primary navigation belongs at the top of the main window. Keep only the
@@ -1348,7 +1410,7 @@ function installExplorerUi() {
   goonHud.innerHTML = '<header><span id="goon-stage-title">GOON</span><span id="goon-stage-time" class="mono">0:00</span></header><p id="goon-stage-prompt"></p><div class="goon-readout"><span id="goon-intensity" class="mono">Count in</span><span id="goon-soundtrack" class="mono"></span></div><div class="goon-controls"><button id="goon-start" class="btn btn-accent" type="button">Start session</button><button id="goon-pause" class="btn btn-ghost" type="button">Pause</button><button id="goon-tap" class="btn btn-ghost" type="button">Tap tempo</button><label>BPM <input id="goon-bpm" type="number" min="40" max="300" step="0.1"></label><label>offset <input id="goon-offset" type="number" min="-30" max="30" step="0.01">s</label><label><input id="goon-metronome" type="checkbox"> metronome</label><label>vol <input id="goon-metronome-volume" type="range" min="0" max="1" step="0.05"></label><button id="goon-end" type="button">End session</button></div><input id="goon-seek" class="goon-seek" type="range" min="0" value="0" aria-label="Seek beat timeline"><div id="goon-beat-map" class="goon-beat-map" aria-label="Beat map"></div>';
   slideshow.append(goonHud);
   explorerEl('#goon-start').addEventListener('click', () => explorer.goon && goonStartClock(explorer.goon));
-  explorerEl('#goon-pause').addEventListener('click', () => explorer.goon && goonPauseClock(explorer.goon));
+  explorerEl('#goon-pause').addEventListener('click', () => avtoPlaybackClock.setPaused(!avtoPlaybackClock.paused));
   explorerEl('#goon-tap').addEventListener('click', () => explorer.goon && goonTapTempo(explorer.goon));
   explorerEl('#goon-bpm').addEventListener('change', (event) => explorer.goon && goonSetBpm(explorer.goon, event.target.value));
   explorerEl('#goon-offset').addEventListener('change', (event) => {

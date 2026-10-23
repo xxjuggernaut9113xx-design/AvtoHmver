@@ -1,0 +1,137 @@
+{
+  "schema_version": 1,
+  "metadata": {
+    "name": "Native script demonstration",
+    "description": "Local sequences, concurrent status effects, blocking choices and rhythm patterns."
+  },
+  "duration": {
+    "active_duration_ms": 60000
+  },
+  "difficulty": {
+    "tempo_multiplier": 1
+  },
+  "tempo": {
+    "curve": {
+      "kind": "constant",
+      "bpm": 80
+    },
+    "min_bpm": 20,
+    "max_bpm": 240,
+    "smoothing_per_second": 4,
+    "meter": 4,
+    "pattern": [
+      1
+    ]
+  },
+  "media": {
+    "selection_strategy": "seeded_random",
+    "required_tags": [],
+    "excluded_tags": [],
+    "allow_video_interruption": false
+  },
+  "phases": [
+    {
+      "id": "main",
+      "duration_ms": 60000,
+      "tempo_multiplier": 1,
+      "event_ids": []
+    }
+  ],
+  "events": [],
+  "instructor": {
+    "voice_pack_id": null,
+    "script_preset_id": "native-script-demo"
+  },
+  "audio": {
+    "music_playlist_id": null,
+    "metronome_enabled": true,
+    "music_volume_percent": 40,
+    "voice_volume_percent": 35
+  },
+  "seed": 71,
+  "event_scheduling": {
+    "kind": "weighted",
+    "interval_ms": [
+      5000,
+      15000
+    ],
+    "max_concurrent": 2
+  },
+  "task_graph": null,
+  "scheduled_tasks": [],
+  "script": [
+    {
+      "kind": "status_effect",
+      "id": "guide",
+      "message": "Native script active."
+    },
+    {
+      "kind": "instruction",
+      "id": "start",
+      "title": "Ready",
+      "description": "Start the local rhythm demonstration.",
+      "options": [
+        "Start"
+      ],
+      "blocking": true
+    },
+    {
+      "kind": "set_tempo",
+      "bpm": 80,
+      "measure": 4
+    },
+    {
+      "kind": "set_beat_pattern",
+      "slots": [
+        0,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "kind": "sequence",
+      "blocking": false,
+      "events": [
+        {
+          "kind": "wait",
+          "duration_ms": 1500
+        },
+        {
+          "kind": "status_effect",
+          "id": "progress",
+          "message": "Concurrent task active."
+        },
+        {
+          "kind": "wait",
+          "duration_ms": 1500
+        },
+        {
+          "kind": "remove_status_effect",
+          "id": "progress"
+        }
+      ]
+    },
+    {
+      "kind": "wait",
+      "duration_ms": 3000
+    },
+    {
+      "kind": "instruction",
+      "id": "finish",
+      "title": "Checkpoint",
+      "description": "Continue to finish the demonstration.",
+      "options": [
+        "Finish"
+      ],
+      "blocking": true
+    },
+    {
+      "kind": "remove_status_effect",
+      "id": "guide"
+    },
+    {
+      "kind": "game_over"
+    }
+  ]
+}

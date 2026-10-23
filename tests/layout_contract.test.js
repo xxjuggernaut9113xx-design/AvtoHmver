@@ -6,10 +6,10 @@ const path = require('node:path');
 const root = path.join(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 
-test('native stage exposes only the reduced player modes', () => {
+test('native stage includes Portrait Wall and excludes Slideshow, Cock Hero and VR', () => {
   const ui = read('desktop/ui/main.slint');
-  assert.match(ui, /\["Player", "Feed", "Review", "GOON"\]/);
-  assert.doesNotMatch(ui, /if root\.stage-open && root\.stage-mode == [456]:/);
+  assert.match(ui, /\["Player", "Feed", "Review", "GOON", "Portrait Wall"\]/);
+  assert.doesNotMatch(ui, /if root\.stage-open && root\.stage-mode == [56]:/);
 });
 
 test('the Explorer shell keeps one bounded primary panel and an independent sidebar scroller', () => {

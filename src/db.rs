@@ -252,7 +252,7 @@ impl Default for Settings {
             default_slideshow_speed: default_slideshow_speed(),
             default_slideshow_loop: default_slideshow_loop(),
             default_slideshow_shuffle: default_slideshow_shuffle(),
-            theme: default_theme(),
+            theme: "tactical".into(),
             export_reminder_days: default_export_reminder_days(),
             last_export_at: None,
             export_reminder_snoozed_until: None,
@@ -606,6 +606,17 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
             added_at   TEXT NOT NULL,
             PRIMARY KEY (media_id, tag_id)
         );
+        CREATE TABLE IF NOT EXISTS media_tag_removals (
+            media_id INTEGER NOT NULL REFERENCES media(id) ON DELETE CASCADE,
+            name TEXT NOT NULL,
+            PRIMARY KEY (media_id, name)
+        );
+        CREATE TRIGGER IF NOT EXISTS preserve_media_tag_removal BEFORE DELETE ON media_tags
+        BEGIN
+            INSERT OR IGNORE INTO media_tag_removals(media_id,name)
+            SELECT OLD.media_id,name FROM tags WHERE id=OLD.tag_id
+            AND EXISTS(SELECT 1 FROM media WHERE id=OLD.media_id);
+        END;
         CREATE TABLE IF NOT EXISTS group_tags (
             group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
             tag_id   INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,

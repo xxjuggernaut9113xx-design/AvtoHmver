@@ -1,5 +1,21 @@
 # AvtoHmver 0.3.4
 
+## fanservice implementation checkpoint
+
+The fanservice Server, shared mobile web/PWA frontend and Android test app are
+included in this repository. Android 0.3.8 adds saved `.chpack`/`.chpack.zip`
+import, device-local media, playable sessions and native archive saving.
+See the [current handoff](docs/fanservice/CURRENT_HANDOFF_20261023.md) for build
+instructions, validation and remaining requirements. Full gameplay parity and
+original Cockhero v0.05.1 mod/Windows Host acceptance remain incomplete; no
+original-game build is advertised as supported.
+
+Latest checkpoint: 76 shared tests, 63 asset/license checks, five compatibility
+checks, Android emulator acceptance and isolated Server installer
+install/upgrade/removal passed. The existing Server test binary passes 331 tests
+with six opt-in tests ignored. Build outputs and signing keys are kept outside
+Git; editable sources, fixtures, workflows and packaging scripts are included.
+
 > **Pre-release:** The Server with its browser UI is the established path. The
 > native Windows Host covers the core library, playback, source, download, and
 > remote-access workflows, but installer and broader parity validation are in

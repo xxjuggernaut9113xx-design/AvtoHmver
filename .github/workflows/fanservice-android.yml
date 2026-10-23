@@ -1,0 +1,51 @@
+name: fanservice Android Viewer+
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  android:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: android-actions/setup-android@v3
+      - name: Verify presentation assets
+        run: |
+          node packaging/verify-fanservice-assets.mjs
+          node --test tests/fanservice_*.test.js
+      - name: Prepare shared mobile frontend
+        working-directory: mobile
+        run: |
+          npm ci
+          npm run sync
+      - name: Build locally signed test APK
+        working-directory: mobile/android
+        run: |
+          bash gradlew assembleDebug --no-daemon --max-workers=2
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose app/build/outputs/apk/debug/app-debug.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fanservice-viewer-plus-android-debug
+          path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error

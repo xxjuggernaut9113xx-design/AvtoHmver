@@ -1,0 +1,8 @@
+[2026-10-22 18:23:20.1688969] UE4SS - v3.0.1 Beta #0 - Git SHA #83330635
+[2026-10-22 18:23:22.4874265] [Lua] [FanserviceProbe] loaded
+[2026-10-22 18:23:34.8427637] [Lua] [FSMENU] MainMenu_C /Engine/Transient.GameEngine_2147482617:BP_CHGameInstance_C_2147482568.MainMenu_C_2147482463 enabled=true
+[2026-10-22 18:23:34.8903368] [Lua] [FSVERSION] V0.04 Developer Build
+[2026-10-22 18:23:34.8909073] [Lua] [FSVERSION] V0.05.1 Hotfix Public Build
+[2026-10-22 18:23:34.8918058] [Lua] [FSIMPORT] ImportMenuWidget_C /Engine/Transient.GameEngine_2147482617:BP_CHGameInstance_C_2147482568.ImportMenuWidget_C_2147482452
+[2026-10-22 18:23:34.8937564] [Lua] [FSROOT] CanvasPanel /Engine/Transient.GameEngine_2147482617:BP_CHGameInstance_C_2147482568.ImportMenuWidget_C_2147482452.WidgetTree_2147482451.CanvasPanel_23
+[2026-10-22 18:23:34.8937824] [Lua] [FanserviceProbe] done

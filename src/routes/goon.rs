@@ -5,6 +5,7 @@
 //! music, metronome, visuals, persona prompts, and local speech from that one
 //! timeline instead of layering independent stage timers.
 
+use rusqlite::OptionalExtension;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -567,25 +568,88 @@ pub async fn analyze_beat_map(
     State(state): State<Arc<AppState>>,
     Json(body): Json<BeatMapAnalyzeBody>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    analyze_beat_map_cancellable(
+        state,
+        body,
+        Arc::new(std::sync::atomic::AtomicBool::new(false)),
+    )
+    .await
+}
+
+pub async fn analyze_beat_map_cancellable(
+    state: Arc<AppState>,
+    body: BeatMapAnalyzeBody,
+    cancel: Arc<std::sync::atomic::AtomicBool>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    if !state.edition.owns_library() {
+        return Err((
+            StatusCode::FORBIDDEN,
+            Json(json!({"error":"Viewer cannot analyze local music"})),
+        ));
+    }
+    if state.shutdown.is_cancelled() {
+        return Err((
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({"error":"AvtoHmver is shutting down"})),
+        ));
+    }
+    let lease = state
+        .maintenance
+        .try_acquire_background_worker()
+        .ok_or_else(|| {
+            (
+                StatusCode::SERVICE_UNAVAILABLE,
+                Json(json!({"error":"A local maintenance job is active"})),
+            )
+        })?;
     let track = allowed_track_path(&state, &body.track_path)
         .map_err(|error| (StatusCode::BAD_REQUEST, Json(json!({"error":error}))))?;
     let bin = state.ffmpeg_bin.clone();
+    let track_key = track.to_string_lossy().into_owned();
+    let shutdown = state.shutdown.clone();
+    let worker_cancel = cancel.clone();
+    let (_lease, analysis) = tokio::task::spawn_blocking(move || {
+        let result = crate::beat::analyze_local_audio_cancellable(&bin, &track, &|| {
+            shutdown.is_cancelled() || worker_cancel.load(std::sync::atomic::Ordering::Acquire)
+        });
+        (lease, result)
+    })
+    .await
+    .map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error":"Beat analysis task failed"})),
+        )
+    })?;
     let analysis =
-        tokio::task::spawn_blocking(move || crate::beat::analyze_local_audio(&bin, &track))
-            .await
-            .map_err(|_| {
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(json!({"error":"Beat analysis task failed"})),
-                )
-            })?
-            .map_err(|error| (StatusCode::BAD_REQUEST, Json(json!({"error":error}))))?;
-    let track_key = body.track_path;
-    let conn = state.pool.get().map_err(db_err)?;
-    conn.execute("INSERT INTO beat_maps(playlist_id,track_key,bpm,beat_offset_secs,confidence,markers,confirmed,added_at,updated_at) VALUES(?1,?2,?3,?4,?5,?6,0,?7,?7) ON CONFLICT(playlist_id,track_key) DO UPDATE SET bpm=excluded.bpm,beat_offset_secs=excluded.beat_offset_secs,confidence=excluded.confidence,markers=excluded.markers,confirmed=0,updated_at=excluded.updated_at",rusqlite::params![body.playlist_id,track_key,analysis.bpm,analysis.first_beat_offset_secs,analysis.confidence,serde_json::to_string(&analysis.markers).unwrap_or_else(|_|"[]".into()),now_iso()]).map_err(db_err)?;
-    Ok(Json(
-        json!({"analysis":analysis,"id":conn.last_insert_rowid()}),
-    ))
+        analysis.map_err(|error| (StatusCode::BAD_REQUEST, Json(json!({"error":error}))))?;
+    if cancel.load(std::sync::atomic::Ordering::Acquire) || state.shutdown.is_cancelled() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error":"Beat analysis cancelled"})),
+        ));
+    }
+    let mut conn = state.pool.get().map_err(db_err)?;
+    let transaction = conn
+        .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+        .map_err(db_err)?;
+    let existing: Option<i64> = transaction
+        .query_row(
+            "SELECT id FROM beat_maps WHERE playlist_id IS ?1 AND track_key=?2 ORDER BY id LIMIT 1",
+            rusqlite::params![body.playlist_id, track_key],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(db_err)?;
+    let id = if let Some(id) = existing {
+        transaction.execute("UPDATE beat_maps SET bpm=?1,beat_offset_secs=?2,confidence=?3,markers=?4,confirmed=0,updated_at=?5 WHERE id=?6",rusqlite::params![analysis.bpm,analysis.first_beat_offset_secs,analysis.confidence,serde_json::to_string(&analysis.markers).unwrap_or_else(|_|"[]".into()),now_iso(),id]).map_err(db_err)?;
+        id
+    } else {
+        transaction.execute("INSERT INTO beat_maps(playlist_id,track_key,bpm,beat_offset_secs,confidence,markers,confirmed,added_at,updated_at) VALUES(?1,?2,?3,?4,?5,?6,0,?7,?7)",rusqlite::params![body.playlist_id,track_key,analysis.bpm,analysis.first_beat_offset_secs,analysis.confidence,serde_json::to_string(&analysis.markers).unwrap_or_else(|_|"[]".into()),now_iso()]).map_err(db_err)?;
+        transaction.last_insert_rowid()
+    };
+    transaction.commit().map_err(db_err)?;
+    Ok(Json(json!({"analysis":analysis,"id":id})))
 }
 
 pub async fn update_beat_map(
@@ -593,9 +657,39 @@ pub async fn update_beat_map(
     Path(id): Path<i64>,
     Json(body): Json<BeatMapUpdateBody>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    update_beat_map_local(state, id, body).await
+}
+
+pub async fn update_beat_map_local(
+    state: Arc<AppState>,
+    id: i64,
+    body: BeatMapUpdateBody,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    if !state.edition.owns_library() {
+        return Err((
+            StatusCode::FORBIDDEN,
+            Json(json!({"error":"Viewer cannot edit local beat maps"})),
+        ));
+    }
+    if state.shutdown.is_cancelled() {
+        return Err((
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({"error":"AvtoHmver is shutting down"})),
+        ));
+    }
+    let _lease = state
+        .maintenance
+        .try_acquire_background_worker()
+        .ok_or_else(|| {
+            (
+                StatusCode::SERVICE_UNAVAILABLE,
+                Json(json!({"error":"A local maintenance job is active"})),
+            )
+        })?;
     if !body.bpm.is_finite()
         || !(40.0..=300.0).contains(&body.bpm)
         || !body.beat_offset_secs.is_finite()
+        || !(-30.0..=30.0).contains(&body.beat_offset_secs)
     {
         return Err((
             StatusCode::BAD_REQUEST,
@@ -607,6 +701,7 @@ pub async fn update_beat_map(
             .markers
             .iter()
             .any(|marker| !marker.is_finite() || *marker < 0.0)
+        || body.markers.windows(2).any(|pair| pair[1] <= pair[0])
     {
         return Err((
             StatusCode::BAD_REQUEST,
@@ -694,6 +789,156 @@ pub async fn apple_configuration() -> Result<Json<Value>, (StatusCode, Json<Valu
 mod tests {
     use super::*;
     use axum::extract::State;
+
+    #[tokio::test]
+    async fn beat_edits_validate_before_writing_and_preserve_confirmation() {
+        let root = tempfile::tempdir().unwrap();
+        let state = crate::test_support::state(root.path());
+        state.pool.get().unwrap().execute_batch("INSERT INTO beat_maps(track_key,bpm,beat_offset_secs,confidence,markers,confirmed,added_at,updated_at) VALUES('track',120,0,0.8,'[0,0.5]',0,'2026','2026')").unwrap();
+        for markers in [vec![0.5, 0.5], vec![1.0, 0.0], vec![f64::NAN], vec![-1.0]] {
+            let error = update_beat_map_local(
+                state.clone(),
+                1,
+                BeatMapUpdateBody {
+                    bpm: 123.0,
+                    beat_offset_secs: 0.25,
+                    markers,
+                    confirmed: true,
+                },
+            )
+            .await
+            .unwrap_err();
+            assert_eq!(error.0, StatusCode::BAD_REQUEST);
+        }
+        let original: String = state
+            .pool
+            .get()
+            .unwrap()
+            .query_row("SELECT markers FROM beat_maps WHERE id=1", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(original, "[0,0.5]");
+        let _ = update_beat_map_local(
+            state.clone(),
+            1,
+            BeatMapUpdateBody {
+                bpm: 123.0,
+                beat_offset_secs: 0.25,
+                markers: vec![0.25, 0.75, 1.25],
+                confirmed: true,
+            },
+        )
+        .await
+        .unwrap();
+        let values: (f64, f64, bool) = state
+            .pool
+            .get()
+            .unwrap()
+            .query_row(
+                "SELECT bpm,beat_offset_secs,confirmed FROM beat_maps WHERE id=1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .unwrap();
+        assert_eq!(values, (123.0, 0.25, true));
+        state.shutdown.cancel();
+        assert_eq!(
+            update_beat_map_local(
+                state,
+                1,
+                BeatMapUpdateBody {
+                    bpm: 120.0,
+                    beat_offset_secs: 0.0,
+                    markers: vec![],
+                    confirmed: false,
+                }
+            )
+            .await
+            .unwrap_err()
+            .0,
+            StatusCode::SERVICE_UNAVAILABLE
+        );
+    }
+
+    #[tokio::test]
+    async fn cancelled_beat_analysis_never_persists_a_map() {
+        let root = tempfile::tempdir().unwrap();
+        let state = crate::test_support::state(root.path());
+        let track = state.library_dir.join("cancelled.wav");
+        std::fs::write(&track, b"not decoded").unwrap();
+        let error = analyze_beat_map_cancellable(
+            state.clone(),
+            BeatMapAnalyzeBody {
+                playlist_id: None,
+                track_path: track.to_string_lossy().into_owned(),
+            },
+            Arc::new(std::sync::atomic::AtomicBool::new(true)),
+        )
+        .await
+        .unwrap_err();
+        assert_eq!(error.0, StatusCode::BAD_REQUEST);
+        let count: i64 = state
+            .pool
+            .get()
+            .unwrap()
+            .query_row("SELECT COUNT(*) FROM beat_maps", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(count, 0);
+    }
+
+    #[tokio::test]
+    #[ignore = "requires an installed FFmpeg decoder"]
+    async fn real_beat_rescan_without_playlist_keeps_one_map_identity() {
+        let root = tempfile::tempdir().unwrap();
+        let mut state = crate::test_support::state(root.path());
+        Arc::get_mut(&mut state).unwrap().ffmpeg_bin = "ffmpeg".into();
+        let track = state.library_dir.join("clicks.wav");
+        let samples = 22_050_u32 * 12;
+        let data_len = samples * 2;
+        let mut wav = Vec::new();
+        wav.extend_from_slice(b"RIFF");
+        wav.extend_from_slice(&(36 + data_len).to_le_bytes());
+        wav.extend_from_slice(b"WAVEfmt ");
+        wav.extend_from_slice(&16_u32.to_le_bytes());
+        wav.extend_from_slice(&1_u16.to_le_bytes());
+        wav.extend_from_slice(&1_u16.to_le_bytes());
+        wav.extend_from_slice(&22_050_u32.to_le_bytes());
+        wav.extend_from_slice(&44_100_u32.to_le_bytes());
+        wav.extend_from_slice(&2_u16.to_le_bytes());
+        wav.extend_from_slice(&16_u16.to_le_bytes());
+        wav.extend_from_slice(b"data");
+        wav.extend_from_slice(&data_len.to_le_bytes());
+        for index in 0..samples {
+            let sample: i16 = if index % 11_025 < 100 { 24_000 } else { 0 };
+            wav.extend_from_slice(&sample.to_le_bytes());
+        }
+        std::fs::write(&track, wav).unwrap();
+        let mut ids = Vec::new();
+        for _ in 0..2 {
+            let value = analyze_beat_map_cancellable(
+                state.clone(),
+                BeatMapAnalyzeBody {
+                    playlist_id: None,
+                    track_path: track.to_string_lossy().into_owned(),
+                },
+                Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            )
+            .await
+            .unwrap()
+            .0;
+            ids.push(value["id"].as_i64().unwrap());
+            assert!(!value["analysis"]["markers"].as_array().unwrap().is_empty());
+        }
+        assert_eq!(ids[0], ids[1]);
+        let count: i64 = state
+            .pool
+            .get()
+            .unwrap()
+            .query_row("SELECT COUNT(*) FROM beat_maps", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(count, 1);
+    }
 
     #[test]
     fn succubus_has_no_rating_or_media_and_regular_stages_are_exact() {

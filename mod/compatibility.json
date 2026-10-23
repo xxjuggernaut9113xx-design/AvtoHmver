@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "product": "fanservice Cockhero mod",
+  "supported_builds": [],
+  "official_release": {
+    "checked_at": "2026-10-22",
+    "version": "0.05.1 Public",
+    "url": "https://cockherogame.itch.io/cock-hero",
+    "import_access": "Patron+ required; preserve the original entitlement check"
+  },
+  "candidates": [{
+    "id": "v0051-hotfix-public-a8f46896",
+    "displayed_version": "V0.05.1 Hotfix Public Build",
+    "engine": "5.3.2-29314046+++UE5+Release-5.3",
+    "status": "blocked",
+    "files": {
+      "CockHero/Binaries/Win64/CockHero.exe": "a8f46896593d8724cefb9a232db5772df48ae5731da78cfacbec82e98d040c10",
+      "CockHero/Content/Paks/CockHero-Windows.pak": "345a25a2cc9f0c60682bf61b3580dd92c18a116b43e4c2a7426207802fd2fc38",
+      "CockHero/Content/Paks/CockHero-Windows.utoc": "6b529fc3023c8e4d0a0781a8660a1c134da811a7e702f00693c872cbcb0eafef",
+      "CockHero/Content/Paks/CockHero-Windows.ucas": "dade7767425e345cb3c6858f5a7b9888ac0f3e269ca7fc173fafdbac06dde6dc"
+    },
+    "verified": {
+      "loader_startup": true,
+      "reflected_import_pack_and_webview_classes": true,
+      "lite_open_and_return_from_original_import": false,
+      "synthetic_pack_in_native_unlocks": false,
+      "native_purchase_and_restart": false,
+      "streaming_playback": false,
+      "original_game_regression_and_uninstall": false
+    },
+    "blockers": [
+      "Native Import click opens the developer access page in this public build.",
+      "A direct isolated widget construction probe crashed; embedding is not supported yet.",
+      "Automatic approval review rejected the next isolated-game probe with 'blocked by policy'; no more specific reason was supplied."
+    ]
+  }],
+  "loader_probe": {
+    "version": "3.0.1-1181-g83330635",
+    "url": "https://github.com/UE4SS-RE/RE-UE4SS/releases/download/experimental-latest/UE4SS_v3.0.1-1181-g83330635.zip",
+    "sha256": "b9a166a756605b21058a64cde93bcaab1a855dba3553e5c7e6ce0fa8fdfad7b9",
+    "shipping_dependency": false,
+    "note": "Development candidate only. Stable 3.0.1 failed its GMalloc pattern scan."
+  }
+}
