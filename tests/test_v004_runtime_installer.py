@@ -155,6 +155,35 @@ class RuntimeInstallerTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'ownership manifest'):
             runtime.remove(self.game)
 
+    def test_status_is_read_only_and_allowed_while_game_runs(self):
+        with patch.object(runtime.packs, '_require_closed', side_effect=ValueError('Game running')):
+            result = runtime.status(self.game)
+        self.assertFalse(result['installed'])
+        self.assertFalse(result['installation_blocked'])
+        self.assertEqual(list(self.binary.iterdir()), [])
+        runtime.install(self.game, self.archive)
+        before = {name: (self.binary / name).read_bytes() for name in (*runtime.OWNED, runtime.MANIFEST)}
+        with patch.object(runtime.packs, '_require_closed', side_effect=ValueError('Game running')):
+            result = runtime.status(self.game)
+        self.assertTrue(result['integrity_verified'])
+        self.assertFalse(result['full_mod_supported'])
+        self.assertEqual({name: (self.binary / name).read_bytes() for name in before}, before)
+
+    def test_status_identifies_conflicts_and_changed_or_missing_payload(self):
+        target = self.binary / 'dwmapi.dll'
+        target.write_bytes(b'unowned')
+        result = runtime.status(self.game)
+        self.assertEqual(result['unowned_files'], ['dwmapi.dll'])
+        self.assertTrue(result['installation_blocked'])
+        target.unlink()
+        runtime.install(self.game, self.archive)
+        target.write_bytes(b'changed')
+        (self.binary / runtime.PREFIX / 'Scripts/main.lua').unlink()
+        result = runtime.status(self.game)
+        self.assertFalse(result['integrity_verified'])
+        self.assertEqual(result['changed_files'], ['dwmapi.dll'])
+        self.assertEqual(result['missing_files'], [runtime.PREFIX + 'Scripts/main.lua'])
+
 
 if __name__ == '__main__':
     unittest.main()

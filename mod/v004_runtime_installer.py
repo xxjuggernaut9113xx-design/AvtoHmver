@@ -50,7 +50,7 @@ def validate_origin(value):
     return value
 
 
-def _directory(game_root, *, require_gates):
+def _directory(game_root, *, require_gates, mutation=True):
     root = Path(game_root).absolute()
     if packs._reparse(root):
         raise ValueError('Game root must not be a symbolic link or reparse point.')
@@ -68,7 +68,8 @@ def _directory(game_root, *, require_gates):
             raise ValueError('Game directory contains a symbolic link or reparse point.')
     if not directory.is_dir():
         raise ValueError('Game binary directory is missing.')
-    packs._require_closed(directory / 'packs')
+    if mutation:
+        packs._require_closed(directory / 'packs')
     return directory, registry
 
 
@@ -94,6 +95,7 @@ def _read_manifest(directory):
         raise ValueError('Invalid runtime ownership manifest.')
     record = json.loads(path.read_text(encoding='utf-8'))
     if (not isinstance(record, dict) or record.get('version') != 1 or record.get('build_id') != packs.TARGET
+            or record.get('component') != 'experimental-runtime'
             or not isinstance(record.get('files'), dict) or set(record['files']) != OWNED
             or any(not isinstance(value, str) or not re.fullmatch('[0-9a-f]{64}', value)
                    for value in record['files'].values())):
@@ -218,9 +220,30 @@ def remove(game_root):
     return dict(removed=True, files=len(OWNED), saves_preserved=True)
 
 
+def status(game_root):
+    directory, _ = _directory(game_root, require_gates=False, mutation=False)
+    record = _read_manifest(directory)
+    if record is None:
+        conflicts = [relative for relative in sorted(OWNED)
+                     if _safe(directory, relative).exists()]
+        return dict(installed=False, full_mod_supported=False,
+                    unowned_files=conflicts, installation_blocked=bool(conflicts))
+    missing, changed = [], []
+    for relative, expected in sorted(record['files'].items()):
+        path = _safe(directory, relative)
+        if not path.is_file():
+            missing.append(relative)
+        elif packs.digest(path) != expected:
+            changed.append(relative)
+    return dict(installed=True, component=record['component'],
+                build_id=packs.TARGET, full_mod_supported=False,
+                integrity_verified=not missing and not changed,
+                missing_files=missing, changed_files=changed)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('action', choices=('install', 'remove'))
+    parser.add_argument('action', choices=('install', 'remove', 'status'))
     parser.add_argument('--game-root', required=True, type=Path)
     parser.add_argument('--loader-archive', type=Path)
     parser.add_argument('--server-origin')
@@ -230,8 +253,10 @@ def main():
             if args.loader_archive is None:
                 parser.error('install requires --loader-archive')
             result = install(args.game_root, args.loader_archive, origin=args.server_origin)
-        else:
+        elif args.action == 'remove':
             result = remove(args.game_root)
+        else:
+            result = status(args.game_root)
         print(json.dumps(result, indent=2))
     except (OSError, ValueError, KeyError, zipfile.BadZipFile) as error:
         parser.exit(2, str(error) + '\n')

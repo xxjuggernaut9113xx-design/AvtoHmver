@@ -29,3 +29,14 @@ Development layout: install this directory as ue4ss/Mods/Fanservice with only
 Fanservice enabled in mods.txt. Set server-origin.txt to the Server origin. The
 pinned development loader is recorded in ../compatibility.json. No commercial
 game files are included or replaced by these source files.
+
+Inspect installation ownership without changing files or closing the game:
+
+```powershell
+python mod/v004_runtime_installer.py status --game-root 'C:/Games/CockHero/Windows'
+```
+
+The report distinguishes an intact owned runtime, missing/changed owned files
+and pre-existing unowned loader files. A manually installed development loader
+is reported as unowned and is never overwritten or adopted automatically.
+This read-only report does not declare full-mod compatibility.
