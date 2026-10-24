@@ -70,7 +70,7 @@ class RuntimeInstallerTests(unittest.TestCase):
             self.assertEqual((self.binary / name).read_bytes(), b'untouched')
 
     def test_gate_and_unknown_build_reject_without_writes(self):
-        self.data['candidates'][0]['verified']['native_catalog_bridge'] = False
+        self.data['candidates'][0]['verified']['native_catalog_query'] = False
         self.save_registry()
         with self.assertRaisesRegex(ValueError, 'acceptance gates'):
             runtime.install(self.game, self.archive)

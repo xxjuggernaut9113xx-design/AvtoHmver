@@ -38,7 +38,7 @@ local function stringValue(value, field)
     return value:ToString()
 end
 local function nativeState(store)
-    local packs, allowed = {}, {}
+    local packs = {}
     local infos = store:GetAllPackInfos()
     if #infos > 10000 then error('Native catalog exceeds 10000 packs.') end
     local function append(item)
@@ -54,10 +54,10 @@ local function nativeState(store)
             or type(count) ~= 'number' or count < 0 or count % 1 ~= 0 then
             error('Invalid native pack price or media count.')
         end
-        allowed[name] = {owned=store:IsPackUnlocked(name), count=count}
+        local owned = store:IsPackUnlocked(name)
         packs[#packs + 1] = '{"id":' .. quote(name) .. ',"name":' .. quote(stringValue(item.Title, 'Title'))
             .. ',"description":' .. quote(stringValue(item.Description, 'Description')) .. ',"unlock_cost":' .. tostring(cost)
-            .. ',"media_count":' .. tostring(count) .. ',"owned":' .. boolean(allowed[name].owned)
+            .. ',"media_count":' .. tostring(count) .. ',"owned":' .. boolean(owned)
             .. ',"enabled":' .. boolean(store:IsPackEnabled(name)) .. '}'
     end
     if type(infos) == 'table' then
@@ -65,7 +65,7 @@ local function nativeState(store)
     else
         infos:ForEach(function(_, parameter) append(parameter:get()) end)
     end
-    return '{"unlock_points":' .. tostring(store:GetUnlockPoints()) .. ',"packs":[' .. table.concat(packs, ',') .. ']}', allowed
+    return '{"unlock_points":' .. tostring(store:GetUnlockPoints()) .. ',"packs":[' .. table.concat(packs, ',') .. ']}'
 end
 local function revoke()
     if browser then log('Embedded Lite closed; bridge revoked.') end
@@ -109,24 +109,10 @@ local function handle(store)
     if requestEpoch ~= epoch or not id or id <= lastRequest or id > 2147483647 then return end
     lastRequest = id
     local ok, result = pcall(function()
-        local state, allowed = nativeState(store)
-        if action == 'state' then return '{"ok":true,"state":' .. state .. '}' end
-        if encoded:gsub('%%%x%x', ''):find('%%') then
-            error('Invalid encoded native pack identity.')
+        if action ~= 'state' or encoded ~= '' then
+            error('Use the original Unlocks menu to purchase or enable packs.')
         end
-        local name = encoded:gsub('%%(%x%x)', function(hex) return string.char(tonumber(hex, 16)) end)
-        local pack = allowed[name]
-        if not pack then error('Pack is not in the current fanservice native catalog.') end
-        if pack.count == 0 then error('Native pack has no playable media.') end
-        if action == 'purchase' then
-            if not pack.owned and not store:UnlockPack(name) then error('Native purchase rejected. Check your UP balance.') end
-        elseif action == 'enable' or action == 'disable' then
-            if not pack.owned then error('Unlock this pack in the native game first.') end
-            store:SetPackEnabled(name, action == 'enable')
-        else
-            error('Unsupported native action.')
-        end
-        state = nativeState(store)
+        local state = nativeState(store)
         return '{"ok":true,"state":' .. state .. '}'
     end)
     local payload = ok and result or '{"ok":false,"error":' .. quote(tostring(result):gsub('^.-:%d+: ', '')) .. '}'

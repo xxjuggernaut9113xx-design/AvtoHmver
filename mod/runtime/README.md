@@ -10,10 +10,12 @@ scoped to the visible Import menu. Closing that menu, changing its owning widget
 or native store, or reloading the native save revokes queued bridge requests.
 The configured origin must use HTTPS unless it is localhost/127.0.0.1.
 
-Scripts/bridge.js provides the injected native pack panel. It can query, purchase
-and enable/disable native fanservice-prefixed packs through CHPackStoreController.
-The game remains authoritative for UP and ownership. No JavaScript wallet or
-direct save editor implements these operations. This panel does not yet register
+Purchases and enable/disable controls stay in the original game's Unlocks menu.
+Scripts/bridge.js provides only a read-only native catalog transport. The former
+injected Game packs panel and its mutation commands were removed at the user's
+request. Embedded Lite labels its saved definitions Pack drafts, offering export,
+edit and delete without a browser UP wallet or ownership controls. The game stays
+authoritative for purchases and ownership. This component does not yet register
 new live definitions or stream Server media into native gameplay.
 
 The candidate targets only the exact v004-exclusive-c645757d identity. Loader
@@ -21,8 +23,10 @@ startup, automatic browser attachment, Lite interaction and native Back passed i
 the isolated game. The Game packs panel queried the native three-UP balance,
 disabled and re-enabled an owned pack, and rejected a 999-UP purchase without
 changing the balance. Closing and reopening Import revoked the old bridge and
-created a fresh browser generation. A successful new purchase through this
-panel, live streaming and full installer/regression acceptance remain pending.
+created a fresh browser generation. On 2026-10-24 the user purchased the synthetic
+one-UP pack through this panel, observed the balance change from three to two UP
+and confirmed Owned. The native log independently confirms successful unlock and
+enablement. Live streaming and full installer/regression acceptance remain pending.
 The full-mod supported-build registry remains empty.
 
 Development layout: install this directory as ue4ss/Mods/Fanservice with only
@@ -40,3 +44,15 @@ The report distinguishes an intact owned runtime, missing/changed owned files
 and pre-existing unowned loader files. A manually installed development loader
 is reported as unowned and is never overwritten or adopted automatically.
 This read-only report does not declare full-mod compatibility.
+
+The experimental component installer now passes its read-only catalog acceptance gate for
+the exact recorded v0.04 build. With the game closed, use the pinned loader ZIP
+identified in ../compatibility.json:
+
+```powershell
+python mod/v004_runtime_installer.py install --game-root 'C:/Games/CockHero/Windows' --loader-archive 'C:/Downloads/UE4SS_v3.0.1-1181-g83330635.zip' --server-origin 'https://your-server.example'
+python mod/v004_runtime_installer.py remove --game-root 'C:/Games/CockHero/Windows'
+```
+
+Existing unowned loaders are rejected. Installation does not grant full-mod
+support or provide native live streaming, music or profile synchronization.

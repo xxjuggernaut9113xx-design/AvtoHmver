@@ -57,16 +57,16 @@ function find(node, predicate) {
 }
 const tick = () => new Promise(resolve => setImmediate(resolve));
 
-test('queues requests serially with numeric IDs, URL encoding and title cleanup', async () => {
+test('queues read-only requests serially with numeric IDs and title cleanup', async () => {
   const h = setup();
   const first = h.transport.request('state');
   const firstId = h.requestId;
-  const second = h.transport.request('purchase', 'fanservice-name:with spaces');
+  const second = h.transport.request('state');
   assert.equal(h.document.title, `FANSERVICE_RPC:123-456:${firstId}:state:`);
   assert.equal(h.timers.size, 1);
   assert.equal(h.reply(state()), true);
   await first;
-  assert.match(h.document.title, /:purchase:fanservice-name%3Awith%20spaces$/);
+  assert.match(h.document.title, /:state:$/);
   assert.notEqual(h.requestId, firstId);
   h.reply(state([pack({owned: true})], 3));
   assert.equal((await second).unlock_points, 3);
@@ -130,7 +130,7 @@ test('reinjecting with a new epoch revokes the previous connection', async () =>
   const rejected = assert.rejects(old.request('state'), /closed/);
   h.reinject('124-789');
   await rejected;
-  assert.equal(h.header.children.length, 1);
+  assert.equal(h.header.children.length, 0);
   const pending = h.transport.request('state');
   assert.match(h.document.title, /^FANSERVICE_RPC:124-789:1:state:/);
   assert.equal(old.receive(1, {ok: true, state: state()}), false);
@@ -146,7 +146,7 @@ test('repeated same-epoch injection preserves transport, title and increasing re
   h.reinject('123-456');
   assert.equal(h.transport, transport);
   assert.equal(h.document.title, title);
-  assert.equal(h.header.children.length, 1);
+  assert.equal(h.header.children.length, 0);
   h.reply(state());
   await first;
   const second = transport.request('state');
@@ -181,50 +181,25 @@ test('changing epoch without reinjection revokes old requests', async () => {
   await assert.rejects(h.transport.request('state'), /closed/);
 });
 
-test('native UI uses text nodes and native state for purchase and enable results', async () => {
+test('native transport adds no duplicate purchase or enable controls', async () => {
   const h = setup();
-  h.header.children[0].click();
-  const dialog = find(h.body, node => node.id === 'fanservice-native-game-packs-dialog');
-  assert.equal(dialog.open, true);
-  const hostile = '<img src=x onerror=alert(1)>';
-  h.reply(state([pack({name: hostile, description: hostile, id: 'native:<id>'})]));
-  await tick();
-  assert.ok(dialog.textContent.includes(hostile));
-  assert.equal(find(dialog, node => node.tagName === 'img'), undefined);
-  find(dialog, node => node.tagName === 'button' && node.textContent.startsWith('Purchase')).click();
-  assert.match(h.document.title, /:purchase:native%3A%3Cid%3E$/);
-  assert.ok(dialog.textContent.includes('Native game UP: 5.'));
-  h.transport.receive(h.requestId, {ok: false, error: 'Insufficient native UP.'});
-  await tick();
-  assert.ok(dialog.textContent.includes('Insufficient native UP.'));
-  find(dialog, node => node.tagName === 'button' && node.textContent.startsWith('Purchase')).click();
-  h.reply(state([pack({owned: true})], 3));
-  await tick();
-  assert.ok(dialog.textContent.includes('Native game UP: 3.'));
-  assert.equal(dialog.textContent.includes('Insufficient native UP.'), false);
-  find(dialog, node => node.tagName === 'button' && node.textContent === 'Enable').click();
-  assert.match(h.document.title, /:enable:fanservice-test-123$/);
-  h.reply(state([pack({owned: true, enabled: true})], 3));
-  await tick();
-  assert.ok(find(dialog, node => node.tagName === 'button' && node.textContent === 'Disable'));
-});
-
-test('closing the menu cancels in-flight work and reopening queries fresh native state', async () => {
-  const h = setup();
-  h.header.children[0].click();
-  const oldId = h.requestId;
-  const dialog = find(h.body, node => node.id === 'fanservice-native-game-packs-dialog');
-  find(dialog, node => node.tagName === 'button' && node.textContent === 'Close').click();
-  await tick();
-  assert.equal(dialog.open, false);
+  assert.equal(h.header.children.length, 0);
+  assert.equal(h.body.children.length, 1);
+  for (const action of ['purchase', 'enable', 'disable']) {
+    await assert.rejects(h.transport.request(action, 'fanservice-test-123'), /Invalid/);
+  }
   assert.equal(h.document.title, '');
   assert.equal(h.timers.size, 0);
-  assert.equal(h.transport.receive(oldId, {ok: true, state: state()}), false);
-  h.header.children[0].click();
-  assert.notEqual(h.requestId, oldId);
-  h.reply(state([], 42));
-  await tick();
-  assert.ok(dialog.textContent.includes('Native game UP: 42.'));
+});
+
+test('page close revokes read-only work without modifying native ownership', async () => {
+  const h = setup();
+  const pending = h.transport.request('state');
+  const rejected = assert.rejects(pending, /closed/);
+  const oldId = h.requestId;
   h.globalEvents.pagehide();
-  assert.equal(h.header.children.length, 0);
+  await rejected;
+  assert.equal(h.transport.receive(oldId, {ok: true, state: state()}), false);
+  assert.equal(h.document.title, '');
+  assert.equal(h.timers.size, 0);
 });

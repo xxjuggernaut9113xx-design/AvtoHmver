@@ -39,12 +39,14 @@
       "native_catalog_query": true,
       "native_catalog_enable_disable": true,
       "native_catalog_insufficient_funds": true,
+      "native_catalog_purchase": true,
+      "native_catalog_bridge": true,
       "embedded_menu_close_and_reopen": true,
       "streaming_playback": false,
       "original_game_regression_and_uninstall": false
     },
     "blockers": [
-      "Automatic embedded Lite, native catalog query, enable/disable and insufficient-funds rejection passed. Positive purchase through the injected panel still needs acceptance.",
+      "Purchases and enable/disable stay in original Unlocks. The prior injected panel passed purchase tests but was removed at user request; the remaining bridge is read-only. Native streaming and full runtime regression remain pending.",
       "Live Server membership, streaming, music, profile synchronization and complete installer/regression acceptance remain. Full-mod support is not declared."
     ]
   },{

@@ -28,6 +28,7 @@ async function loadProfile() {
 }
 async function commit(operation) {
   await profileReady;
+  if (globalThis.FanserviceNativeTransport && ['purchase','enable','sync_import'].includes(operation.action)) throw Error('Use the original game Unlocks menu to purchase or enable packs.');
   profileLocked=true;
   if (busy) throw Error('Wait for the current operation.'); busy = true;
   try {
@@ -121,7 +122,12 @@ $('use-selection').onclick=async()=>{
 async function showUnlocks() {
   await profileReady;
   profileLocked=true;
-  await loadProfile(); $('balance').textContent = `${profile.unlock_points} UP · custom game packs`;
+  await loadProfile();
+  const native = !!globalThis.FanserviceNativeTransport;
+  $('unlocks-dialog').querySelector('h2').textContent = native ? 'Pack drafts' : 'Unlocks';
+  $('balance').textContent = native ? 'Saved pack drafts · export and install, then use the original game Unlocks menu.' : `${profile.unlock_points} UP · custom game packs`;
+  $('soundtrack').closest('.toolbar').hidden = native;
+  $('sync-id').closest('details').hidden = native;
   $('packs').replaceChildren(); if (!$('unlocks-dialog').open) $('unlocks-dialog').showModal();
   for (const pack of profile.packs) {
     const row = node('article',undefined,'pack');
@@ -129,14 +135,16 @@ async function showUnlocks() {
     row.append(cover,node('h3',pack.name+' · Custom'),node('p',pack.description));
     const availability = node('p','Resolving live selection…'); row.append(availability); const actions = node('div',undefined,'toolbar'); row.append(actions); $('packs').append(row);
     let manifest;
-    try { manifest = await resolve(pack); manifests[pack.id] = manifest; availability.textContent = `${manifest.media.length} available · ${pack.owned ? 'Owned' : `${pack.unlock_cost} UP`} · ${pack.enabled ? 'Enabled' : 'Disabled'}`; }
+    try { manifest = await resolve(pack); manifests[pack.id] = manifest; availability.textContent = native ? `${manifest.media.length} available · ${pack.unlock_cost} native UP · Draft` : `${manifest.media.length} available · ${pack.owned ? 'Owned' : `${pack.unlock_cost} UP`} · ${pack.enabled ? 'Enabled' : 'Disabled'}`; }
     catch (error) { availability.textContent = 'Unavailable: '+error.message; }
     actions.append(button('Export .chpack',()=>exportPack(pack)));
+    if (!native) {
     const available = model.available(pack,manifest);
     const action = button(pack.owned ? pack.enabled ? 'Disable' : 'Enable' : `Unlock (${pack.unlock_cost} UP)`,async()=>{
       const fresh = pack.owned && pack.enabled ? undefined : await resolve(pack);
       await commit(pack.owned ? {action:'enable',id:pack.id,enabled:!pack.enabled,manifest:fresh} : {action:'purchase',id:pack.id,manifest:fresh}); await showUnlocks();
     }); action.disabled = !available && !pack.enabled; actions.append(action);
+    }
     actions.append(button('Edit',()=>openCreate(pack)),button('Delete',async()=>{ if (confirm(`Delete custom pack "${pack.name}"? Library media will be kept.`)) { await commit({action:'delete',id:pack.id}); await showUnlocks(); } }));
   }
 }
@@ -159,7 +167,7 @@ $('pack-form').onsubmit = async e => {
     if ($('access').value==='priced' && pack.unlock_cost<=0) throw Error('Enter a positive whole-number UP price.');
     const manifest=await resolve(pack);
     await commit(editing ? {action:'edit',id:editing.id,pack,manifest} : {action:'create',pack,manifest});
-    $('pack-dialog').close();status('Custom pack saved to Unlocks.');await showUnlocks();
+    $('pack-dialog').close();status(globalThis.FanserviceNativeTransport ? 'Pack draft saved. Export and install it for the original Unlocks menu.' : 'Custom pack saved to Unlocks.');await showUnlocks();
   } catch(error) {status(error.message);$('pack-error').textContent=error.message;} finally {$('save-pack').disabled=false;}
 };
 const profileReady=(async()=>{if(document.readyState!=='complete')await new Promise(resolve=>window.addEventListener('load',resolve,{once:true}));libraryId=localStorage.getItem('fanservice-last-library')||'device:'+FanserviceStore.device;await loadProfile();await renderLocalMedia();$('connection').textContent='Saved phone media · library '+libraryId;})();

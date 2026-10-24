@@ -107,3 +107,15 @@ BRIDGE-QUICKSTART.md supersedes earlier archive-only removal instructions.
 On 2026-10-24, 26 Python transport tests passed with one platform-dependent skip;
 all seven runtime installer tests passed. Eleven JavaScript bridge tests passed
 on the preceding validation run.
+
+## Positive embedded-panel purchase, 2026-10-24
+
+The user explicitly reports purchasing native-panel-one through Import → Game
+packs, observing three UP become two UP and the pack become Owned. This is
+user-observed balance evidence. Independently, native-panel-purchase.log line
+1377 records successful native unlock and enablement of
+fanservice-native-panel-one-721da5f4-2186-409c-8c09-e9c5ecfde329; lines 1386–1393
+confirm unlocked, enabled and two media entries. No save edits or UP grants were
+used. This completes the positive purchase case for the embedded catalog bridge.
+The purchased pack's persistence through another restart remains a separate
+case; earlier paid native UI purchases already passed their restart check.
