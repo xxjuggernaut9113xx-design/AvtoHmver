@@ -42,6 +42,7 @@
       "native_catalog_purchase": true,
       "native_catalog_bridge": true,
       "embedded_menu_close_and_reopen": true,
+      "original_unlocks_controls_retained_user_verified": true,
       "streaming_playback": false,
       "original_game_regression_and_uninstall": false
     },

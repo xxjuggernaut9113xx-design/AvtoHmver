@@ -26,5 +26,8 @@ E:/fanservice-mod-lab/v004-native/runtime-file-lifecycle-acceptance.json.
 
 Automated checks for this revision: eleven read-only transport tests, three
 ownership-boundary tests, eleven shared archive tests, nine installer tests and
-five compatibility tests passed. Native in-game visual acceptance of the revised
-draft-only menu is pending; Computer Use access to CockHero remains denied.
+five compatibility tests passed. The user subsequently confirmed the hot-reload
+visual check: the separate Game packs button disappeared, Lite showed Pack drafts
+and original Unlocks controls remained. This is user-observed acceptance of the
+revised interface. Computer Use access to CockHero remains denied, so it was not
+independently re-observed through that tool.
