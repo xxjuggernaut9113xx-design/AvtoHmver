@@ -2,6 +2,7 @@
   "schema": 1,
   "product": "fanservice Cockhero mod",
   "supported_builds": [],
+  "development_target": "v004-exclusive-c645757d",
   "official_release": {
     "checked_at": "2026-10-22",
     "version": "0.05.1 Public",
@@ -9,6 +10,44 @@
     "import_access": "Patron+ required; preserve the original entitlement check"
   },
   "candidates": [{
+    "id": "v004-exclusive-c645757d",
+    "distribution_label": "Cock_Hero_Shipping_Build_V0.04_-_Exclusive",
+    "displayed_version": "V0.04 PATREON BUILD",
+    "engine": "5.3.2-29314046+++UE5+Release-5.3",
+    "status": "testing",
+    "files": {
+      "CockHero/Binaries/Win64/CockHero.exe": "c645757d1112491952b67bf29502b4721133ba6940a9cfb08358f0dde127560f",
+      "CockHero/Content/Paks/CockHero-Windows.pak": "9d5d91de4466b6d6d2b975fb23a5b171de16dada87f436402fe755be16cf7fb6",
+      "CockHero/Content/Paks/CockHero-Windows.utoc": "24dcef961f15d8ca29f8f746fb3ad5e518481164f9c8e401fc2ff1c99d9be462",
+      "CockHero/Content/Paks/CockHero-Windows.ucas": "3bda22b91269d9ef835ff8b3b83d49fc67065c455357db49ee3917513e524ee6"
+    },
+    "verified": {
+      "isolated_unmodified_startup": true,
+      "loader_startup": true,
+      "v004_runtime_function_parameters": true,
+      "lite_open_and_return_from_original_import": true,
+      "native_same_identity_cache_refresh": true,
+      "synthetic_pack_in_native_unlocks": true,
+      "native_local_image_and_video_playback": true,
+      "normal_import_and_preset_save": true,
+      "native_up_purchase": true,
+      "native_up_insufficient_funds": true,
+      "free_pack_ownership_after_restart": true,
+      "paid_pack_ownership_after_restart_log": true,
+      "native_purchase_and_restart": true,
+      "automatic_lite_attachment": true,
+      "native_catalog_query": true,
+      "native_catalog_enable_disable": true,
+      "native_catalog_insufficient_funds": true,
+      "embedded_menu_close_and_reopen": true,
+      "streaming_playback": false,
+      "original_game_regression_and_uninstall": false
+    },
+    "blockers": [
+      "Automatic embedded Lite, native catalog query, enable/disable and insufficient-funds rejection passed. Positive purchase through the injected panel still needs acceptance.",
+      "Live Server membership, streaming, music, profile synchronization and complete installer/regression acceptance remain. Full-mod support is not declared."
+    ]
+  },{
     "id": "v0051-hotfix-public-a8f46896",
     "displayed_version": "V0.05.1 Hotfix Public Build",
     "engine": "5.3.2-29314046+++UE5+Release-5.3",
