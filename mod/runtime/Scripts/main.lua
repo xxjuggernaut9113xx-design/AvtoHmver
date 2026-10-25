@@ -67,6 +67,128 @@ local function nativeState(store)
     end
     return '{"unlock_points":' .. tostring(store:GetUnlockPoints()) .. ',"packs":[' .. table.concat(packs, ',') .. ']}'
 end
+local lastDiagnosticRequest
+local diagnosticController, diagnosticImage, diagnosticDeadline, diagnosticSave
+local diagnosticVideo = 'null'
+local function runtimeContext()
+    local instance = FindFirstOf('BP_CHGameInstance_C')
+    if not instance:IsValid() then error('Original game instance is not ready.') end
+    local store = instance['CHPack StoreController']
+    if not store or not store:IsValid() then error('Active original pack store is not ready.') end
+    local save = instance.CurrentSave
+    if not save or not save:IsValid() then error('Active original save is not ready.') end
+    local slot = stringValue(instance.SaveSlotName, 'SaveSlotName')
+    local user = instance.UserIndex
+    if #slot == 0 or #slot > 512 or slot:find('[%z\1-\31]')
+        or type(user) ~= 'number' or user < 0 or user % 1 ~= 0 then
+        error('Original profile identity is invalid.')
+    end
+    return store, '{"build_id":"v004-exclusive-c645757d","slot":' .. quote(slot)
+        .. ',"user_index":' .. tostring(user) .. ',"save_address":' .. quote(tostring(save:GetAddress()))
+        .. ',"store_address":' .. quote(tostring(store:GetAddress())) .. '}'
+end
+local function stopDiagnosticVideo()
+    if diagnosticController and diagnosticController:IsValid() then diagnosticController:StopPlayback(false) end
+    diagnosticController, diagnosticImage, diagnosticDeadline, diagnosticSave = nil, nil, nil, nil
+end
+local function sampleDiagnosticVideo()
+    if not diagnosticController then return end
+    local ok, problem = pcall(function()
+        if not diagnosticController:IsValid() then error('Synthetic decoder was released before sampling.') end
+        local instance = FindFirstOf('BP_CHGameInstance_C')
+        if not instance:IsValid() or not instance.CurrentSave:IsValid()
+            or instance.CurrentSave:GetAddress() ~= diagnosticSave then
+            error('Native profile changed during the synthetic video probe.')
+        end
+        local texture = diagnosticController.DynamicTexture
+        local valid = texture and texture:IsValid()
+        local width = valid and texture:Blueprint_GetSizeX() or 0
+        local height = valid and texture:Blueprint_GetSizeY() or 0
+        diagnosticVideo = '{"initialized":' .. boolean(diagnosticController.bStreamingVideoInitialized)
+            .. ',"frame":' .. tostring(diagnosticController.StreamingVideoCurrentFrame)
+            .. ',"width":' .. tostring(width) .. ',"height":' .. tostring(height)
+            .. ',"scope":"separate synthetic native decoder; no gameplay or visible-output claim"}'
+        if os.time() >= diagnosticDeadline then stopDiagnosticVideo() end
+    end)
+    if not ok then
+        diagnosticVideo = '{"error":' .. quote(tostring(problem)) .. '}'
+        pcall(stopDiagnosticVideo)
+    end
+end
+local function diagnosticFixture(store)
+    local fixture = readFile(directory .. '/mcp-test-pack.txt', 256):match('^%s*(.-)%s*$')
+    if not fixture:match('^fanservice%-native%-panel%-one%-[a-f0-9%-]+$') then
+        error('Configure only the isolated native-panel-one synthetic fixture.')
+    end
+    if not store:IsPackUnlocked(fixture) then error('Synthetic fixture is not owned. Use original Unlocks.') end
+    return fixture
+end
+local function diagnosticRequest()
+    sampleDiagnosticVideo()
+    local input = io.open(directory .. '/.fanservice-mcp.request', 'rb')
+    if not input then return end
+    local packet = input:read(513)
+    input:close()
+    if not packet or #packet > 512 then return end
+    local nonce, timestamp, action = packet:match('^FANSERVICE_MCP_1\n([a-f0-9]+)\n(%d+)\n([a-z]+)\n$')
+    timestamp = tonumber(timestamp)
+    if not nonce or #nonce ~= 32 or nonce == lastDiagnosticRequest or not timestamp
+        or math.abs(os.time() - timestamp) > 30 then return end
+    lastDiagnosticRequest = nonce
+    local ok, result = pcall(function()
+        if action ~= 'status' and action ~= 'catalog' and action ~= 'profile'
+            and action ~= 'enablefixture' and action ~= 'probevideo' then
+            error('Runtime MCP action is not supported.')
+        end
+        local store, profile = runtimeContext()
+        if action == 'catalog' then return nativeState(store) end
+        if action == 'profile' then return profile end
+        if action == 'enablefixture' then
+            local fixture = diagnosticFixture(store)
+            local before = store:GetUnlockPoints()
+            store:SetPackEnabled(fixture, true)
+            if store:GetUnlockPoints() ~= before then error('Unexpected native UP change while enabling fixture.') end
+            return '{"enabled":' .. boolean(store:IsPackEnabled(fixture)) .. ',"unlock_points":'
+                .. tostring(before) .. ',"pack":' .. quote(fixture) .. '}'
+        end
+        if action == 'probevideo' then
+            local fixture = diagnosticFixture(store)
+            if not store:IsPackEnabled(fixture) then error('Enable the synthetic fixture before running its probe.') end
+            stopDiagnosticVideo()
+            local instance = FindFirstOf('BP_CHGameInstance_C')
+            local factory = StaticFindObject('/Script/Engine.Default__GameplayStatics')
+            local controllerClass = StaticFindObject('/Script/CockHero.MediaPlaybackController')
+            local imageClass = StaticFindObject('/Script/UMG.Image')
+            if not factory:IsValid() or not controllerClass:IsValid() or not imageClass:IsValid() then
+                error('Native synthetic decoder factory is unavailable.')
+            end
+            diagnosticController = factory:SpawnObject(controllerClass, instance)
+            diagnosticImage = factory:SpawnObject(imageClass, instance)
+            if not diagnosticController:IsValid() or not diagnosticImage:IsValid() then error('Synthetic decoder construction failed.') end
+            diagnosticSave = instance.CurrentSave:GetAddress()
+            diagnosticDeadline = os.time() + 5
+            diagnosticVideo = '{"started":true}'
+            diagnosticController:PlayMediaEntry('http://127.0.0.1:42170/synthetic.mp4', diagnosticImage, 3.0)
+            return '{"started":true,"scope":"separate synthetic native decoder; sample native_status for frame progress"}'
+        end
+        local menu = FindFirstOf('ImportMenuWidget_C')
+        local visible = menu:IsValid() and menu:IsInViewport() and menu:IsVisible()
+        return '{"ready":true,"read_only":true,"original_unlocks_authoritative":true,"import_visible":'
+            .. boolean(visible) .. ',"profile":' .. profile .. ',"video_probe":' .. diagnosticVideo .. '}'
+    end)
+    if ok and #result > 4 * 1024 * 1024 then ok, result = false, 'Native diagnostic response exceeds 4 MiB.' end
+    local response = '{"protocol":1,"nonce":' .. quote(nonce)
+        .. ',"build_id":"v004-exclusive-c645757d","ok":' .. boolean(ok)
+        .. (ok and ',"result":' .. result or ',"error":' .. quote(tostring(result))) .. '}'
+    local target = directory .. '/.fanservice-mcp.response.' .. nonce
+    local temporary = target .. '.tmp'
+    local output = assert(io.open(temporary, 'wb'))
+    assert(output:write(response))
+    assert(output:close())
+    local renamed, problem = os.rename(temporary, target)
+    if not renamed then os.remove(temporary); error(problem) end
+    log('Runtime MCP action completed: ' .. action)
+end
 local function revoke()
     if browser then log('Embedded Lite closed; bridge revoked.') end
     if browser and browser:IsValid() then
@@ -130,7 +252,9 @@ LoopAsync(500, function()
     queued = true
     ExecuteInGameThread(function()
         local ok, problem = pcall(function()
+            diagnosticRequest()
             if profileChanged then
+                stopDiagnosticVideo()
                 revoke()
                 profileChanged = false
             end

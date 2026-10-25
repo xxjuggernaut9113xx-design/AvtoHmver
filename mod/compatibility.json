@@ -43,6 +43,10 @@
       "native_catalog_bridge": true,
       "embedded_menu_close_and_reopen": true,
       "original_unlocks_controls_retained_user_verified": true,
+      "native_runtime_mcp": true,
+      "native_active_profile_query": true,
+      "native_http_synthetic_decoder": true,
+      "native_media_struct_injection": false,
       "streaming_playback": false,
       "original_game_regression_and_uninstall": false
     },

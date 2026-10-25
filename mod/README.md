@@ -80,3 +80,7 @@ See [the embedded runtime status](runtime/README.md) for its separate acceptance
 Server/Lite `.chpack` export is independent of this gate. Its implementation and
 tests live in the existing Server and shared frontend; browser export does not
 claim that the original-game mod works.
+
+Packaged-game MCP diagnostics and bounded synthetic decoder probes are available
+in [mod/mcp](mcp/README.md). See [native runtime acceptance](evidence/v004-runtime-mcp.md)
+for passed checks and the remaining gameplay insertion gap.

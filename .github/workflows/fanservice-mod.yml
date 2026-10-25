@@ -28,6 +28,10 @@ jobs:
           python mod/verify_compatibility.py > mod-readiness.json
           node --test tests/fanservice_chpack.test.js tests/fanservice_archive_save.test.js
           node --test tests/fanservice-native-bridge.test.cjs tests/fanservice-native-ownership.test.cjs
+      - name: Validate packaged-game MCP transport
+        run: |
+          npm ci --prefix mod/mcp
+          npm test --prefix mod/mcp
       - name: Publish compatibility status, not a game or mod installer
         uses: actions/upload-artifact@v4
         with:
