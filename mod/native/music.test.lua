@@ -142,4 +142,67 @@ end)
 test('seeking deadline closes a transport that never reaches its target',function()
     local f=fixture();f.play();f.transport:seek(5);f.scope.now=31;local state=f.transport:sample();eq(state.state,'error');assert(state.error:find('seeking timed out',1,true));eq(f.original.resumeCalls,1)
 end)
+test('frozen playing clock becomes stalled and closes with original audio restored',function()
+    local f=fixture();f.play();f.scope.now=3;local state=f.transport:sample()
+    eq(state.state,'stalled');eq(state.position,.5);eq(state.advancing,false)
+    f.scope.now=31;state=f.transport:sample();eq(state.state,'error');assert(state.error:find('clock stalled',1,true))
+    eq(f.original.resumeCalls,1);eq(f.sound.destroys,1)
+end)
+
+test('observed clock progress resets the stall deadline',function()
+    local f=fixture();f.play();f.scope.now=29;f.player.position=1;eq(f.transport:sample().state,'playing')
+    f.scope.now=58;eq(f.transport:sample().state,'stalled');f.player.position=2;eq(f.transport:sample().state,'playing')
+    eq(f.original.resumeCalls,0)
+end)
+
+test('intentional pause has no stall deadline and resume starts a fresh observation window',function()
+    local f=fixture();f.play();f.transport:pause();f.scope.now=500;eq(f.transport:sample().state,'paused')
+    eq(f.transport:resume().state,'playing');f.scope.now=503;eq(f.transport:sample().state,'stalled')
+    f.player.position=1;eq(f.transport:sample().state,'playing')
+end)
+
+test('buffering has a bounded deadline even when native timestamps move',function()
+    local f=fixture();f.play();f.player.buffering=true;eq(f.transport:sample().state,'buffering')
+    f.scope.now=121;f.player.position=1;local state=f.transport:sample();eq(state.state,'error')
+    assert(state.error:find('buffering timed out',1,true));eq(f.original.resumeCalls,1)
+end)
+
+test('buffer recovery starts a fresh stall observation window',function()
+    local f=fixture();f.play();f.player.buffering=true;f.transport:sample();f.scope.now=119
+    f.player.buffering=false;eq(f.transport:sample().state,'playing');f.scope.now=122;eq(f.transport:sample().state,'stalled')
+    eq(f.original.resumeCalls,0)
+end)
+
+test('decoder readiness lost after playback receives a new opening deadline',function()
+    local f=fixture();f.play();f.player.ready=false;eq(f.transport:sample().state,'opening')
+    f.scope.now=121;local state=f.transport:sample();eq(state.state,'error')
+    assert(state.error:find('opening timed out',1,true));eq(f.original.resumeCalls,1)
+end)
+
+test('unrequested backwards clock movement fails without manufacturing timeline progress',function()
+    local f=fixture();f.play();f.player.position=.1;local state=f.transport:sample();eq(state.state,'error')
+    assert(state.error:find('moved backwards',1,true));eq(f.original.resumeCalls,1)
+end)
+
+test('explicit backwards seek is accepted and rebases stall monitoring',function()
+    local f=fixture();f.play();f.scope.now=20;f.transport:seek(.1);eq(f.transport:sample().state,'playing')
+    f.scope.now=49;eq(f.transport:sample().state,'stalled');f.player.position=.2;eq(f.transport:sample().state,'playing')
+end)
+
+test('ready decoder with pending duration waits for metadata without muting original audio',function()
+    local f=fixture();f.open();f.player.ready=true;f.player.duration=0
+    eq(f.transport:sample().state,'opening');eq(f.original.pauseCalls,0);eq(f.player.playCalls,0)
+    f.scope.now=2;f.player.duration=10;eq(f.transport:sample().state,'playing');eq(f.original.pauseCalls,1)
+end)
+
+test('missing duration has a bounded metadata deadline',function()
+    local f=fixture();f.open();f.player.ready=true;f.player.duration=0;f.transport:sample();f.scope.now=121
+    local state=f.transport:sample();eq(state.state,'error');assert(state.error:find('metadata timed out',1,true));eq(f.original.pauseCalls,0)
+end)
+
+test('nonfinite clocks report observed values and close the decoder',function()
+    local f=fixture();f.play();f.player.position=0/0;local state=f.transport:sample()
+    eq(state.state,'error');assert(state.error:find('position=',1,true));eq(f.sound.destroys,1)
+end)
+
 print(tostring(passed) .. ' native audio transport tests passed')

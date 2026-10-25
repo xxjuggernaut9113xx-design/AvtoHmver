@@ -17,7 +17,7 @@ function Music.new(env)
     local player, sound, actor, binding, url, original, originalPaused, pendingSeek, reopenPosition
     local mathLibrary
     local now = env.now or os.time
-    local openDeadline, seekDeadline
+    local openDeadline, seekDeadline, bufferDeadline, lastProgressAt
     local function authorize(value, owner)
         if type(value) ~= 'string' or #value == 0 or #value > 8192 or value:find('[%z\1-\31]')
             or type(owner) ~= 'string' or #owner == 0 or #owner > 2048
@@ -59,7 +59,7 @@ function Music.new(env)
             attempt(function() if original:GetPlayState() == 2 then original:SetPaused(false) end end)
         end
         player, sound, actor, binding, url, original, originalPaused, pendingSeek, reopenPosition = nil,nil,nil,nil,nil,nil,nil,nil,nil
-        openDeadline, seekDeadline = nil,nil
+        openDeadline, seekDeadline, bufferDeadline, lastProgressAt = nil,nil,nil,nil
         self.state, self.played, self.advancing = 'stopped', false, false
         self.reason = reason
         self.cleanup_error = #failures > 0 and table.concat(failures, '; ') or nil
@@ -107,6 +107,7 @@ function Music.new(env)
     function self:resume()
         context()
         self.desiredPaused = false
+        lastProgressAt = now()
         if not pendingSeek and player:IsReady() and not player:Play() then error('Native soundtrack resume was rejected.') end
         return self:sample()
     end
@@ -144,15 +145,27 @@ function Music.new(env)
             context()
             if player:HasError() then error('Native soundtrack decoding failed. Reconnect or select a saved recording.') end
             if player:IsPreparing() or not player:IsReady() then
+                openDeadline = openDeadline or now() + 120
+                lastProgressAt, bufferDeadline = nil,nil
                 if openDeadline and now() > openDeadline then error('Native soundtrack opening timed out.') end
                 self.state = 'opening'; return
             end
-            openDeadline = nil
             local position = mathLibrary:GetTotalSeconds(player:GetTime())
             local duration = mathLibrary:GetTotalSeconds(player:GetDuration())
-            if not finite(position) or position < 0 or not finite(duration) or duration <= 0 then error('Native soundtrack clock is invalid.') end
+            if finite(position) and position >= 0 and duration == 0 then
+                openDeadline = openDeadline or now() + 120
+                lastProgressAt = nil
+                if now() > openDeadline then error('Native soundtrack metadata timed out.') end
+                self.state = 'opening'; return
+            end
+            if not finite(position) or position < 0 or not finite(duration) or duration <= 0 or position > duration + 0.05 then
+                error('Native soundtrack clock is invalid: position=' .. tostring(position) .. ', duration=' .. tostring(duration) .. '.')
+            end
+            openDeadline = nil
+            if self.played and not pendingSeek and not reopenPosition and position < self.position - 0.05 then error('Native soundtrack clock moved backwards without a seek.') end
             self.advancing = position > self.position + 0.0001
             self.position, self.duration = position, duration
+            if self.advancing then lastProgressAt = now() end
             if reopenPosition then
                 local target = math.min(reopenPosition, duration)
                 reopenPosition = nil
@@ -163,14 +176,22 @@ function Music.new(env)
             local seekCompleted = false
             if pendingSeek then
                 if seekDeadline and now() > seekDeadline then error('Native soundtrack seeking timed out.') end
-                if math.abs(position - pendingSeek) > 0.05 or buffering then self.state = 'seeking'; return end
+                if math.abs(position - pendingSeek) > 0.05 or buffering then lastProgressAt = nil; self.state = 'seeking'; return end
                 pendingSeek, seekDeadline = nil,nil
                 seekCompleted = true
+                lastProgressAt = now()
             end
-            if buffering then self.state = 'buffering'; return end
+            if buffering then
+                bufferDeadline = bufferDeadline or now() + 120
+                lastProgressAt = nil
+                if now() > bufferDeadline then error('Native soundtrack buffering timed out.') end
+                self.state = 'buffering'; return
+            end
+            bufferDeadline = nil
             if self.desiredPaused then
                 if player:IsPlaying() and not player:Pause() then error('Native soundtrack pause was rejected.') end
                 self.state = 'paused'
+                lastProgressAt = nil
             elseif player:IsPlaying() then
                 self.state, self.played = 'playing', true
                 suppressOriginal()
@@ -181,6 +202,11 @@ function Music.new(env)
                 self.state = player:IsPlaying() and 'playing' or 'opening'
                 if self.state == 'playing' then self.played = true; suppressOriginal() end
             else self.state = 'stalled' end
+            if self.state == 'playing' or self.state == 'stalled' then
+                lastProgressAt = lastProgressAt or now()
+                if now() - lastProgressAt > 30 then error('Native soundtrack playback clock stalled.') end
+                if now() - lastProgressAt > 2 then self.state = 'stalled' end
+            end
         end)
         if not ok then
             self:stop('playback failed')

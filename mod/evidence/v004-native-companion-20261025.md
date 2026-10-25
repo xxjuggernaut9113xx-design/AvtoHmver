@@ -82,3 +82,6 @@ The supported-build registry stays empty until those gates pass.
 User-reported physical iPhone HTTPS offline restart/play/seek was confirmed in
 this continuation and is recorded in the parts 1/4/5 checkpoint. Cloud-only,
 revocation, eviction, exhaustion and physical Android checks remain separate.
+
+Later: [normal-launch and Windows worker findings](v004-native-companion-live-20261025.md)
+record new evidence and decoder changes without closing audio/rhythm acceptance.

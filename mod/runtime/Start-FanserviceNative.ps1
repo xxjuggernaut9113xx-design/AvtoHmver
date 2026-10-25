@@ -9,7 +9,18 @@ if (!(Test-Path -LiteralPath (Join-Path $gameRoot 'CockHero/Binaries/Win64/CockH
 if ($Stop) {
     $lock = Join-Path $runtime '.fanservice-companion.host.lock'
     if (!(Test-Path -LiteralPath $lock -PathType Leaf)) { Write-Output 'Native companion is not running.'; return }
-    $owner = [IO.File]::ReadAllText($lock)
+    $lockStream = [IO.File]::Open($lock, [IO.FileMode]::Open, [IO.FileAccess]::Read, ([IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete))
+    try {
+        if ($lockStream.Length -ne 32) { throw 'The helper lock is invalid and was retained for inspection.' }
+        $lockBytes = New-Object byte[] 32
+        $read = 0
+        while ($read -lt 32) {
+            $count = $lockStream.Read($lockBytes, $read, 32 - $read)
+            if ($count -eq 0) { throw 'The helper lock changed during inspection.' }
+            $read += $count
+        }
+        $owner = [Text.Encoding]::ASCII.GetString($lockBytes)
+    } finally { $lockStream.Dispose() }
     if ($owner -notmatch '^[a-f0-9]{32}$') { throw 'The helper lock is invalid and was retained for inspection.' }
     $shutdown = Join-Path $runtime '.fanservice-companion.shutdown'
     $stream = [IO.File]::Open($shutdown,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)

@@ -149,7 +149,7 @@ LoopAsync(25,function()
             elseif nativeMusic:status().state == 'ended' then
                 stopNativeMusic('recording complete')
             elseif approvedAudio and (nativeMusic:status().state == 'stopped' or nativeMusic:status().state == 'error') then
-                stopNativeMusic('transport closed')
+                stopNativeMusic(nativeMusic:status().state == 'error' and 'transport failed' or 'transport closed')
             end
         end)
         if not ok then log('Native audio sampling failed: ' .. tostring(problem)) end

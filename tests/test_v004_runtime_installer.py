@@ -88,6 +88,49 @@ class RuntimeInstallerTests(unittest.TestCase):
         self.assertEqual(json.loads(received.read_text()), ['--runtime-dir', str(runtime_dir), '--game-root', str(game), '--store-root', str(data)])
         self.assertEqual((binary / 'CockHero.exe').read_bytes(), b'never executed')
 
+    @unittest.skipUnless(os.name == 'nt', 'Windows helper lock sharing test')
+    def test_stop_launcher_reads_live_node_lock_and_preserves_profile_data(self):
+        game = self.root / 'stop game with spaces'
+        binary = game / 'CockHero/Binaries/Win64'
+        runtime_dir = binary / 'ue4ss/Mods/Fanservice'
+        native = runtime_dir / 'Native'
+        native.mkdir(parents=True)
+        (binary / 'CockHero.exe').write_bytes(b'never executed')
+        launcher = runtime.ROOT / 'runtime/Start-FanserviceNative.ps1'
+        shutil.copy2(launcher, runtime_dir / launcher.name)
+        helper = native / 'host.mjs'
+        helper.write_text("import * as fs from 'node:fs/promises';import path from 'node:path';"
+                          "const root=process.argv[2],lock=path.join(root,'.fanservice-companion.host.lock'),owner='a'.repeat(32);"
+                          "const handle=await fs.open(lock,'wx');await handle.writeFile(owner);await handle.sync();"
+                          "const timer=setInterval(async()=>{try{const stop=path.join(root,'.fanservice-companion.shutdown');"
+                          "if(await fs.readFile(stop,'utf8')==='FANSERVICE_COMPANION_STOP_1\\n'+owner){"
+                          "clearInterval(timer);await fs.unlink(stop);await handle.close();await fs.unlink(lock);}}"
+                          "catch(error){if(error.code!=='ENOENT')throw error;}},25);", encoding='utf-8')
+        sentinel = runtime_dir / 'profile-sentinel.json'
+        sentinel.write_text('retain profile')
+        process = subprocess.Popen(['node', str(helper), str(runtime_dir)], creationflags=subprocess.CREATE_NO_WINDOW,
+                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        try:
+            lock = runtime_dir / '.fanservice-companion.host.lock'
+            deadline = time.monotonic() + 10
+            while (not lock.exists() or lock.stat().st_size != 32) and time.monotonic() < deadline:
+                if process.poll() is not None:
+                    self.fail(process.communicate()[1].decode())
+                time.sleep(.05)
+            self.assertTrue(lock.exists())
+            result = subprocess.run(['powershell.exe', '-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass',
+                                     '-File', str(runtime_dir / launcher.name), '-Stop'], capture_output=True, timeout=20)
+            self.assertEqual(result.returncode, 0, result.stderr.decode(errors='replace'))
+            process.wait(timeout=5)
+            self.assertEqual(process.returncode, 0)
+            self.assertFalse(lock.exists())
+            self.assertEqual(sentinel.read_text(), 'retain profile')
+        finally:
+            if process.poll() is None:
+                process.terminate()
+                process.wait(timeout=5)
+            process.communicate()
+
     def save_registry(self):
         self.registry.write_text(json.dumps(self.data))
 

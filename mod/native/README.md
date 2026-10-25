@@ -60,7 +60,8 @@ implemented.
 - The audio module uses the shipped MediaPlayer/MediaSoundComponent APIs. It reads
   `GetTime`, handles pause, buffering, seek observation, reconnect and completion,
   and restores only original audio it paused. Opening/seek operations have
-  deadlines. The original game's elapsed-time clock is not treated as audio time.
+  deadlines. Frozen playback clocks and buffering are bounded; a missing duration
+  waits for metadata before muting original audio. The original game's elapsed-time clock is not treated as audio time.
 - IPC has no network listener or generic code/path execution command. JSON
   commands are bounded to 64 KiB; larger definition documents transfer in ordered
   bounded frames up to 2 MiB. Selection limits remain 500 IDs, 32 rules and 10,000
@@ -97,3 +98,12 @@ The original BeatSpawnerManager Tick calls its elapsed-time getter directly.
 feed. Session ownership, audio-driven native beat/control dispatch and seeking
 past queued events still need an accepted adapter and original-game tests. The
 supported-build registry therefore remains empty.
+
+## Later normal-launch checkpoint
+
+[The live continuation](../evidence/v004-native-companion-live-20261025.md) records
+successful Lua loading, a real native profile read through the production worker,
+and actual Windows launcher start/readiness/shutdown. The neutral AAC URL was
+requested by the game, but the initial clock check failed. Later metadata and
+stall handling has model coverage and still needs another normal-load runtime
+check. This is not audio playback acceptance or full music-mode integration.
