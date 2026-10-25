@@ -3,7 +3,7 @@
  const id=()=>crypto.randomUUID?crypto.randomUUID():[...crypto.getRandomValues(new Uint8Array(16))].map(v=>v.toString(16).padStart(2,'0')).join('');
  const device=localStorage.getItem('fanservice-device')||id();localStorage.setItem('fanservice-device',device);
  const db=new Promise((resolve,reject)=>{const r=indexedDB.open('fanservice-local-v1',1);r.onupgradeneeded=()=>{r.result.createObjectStore('files');r.result.createObjectStore('snapshots');};r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
- async function operation(store,mode,fn){const d=await db;return new Promise((resolve,reject)=>{const tx=d.transaction(store,mode,mode==='readwrite'?{durability:'strict'}:undefined),request=fn(tx.objectStore(store));let value;request.onsuccess=()=>value=request.result;tx.oncomplete=()=>resolve(value);tx.onerror=()=>reject(tx.error||request.error);tx.onabort=()=>reject(tx.error||Error('Local storage transaction aborted'));});}
+ async function operation(store,mode,fn){const d=await db;return new Promise((resolve,reject)=>{const tx=d.transaction(store,mode,mode==='readwrite'?{durability:'strict'}:undefined);let request,value;try{request=fn(tx.objectStore(store));}catch(error){tx.abort();reject(error);return;}request.onsuccess=()=>value=request.result;tx.oncomplete=()=>resolve(value);tx.onerror=()=>reject(tx.error||request.error);tx.onabort=()=>reject(tx.error||Error('Local storage transaction aborted'));});}
  const urls=new Map();function blobURL(key,blob){if(!urls.has(key))urls.set(key,URL.createObjectURL(blob));return urls.get(key);}
  const get=(store,key)=>operation(store,'readonly',s=>s.get(key));const put=(store,key,value)=>operation(store,'readwrite',s=>s.put(value,key));const remove=(store,key)=>{if(store==='files'&&urls.has(key)){URL.revokeObjectURL(urls.get(key));urls.delete(key);}return operation(store,'readwrite',s=>s.delete(key));};
  const pinPrefix='fanservice:session-pin:',retiredPrefix='fanservice:retired-snapshot:';
@@ -34,11 +34,22 @@
  }
 
  async function resolveLocal(selection,owner){const media=[];let unavailable=0;for(const key of selection.local_ids||[]){const entry=owner===device?await get('files',key):null;if(!entry){unavailable++;continue;}media.push({id:'local:'+entry.id,file:entry.name,name:entry.name,type:entry.type,tags:entry.tags,url:blobURL(entry.id,entry.blob),device_id:device,local:true});}return {media,unavailable};}
- async function boundedBlob(response){if(!response.ok)throw Error(`Download failed (${response.status})`);const limit=256*1024*1024;const size=Number(response.headers.get('content-length'));if(size>limit)throw Error('This item exceeds the 256 MiB snapshot item limit.');const reader=response.body?.getReader();if(!reader)return response.blob();const parts=[];let n=0;try{for(;;){const {done,value}=await reader.read();if(done)break;n+=value.byteLength;if(n>limit)throw Error('This item exceeds the 256 MiB snapshot item limit.');parts.push(value);}}finally{await reader.cancel().catch(()=>{});}return new Blob(parts,{type:response.headers.get('content-type')||'application/octet-stream'});}
+ async function boundedBlob(response){
+  if(!response.ok)throw Error(`Download failed (${response.status})`);
+  const limit=256*1024*1024,raw=response.headers.get('content-length'),size=raw===null?null:Number(raw),encoding=response.headers.get('content-encoding');
+  if(size!==null&&(!Number.isSafeInteger(size)||size<0))throw Error('Download returned an invalid content length.');
+  if(size>limit)throw Error('This item exceeds the 256 MiB snapshot item limit.');
+  const verify=blob=>{if(!blob.size)throw Error('Downloaded media is empty. The previous snapshot was retained.');if(blob.size>limit)throw Error('This item exceeds the 256 MiB snapshot item limit.');if(size!==null&&(!encoding||encoding==='identity')&&blob.size!==size)throw Error('Downloaded media is incomplete. The previous snapshot was retained.');return blob;};
+  const reader=response.body?.getReader();if(!reader)return verify(await response.blob());
+  const parts=[];let n=0;try{for(;;){const {done,value}=await reader.read();if(done)break;n+=value.byteLength;if(n>limit)throw Error('This item exceeds the 256 MiB snapshot item limit.');parts.push(value);}}finally{await reader.cancel().catch(()=>{});}
+  return verify(new Blob(parts,{type:response.headers.get('content-type')||'application/octet-stream'}));
+ }
+ async function downloadBlob(url){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),120000);try{return await boundedBlob(await fetch(url,{credentials:'same-origin',signal:controller.signal}));}catch(error){if(controller.signal.aborted)throw Error('Snapshot download timed out. The previous snapshot was retained.');throw error;}finally{clearTimeout(timer);}}
  async function download(pack,manifest,origin,music){
+  if(manifest.library_id!==undefined&&manifest.library_id!==pack.library_id||music?.library_id!==undefined&&music.library_id!==pack.library_id)throw Error('Snapshot belongs to a different library. The previous snapshot was retained.');
   if(navigator.storage?.persist)await navigator.storage.persist();const keys=[];const snapshot={id:id(),pack_id:pack.id,library_id:pack.library_id,saved_at:new Date().toISOString(),device_id:device,media:[],music:null};
-  try{for(const item of manifest.media){const key=snapshot.id+':'+keys.length;const blob=await boundedBlob(await fetch(new URL(item.url,origin)));await put('files',key,{blob,local:false});keys.push(key);snapshot.media.push({...item,url:undefined,storage_key:key});}
-   if(music){const key=snapshot.id+':music';const blob=await boundedBlob(await fetch(new URL(music.stream_url,origin)));await put('files',key,{blob,local:false});keys.push(key);snapshot.music={...music,storage_key:key};}
+  try{for(const item of manifest.media){const key=snapshot.id+':'+keys.length;const blob=await downloadBlob(new URL(item.url,origin));await put('files',key,{blob,local:false});keys.push(key);snapshot.media.push({...item,url:undefined,storage_key:key});}
+   if(music){const key=snapshot.id+':music';const blob=await downloadBlob(new URL(music.stream_url,origin));await put('files',key,{blob,local:false});keys.push(key);snapshot.music={...music,storage_key:key};}
    await snapshotTransaction(ctx=>{const previous=ctx.current.find(item=>item.pack_id===pack.id);ctx.snapshots.put(snapshot,pack.id);ctx.current=ctx.current.filter(item=>item.pack_id!==pack.id);ctx.current.push(snapshot);
     if(previous){const retired={kind:'fanservice-retired-snapshot',snapshot:previous};ctx.files.put(retired,retiredPrefix+previous.id);ctx.records.push(retired);}collectRetired(ctx);
    });

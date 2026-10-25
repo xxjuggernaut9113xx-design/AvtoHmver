@@ -1,7 +1,7 @@
 'use strict';
-const CACHE='fanservice-shell-v12';
+const CACHE='fanservice-shell-v13';
 const SHELL=['./','index.html','play.html','style.css','presentation.css','assets/Rajdhani-Regular.ttf','assets/Orbitron-Variable.ttf','assets/shopkeeper-body.png','assets/shopkeeper-face.png','assets/shopkeeper-hair.png','assets/shopkeeper-eyes.png','assets/app-icon-192.png','assets/app-icon-512.png','kenney.css','model.js','app.js','chpack.js','archive-save.js','export-ui.js','portable.js','store.js','rules.js','voice.js','tower.js','inventory.js','items.js','objectives.js','progression.js','modifiers.js','run.js','data/modes.json','data/native-contract.json','play.js','manifest.webmanifest','assets/pack-cover.svg','assets/button_rectangle_flat.png','assets/button_rectangle_border.png','assets/click_001.wav','assets/confirmation_001.wav','assets/back_001.wav','assets/film-projector.svg','assets/padlock.svg'];
-SHELL.push('media.js','economy.js');
+SHELL.push('media.js','economy.js','profile-sync.js');
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));
 self.addEventListener('fetch',e=>{const url=new URL(e.request.url);if(e.request.method!=='GET'||url.origin!==self.location.origin||!url.pathname.startsWith(new URL('./',self.location).pathname)||url.pathname.includes('/api/'))return;e.respondWith(fetch(e.request).then(response=>response).catch(()=>caches.match(new Request(url.origin+url.pathname)).then(cached=>cached||Response.error())));});

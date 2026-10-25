@@ -1,10 +1,20 @@
 """Run the browser test against an isolated Rust fixture; never open a user library."""
 import os
+import sys
 import json
 from pathlib import Path
 import subprocess
 import time
 import urllib.request
+
+selected = set(sys.argv[1:])
+allowed = {'fanservice_browser_smoke.cjs','fanservice_export_smoke.cjs','fanservice_mobile_smoke.cjs','fanservice_flow_smoke.cjs','fanservice_economy_smoke.cjs','fanservice_media_smoke.cjs','fanservice_snapshot_pins.test.cjs','fanservice_sync_smoke.cjs','fanservice_voice_smoke.cjs'}
+if not selected <= allowed:
+    raise ValueError('Unknown fixture check: ' + ', '.join(sorted(selected - allowed)))
+
+def run_check(script):
+    if not selected or script in selected:
+        subprocess.run(['node'] + (['--test'] if script.endswith('.test.cjs') else []) + ['tests/' + script], env=env, check=True, timeout=120)
 
 output = Path(os.environ.get('FANSERVICE_SMOKE_OUTPUT', 'fanservice-ci-results')).resolve()
 output.mkdir(parents=True, exist_ok=True)
@@ -17,11 +27,13 @@ subprocess.run(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-y',
                 '-f', 'lavfi', '-i', 'sine=frequency=440:duration=12',
                 '-c:a', 'aac', str(music)], check=True)
 env['FANSERVICE_FIXTURE_MUSIC'] = str(music)
+binary = os.environ.get('FANSERVICE_TEST_BINARY')
+command = [str(Path(binary).resolve()), 'routes::fanservice::tests::lite_browser_fixture', '--ignored', '--nocapture'] if binary else [
+    'cargo', 'test', '-p', 'avtohmver', '--lib', '--locked',
+    'routes::fanservice::tests::lite_browser_fixture', '--', '--ignored', '--nocapture',
+]
 with (output / 'fixture.log').open('w', encoding='utf-8') as log:
-    process = subprocess.Popen([
-        'cargo', 'test', '-p', 'avtohmver', '--lib', '--locked',
-        'routes::fanservice::tests::lite_browser_fixture', '--', '--ignored', '--nocapture',
-    ], stdout=log, stderr=subprocess.STDOUT, env=env, start_new_session=os.name != 'nt')
+    process = subprocess.Popen(command, stdout=log, stderr=subprocess.STDOUT, env=env, start_new_session=os.name != 'nt')
     try:
         deadline = time.monotonic() + 300
         while True:
@@ -48,14 +60,15 @@ with (output / 'fixture.log').open('w', encoding='utf-8') as log:
                   headers={'Content-Type': 'application/json'})
         with urllib.request.urlopen(request) as response:
             assert response.status == 200
-        subprocess.run(['node', 'tests/fanservice_browser_smoke.cjs'], env=env, check=True, timeout=120)
-        subprocess.run(['node', 'tests/fanservice_export_smoke.cjs'], env=env, check=True, timeout=120)
-        subprocess.run(['node', 'tests/fanservice_mobile_smoke.cjs'], env=env, check=True, timeout=120)
-        subprocess.run(['node', 'tests/fanservice_flow_smoke.cjs'], env=env, check=True, timeout=120)
-        subprocess.run(['node', 'tests/fanservice_economy_smoke.cjs'], env=env, check=True, timeout=120)
-        subprocess.run(['node', 'tests/fanservice_media_smoke.cjs'], env=env, check=True, timeout=120)
-        subprocess.run(['node', '--test', 'tests/fanservice_snapshot_pins.test.cjs'], env=env, check=True, timeout=120)
-        subprocess.run(['node', 'tests/fanservice_voice_smoke.cjs'], env=env, check=True, timeout=120)
+        run_check('fanservice_browser_smoke.cjs')
+        run_check('fanservice_export_smoke.cjs')
+        run_check('fanservice_mobile_smoke.cjs')
+        run_check('fanservice_flow_smoke.cjs')
+        run_check('fanservice_economy_smoke.cjs')
+        run_check('fanservice_media_smoke.cjs')
+        run_check('fanservice_snapshot_pins.test.cjs')
+        run_check('fanservice_sync_smoke.cjs')
+        run_check('fanservice_voice_smoke.cjs')
     finally:
         if os.name == 'nt':
             subprocess.run(['taskkill', '/PID', str(process.pid), '/T', '/F'], check=False)

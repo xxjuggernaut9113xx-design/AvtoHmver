@@ -14,10 +14,13 @@ function key() { return 'fanservice-profile-v1:' + libraryId; }
 async function api(path, params) {
   const url = new URL(path, FanserviceStore.server());
   for (const [k,v] of Object.entries(params || {})) if (v !== null && v !== undefined) url.searchParams.set(k, typeof v === 'object' ? JSON.stringify(v) : v);
-  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),10000);let response;
-  try{response=await fetch(url,{credentials:'same-origin',signal:controller.signal});}catch(error){if(error.name==='AbortError')throw Error('Server request timed out. Saved phone files remain available.');throw error;}finally{clearTimeout(timer);}
-  if (!response.ok) { let message = `Server returned ${response.status}`; try { message = (await response.json()).error || message; } catch {} throw Error(message); }
-  return response.json();
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),10000);
+  try {
+    const response=await fetch(url,{credentials:'same-origin',signal:controller.signal});
+    if (!response.ok) { let message = `Server returned ${response.status}`; try { message = (await response.json()).error || message; } catch(error) { if(controller.signal.aborted)throw error; } throw Error(message); }
+    return await response.json();
+  } catch(error) { if(controller.signal.aborted)throw Error('Server request timed out. Saved phone files remain available.');throw error; }
+  finally { clearTimeout(timer); }
 }
 function bridge() { return globalThis.ue?.fanservice; }
 async function loadProfile() {

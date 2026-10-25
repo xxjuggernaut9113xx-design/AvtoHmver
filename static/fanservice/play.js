@@ -8,7 +8,7 @@ for(const id of ['image','video'])FanserviceMedia.observe($(id),text=>mediaStatu
 function status(text){$('status').textContent=text;}
 const element=(tag,text)=>{const node=document.createElement(tag);if(text!==undefined)node.textContent=text;return node;};
 function action(text,fn){const button=element('button',text);button.type='button';button.onclick=()=>Promise.resolve().then(fn).catch(error=>status(error.message));return button;}
-async function api(path){const response=await fetch(new URL(path,store.server()));const value=await response.json();if(!response.ok)throw Error(value.error||`Server ${response.status}`);return value;}
+async function api(path){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),10000);try{const response=await fetch(new URL(path,store.server()),{credentials:'same-origin',signal:controller.signal});const value=await response.json();if(!response.ok)throw Error(value.error||`Server ${response.status}`);return value;}catch(error){if(controller.signal.aborted)throw Error('Server request timed out. Saved phone files and snapshots remain available.');throw error;}finally{clearTimeout(timer);}}
 async function readJSON(path){const response=await fetch(path);if(!response.ok)throw Error('Gameplay specification unavailable: '+path);return response.json();}
 const settingsPanel=element('section'),modeSelect=element('select'),objectiveSelect=element('select'),targetInput=element('input'),roundsInput=element('input'),objectiveLabel=element('label'),roundsLabel=element('label');
 const lootChoice=element('input'),lootLabel=element('label','Enable loot bar');lootChoice.type='checkbox';lootChoice.id='loot-enabled';lootLabel.prepend(lootChoice);
