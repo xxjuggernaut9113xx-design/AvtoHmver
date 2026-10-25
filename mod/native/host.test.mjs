@@ -43,9 +43,18 @@ test('profile changes while HTTP is pending discard remote sync data',async t=>{
 });
 test('music command accepts only fixed Server manifests and authoritative owned enabled packs',async t=>{
  const f=await fixture(t,async()=>json(music));f.state.native_catalog.packs[0].enabled=false;await f.pulse();await assert.rejects(f.call('musicprepare',{track_id:1}),/Enable an owned/);
- f.state.native_catalog.packs[0].enabled=true;await f.pulse();const result=await f.call('musicprepare',{track_id:1});const command=await fs.readFile(path.join(f.runtimeDir,'.fanservice-music-command.'+result.command_nonce),'utf8');assert.equal(decodeURIComponent(command.split('\n')[4]),'http://127.0.0.1:42169/api/music/tracks/1/stream?native=true');assert.equal(JSON.parse(command.split('\n').slice(5).join('\n')).meta.bpm,120);
+ f.state.native_catalog.packs[0].enabled=true;await f.pulse();const result=await f.call('musicprepare',{track_id:1});const command=await fs.readFile(path.join(f.runtimeDir,'.fanservice-music-command.'+result.command_nonce),'utf8');assert.equal(decodeURIComponent(command.split('\n')[4]),'http://127.0.0.1:42169/api/music/tracks/1/stream?native=true');assert.equal(JSON.parse(command.split('\n').slice(6).join('\n')).meta.bpm,120);
  await assert.rejects(f.call('musicprepare',{url:'https://foreign.invalid/track'}),/positive soundtrack/);
 });
+test('native soundtrack accepts accents and rejects unsupported recording-bound maps before commands',async t=>{
+ let manifest=structuredClone(music);manifest.beatmap.beats[0].type='accent';const f=await fixture(t,async()=>json(manifest));
+ const prepared=await f.call('musicprepare',{track_id:1});const lines=(await fs.readFile(path.join(f.runtimeDir,'.fanservice-music-command.'+prepared.command_nonce),'utf8')).split('\n');
+ assert.equal(lines[0],'FANSERVICE_MUSIC_2');assert.equal(Number(lines[5]),music.duration);assert.equal(JSON.parse(lines.slice(6).join('\n')).beats[0].type,'accent');
+ for(const change of [m=>m.beatmap.beats=[],m=>m.beatmap.meta.bpm=401,m=>m.beatmap.meta.offset=1,m=>m.beatmap.events=[{time:1,type:'text',value:{bad:true}}]]){
+  manifest=structuredClone(music);change(manifest);await assert.rejects(f.call('musicprepare',{track_id:1}),/invalid confirmed|metadata|event/i);
+ }
+});
+
 test('native snapshot authorization requires the exact bridge receipt and retains snapshots on failure',async t=>{
  let fail=false;const f=await fixture(t,async url=>{if(String(url).includes('/resolve'))return json({library_id:'library-one',media:[{id:1,type:'image',file:'neutral.png',tags:['slow'],url:'/api/media/1'}]});return fail?new Response('failed',{status:503}):new Response('synthetic',{headers:{'content-length':'9'}});});await f.call('definitions',{expected_revision:0,packs:[pack]});await f.call('snapshotdownload',{pack_id:pack.id,expected_revision:1});const first=await f.call('companionread');fail=true;await assert.rejects(f.call('snapshotdownload',{pack_id:pack.id,expected_revision:first.revision}),/HTTP 503/);assert.deepEqual((await f.call('companionread')).snapshots,first.snapshots);
  f.state.native_catalog.packs[0].owned=false;await f.pulse();await assert.rejects(f.call('snapshotdelete',{pack_id:pack.id}),/Purchase/);

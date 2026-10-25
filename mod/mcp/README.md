@@ -45,3 +45,11 @@ with a ten-second diagnostic lifetime. It does not start a game, submit age
 confirmation or dispatch gameplay events. Updated tools require the corresponding
 Lua revision to be loaded on a normal launch; registering this tool is not proof
 of actual decoder playback. See ../native/README.md for the acceptance boundary.
+
+The fixed native_probe_audio_controls probe checks pause/seek/resume/reconnect on
+the neutral localhost AAC file. native_probe_audio_offline repeats that check only
+for the fixed E:/fanservice-mod-lab/v004-native/synthetic-http/synthetic-tone.m4a
+fixture. Both require the configured owned/enabled native-panel-one pack, take no
+parameters, operate separate decoder objects and stop their test transport. They
+do not start gameplay or operate menus. They are isolated-lab diagnostics and do
+not establish full native soundtrack/rhythm integration or speaker audibility.

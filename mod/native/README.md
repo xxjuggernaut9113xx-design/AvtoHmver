@@ -107,3 +107,23 @@ and actual Windows launcher start/readiness/shutdown. The neutral AAC URL was
 requested by the game, but the initial clock check failed. Later metadata and
 stall handling has model coverage and still needs another normal-load runtime
 check. This is not audio playback acceptance or full music-mode integration.
+
+## Transport conversion and live controls
+
+The later transport fix registers only the missing Int64 tick field on
+`/Script/CoreUObject.Timespan`, through the pinned loader's custom-property API.
+A quarter-second FromSeconds/GetTotalSeconds round trip must pass before audio
+objects are constructed. This preserves actual native GetTime/GetDuration and
+Seek values; no wall-time playback clock or original beat-queue mutation is used.
+The confirmed recording duration crosses a versioned FANSERVICE_MUSIC_2 command
+and must match decoder metadata within 0.35 seconds before audible activation.
+
+The fixed neutral native control probe passed real pause, seek, resume and reconnect
+on WmfMedia. Seeks decode muted until the actual timestamp reaches a bounded
+0.25-second observation window, accommodating decoder-frame rounding. The reported
+clock remains the observed position, never a forced target value. General music
+session ownership and rhythm dispatch remain separate unfinished integrations.
+
+See [the consolidated checkpoint](../../docs/fanservice/SERVER_MOBILE_MUSIC_20261025.md)
+for current evidence and remaining gates. Earlier failed probe results are retained
+as history and are superseded only for the transport behavior explicitly retested.

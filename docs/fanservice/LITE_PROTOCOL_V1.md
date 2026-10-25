@@ -67,13 +67,21 @@ reload, insufficient UP, JavaScript errors and narrow-layout overflow.
 - `GET /api/fanservice/v1/music/{id}` inspects recording identity and duration.
 - `POST /api/fanservice/v1/music/{id}/analyze` explicitly analyzes a recording.
 - `GET` and `PUT /api/fanservice/v1/music/{id}/beatmap` inspect and edit/confirm
-  recording-bound rhythm data. Analysis and edits require library-write access.
+  recording-bound rhythm data. GET returns the editable document, preserving its
+  unshifted beat/event times and offset; the playback manifest applies that offset
+  once. A replaced recording rejects the stale map without deleting it. Analysis
+  and edits require library-write access.
+- Beat types are `stroke`, `rest`, and `accent`. An optional control-event value
+  must be a string, number, or boolean; strings are limited to 2,000 UTF-16 code
+  units. Null, arrays, and objects are rejected before a map can be saved or
+  published. This matches the shared and native manifest contracts.
 - `GET /api/fanservice/v1/music/{id}/manifest` supplies playable music and its
   matching confirmed beatmap. Client rhythm follows actual playback position.
 - `GET` and `PUT /api/fanservice/v1/profiles/{id}` synchronize a portable v1
   document. Both require `x-fanservice-profile-key` containing 64 hexadecimal
   characters. PUT takes `{expected_revision,profile}`; a stale revision fails.
-  Phone file references and downloaded snapshots remain device-local.
+  Phone file references and downloaded snapshots remain device-local. Profile
+  responses include `Cache-Control: no-store`, including credential errors.
 - `POST /api/fanservice/v1/export/chpack` takes `{library_id,ids,name,author,
   description,unlock_cost,cover_id}`. IDs are a frozen deduplicated selection;
   missing members fail. Viewer access permits export without library edits.
@@ -91,3 +99,7 @@ and browser export have implementation and automated checks. Remaining acceptanc
 includes full mobile parity, physical iPhone/Android behavior, and original-game
 integration. Files/iCloud/Hidden Photos require physical evidence; no native
 iPhone companion dependency has been established.
+
+Private HTTPS setup and the Viewer-only reverse-proxy gateway are described in
+[Server deployment](SERVER_DEPLOYMENT.md). Static PWA hosting alone is not API
+acceptance.

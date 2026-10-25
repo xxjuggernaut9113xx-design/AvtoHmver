@@ -249,7 +249,8 @@ pub fn build_router(state: Arc<AppState>) -> Router {
             "/api/fanservice/v1/profiles/{id}",
             get(fanservice_profiles::read)
                 .put(fanservice_profiles::write)
-                .layer(axum::extract::DefaultBodyLimit::max(2 * 1024 * 1024)),
+                .layer(axum::extract::DefaultBodyLimit::max(2 * 1024 * 1024))
+                .layer(axum::middleware::from_fn(fanservice_profiles::no_store)),
         )
         .route(
             "/api/fanservice/v1/music/{id}",
@@ -261,7 +262,8 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         )
         .route(
             "/api/fanservice/v1/music/{id}/beatmap",
-            axum::routing::put(fanservice_music::save)
+            get(fanservice_music::read)
+                .put(fanservice_music::save)
                 .layer(axum::extract::DefaultBodyLimit::max(8 * 1024 * 1024)),
         )
         .route(

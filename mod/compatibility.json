@@ -49,6 +49,8 @@
       "native_media_struct_injection": false,
       "native_companion_contract_tests": true,
       "native_audio_lifecycle_model_tests": true,
+      "native_audio_transport_stream_controls": true,
+      "native_audio_transport_local_file_controls": true,
       "native_companion_in_game_acceptance": false,
       "native_audio_in_game_acceptance": false,
       "native_music_rhythm_session": false,
@@ -56,8 +58,8 @@
       "original_game_regression_and_uninstall": false
     },
     "blockers": [
-      "Purchases and enable/disable stay in original Unlocks. The prior injected panel passed purchase tests but was removed at user request; the native catalog remains read-only. Separate companion storage/sync and native audio-preview controls are implemented as a candidate; original-game acceptance is pending.",
-      "Live gameplay membership and rhythm-session integration remain unresolved. Companion storage/sync and audio transport passed model/Server tests, but the new Lua revision has not been accepted in the original game. Full-mod support is not declared."
+      "Purchases and enable/disable stay in original Unlocks. The prior injected panel passed purchase tests but was removed at user request; the native catalog remains read-only. Separate companion storage/sync and Import audio-preview controls are implemented; full original-session acceptance is pending.",
+      "Live gameplay membership and rhythm-session integration remain unresolved. Companion storage/sync passed model/Server tests and the native transport passed neutral streamed/local pause, seek, resume and reconnect. Original session ownership, beat/control dispatch, snapshot-menu workflow and full regression remain unaccepted. Full-mod support is not declared."
     ]
   },{
     "id": "v0051-hotfix-public-a8f46896",

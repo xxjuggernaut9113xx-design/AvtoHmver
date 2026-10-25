@@ -62,6 +62,18 @@
   s.heatCategory=s.heat>=0&&s.heat<=30?2:s.heat<=70?1:s.heat<=100?0:s.heatCategory??1;
   if(s.card===3){s.canUseItems=false;if(s.modifiers.includes('Those Are Mine'))for(const type of run.inventory.hotbarItems){const item=run.inventory.state(type);if(item)item.charges=0;}}
  }
+ function succubusDefeated(run,amount){
+  if(!Number.isSafeInteger(amount)||amount<=0)return {coins:0,item:null};
+  let reward=amount;if(has(run,3)&&fraction(run)<.5)reward*=2;if(has(run,12))reward*=3;reward=Math.min(2147483647,reward);addSuccuCoins(run,reward);
+  if(has(run,10))initialize(run).exorcistRemaining=30;
+  let item=null,coins=0;if(has(run,18)){
+   const caps={1:3,3:3,4:2,5:5,6:15,7:1,9:3,10:1,11:2,12:2,13:2};
+   const eligible=run.inventory.hotbarItems.filter(type=>caps[type]&&run.inventory.state(type)?.charges<caps[type]+(has(run,13)?1:0));
+   if(eligible.length){item=eligible[Math.min(eligible.length-1,Math.trunc(Math.fround(fraction(run)*eligible.length)))];grant(run,item);}
+   else{coins=75;run.state.coins=add(run.state.coins,coins);}
+  }
+  return {succuCoins:reward,coins,item};
+ }
  function itemUsed(run,type,classification){
   const s=run.state;s.ItemsUsed=add(s.ItemsUsed,1);
   const metric=classification==='Offensive'?'OffensiveItemsUsed':'DefensiveItemsUsed';s[metric]=add(s[metric],1);
@@ -76,7 +88,7 @@
   if(has(run,19)){e.tycoonElapsed+=seconds;const reward=Math.trunc(e.tycoonElapsed/60);if(reward>0){addSuccuCoins(run,reward);e.tycoonElapsed-=60*reward;}}
  }
  const sourceLedger=['RecoveredRules.cpp: BeatComplete, AddBeatLootReward, AddToLootBar, PrepareDrawState','RecoveredSession.cpp: GetLootIncrement','RecoveredCardDispatch.cpp: RollAndGiveLootDropsV2','RecoveredSuccuEconomy.cpp: catalog, currency, metric/action handlers, timers','RecoveredNewerItemRuntime.cpp: item-use metrics'];
- const shopIds=[0,1,2,4,5,6,9,11,13,16,17,19,20,21];
- const api={catalog,shopIds,initialize,has,fraction,heatCap,addHeat,addSuccuCoins,purchase,addBeatCoins,loot,beat,draw,itemUsed,recycler,advance,sourceLedger};
+ const shopIds=[0,1,2,3,4,5,6,7,9,10,11,12,13,16,17,18,19,20,21];
+ const api={catalog,shopIds,initialize,has,fraction,heatCap,addHeat,addSuccuCoins,purchase,addBeatCoins,loot,beat,draw,succubusDefeated,itemUsed,recycler,advance,sourceLedger};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.FanserviceEconomy=api;
 })(globalThis);

@@ -101,6 +101,17 @@ fn validate(map: &Beatmap) -> Result<(), String> {
         {
             return Err("Invalid control event".into());
         }
+        if let Some(value) = event.get("value") {
+            if !matches!(value, Value::String(_) | Value::Number(_) | Value::Bool(_))
+                || value
+                    .as_str()
+                    .is_some_and(|text| text.encode_utf16().count() > 2000)
+            {
+                return Err(
+                    "Control event value must be a scalar of at most 2000 characters".into(),
+                );
+            }
+        }
         previous = t;
     }
     Ok(())
@@ -145,6 +156,24 @@ pub async fn analyze(
         Ok::<_,String>(Json(json!({"recording_id":identity,"duration":duration,"bpm":proposal.bpm,"offset":0.0,"confirmed":false,"beats":beats,"events":[],"confidence":proposal.confidence,"requires_confirmation":true})))
     }).await.map_err(bad)?.map_err(bad)
 }
+pub async fn read(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<i64>,
+) -> Result<Json<Beatmap>, Error> {
+    tokio::task::spawn_blocking(move || {
+        let (identity, duration) = recording(&state, id)?;
+        let map = read_map(&state, id)?.ok_or("Prepare this recording's beatmap first")?;
+        validate(&map)?;
+        if map.recording_id != identity || (map.duration - duration).abs() > 0.1 {
+            return Err("Beatmap recording mismatch; analyze the current recording".to_string());
+        }
+        Ok(Json(map))
+    })
+    .await
+    .map_err(bad)?
+    .map_err(bad)
+}
+
 pub async fn save(
     State(state): State<Arc<AppState>>,
     Path(id): Path<i64>,
@@ -198,5 +227,153 @@ mod tests {
         m.events = vec![];
         m.beats.push(json!({"time":0.5,"type":"stroke"}));
         assert!(validate(&m).is_err());
+    }
+
+    #[test]
+    fn control_event_values_are_bounded_portable_scalars() {
+        let mut map = Beatmap {
+            recording_id: "sha1:test".into(),
+            duration: 10.0,
+            bpm: 120.0,
+            offset: 0.0,
+            confirmed: true,
+            beats: vec![json!({"time":1.0,"type":"accent"})],
+            events: vec![],
+        };
+        for value in [
+            json!("start"),
+            json!(2.0),
+            json!(false),
+            json!("\u{1f600}".repeat(1000)),
+        ] {
+            map.events = vec![json!({"time":2.0,"type":"text","value":value})];
+            assert!(validate(&map).is_ok(), "scalar should be accepted");
+        }
+        for value in [
+            Value::Null,
+            json!({"path":"private"}),
+            json!([1]),
+            json!("\u{1f600}".repeat(1001)),
+        ] {
+            map.events = vec![json!({"time":2.0,"type":"text","value":value})];
+            assert!(
+                validate(&map).is_err(),
+                "nested/null/oversized values must be rejected"
+            );
+        }
+        map.events = vec![json!({"time":2.0,"type":"restore_break"})];
+        assert!(validate(&map).is_ok());
+    }
+
+    #[tokio::test]
+    async fn beatmap_get_is_registered_and_reports_a_missing_recording() {
+        use axum::{body::Body, http::Request};
+        use tower::ServiceExt;
+        let root = tempfile::tempdir().unwrap();
+        let state = crate::test_support::state(root.path());
+        let response = crate::routes::build_router(state)
+            .oneshot(
+                Request::builder()
+                    .uri("/api/fanservice/v1/music/1/beatmap")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    }
+
+    #[tokio::test]
+    #[ignore = "requires FFprobe in PATH or FANSERVICE_TEST_FFPROBE"]
+    async fn beatmap_get_roundtrips_editable_offsets_and_rejects_replaced_recordings() {
+        use axum::{
+            body::{to_bytes, Body},
+            http::Request,
+        };
+        use tower::ServiceExt;
+        let root = tempfile::tempdir().unwrap();
+        let mut state = crate::test_support::state(root.path());
+        Arc::get_mut(&mut state).unwrap().ffprobe_bin =
+            std::env::var("FANSERVICE_TEST_FFPROBE").unwrap_or_else(|_| "ffprobe".into());
+        let samples: u32 = 16000;
+        let data_bytes = samples * 2;
+        let mut wav = b"RIFF".to_vec();
+        wav.extend((36 + data_bytes).to_le_bytes());
+        wav.extend(b"WAVEfmt ");
+        wav.extend(16u32.to_le_bytes());
+        wav.extend(1u16.to_le_bytes());
+        wav.extend(1u16.to_le_bytes());
+        wav.extend(8000u32.to_le_bytes());
+        wav.extend(16000u32.to_le_bytes());
+        wav.extend(2u16.to_le_bytes());
+        wav.extend(16u16.to_le_bytes());
+        wav.extend(b"data");
+        wav.extend(data_bytes.to_le_bytes());
+        wav.resize(44 + data_bytes as usize, 0);
+        let track = music::store(&state, "neutral.wav", &wav).unwrap();
+        let identity = music::recording_id(&state, track.id).unwrap();
+        let map = Beatmap {
+            recording_id: identity.clone(),
+            duration: 2.0,
+            bpm: 120.0,
+            offset: 0.25,
+            confirmed: true,
+            beats: vec![json!({"time":0.5,"type":"accent"})],
+            events: vec![json!({"time":1.0,"type":"text","value":"checkpoint"})],
+        };
+        let app = crate::routes::build_router(state.clone());
+        let uri = format!("/api/fanservice/v1/music/{}/beatmap", track.id);
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("PUT")
+                    .uri(&uri)
+                    .header("content-type", "application/json")
+                    .body(Body::from(serde_json::to_vec(&map).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let response = app
+            .clone()
+            .oneshot(Request::builder().uri(&uri).body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let editable: Value =
+            serde_json::from_slice(&to_bytes(response.into_body(), 1024 * 1024).await.unwrap())
+                .unwrap();
+        assert_eq!(editable["recording_id"], identity);
+        assert_eq!(editable["offset"], 0.25);
+        assert_eq!(editable["beats"][0]["time"], 0.5);
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri(format!("/api/fanservice/v1/music/{}/manifest", track.id))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let manifest: Value =
+            serde_json::from_slice(&to_bytes(response.into_body(), 1024 * 1024).await.unwrap())
+                .unwrap();
+        assert_eq!(manifest["beatmap"]["beats"][0]["time"], 0.75);
+        assert_eq!(manifest["beatmap"]["events"][0]["time"], 1.25);
+        wav[44] = 1;
+        std::fs::write(music::track_path(&state, track.id).unwrap(), wav).unwrap();
+        let response = app
+            .oneshot(Request::builder().uri(&uri).body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+        assert_eq!(
+            read_map(&state, track.id).unwrap().unwrap().recording_id,
+            identity
+        );
     }
 }

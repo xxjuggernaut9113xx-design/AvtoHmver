@@ -60,18 +60,22 @@ function Companion.new(env)
             end
             pending = nil
             os.remove(target); removeRequest(job)
-            if job.action == 'musicprepare' then
-                local commandPath = env.directory .. '/.fanservice-music-command.' .. job.nonce
-                local command = read(commandPath, 4 * 1024 * 1024)
-                if command then
-                    local token, revision, owner, location, map = command:match('^FANSERVICE_MUSIC_1\n([%d%-]+)\n(%d+)\n([%d%-]+)\n([^\n]+)\n(.*)$')
+            if job.action == 'musicprepare' and result:match('^%{"ok":true[,}]') then
+                local ok, problem = pcall(function()
+                    local commandPath = env.directory .. '/.fanservice-music-command.' .. job.nonce
+                    local command = read(commandPath, 4 * 1024 * 1024)
+                    if not command then error('Native soundtrack command is missing. Preparation did not activate playback.') end
+                    local token, revision, owner, location, duration, map = command:match('^FANSERVICE_MUSIC_2\n([%d%-]+)\n(%d+)\n([%d%-]+)\n([^\n]+)\n([%d%.eE%+%-]+)\n(.*)$')
                     if token ~= job.nonce or tonumber(revision) ~= current.generation or owner ~= current.epoch then
                         error('Stale native soundtrack command was retained.')
                     end
-                    local ok, problem = pcall(env.openMusic, Companion.decode(location), map, token)
+                    duration = tonumber(duration)
+                    if not duration or duration ~= duration or duration <= 0 or duration > 86400 then error('Native soundtrack recording duration is invalid.') end
+                    local activated, failure = pcall(env.openMusic, Companion.decode(location), map, token, duration)
                     os.remove(commandPath)
-                    if not ok then result = '{"ok":false,"error":' .. env.quote(tostring(problem)) .. '}' end
-                end
+                    if not activated then error(failure) end
+                end)
+                if not ok then result = '{"ok":false,"error":' .. env.quote(tostring(problem)) .. '}' end
             end
             job.reply(result)
         elseif os.time() > job.deadline then

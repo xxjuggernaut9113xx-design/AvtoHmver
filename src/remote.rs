@@ -890,6 +890,66 @@ mod tests {
             .header("content-type", "application/json").body(serde_json::json!({"expected_revision":0,"profile":{"version":1,"up":0,"packs":[]}}).to_string())
             .send().await.unwrap();
         assert_eq!(response.status(), reqwest::StatusCode::UNAUTHORIZED);
+        assert_eq!(response.headers()["cache-control"], "no-store");
+        let response = client
+            .get(format!(
+                "http://127.0.0.1:{port}/api/fanservice/v1/capabilities"
+            ))
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(response.status(), reqwest::StatusCode::OK);
+        assert_eq!(
+            serde_json::from_slice::<serde_json::Value>(&response.bytes().await.unwrap()).unwrap()
+                ["library_id"],
+            "test-instance"
+        );
+        let profile_url = format!("http://127.0.0.1:{port}/api/fanservice/v1/profiles/proxy-sync");
+        let key = "ab".repeat(32);
+        let body = serde_json::json!({"expected_revision":0,"profile":{"version":1,"unlock_points":0,"packs":[]}}).to_string();
+        let response = client
+            .put(&profile_url)
+            .header("content-type", "application/json")
+            .header("x-fanservice-profile-key", &key)
+            .body(body.clone())
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(response.status(), reqwest::StatusCode::OK);
+        assert_eq!(response.headers()["cache-control"], "no-store");
+        let response = client
+            .get(&profile_url)
+            .header("x-fanservice-profile-key", &key)
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(response.status(), reqwest::StatusCode::OK);
+        assert_eq!(response.headers()["cache-control"], "no-store");
+        assert_eq!(
+            serde_json::from_slice::<serde_json::Value>(&response.bytes().await.unwrap()).unwrap()
+                ["revision"],
+            1
+        );
+        let response = client
+            .put(&profile_url)
+            .header("content-type", "application/json")
+            .header("x-fanservice-profile-key", &key)
+            .body(body)
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(response.status(), reqwest::StatusCode::CONFLICT);
+        let response = client
+            .put(format!(
+                "http://127.0.0.1:{port}/api/fanservice/v1/music/1/beatmap"
+            ))
+            .header("x-forwarded-for", "127.0.0.1")
+            .header("content-type", "application/json")
+            .body("{}")
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(response.status(), reqwest::StatusCode::FORBIDDEN);
         state.shutdown.cancel();
         state.server_tasks.close();
         state.server_tasks.wait().await;

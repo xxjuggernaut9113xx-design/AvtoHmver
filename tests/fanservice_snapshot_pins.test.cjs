@@ -36,6 +36,13 @@ test('durable cross-tab pins protect retired media, resume exact versions, and c
    return results;
   });
   assert.equal(failures.length,6);for(const failure of failures){assert.ok(failure.error,failure.mode+' must fail');assert.equal(failure.retained,true,failure.mode+' must retain the previous snapshot');}assert.equal(failures.find(row=>row.mode==='different-library').fetched,false);assert.match(failures.find(row=>row.mode==='quota').error,/Storage is full/);
+  const invalidMusic=await b.evaluate(async()=>{
+   const store=FanserviceStore,previous=await store.get('snapshots','p'),originalFetch=window.fetch;let fetched=false,error;
+   window.fetch=async()=>{fetched=true;throw Error('Must validate before network');};
+   const music={protocol:1,library_id:'l',track_id:1,recording_id:'sha1:'+'a'.repeat(40),duration:10,stream_url:'/api/music/tracks/1/stream?browser=true',beatmap:{meta:{duration:12,bpm:120,offset:0},beats:[{time:0,type:'accent'}],events:[]}};
+   try{await store.download({id:'p',library_id:'l'},{media:[{url:'/media-one'}]},location.origin,music);}catch(e){error=e.message;}finally{window.fetch=originalFetch;}
+   return {error,fetched,retained:(await store.get('snapshots','p')).id===previous.id};
+  });assert.match(invalidMusic.error,/metadata/);assert.equal(invalidMusic.fetched,false);assert.equal(invalidMusic.retained,true);
   await a.evaluate(()=>FanserviceStore.releaseSession('session-one'));
   assert.equal(await b.evaluate(async key=>!!(await FanserviceStore.get('files',key)),first.media[0].storage_key),true);
   await b.evaluate(()=>FanserviceStore.releaseSession('session-two'));

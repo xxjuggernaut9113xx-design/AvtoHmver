@@ -1,7 +1,7 @@
 (function(root){
  'use strict';
  const load=(name,global)=>typeof module!=='undefined'&&module.exports?require('./'+name+'.js'):root[global];
- const Objectives=load('objectives','FanserviceObjectives'),Tower=load('tower','FanserviceTower'),Inventory=load('inventory','FanserviceInventory'),Items=load('items','FanserviceItems'),Economy=load('economy','FanserviceEconomy');
+ const Objectives=load('objectives','FanserviceObjectives'),Tower=load('tower','FanserviceTower'),Inventory=load('inventory','FanserviceInventory'),Items=load('items','FanserviceItems'),Economy=load('economy','FanserviceEconomy'),Cards=load('cards','FanserviceCards');
  const copy=value=>JSON.parse(JSON.stringify(value));
  class Run {
   constructor(catalog,config={}){
@@ -33,15 +33,25 @@
   advance(seconds){
    if(this.phase!=='playing'||this.state.finished||!Number.isFinite(seconds)||seconds<0)return [];
    Economy.advance(this,seconds);this.state.seconds+=seconds;this.player.sessionLength=this.state.seconds;
+   const cards=Cards.advance(this);
    const stats=this.objectiveStats(),context=this.context();
    const expired=this.objective.expireReleaseWindow(this.player,stats,this.state.meter,this.state.seconds,context);
    this.state.meter=expired.meter;
    const events=expired.events.length?expired.events:this.objective.tick(this.player,stats,this.state.meter,this.state.seconds,context);
    this.state.CumWindowsHit=stats.cumWindowsHit;this.state.MissedCumWindows=stats.missedCumWindows;
-   return this.applyEvents(events);
+   return [...cards,...this.applyEvents(events)];
   }
   beat(){return Economy.beat(this);}
-  climax(){return this.applyEvents(this.objective.resolveClimax(this.player,this.context()));}
+  startCard(pool){return Cards.start(this,pool);}
+  delayCard(seconds){return Cards.delay(this,seconds);}
+  modifyCard(speed,factor=1){return Cards.rebuild(this,speed,factor);}
+  tribute(){
+   const objective=this.roundObjective||this.objective.state;
+   if(this.phase!=='playing'||this.state.finished||this.player.hasCame||objective?.objective!==7||this.state.modifiers.includes('Deal With The Devil')&&this.state.card!==3)return [];
+   this.state.milkingCount=((this.state.milkingCount||0)+1)|0;
+   return [{type:'tribute-recorded'},...this.advance(0)];
+  }
+  climax(){if((this.roundObjective||this.objective.state)?.objective===7)return this.tribute();return this.applyEvents(this.objective.resolveClimax(this.player,this.context()));}
   applyEvents(events){
    for(const event of events){
     if(event.type==='round-complete'||event.type==='round-failed')this.completeRound(event.type==='round-complete');

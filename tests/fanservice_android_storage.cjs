@@ -21,7 +21,7 @@ async function ready(){const deadline=Date.now()+120000;for(;;){try{await connec
  fs.mkdirSync(output,{recursive:true});
  try{
   assert.equal(adb('emu','avd','name').split(/\r?\n/)[0].trim(),'fanservice-test','Refuse any other device');
-  report.version=adb('shell','dumpsys','package','org.fanservice.viewer').match(/versionName=(\S+)/)?.[1];assert.equal(report.version,'0.3.9');
+  report.version=adb('shell','dumpsys','package','org.fanservice.viewer').match(/versionName=(\S+)/)?.[1];assert.equal(report.version,process.env.FANSERVICE_EXPECTED_ANDROID_VERSION||'0.3.10');
   adb('shell','am','start','-n','org.fanservice.viewer/.MainActivity');await ready();
   report.sync_module=await evaluate('typeof FanserviceProfileSync.Transport');assert.equal(report.sync_module,'function');
   report.existing_ids=await evaluate('(async()=> (await FanserviceStore.localFiles()).map(file=>file.id))()');
@@ -31,7 +31,7 @@ async function ready(){const deadline=Date.now()+120000;for(;;){try{await connec
   assert.equal(report.retained.hash,expected);assert.equal(report.retained.bytes,clip.length);assert.equal(report.retained.advanced,true);
   await evaluate(`(async()=>{for(const id of ${JSON.stringify(ids)})await FanserviceStore.remove('files',id);return true;})()`);ids=[];
   report.remaining_ids=await evaluate('(async()=> (await FanserviceStore.localFiles()).map(file=>file.id))()');assert.deepEqual(report.remaining_ids.sort(),report.existing_ids.sort());
-  report.passed=true;console.log('Android 0.3.9 passed: sync module, copied video checksum, cold app restart, decoded playback clock, and preservation of existing files.');
+  report.passed=true;console.log('Android '+report.version+' passed: sync module, copied video checksum, cold app restart, decoded playback clock, and preservation of existing files.');
  }catch(error){report.error=error.stack;process.exitCode=1;console.error(error);}
  finally{if(ids.length&&ws?.readyState===WebSocket.OPEN)try{await evaluate(`(async()=>{for(const id of ${JSON.stringify(ids)})await FanserviceStore.remove('files',id);return true;})()`);}catch(error){report.cleanup_error=error.message;}ws?.close();if(forwarded)try{adb('forward','--remove','tcp:9234');}catch{}report.finished=new Date().toISOString();fs.writeFileSync(path.join(output,'android-storage-acceptance.json'),JSON.stringify(report,null,2)+'\n');}
 })().catch(error=>{console.error(error);process.exitCode=1;});

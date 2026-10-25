@@ -1,4 +1,6 @@
 # fanservice — full plan, annotated
+
+**Latest scoped checkpoint:** [Server/mobile/music continuation](SERVER_MOBILE_MUSIC_20261025.md) records the later API, card/timeline and live native audio fixes. Full rhythm/parity and physical-device gates remain open.
 **Later scoped work:** [Parts 1, 4 and 5 continuation](PARTS_1_4_5_20261024.md) records the subsequent sync/offline fixes, current Android build and Server package acceptance. Remaining native and full-parity gates below are still open.
 
 **Status snapshot: 2026-10-24 · source commit 3df136fd · not a release certification.**

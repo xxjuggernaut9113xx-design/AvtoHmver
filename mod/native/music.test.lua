@@ -23,6 +23,7 @@ local function fixture()
     player.seekOK, player.playOK, player.pauseOK, player.openOK, player.seekSupported = true,true,true,true,true
     function player:SetLooping(loop) self.loop = loop; return true end
     function player:OpenUrl(url) self.url = url; return self.openOK end
+    function player:OpenFile(path) self.file = path; return self.openOK end
     function player:Close() self.closeCalls = self.closeCalls + 1; self.playing = false end
     function player:IsPreparing() return self.preparing end
     function player:IsReady() return self.ready end
@@ -39,6 +40,7 @@ local function fixture()
     function player:Reopen() self.reopenCalls = self.reopenCalls + 1; self.ready,self.position,self.playing,self.paused = false,0,false,false; return true end
     sound.starts, sound.stops, sound.destroys = 0,0,0
     function sound:SetMediaPlayer(value) self.player = value end
+    function sound:SetVolumeMultiplier(value) self.volume = value end
     function sound:Start() self.starts = self.starts + 1 end
     function sound:Stop() self.stops = self.stops + 1 end
     function sound:K2_DestroyComponent(owner) eq(owner,actor); self.destroys = self.destroys + 1; self.valid = false end
@@ -191,7 +193,7 @@ end)
 
 test('ready decoder with pending duration waits for metadata without muting original audio',function()
     local f=fixture();f.open();f.player.ready=true;f.player.duration=0
-    eq(f.transport:sample().state,'opening');eq(f.original.pauseCalls,0);eq(f.player.playCalls,0)
+    eq(f.transport:sample().state,'opening');eq(f.original.pauseCalls,0);eq(f.player.playCalls,1);eq(f.sound.volume,0)
     f.scope.now=2;f.player.duration=10;eq(f.transport:sample().state,'playing');eq(f.original.pauseCalls,1)
 end)
 
@@ -203,6 +205,161 @@ end)
 test('nonfinite clocks report observed values and close the decoder',function()
     local f=fixture();f.play();f.player.position=0/0;local state=f.transport:sample()
     eq(state.state,'error');assert(state.error:find('position=',1,true));eq(f.sound.destroys,1)
+end)
+
+test('confirmed recording duration is validated before native construction or replacement',function()
+    local f=fixture();f.play()
+    for _,value in ipairs({0,-1,86401,math.huge,0/0,'10'}) do
+        fails(function() f.transport:open('http://127.0.0.1:42170/synthetic.m4a',f.actor,f.scope.binding,value) end,'duration is invalid')
+    end
+    eq(f.transport:status().state,'playing');eq(f.player.closeCalls,0)
+end)
+
+test('matching confirmed duration permits playback within decoder rounding tolerance',function()
+    local f=fixture();f.transport:open('http://127.0.0.1:42170/synthetic.m4a',f.actor,f.scope.binding,10.2)
+    f.player.ready=true;f.player.duration=10.55;eq(f.transport:sample().state,'playing');eq(f.original.pauseCalls,1)
+end)
+
+test('mismatching confirmed duration fails before playback or original-audio suppression',function()
+    local f=fixture();f.transport:open('http://127.0.0.1:42170/synthetic.m4a',f.actor,f.scope.binding,11)
+    f.player.ready=true;local state=f.transport:sample();eq(state.state,'error')
+    assert(state.error:find('does not match the confirmed recording',1,true));eq(f.player.playCalls,0);eq(f.original.pauseCalls,0);eq(f.sound.destroys,1)
+end)
+
+test('pending metadata does not trigger a false confirmed-duration mismatch',function()
+    local f=fixture();f.transport:open('http://127.0.0.1:42170/synthetic.m4a',f.actor,f.scope.binding,10)
+    f.player.ready=true;f.player.duration=0;eq(f.transport:sample().state,'opening');eq(f.original.pauseCalls,0)
+    f.player.duration=10;eq(f.transport:sample().state,'playing')
+end)
+
+test('duration changed during playback closes the wrong recording and restores original audio',function()
+    local f=fixture();f.transport:open('http://127.0.0.1:42170/synthetic.m4a',f.actor,f.scope.binding,10)
+    f.player.ready=true;f.transport:sample();f.player.duration=12;local state=f.transport:sample()
+    eq(state.state,'error');eq(f.original.resumeCalls,1);eq(f.sound.destroys,1)
+end)
+
+test('a pending seek cannot extend its deadline by losing decoder readiness',function()
+    local f=fixture();f.play();f.player.asyncSeek=true;f.transport:seek(5);f.player.ready=false
+    eq(f.transport:sample().state,'opening');f.scope.now=31;local state=f.transport:sample();eq(state.state,'error')
+    assert(state.error:find('seeking timed out',1,true));eq(f.original.resumeCalls,1)
+end)
+
+test('a pending seek cannot extend its deadline while duration metadata is unavailable',function()
+    local f=fixture();f.play();f.player.asyncSeek=true;f.transport:seek(5);f.player.duration=0
+    eq(f.transport:sample().state,'opening');f.scope.now=31;local state=f.transport:sample();eq(state.state,'error')
+    assert(state.error:find('seeking timed out',1,true));eq(f.original.resumeCalls,1)
+end)
+
+test('reconnect cancels a stale seek deadline before opening and seeks to observed position',function()
+    local f=fixture();f.play();f.player.asyncSeek=true;f.transport:seek(5);f.scope.now=20;eq(f.transport:reconnect().state,'opening')
+    f.scope.now=35;eq(f.transport:sample().state,'opening');f.player.ready=true;eq(f.transport:sample().state,'seeking');eq(f.player.seekTarget,.5)
+    f.player.position=.5;eq(f.transport:sample().state,'playing')
+end)
+
+test('ready zero-duration decoder gets one muted preroll before metadata becomes playable',function()
+    local f=fixture();f.open();f.player.ready=true;f.player.duration=0
+    local state=f.transport:sample();eq(state.state,'opening');eq(state.advancing,false);eq(f.player.playCalls,1);eq(f.sound.volume,0);eq(f.original.pauseCalls,0)
+    f.transport:sample();eq(f.player.playCalls,1)
+    f.player.duration=10;f.player.position=.1;state=f.transport:sample();eq(state.state,'playing');eq(state.advancing,true)
+    eq(f.sound.volume,1);eq(f.original.pauseCalls,1)
+end)
+
+test('recording mismatch after muted preroll never unmutes or suppresses original audio',function()
+    local f=fixture();f.transport:open('http://127.0.0.1:42170/synthetic.m4a',f.actor,f.scope.binding,10)
+    f.player.ready=true;f.player.duration=0;f.transport:sample();f.player.duration=12;local state=f.transport:sample()
+    eq(state.state,'error');eq(f.sound.volume,0);eq(f.original.pauseCalls,0);eq(f.sound.destroys,1)
+end)
+
+test('rejected preroll closes owned objects while leaving original audio alone',function()
+    local f=fixture();f.open();f.player.ready=true;f.player.duration=0;f.player.playOK=false;local state=f.transport:sample()
+    eq(state.state,'error');assert(state.error:find('preroll was rejected',1,true));eq(f.original.pauseCalls,0);eq(f.sound.volume,0)
+end)
+
+test('raw native samples remain visible without fabricating a playback clock',function()
+    local f=fixture();f.open();f.player.ready=true;f.player.duration=0;local state=f.transport:sample()
+    eq(state.native_ready,true);eq(state.native_preparing,false);eq(state.native_position,'0');eq(state.native_duration,'0');eq(state.position,0);eq(state.advancing,false)
+end)
+
+test('failed resume retains the explicit paused intent and does not silently retry',function()
+    local f=fixture();f.play();f.transport:pause();f.player.playOK=false
+    fails(function() f.transport:resume() end,'resume was rejected');f.player.playOK=true;local count=f.player.playCalls
+    eq(f.transport:sample().state,'paused');eq(f.player.playCalls,count)
+end)
+
+test('accepted playback that never starts has a bounded start deadline',function()
+    local f=fixture();f.open();f.player.ready=true
+    function f.player:Play() self.playCalls=self.playCalls+1;return true end
+    eq(f.transport:sample().state,'opening');f.scope.now=31;local state=f.transport:sample()
+    eq(state.state,'error');assert(state.error:find('playback start timed out',1,true));eq(f.original.pauseCalls,0)
+end)
+
+test('explicit pause cancels an outstanding playback-start deadline',function()
+    local f=fixture();f.open();f.player.ready=true
+    function f.player:Play() self.playCalls=self.playCalls+1;return true end
+    eq(f.transport:sample().state,'opening');eq(f.transport:pause().state,'paused')
+    f.scope.now=200;eq(f.transport:sample().state,'paused');eq(f.original.pauseCalls,0)
+end)
+
+test('unreflected timespan ticks register before constructing native media objects',function()
+    local f=fixture();local mathLibrary=f.env.find('/Script/Engine.Default__KismetMathLibrary');local registered=false;local calls=0
+    function mathLibrary:FromSeconds(seconds) return registered and {FanserviceTimespanTicks=seconds*10000000} or {} end
+    function mathLibrary:GetTotalSeconds(span) return (span.FanserviceTimespanTicks or 0)/10000000 end
+    function f.player:GetTime() return registered and {FanserviceTimespanTicks=self.position*10000000} or {} end
+    function f.player:GetDuration() return registered and {FanserviceTimespanTicks=self.duration*10000000} or {} end
+    function f.player:Seek(span) self.seekTarget=(span.FanserviceTimespanTicks or 0)/10000000;self.position=self.seekTarget;return true end
+    f.env.registerTimespan=function() eq(f.sound.starts,0);calls=calls+1;registered=true end
+    eq(f.play().position,.5);eq(calls,1);f.transport:seek(4);eq(f.transport:sample().position,4);eq(f.player.seekTarget,4);eq(calls,1)
+end)
+
+test('failed timespan roundtrip never constructs or mutes native audio',function()
+    local f=fixture();local mathLibrary=f.env.find('/Script/Engine.Default__KismetMathLibrary')
+    function mathLibrary:GetTotalSeconds() return 0 end
+    f.env.registerTimespan=function() end
+    fails(f.open,'round-trip check');eq(f.sound.starts,0);eq(f.player.closeCalls,0);eq(f.original.pauseCalls,0)
+end)
+
+test('working timespan conversion does not register duplicate properties',function()
+    local f=fixture();f.env.registerTimespan=function() error('Must not register a working conversion') end
+    eq(f.play().position,.5)
+end)
+
+test('paused WMF seek decodes muted until its actual clock reaches the target',function()
+    local f=fixture();f.play();f.transport:pause();f.player.asyncSeek=true
+    local play=f.player.Play
+    function f.player:Play() local result=play(self);if result and self.seekTarget then self.position=self.seekTarget end;return result end
+    f.transport:seek(4);eq(f.sound.volume,0);eq(f.player.playing,true)
+    local state=f.transport:sample();eq(state.state,'paused');eq(state.position,4);eq(f.player.playing,false)
+    eq(f.transport:resume().state,'playing');eq(f.sound.volume,1)
+end)
+
+test('rejected seek preroll closes the accepted operation and restores original music',function()
+    local f=fixture();f.play();f.player.playOK=false
+    fails(function() f.transport:seek(4) end,'seek preroll was rejected')
+    eq(f.transport:status().state,'error');eq(f.sound.destroys,1);eq(f.original.resumeCalls,1)
+end)
+
+test('seek observation permits decoder frame rounding without fabricating target time',function()
+    local f=fixture();f.play();f.player.asyncSeek=true;f.transport:seek(4);f.player.position=4.1
+    local state=f.transport:sample();eq(state.state,'playing');eq(state.position,4.1)
+end)
+
+test('a clock outside the bounded seek observation window remains pending',function()
+    local f=fixture();f.play();f.player.asyncSeek=true;f.transport:seek(4);f.player.position=4.5
+    eq(f.transport:sample().state,'seeking');eq(f.sound.volume,0)
+end)
+
+test('trusted local file URLs use native OpenFile with exactly one percent decode',function()
+    local f=fixture();local value='file:///E:/lab/owned%20clip%25.m4a'
+    f.env.authorize=function(url,binding) return url==value and binding==f.scope.binding end
+    eq(f.transport:open(value,f.actor,f.scope.binding).state,'opening');eq(f.player.file,'E:/lab/owned clip%.m4a');eq(f.player.url,nil)
+end)
+
+test('invalid local file URI forms cannot replace an existing authorized transport',function()
+    local f=fixture();f.play();f.env.authorize=function() return true end
+    for _,value in ipairs({'file://remote/share/audio.m4a','file:///E:/bad%0.m4a','file:///E:/bad%00.m4a'}) do
+        fails(function() f.transport:open(value,f.actor,f.scope.binding) end,'file URL')
+    end
+    eq(f.player.closeCalls,0);eq(f.transport:status().state,'playing')
 end)
 
 print(tostring(passed) .. ' native audio transport tests passed')

@@ -40,6 +40,18 @@ fn storage() -> Error {
 fn schema(conn: &rusqlite::Connection) -> Result<(), Error> {
     conn.execute_batch("CREATE TABLE IF NOT EXISTS fanservice_profiles(id TEXT PRIMARY KEY,key_hash TEXT NOT NULL,revision INTEGER NOT NULL,document TEXT NOT NULL)").map_err(|_|storage())
 }
+pub async fn no_store(
+    request: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> axum::response::Response {
+    let mut response = next.run(request).await;
+    response.headers_mut().insert(
+        axum::http::header::CACHE_CONTROL,
+        axum::http::HeaderValue::from_static("no-store"),
+    );
+    response
+}
+
 pub async fn read(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
@@ -214,5 +226,39 @@ mod tests {
         assert_eq!(result["revision"], 1);
         assert!(result["profile"]["packs"][0].get("manifest").is_none());
         assert!(result["profile"]["packs"][0].get("snapshot").is_none());
+    }
+
+    #[tokio::test]
+    async fn profile_documents_and_credential_errors_cannot_be_cached() {
+        let root = tempfile::tempdir().unwrap();
+        let state = crate::test_support::state(root.path());
+        let app = crate::routes::build_router(state);
+        let key = "ab".repeat(32);
+        let response = app.clone().oneshot(Request::builder().method("PUT")
+            .uri("/api/fanservice/v1/profiles/cache-test")
+            .header("content-type", "application/json")
+            .header("x-fanservice-profile-key", &key)
+            .body(Body::from(json!({"expected_revision":0,"profile":{"version":1,"unlock_points":0,"packs":[]}}).to_string()))
+            .unwrap()).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.headers()["cache-control"], "no-store");
+        for (credential, expected) in [
+            (&key, StatusCode::OK),
+            (&"cd".repeat(32), StatusCode::UNAUTHORIZED),
+        ] {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .uri("/api/fanservice/v1/profiles/cache-test")
+                        .header("x-fanservice-profile-key", credential)
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(response.status(), expected);
+            assert_eq!(response.headers()["cache-control"], "no-store");
+        }
     }
 }

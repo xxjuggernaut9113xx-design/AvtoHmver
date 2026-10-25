@@ -1,5 +1,7 @@
 # Consolidated plan execution — 2026-10-22
 
+**Latest scoped checkpoint:** [Server/mobile/music continuation](SERVER_MOBILE_MUSIC_20261025.md) records the later API, card/timeline and live native audio fixes. Full rhythm/parity and physical-device gates remain open.
+
 Current checkpoint: `CURRENT_HANDOFF_20261023.md` records the saved-pack importer,
 Android 0.3.8, refreshed deliverables, physical-iPhone screenshot evidence and
 remaining full-plan gates. Earlier version counts below are historical.

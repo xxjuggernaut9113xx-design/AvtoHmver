@@ -26,3 +26,72 @@ test('playback clock holds while buffering and seeks skip stale events',()=>{
  rules.schedule(map,3,clock,cb);assert.deepEqual(hits,[1,3]);assert.deepEqual(events,[]);
 });
 test('session rewards survive reload and cannot be granted twice',()=>{const p={version:1,packs:[],unlock_points:5};const stats={seconds:60,strokes:100,edges:0,won:true,coins:100};const once=rules.rewards(p,stats,'session-1'),twice=rules.rewards(JSON.parse(JSON.stringify(once)),stats,'session-1');assert.deepEqual(twice,once);assert.equal(once.progression.sessions,1);assert.equal(once.unlock_points,5);});
+
+
+test('timeline merges control events before simultaneous beats and keeps source order within each lane',()=>{
+ const map={beats:[{time:0,type:'stroke'},{time:.5,type:'stroke'},{time:.5,type:'stroke'}],events:[{time:0,type:'media_change',value:'fast'},{time:.25,type:'text',value:'one'},{time:.5,type:'text',value:'two'}]},clock={},order=[];
+ rules.schedule(map,.5,clock,{beat:b=>order.push('beat:'+b.time),event:e=>order.push(e.type+':'+e.value)});
+ assert.deepEqual(order,['media_change:fast','beat:0','text:one','text:two','beat:0.5','beat:0.5']);
+});
+
+test('backwards seeks never repeat beat rewards or one-shot inventory and dialogue events',()=>{
+ const map={beats:[{time:0,type:'stroke'},{time:.5,type:'stroke'},{time:1,type:'stroke'}],events:[{time:.25,type:'grant_break'},{time:.75,type:'dialogue',value:'fixture'}]},clock={},hits=[],events=[];
+ const callbacks={beat:b=>hits.push(b.time),event:e=>events.push(e.type)};
+ rules.schedule(map,.5,clock,callbacks);rules.schedule(map,1,clock,callbacks);
+ rules.seek(map,0,clock,callbacks);rules.schedule(map,.5,clock,callbacks);rules.schedule(map,1,clock,callbacks);
+ assert.deepEqual(hits,[0,.5,1]);assert.deepEqual(events,['grant_break','dialogue']);
+ const restored=JSON.parse(JSON.stringify(clock));rules.seek(map,0,restored,callbacks);rules.schedule(map,1,restored,callbacks);
+ assert.deepEqual(hits,[0,.5,1]);assert.deepEqual(events,['grant_break','dialogue']);
+});
+
+test('forward seek skips obsolete rewards permanently and resumes exactly on the target boundary',()=>{
+ const map={beats:[{time:0,type:'stroke'},{time:1,type:'stroke'},{time:2,type:'stroke'}],events:[{time:.5,type:'grant_break'},{time:1.5,type:'dialogue'}]},clock={},hits=[],events=[];
+ const callbacks={beat:b=>hits.push(b.time),event:e=>events.push(e.type)};
+ rules.schedule(map,0,clock,callbacks);rules.seek(map,2,clock,callbacks);rules.schedule(map,2,clock,callbacks);
+ rules.seek(map,0,clock,callbacks);rules.schedule(map,1,clock,callbacks);rules.schedule(map,2,clock,callbacks);
+ assert.deepEqual(hits,[0,2]);assert.deepEqual(events,[]);
+});
+
+test('seek reconciliation restores only latest persistent channels, not skipped grants or speech',()=>{
+ const map={beats:[],events:[{time:0,type:'text',value:'old'},{time:.1,type:'disable_break',value:'start'},{time:.2,type:'grant_break'},{time:.3,type:'dialogue',value:'skip'},{time:.4,type:'text',value:'new'},{time:.5,type:'restore_break'},{time:.6,type:'background',value:2}]},clock={},reconciled=[];
+ rules.seek(map,.8,clock,{reconcile:events=>reconciled.push(events)});
+ assert.deepEqual(reconciled[0],[map.events[4],map.events[5],map.events[6]]);
+ rules.seek(map,0,clock,{reconcile:events=>reconciled.push(events)});assert.deepEqual(reconciled[1],[]);
+});
+
+test('replayed persistent controls carry a replay flag without reopening the one-shot lane',()=>{
+ const map={beats:[],events:[{time:0,type:'cum_event',value:'start'},{time:.5,type:'grant_break'},{time:1,type:'cum_event',value:'end'}]},clock={},events=[];
+ const callbacks={beat:()=>{},event:(event,info)=>events.push([event.type,event.value,info.replay])};
+ rules.schedule(map,1,clock,callbacks);rules.seek(map,0,clock,callbacks);rules.schedule(map,1,clock,callbacks);
+ assert.deepEqual(events,[['cum_event','start',false],['grant_break',undefined,false],['cum_event','end',false],['cum_event','start',true],['cum_event','end',true]]);
+});
+
+test('legacy checkpoint cursors become a once-only high-water ledger',()=>{
+ const map={beats:[{time:0,type:'stroke'},{time:1,type:'stroke'},{time:2,type:'stroke'}],events:[]},clock={next:2,event:0,last:1},hits=[];
+ rules.seek(map,0,clock);rules.schedule(map,1,clock,{beat:b=>hits.push(b.time),event:()=>{}});rules.schedule(map,2,clock,{beat:b=>hits.push(b.time),event:()=>{}});
+ assert.deepEqual(hits,[2]);assert.equal(clock.beatFloor,3);
+});
+
+test('rest beats and repeated samples cannot mint progression',()=>{
+ const map={beats:[{time:0,type:'rest'},{time:.5,type:'stroke'}],events:[]},clock={},hits=[];
+ const callbacks={beat:b=>hits.push(b.time),event:()=>{}};
+ for(const position of [0,0,.5,.5])rules.schedule(map,position,clock,callbacks);
+ assert.deepEqual(hits,[.5]);assert.equal(rules.seek(map,NaN,clock),false);assert.equal(rules.seek(map,-1,clock),false);
+});
+
+
+test('seek preserves release-start media side effects after a later release-end',()=>{
+ const map={beats:[],events:[{time:0,type:'media_change',value:'fast'},{time:.1,type:'cum_event',value:'start'},{time:.2,type:'cum_event',value:'end'}]},clock={},reconciled=[];
+ rules.seek(map,.3,clock,{reconcile:events=>reconciled.push(events)});
+ assert.deepEqual(reconciled[0],[map.events[1],map.events[2]]);
+ map.events.push({time:.25,type:'media_change',value:'slow'});rules.seek(map,.3,clock,{reconcile:events=>reconciled.push(events)});
+ assert.deepEqual(reconciled[1],[map.events[2],map.events[3]]);
+});
+
+
+test('replayed beats retain visual pulse callbacks without repeating score callbacks',()=>{
+ const map={beats:[{time:0,type:'stroke'},{time:.5,type:'rest'},{time:1,type:'stroke'}],events:[]},clock={},hits=[],pulses=[];
+ const callbacks={beat:b=>hits.push(b.time),replayBeat:b=>pulses.push(b.time),event:()=>{}};
+ rules.schedule(map,1,clock,callbacks);rules.seek(map,0,clock);rules.schedule(map,1,clock,callbacks);
+ assert.deepEqual(hits,[0,1]);assert.deepEqual(pulses,[0,1]);
+});

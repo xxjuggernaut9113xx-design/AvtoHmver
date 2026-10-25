@@ -18,7 +18,6 @@ local javascript = readFile(directory .. '/Scripts/bridge.js', 65536) .. '\n' ..
 local browser, owner, ownerAddress, storeAddress, epoch
 local generation = 0
 local lastRequest = 0
-local queued = false
 local failedOwner = nil
 local lastError = nil
 local lastUrl = nil
@@ -40,7 +39,7 @@ local function stringValue(value, field)
     return value:ToString()
 end
 local function nativeState(store)
-    local packs = {}
+    local packs, rows = {}, {}
     local infos = store:GetAllPackInfos()
     if #infos > 10000 then error('Native catalog exceeds 10000 packs.') end
     local function append(item)
@@ -56,16 +55,19 @@ local function nativeState(store)
             or type(count) ~= 'number' or count < 0 or count % 1 ~= 0 then
             error('Invalid native pack price or media count.')
         end
-        local owned = store:IsPackUnlocked(name)
-        packs[#packs + 1] = '{"id":' .. quote(name) .. ',"name":' .. quote(stringValue(item.Title, 'Title'))
-            .. ',"description":' .. quote(stringValue(item.Description, 'Description')) .. ',"unlock_cost":' .. tostring(cost)
-            .. ',"media_count":' .. tostring(count) .. ',"owned":' .. boolean(owned)
-            .. ',"enabled":' .. boolean(store:IsPackEnabled(name)) .. '}'
+        rows[#rows + 1] = {name=name,title=stringValue(item.Title,'Title'),description=stringValue(item.Description,'Description'),cost=cost,count=count}
     end
     if type(infos) == 'table' then
         for _, item in ipairs(infos) do append(item) end
     else
         infos:ForEach(function(_, parameter) append(parameter:get()) end)
+    end
+    for _, row in ipairs(rows) do
+        local owned, enabled = store:IsPackUnlocked(row.name), store:IsPackEnabled(row.name)
+        packs[#packs + 1] = '{"id":' .. quote(row.name) .. ',"name":' .. quote(row.title)
+            .. ',"description":' .. quote(row.description) .. ',"unlock_cost":' .. tostring(row.cost)
+            .. ',"media_count":' .. tostring(row.count) .. ',"owned":' .. boolean(owned)
+            .. ',"enabled":' .. boolean(enabled) .. '}'
     end
     return '{"unlock_points":' .. tostring(store:GetUnlockPoints()) .. ',"packs":[' .. table.concat(packs, ',') .. ']}'
 end
@@ -91,7 +93,7 @@ local function runtimeContext()
 end
 local Music = assert(loadfile(directory .. '/Scripts/music.lua'))()
 local Companion = assert(loadfile(directory .. '/Scripts/companion.lua'))()
-local approvedAudio, audioProbeDeadline
+local approvedAudio, audioProbeDeadline, audioControlProbe
 local stoppedMusic = {}
 local function musicBinding()
     local ok, _, profile = pcall(runtimeContext)
@@ -99,6 +101,10 @@ local function musicBinding()
 end
 local nativeMusic = Music.new({
     find=StaticFindObject,
+    registerTimespan=function()
+        RegisterCustomProperty({Name='FanserviceTimespanTicks',Type=PropertyTypes.Int64Property,
+            BelongsToClass='/Script/CoreUObject.Timespan',OffsetInternal=0})
+    end,
     spawn=function(class, outer) return StaticFindObject('/Script/Engine.Default__GameplayStatics'):SpawnObject(class, outer) end,
     currentBinding=musicBinding,
     authorize=function(url, binding) return approvedAudio and approvedAudio.url == url and approvedAudio.binding == binding end
@@ -110,9 +116,25 @@ local function musicActor()
 end
 local function audioJSON()
     local state = nativeMusic:status()
+    local probe = audioControlProbe
+    local controls = probe and ('{"phase":' .. quote(probe.phase) .. ',"passed":' .. boolean(probe.passed)
+        .. ',"error":' .. (probe.error and quote(probe.error) or 'null')
+        .. ',"pause_position":' .. tostring(probe.pause_position or 0)
+        .. ',"seek_position":' .. tostring(probe.seek_position or 0)
+        .. ',"reconnect_position":' .. tostring(probe.reconnect_position or 0) .. '}') or 'null'
     return '{"state":' .. quote(state.state) .. ',"position":' .. tostring(state.position)
         .. ',"duration":' .. tostring(state.duration) .. ',"advancing":' .. boolean(state.advancing)
         .. ',"error":' .. (state.error and quote(state.error) or 'null')
+        .. ',"reason":' .. (state.reason and quote(state.reason) or 'null')
+        .. ',"cleanup_error":' .. (state.cleanup_error and quote(state.cleanup_error) or 'null')
+        .. ',"native_ready":' .. (state.native_ready ~= nil and boolean(state.native_ready) or 'null')
+        .. ',"native_preparing":' .. (state.native_preparing ~= nil and boolean(state.native_preparing) or 'null')
+        .. ',"native_playing":' .. (state.native_playing ~= nil and boolean(state.native_playing) or 'null')
+        .. ',"native_buffering":' .. (state.native_buffering ~= nil and boolean(state.native_buffering) or 'null')
+        .. ',"native_position":' .. (state.native_position and quote(state.native_position) or 'null')
+        .. ',"native_duration":' .. (state.native_duration and quote(state.native_duration) or 'null')
+        .. ',"native_backend":' .. (state.native_backend and quote(state.native_backend) or 'null')
+        .. ',"controls":' .. controls
         .. ',"scope":"native audio transport; rhythm-session integration remains gated"}'
 end
 local function stopNativeMusic(reason)
@@ -123,27 +145,55 @@ local function stopNativeMusic(reason)
     end
     approvedAudio = nil
 end
+local function stepAudioControlProbe()
+    local probe = audioControlProbe
+    if not probe or probe.phase == 'complete' or probe.phase == 'failed' then return end
+    if not approvedAudio or approvedAudio.url ~= probe.url or approvedAudio.binding ~= probe.binding then
+        probe.phase, probe.error = 'failed', 'Synthetic audio ownership changed.'; return
+    end
+    local function phase(value) probe.phase, probe.deadline = value, os.time() + 8 end
+    local ok, problem = pcall(function()
+        local state = nativeMusic:status()
+        if state.state == 'error' or state.state == 'stopped' or state.state == 'ended' then error(state.error or 'Synthetic audio stopped before control verification.') end
+        if os.time() > probe.deadline then error('Synthetic audio control phase timed out: ' .. probe.phase) end
+        if probe.phase == 'opening' and state.state == 'playing' and state.position > 0.15 then
+            nativeMusic:pause(); probe.pause_position = state.position; probe.paused_until = os.time() + 1; phase('paused')
+        elseif probe.phase == 'paused' then
+            if state.state ~= 'paused' or math.abs(state.position - probe.pause_position) > 0.05 then error('Synthetic audio did not hold its paused clock.') end
+            if os.time() >= probe.paused_until then nativeMusic:seek(4); phase('seeking') end
+        elseif probe.phase == 'seeking' and state.state == 'paused' and math.abs(state.position - 4) <= 0.25 then
+            probe.seek_position = state.position; nativeMusic:resume(); phase('resuming')
+        elseif probe.phase == 'resuming' and state.state == 'playing' and state.position > 4.2 then
+            probe.reconnect_from = state.position; nativeMusic:reconnect(); phase('reconnecting')
+        elseif probe.phase == 'reconnecting' and state.state == 'playing' and state.position > probe.reconnect_from + 0.1 then
+            probe.reconnect_position = state.position; probe.phase, probe.passed = 'complete', true
+            audioProbeDeadline = nil; stopNativeMusic('synthetic audio controls verified')
+        end
+    end)
+    if not ok then
+        probe.phase, probe.error = 'failed', tostring(problem); audioProbeDeadline = nil
+        stopNativeMusic('synthetic audio controls failed')
+    end
+end
 local nativeCompanion = Companion.new({directory=directory,quote=quote,
     stoppedMusic=function() local values={} for _,token in ipairs(stoppedMusic) do values[#values+1]=quote(token) end return '[' .. table.concat(values,',') .. ']' end,
-    openMusic=function(url, map, nonce)
+    openMusic=function(url, map, nonce, duration)
         if #map > 4 * 1024 * 1024 then error('Native beatmap exceeds its limit.') end
         local binding = musicBinding()
         stopNativeMusic('replaced')
         approvedAudio = {url=url,binding=binding,nonce=nonce}
-        nativeMusic:open(url,musicActor(),binding)
+        nativeMusic:open(url,musicActor(),binding,duration)
     end})
 local function companionPulse()
     local store, profile = runtimeContext()
     nativeCompanion:update(profile,nativeState(store),profileGeneration,epoch or baseEpoch)
 end
-local audioQueued = false
-LoopAsync(25,function()
-    if audioQueued then return false end
-    audioQueued = true
-    ExecuteInGameThread(function()
+assert(type(LoopInGameThreadWithDelay) == 'function', 'The pinned loader game-thread loop API is required.')
+LoopInGameThreadWithDelay(25, function()
         local ok, problem = pcall(function()
             if approvedAudio and browser and (not owner or not owner:IsValid() or not owner:IsInViewport() or not owner:IsVisible()) then stopNativeMusic('Import closed') end
             nativeMusic:sample()
+            stepAudioControlProbe()
             if audioProbeDeadline and os.time() >= audioProbeDeadline then
                 stopNativeMusic('synthetic probe complete');audioProbeDeadline = nil
             elseif nativeMusic:status().state == 'ended' then
@@ -153,9 +203,6 @@ LoopAsync(25,function()
             end
         end)
         if not ok then log('Native audio sampling failed: ' .. tostring(problem)) end
-        audioQueued = false
-    end)
-    return false
 end)
 local function stopDiagnosticVideo()
     if diagnosticController and diagnosticController:IsValid() then diagnosticController:StopPlayback(false) end
@@ -207,7 +254,7 @@ local function diagnosticRequest()
     lastDiagnosticRequest = nonce
     local ok, result = pcall(function()
         if action ~= 'status' and action ~= 'catalog' and action ~= 'profile'
-            and action ~= 'enablefixture' and action ~= 'probevideo' and action ~= 'probeaudio' then
+            and action ~= 'enablefixture' and action ~= 'probevideo' and action ~= 'probeaudio' and action ~= 'probeaudiocontrols' and action ~= 'probeaudiooffline' then
             error('Runtime MCP action is not supported.')
         end
         local store, profile = runtimeContext()
@@ -221,14 +268,15 @@ local function diagnosticRequest()
             return '{"enabled":' .. boolean(store:IsPackEnabled(fixture)) .. ',"unlock_points":'
                 .. tostring(before) .. ',"pack":' .. quote(fixture) .. '}'
         end
-        if action == 'probeaudio' then
+        if action == 'probeaudio' or action == 'probeaudiocontrols' or action == 'probeaudiooffline' then
             local fixture = diagnosticFixture(store)
             if not store:IsPackEnabled(fixture) then error('Enable the synthetic fixture before its audio probe.') end
             stopNativeMusic('synthetic probe requested')
             local binding = musicBinding()
-            approvedAudio = {url='http://127.0.0.1:42170/synthetic-tone.m4a',binding=binding}
-            audioProbeDeadline = os.time() + 10
-            nativeMusic:open(approvedAudio.url,musicActor(),binding)
+            approvedAudio = {url=action == 'probeaudiooffline' and 'file:///E:/fanservice-mod-lab/v004-native/synthetic-http/synthetic-tone.m4a' or 'http://127.0.0.1:42170/synthetic-tone.m4a',binding=binding}
+            audioControlProbe = action ~= 'probeaudio' and {phase='opening',binding=binding,url=approvedAudio.url,deadline=os.time()+8,passed=false} or nil
+            audioProbeDeadline = os.time() + (audioControlProbe and 30 or 10)
+            nativeMusic:open(approvedAudio.url,musicActor(),binding,12)
             return '{"started":true,"scope":"fixed synthetic native audio transport; no gameplay or age-screen action"}'
         end
         if action == 'probevideo' then
@@ -341,10 +389,7 @@ for _, event in ipairs({'Init', 'ReloadSave'}) do
         profileChanged = true
     end)
 end
-LoopAsync(500, function()
-    if queued then return false end
-    queued = true
-    ExecuteInGameThread(function()
+LoopInGameThreadWithDelay(500, function()
         local ok, problem = pcall(function()
             diagnosticRequest()
             if profileChanged then
@@ -375,7 +420,4 @@ LoopAsync(500, function()
             lastError = tostring(problem)
             log('Adapter error: ' .. lastError)
         end
-        queued = false
-    end)
-    return false
 end)
