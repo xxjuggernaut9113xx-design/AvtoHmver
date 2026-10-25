@@ -12,6 +12,7 @@
   let sequence = 0;
   let current = null;
   const queue = [];
+  const companionActions = new Set(['companionread','definitions','definitionsbegin','definitionschunk','definitionscommit','snapshotdownload','snapshotdelete','synchandshake','syncconfigure','syncupload','syncpreview','syncapply','musicprepare','sessionrelease','musicstatus','musicpause','musicresume','musicseek','musicreconnect','musicstop']);
   function cancelAll(message) {
     if (current) {
       clearTimeout(current.timer);
@@ -28,7 +29,7 @@
     pending.timer = setTimeout(() => {
       if (current !== pending) return;
       finish(new Error('The native game did not respond within 10 seconds.'));
-    }, 10000);
+    }, pending.action === 'state' ? 10000 : 600000);
     document.title = 'FANSERVICE_RPC:' + epoch + ':' + pending.id + ':' + pending.action + ':' +
       encodeURIComponent(pending.packName);
   }
@@ -45,7 +46,19 @@
     return new Promise((resolve, reject) => {
       if (globalThis.__fanserviceNativeEpoch !== epoch) transport.revoke();
       if (revoked) return reject(new Error('The native game connection is closed.'));
-      if (action !== 'state' || packName !== '') {
+      if (companionActions.has(action)) {
+        if (packName === '') packName = {};
+        if (!packName || typeof packName !== 'object' || Array.isArray(packName)) return reject(new Error('Invalid native companion payload.'));
+        if (action === 'syncconfigure') {
+          const fields = ['handshake_token','public_key','iv','ciphertext'];
+          if (Object.keys(packName).some(key => !fields.includes(key))) return reject(new Error('Sync credentials require the sealed transport.'));
+          const sealed = {};
+          for (const key of fields) { const value = packName[key]; if (typeof value !== 'string') return reject(new Error('Sync credentials require the sealed transport.')); sealed[key] = value; }
+          packName = sealed;
+        }
+        try { packName = JSON.stringify(packName); } catch { return reject(new Error('Invalid native companion payload.')); }
+        if (packName.length > 60000) return reject(new Error('Native companion payload exceeds its limit.'));
+      } else if (action !== 'state' || packName !== '') {
         return reject(new Error('Invalid native pack request.'));
       }
       if (queue.length + (current ? 1 : 0) >= 16) {
@@ -86,7 +99,11 @@
           throw new Error(payload && typeof payload.error === 'string' ? payload.error.slice(0, 2000) :
             'The native game rejected this request.');
         }
-        finish(null, validateState(payload.state));
+        if (current.action === 'state') finish(null, validateState(payload.state));
+        else {
+          if (!payload.data || typeof payload.data !== 'object' || Array.isArray(payload.data)) throw new Error('Invalid native companion reply.');
+          finish(null, payload.data);
+        }
       } catch (error) {
         finish(error);
       }
@@ -95,6 +112,7 @@
     revoke() {
       if (revoked) return;
       revoked = true;
+      globalThis.FanserviceNativeControls?.revoke();
       cancelAll('The native game connection is closed.');
       if (draftsButton) draftsButton.textContent = previousLabel;
       globalThis.removeEventListener('pagehide', onPageHide);

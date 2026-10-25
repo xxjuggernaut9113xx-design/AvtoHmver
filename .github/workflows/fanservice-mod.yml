@@ -32,6 +32,10 @@ jobs:
         run: |
           npm ci --prefix mod/mcp
           npm test --prefix mod/mcp
+      - name: Validate native companion and Lua transport contracts
+        run: |
+          npm ci --prefix mod/native
+          npm test --prefix mod/native
       - name: Publish compatibility status, not a game or mod installer
         uses: actions/upload-artifact@v4
         with:

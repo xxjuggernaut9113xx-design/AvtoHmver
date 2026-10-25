@@ -1,5 +1,10 @@
 # v0.04 embedded adapter candidate
 
+October 25 continuation: [native companion candidate](../native/README.md) adds
+profile-bound storage/sync, protected key exchange and native audio-preview
+transport. Rhythm-session integration and in-game acceptance remain open.
+Earlier catalog-only observations below describe the preceding checkpoint.
+
 This module attaches the shared Lite frontend inside the ordinary native Import
 menu. It uses reflected UGameplayStatics::SpawnObject, allowing the game to build
 the browser with its own construction parameters. It does not invoke the direct

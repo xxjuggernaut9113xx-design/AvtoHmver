@@ -38,3 +38,10 @@ it is not an authorization boundary against another process with the same write
 access. No listener is exposed to the network.
 
 Run npm test --prefix mod/mcp for filesystem/protocol and real stdio MCP tests.
+
+The current source also exposes native_probe_audio: a fixed neutral twelve-second
+AAC source, on separately owned native MediaPlayer/MediaSoundComponent objects,
+with a ten-second diagnostic lifetime. It does not start a game, submit age
+confirmation or dispatch gameplay events. Updated tools require the corresponding
+Lua revision to be loaded on a normal launch; registering this tool is not proof
+of actual decoder playback. See ../native/README.md for the acceptance boundary.

@@ -33,7 +33,7 @@ function setup({pathname = '/fanservice/index.html', epoch = '123-456'} = {}) {
   Object.defineProperty(document, 'title', {get: () => title, set: value => { title = value; titles.push(value); }});
   const globalEvents = {};
   const sandbox = {document, location: {pathname}, __fanserviceNativeEpoch: epoch,
-    setTimeout(callback, delay) { assert.equal(delay, 10000); timers.set(++timerId, callback); return timerId; },
+    setTimeout(callback, delay) { assert.ok([10000,600000].includes(delay)); timers.set(++timerId, callback); return timerId; },
     clearTimeout(id) { timers.delete(id); },
     addEventListener(name, listener) { globalEvents[name] = listener; },
     removeEventListener(name) { delete globalEvents[name]; }};
@@ -202,4 +202,23 @@ test('page close revokes read-only work without modifying native ownership', asy
   assert.equal(h.transport.receive(oldId, {ok: true, state: state()}), false);
   assert.equal(h.document.title, '');
   assert.equal(h.timers.size, 0);
+});
+
+
+test('companion requests serialize bounded JSON without granting native ownership operations', async()=>{
+ const h=setup(),payload={expected_revision:1,packs:[]},pending=h.transport.request('definitions',payload),id=h.requestId;
+ assert.ok(h.document.title.endsWith(':definitions:'+encodeURIComponent(JSON.stringify(payload))));
+ h.transport.receive(id,{ok:true,data:{revision:2,packs:[]}});assert.equal((await pending).revision,2);
+ await assert.rejects(h.transport.request('definitions','arbitrary payload'),/Invalid/);
+ await assert.rejects(h.transport.request('definitions',{text:'x'.repeat(60001)}),/limit/);
+ for(const action of ['purchase','enable','disable','sync_import','exec'])await assert.rejects(h.transport.request(action,{}),/Invalid/);
+});
+test('closing the page rejects companion jobs and removes native controls', async()=>{
+ const h=setup();let cleaned=0;h.sandbox.FanserviceNativeControls={revoke(){cleaned++;}};
+ const pending=h.transport.request('companionread'),rejected=assert.rejects(pending,/closed/);h.transport.revoke();await rejected;assert.equal(cleaned,1);assert.equal(h.timers.size,0);
+});
+
+
+test('plaintext sync keys are rejected before entering the page title',async()=>{
+ const h=setup(),secret='a'.repeat(64);await assert.rejects(h.transport.request('syncconfigure',{id:'profile',key:secret,revision:0}),/sealed/);assert.equal(h.titles.some(title=>title.includes(secret)),false);assert.equal(h.timers.size,0);
 });

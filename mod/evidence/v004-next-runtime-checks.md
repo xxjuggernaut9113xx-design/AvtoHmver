@@ -1,5 +1,10 @@
 # Remaining runtime boundaries
 
+Updated October 25: the later [native MCP evidence](v004-runtime-mcp.md)
+confirms synthetic HTTP video decoding. The [native companion candidate](../native/README.md)
+implements storage/sync/audio-preview components with separate validation scopes.
+The older pending observations below are retained for investigation history.
+
 The original Unlocks controls remain authoritative. The user verified the revised
 draft-only embedded UI. The following are separate unresolved integrations.
 

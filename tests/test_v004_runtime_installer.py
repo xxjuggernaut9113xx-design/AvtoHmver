@@ -1,5 +1,9 @@
 import hashlib
 import json
+import os
+import shutil
+import subprocess
+import time
 from pathlib import Path
 import sys
 import tempfile
@@ -29,13 +33,20 @@ class RuntimeInstallerTests(unittest.TestCase):
         (self.source / 'Scripts').mkdir(parents=True)
         (self.source / 'Scripts/main.lua').write_text('print("fixture")')
         (self.source / 'Scripts/bridge.js').write_text('void 0;')
+        for name in runtime.RUNTIME_FILES:
+            if not (self.source / name).exists():
+                (self.source / name).write_text('fixture companion payload')
+        self.native_source = self.root / 'native'
+        self.native_source.mkdir()
+        for name in runtime.NATIVE_FILES:
+            (self.native_source / name).write_text('fixture native worker')
         (self.source / 'server-origin.txt').write_text('http://127.0.0.1:42168')
         self.registry = self.root / 'registry.json'
         self.data = dict(schema=1, supported_builds=[], candidates=[dict(id=runtime.packs.TARGET,
             files={}, verified={key: True for key in runtime.GATES})],
             loader_probe={'sha256': hashlib.sha256(self.archive.read_bytes()).hexdigest()})
         self.save_registry()
-        for name, value in [('REGISTRY', self.registry), ('SOURCE', self.source)]:
+        for name, value in [('REGISTRY', self.registry), ('SOURCE', self.source), ('NATIVE_SOURCE', self.native_source)]:
             mocked = patch.object(runtime, name, value)
             mocked.start()
             self.addCleanup(mocked.stop)
@@ -45,6 +56,37 @@ class RuntimeInstallerTests(unittest.TestCase):
         mocked = patch.object(runtime.packs, '_require_closed')
         mocked.start()
         self.addCleanup(mocked.stop)
+
+    def test_running_companion_lock_prevents_runtime_changes(self):
+        runtime.install(self.game, self.archive, origin='http://127.0.0.1:42168')
+        lock = self.binary / runtime.PREFIX / '.fanservice-companion.host.lock'
+        lock.write_text('a' * 32)
+        before = (self.binary / runtime.PREFIX / 'Scripts/main.lua').read_bytes()
+        with self.assertRaisesRegex(ValueError, 'Stop the helper'):
+            runtime.remove(self.game)
+        self.assertEqual((self.binary / runtime.PREFIX / 'Scripts/main.lua').read_bytes(), before)
+        self.assertEqual(lock.read_text(), 'a' * 32)
+
+    @unittest.skipUnless(os.name == 'nt', 'Windows launcher process test')
+    def test_launcher_passes_quoted_paths_to_only_its_helper(self):
+        game = self.root / 'game with spaces'
+        binary = game / 'CockHero/Binaries/Win64'
+        runtime_dir = binary / 'ue4ss/Mods/Fanservice'
+        native = runtime_dir / 'Native'
+        native.mkdir(parents=True)
+        (binary / 'CockHero.exe').write_bytes(b'never executed')
+        launcher = runtime.ROOT / 'runtime/Start-FanserviceNative.ps1'
+        shutil.copy2(launcher, runtime_dir / launcher.name)
+        (native / 'host.mjs').write_text("import {writeFileSync} from 'node:fs';writeFileSync(new URL('./received-args.json',import.meta.url),JSON.stringify(process.argv.slice(2)));", encoding='utf-8')
+        data = self.root / 'companion data with spaces'
+        env = dict(os.environ, LOCALAPPDATA=str(self.root / 'local app data'))
+        subprocess.run(['powershell.exe', '-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', str(runtime_dir / launcher.name), '-CompanionDataRoot', str(data)], env=env, capture_output=True, check=True, timeout=20)
+        received = native / 'received-args.json'
+        deadline = time.monotonic() + 10
+        while not received.exists() and time.monotonic() < deadline:
+            time.sleep(.05)
+        self.assertEqual(json.loads(received.read_text()), ['--runtime-dir', str(runtime_dir), '--game-root', str(game), '--store-root', str(data)])
+        self.assertEqual((binary / 'CockHero.exe').read_bytes(), b'never executed')
 
     def save_registry(self):
         self.registry.write_text(json.dumps(self.data))

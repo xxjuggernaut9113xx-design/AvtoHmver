@@ -20,7 +20,8 @@ const definitions = {
   native_enable_fixture: {action: 'enablefixture', readOnly: false, idempotent: true,
     description: 'Enable only the fixed, already-owned synthetic test pack configured locally in mcp-test-pack.txt, through the original native backend. No purchase or UP grant.'},
   native_probe_video: {action: 'probevideo', readOnly: false, idempotent: false,
-    description: 'Start the fixed localhost synthetic-video probe on a separate native decoder object. No UI input, age-screen interaction or caller-selected path/URL.'}
+    description: 'Start the fixed localhost synthetic-video probe on a separate native decoder object. No UI input, age-screen interaction or caller-selected path/URL.'},
+  native_probe_audio: {action: 'probeaudio', readOnly: false, idempotent: false, description: 'Start a fixed neutral native audio decoder probe. No gameplay start, age action, UP change or caller URL.'}
 };
 const server = new Server({name: 'fanservice-native-runtime', version: '0.1.0'}, {capabilities: {tools: {}}});
 server.setRequestHandler(ListToolsRequestSchema, async () => ({tools: Object.entries(definitions).map(([name, definition]) => ({

@@ -84,3 +84,8 @@ claim that the original-game mod works.
 Packaged-game MCP diagnostics and bounded synthetic decoder probes are available
 in [mod/mcp](mcp/README.md). See [native runtime acceptance](evidence/v004-runtime-mcp.md)
 for passed checks and the remaining gameplay insertion gap.
+
+The [native Windows companion candidate](native/README.md) and
+[October 25 evidence](evidence/v004-native-companion-20261025.md) cover the new
+profile-bound snapshot/sync implementation and native audio preview. Rhythm
+session integration and current-revision original-game acceptance remain gated.

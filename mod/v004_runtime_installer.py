@@ -15,12 +15,16 @@ from verify_compatibility import identify, validate_registry, REGISTRY
 
 ROOT = Path(__file__).resolve().parent
 SOURCE = ROOT / 'runtime'
+NATIVE_SOURCE = ROOT / 'native'
+RUNTIME_FILES = ('Scripts/main.lua', 'Scripts/bridge.js', 'Scripts/music.lua', 'Scripts/companion.lua', 'Scripts/native-controls.js', 'Start-FanserviceNative.ps1', 'Start-FanserviceNative.cmd', 'Stop-FanserviceNative.cmd')
+NATIVE_FILES = ('host.mjs', 'companion-store.mjs', 'game-identity.mjs')
 MANIFEST = '.fanservice-runtime.json'
 GATES = ('loader_startup', 'lite_open_and_return_from_original_import', 'native_catalog_query')
 LOADER_FILES = ('dwmapi.dll', 'ue4ss/UE4SS.dll', 'ue4ss/LICENSE')
 PREFIX = 'ue4ss/Mods/Fanservice/'
 OWNED = frozenset((*LOADER_FILES, 'ue4ss/UE4SS-settings.ini', 'ue4ss/Mods/mods.txt',
-                   PREFIX + 'Scripts/main.lua', PREFIX + 'Scripts/bridge.js', PREFIX + 'server-origin.txt'))
+                   *(PREFIX + name for name in RUNTIME_FILES),
+                   *(PREFIX + 'Native/' + name for name in NATIVE_FILES), PREFIX + 'server-origin.txt'))
 SETTINGS = b'''[General]
 EnableHotReloadSystem = 0
 EnableAutoReloadingLuaMods = 0
@@ -70,6 +74,9 @@ def _directory(game_root, *, require_gates, mutation=True):
         raise ValueError('Game binary directory is missing.')
     if mutation:
         packs._require_closed(directory / 'packs')
+        helper_lock = directory / PREFIX / '.fanservice-companion.host.lock'
+        if helper_lock.exists() or helper_lock.is_symlink():
+            raise ValueError('A native companion host lock exists. Stop the helper before changing runtime; stale locks are retained.')
     return directory, registry
 
 
@@ -179,10 +186,11 @@ def install(game_root, loader_archive, *, origin=None):
             if len(matches) != 1 or not 0 < matches[0].file_size <= 128 * 1024 * 1024:
                 raise ValueError('Pinned loader archive has invalid required members.')
             contents[relative] = archive.read(matches[0])
-    if packs._reparse(SOURCE) or packs._reparse(SOURCE / 'Scripts'):
+    if packs._reparse(SOURCE) or packs._reparse(SOURCE / 'Scripts') or packs._reparse(NATIVE_SOURCE):
         raise ValueError('Runtime source directory must not be linked.')
-    for relative in ('Scripts/main.lua', 'Scripts/bridge.js'):
-        path = SOURCE / relative
+    sources = [(name, SOURCE / name) for name in RUNTIME_FILES]
+    sources.extend(('Native/' + name, NATIVE_SOURCE / name) for name in NATIVE_FILES)
+    for relative, path in sources:
         if not path.is_file() or packs._reparse(path) or not 0 < path.stat().st_size <= 256 * 1024:
             raise ValueError('Runtime source is missing, linked or exceeds its size limit.')
         contents[PREFIX + relative] = path.read_bytes()

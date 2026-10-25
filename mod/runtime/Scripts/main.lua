@@ -14,7 +14,7 @@ assert(scheme and not host:find('%.%.') and (port == '' or tonumber(port) >= 1 a
        'Set server-origin.txt to a Server origin without a path, credentials or query.')
 assert(scheme == 'https' or host == '127.0.0.1' or host == 'localhost', 'Remote Server origins require HTTPS.')
 local page = origin .. '/fanservice/'
-local javascript = readFile(directory .. '/Scripts/bridge.js', 65536)
+local javascript = readFile(directory .. '/Scripts/bridge.js', 65536) .. '\n' .. readFile(directory .. '/Scripts/native-controls.js',65536)
 local browser, owner, ownerAddress, storeAddress, epoch
 local generation = 0
 local lastRequest = 0
@@ -23,6 +23,8 @@ local failedOwner = nil
 local lastError = nil
 local lastUrl = nil
 local profileChanged = false
+local profileGeneration = 0
+local baseEpoch = tostring(os.time()) .. '-' .. tostring(math.random(1,2147483647))
 local function log(message) print('[Fanservice] ' .. message .. '\n') end
 local function quote(value)
     return '"' .. tostring(value):gsub('[%z\1-\31\\"]', function(character)
@@ -87,6 +89,74 @@ local function runtimeContext()
         .. ',"user_index":' .. tostring(user) .. ',"save_address":' .. quote(tostring(save:GetAddress()))
         .. ',"store_address":' .. quote(tostring(store:GetAddress())) .. '}'
 end
+local Music = assert(loadfile(directory .. '/Scripts/music.lua'))()
+local Companion = assert(loadfile(directory .. '/Scripts/companion.lua'))()
+local approvedAudio, audioProbeDeadline
+local stoppedMusic = {}
+local function musicBinding()
+    local ok, _, profile = pcall(runtimeContext)
+    return ok and (profile .. ':' .. tostring(profileGeneration)) or nil
+end
+local nativeMusic = Music.new({
+    find=StaticFindObject,
+    spawn=function(class, outer) return StaticFindObject('/Script/Engine.Default__GameplayStatics'):SpawnObject(class, outer) end,
+    currentBinding=musicBinding,
+    authorize=function(url, binding) return approvedAudio and approvedAudio.url == url and approvedAudio.binding == binding end
+})
+local function musicActor()
+    local actor = FindFirstOf('BP_GlobalManager_C')
+    if actor:IsValid() then return actor end
+    return StaticFindObject('/Script/Engine.Default__GameplayStatics'):GetPlayerController(FindFirstOf('BP_CHGameInstance_C'), 0)
+end
+local function audioJSON()
+    local state = nativeMusic:status()
+    return '{"state":' .. quote(state.state) .. ',"position":' .. tostring(state.position)
+        .. ',"duration":' .. tostring(state.duration) .. ',"advancing":' .. boolean(state.advancing)
+        .. ',"error":' .. (state.error and quote(state.error) or 'null')
+        .. ',"scope":"native audio transport; rhythm-session integration remains gated"}'
+end
+local function stopNativeMusic(reason)
+    nativeMusic:stop(reason)
+    if approvedAudio and approvedAudio.nonce then
+        stoppedMusic[#stoppedMusic+1] = approvedAudio.nonce
+        if #stoppedMusic > 128 then table.remove(stoppedMusic,1) end
+    end
+    approvedAudio = nil
+end
+local nativeCompanion = Companion.new({directory=directory,quote=quote,
+    stoppedMusic=function() local values={} for _,token in ipairs(stoppedMusic) do values[#values+1]=quote(token) end return '[' .. table.concat(values,',') .. ']' end,
+    openMusic=function(url, map, nonce)
+        if #map > 4 * 1024 * 1024 then error('Native beatmap exceeds its limit.') end
+        local binding = musicBinding()
+        stopNativeMusic('replaced')
+        approvedAudio = {url=url,binding=binding,nonce=nonce}
+        nativeMusic:open(url,musicActor(),binding)
+    end})
+local function companionPulse()
+    local store, profile = runtimeContext()
+    nativeCompanion:update(profile,nativeState(store),profileGeneration,epoch or baseEpoch)
+end
+local audioQueued = false
+LoopAsync(25,function()
+    if audioQueued then return false end
+    audioQueued = true
+    ExecuteInGameThread(function()
+        local ok, problem = pcall(function()
+            if approvedAudio and browser and (not owner or not owner:IsValid() or not owner:IsInViewport() or not owner:IsVisible()) then stopNativeMusic('Import closed') end
+            nativeMusic:sample()
+            if audioProbeDeadline and os.time() >= audioProbeDeadline then
+                stopNativeMusic('synthetic probe complete');audioProbeDeadline = nil
+            elseif nativeMusic:status().state == 'ended' then
+                stopNativeMusic('recording complete')
+            elseif approvedAudio and (nativeMusic:status().state == 'stopped' or nativeMusic:status().state == 'error') then
+                stopNativeMusic('transport closed')
+            end
+        end)
+        if not ok then log('Native audio sampling failed: ' .. tostring(problem)) end
+        audioQueued = false
+    end)
+    return false
+end)
 local function stopDiagnosticVideo()
     if diagnosticController and diagnosticController:IsValid() then diagnosticController:StopPlayback(false) end
     diagnosticController, diagnosticImage, diagnosticDeadline, diagnosticSave = nil, nil, nil, nil
@@ -137,7 +207,7 @@ local function diagnosticRequest()
     lastDiagnosticRequest = nonce
     local ok, result = pcall(function()
         if action ~= 'status' and action ~= 'catalog' and action ~= 'profile'
-            and action ~= 'enablefixture' and action ~= 'probevideo' then
+            and action ~= 'enablefixture' and action ~= 'probevideo' and action ~= 'probeaudio' then
             error('Runtime MCP action is not supported.')
         end
         local store, profile = runtimeContext()
@@ -150,6 +220,16 @@ local function diagnosticRequest()
             if store:GetUnlockPoints() ~= before then error('Unexpected native UP change while enabling fixture.') end
             return '{"enabled":' .. boolean(store:IsPackEnabled(fixture)) .. ',"unlock_points":'
                 .. tostring(before) .. ',"pack":' .. quote(fixture) .. '}'
+        end
+        if action == 'probeaudio' then
+            local fixture = diagnosticFixture(store)
+            if not store:IsPackEnabled(fixture) then error('Enable the synthetic fixture before its audio probe.') end
+            stopNativeMusic('synthetic probe requested')
+            local binding = musicBinding()
+            approvedAudio = {url='http://127.0.0.1:42170/synthetic-tone.m4a',binding=binding}
+            audioProbeDeadline = os.time() + 10
+            nativeMusic:open(approvedAudio.url,musicActor(),binding)
+            return '{"started":true,"scope":"fixed synthetic native audio transport; no gameplay or age-screen action"}'
         end
         if action == 'probevideo' then
             local fixture = diagnosticFixture(store)
@@ -174,7 +254,7 @@ local function diagnosticRequest()
         local menu = FindFirstOf('ImportMenuWidget_C')
         local visible = menu:IsValid() and menu:IsInViewport() and menu:IsVisible()
         return '{"ready":true,"read_only":true,"original_unlocks_authoritative":true,"import_visible":'
-            .. boolean(visible) .. ',"profile":' .. profile .. ',"video_probe":' .. diagnosticVideo .. '}'
+            .. boolean(visible) .. ',"profile":' .. profile .. ',"video_probe":' .. diagnosticVideo .. ',"audio_probe":' .. audioJSON() .. '}'
     end)
     if ok and #result > 4 * 1024 * 1024 then ok, result = false, 'Native diagnostic response exceeds 4 MiB.' end
     local response = '{"protocol":1,"nonce":' .. quote(nonce)
@@ -195,6 +275,8 @@ local function revoke()
         browser:ExecuteJavascript('globalThis.FanserviceNativeTransport && globalThis.FanserviceNativeTransport.revoke()')
         browser:RemoveFromParent()
     end
+    stopNativeMusic('Import closed; rhythm-session integration is not active')
+    nativeCompanion:cancel('Native menu closed. Stale work was discarded.')
     browser, owner, ownerAddress, storeAddress, epoch = nil, nil, nil, nil, nil
     lastRequest = 0
 end
@@ -214,7 +296,7 @@ local function attach(menu, store)
     slot:SetZOrder(100)
     generation = generation + 1
     owner, ownerAddress, storeAddress = menu, menu:GetAddress(), store:GetAddress()
-    epoch = tostring(os.time()) .. '-' .. tostring(generation) .. '-' .. tostring(storeAddress)
+    epoch = baseEpoch .. '-' .. tostring(generation) .. '-' .. tostring(storeAddress)
     lastRequest = 0
     child:LoadURL(page)
     log('Embedded Lite opened through ordinary Import. Generation ' .. tostring(generation))
@@ -225,25 +307,37 @@ local function handle(store)
     if currentUrl:sub(1, #page) ~= page then return end
     browser:ExecuteJavascript('globalThis.__fanserviceNativeEpoch=' .. quote(epoch) .. ';' .. javascript)
     local title = stringValue(browser:GetTitleText())
-    if #title > 4096 then return end
+    if #title > 65536 then return end
     local requestEpoch, id, action, encoded = title:match('^FANSERVICE_RPC:([%d%-]+):(%d+):([a-z]+):(.*)$')
     id = tonumber(id)
     if requestEpoch ~= epoch or not id or id <= lastRequest or id > 2147483647 then return end
     lastRequest = id
-    local ok, result = pcall(function()
-        if action ~= 'state' or encoded ~= '' then
-            error('Use the original Unlocks menu to purchase or enable packs.')
+    local target, requestEpochSnapshot = browser, epoch
+    local function reply(payload)
+        if browser == target and epoch == requestEpochSnapshot and target:IsValid() then
+            target:ExecuteJavascript('globalThis.FanserviceNativeTransport && globalThis.FanserviceNativeTransport.receive(' .. tostring(id) .. ',' .. payload .. ')')
         end
-        local state = nativeState(store)
-        return '{"ok":true,"state":' .. state .. '}'
+    end
+    local ok, problem = pcall(function()
+        if action == 'state' and encoded == '' then
+            reply('{"ok":true,"state":' .. nativeState(store) .. '}')
+        elseif action == 'musicstatus' then reply('{"ok":true,"data":' .. audioJSON() .. '}')
+        elseif action == 'musicpause' then nativeMusic:pause();reply('{"ok":true,"data":' .. audioJSON() .. '}')
+        elseif action == 'musicresume' then nativeMusic:resume();reply('{"ok":true,"data":' .. audioJSON() .. '}')
+        elseif action == 'musicreconnect' then nativeMusic:reconnect();reply('{"ok":true,"data":' .. audioJSON() .. '}')
+        elseif action == 'musicstop' then stopNativeMusic('user stopped');reply('{"ok":true,"data":' .. audioJSON() .. '}')
+        elseif action == 'musicseek' then
+            local value = Companion.decode(encoded):match('^%{"position":([%d%.]+)%}$')
+            if not value then error('Invalid native seek position.') end
+            nativeMusic:seek(tonumber(value));reply('{"ok":true,"data":' .. audioJSON() .. '}')
+        else nativeCompanion:request(action,encoded,reply) end
     end)
-    local payload = ok and result or '{"ok":false,"error":' .. quote(tostring(result):gsub('^.-:%d+: ', '')) .. '}'
-    browser:ExecuteJavascript('globalThis.FanserviceNativeTransport && globalThis.FanserviceNativeTransport.receive('
-                              .. tostring(id) .. ',' .. payload .. ')')
+    if not ok then reply('{"ok":false,"error":' .. quote(tostring(problem)) .. '}') end
 end
 log('v0.04 embedded menu adapter loaded. Native UP remains authoritative.')
 for _, event in ipairs({'Init', 'ReloadSave'}) do
     RegisterHook('/Script/CockHero.CHPackStoreController:' .. event, function()
+        profileGeneration = profileGeneration + 1
         profileChanged = true
     end)
 end
@@ -261,6 +355,7 @@ LoopAsync(500, function()
             local menu = FindFirstOf('ImportMenuWidget_C')
             if not menu:IsValid() or not menu:IsInViewport() or not menu:IsVisible() then
                 if browser then revoke() end
+                companionPulse()
                 return
             end
             local store = FindFirstOf('CHPackStoreController')
@@ -274,6 +369,7 @@ LoopAsync(500, function()
                 failedOwner = nil
             end
             handle(store)
+            companionPulse()
         end)
         if not ok and tostring(problem) ~= lastError then
             lastError = tostring(problem)
