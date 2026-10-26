@@ -75,3 +75,24 @@ test('remote browsers do not expose same-computer staging or request local paths
   await h.click('open');
   assert.equal(h.calls.length, 0);
 });
+
+test('Organization exposes working transfer actions and limits linked staging to this computer', () => {
+  const source = fs.readFileSync('static/library.js', 'utf8');
+  const render = source.slice(source.indexOf('function renderGroupsPanel('), source.indexOf('async function reviewSourceTag('));
+  for (const hostname of ['127.0.0.1', '100.64.0.2']) {
+    const calls = [];
+    const node = () => ({children: [], events: {}, classList: {add() {}},
+      append(...items) {this.children.push(...items);}, replaceChildren(...items) {this.children = items;},
+      addEventListener(name, fn) {this.events[name] = fn;}});
+    const panel = node();
+    const context = {location: {hostname}, document: {createElement: node}, state: {groups: []},
+      makePanelHeading: node, panelButton(label) {return {...node(), label};},
+      explorerEl(target) {return {click() {calls.push(target);}};}};
+    vm.createContext(context); vm.runInContext(render, context);
+    context.renderGroupsPanel(panel);
+    const actions = panel.children.flatMap(item => item.children);
+    for (const action of actions) action.events.click();
+    assert.deepEqual(calls, ['#export-btn', '#import-trigger-btn', '#chpack-export-btn',
+      ...(hostname === '127.0.0.1' ? ['#linked-package-open'] : [])]);
+  }
+});

@@ -47,7 +47,7 @@ def main():
     connection.execute("PRAGMA foreign_keys=ON")
     for index in range(1, 111):
         slug = f"fixture-{index:03}"
-        connection.execute("INSERT INTO sources(id,url,name,slug,added_at,included,status,item_count) VALUES(?,?,?,?,?,0,'paused',1)",
+        connection.execute("INSERT INTO sources(id,url,name,slug,added_at,included,status,item_count) VALUES(?,?,?,?,?,1,'paused',1)",
                            (index, f"https://example.com/parity/{index}", f"Parity source {index:03}", slug, "2026-10-26"))
         folder = library / slug
         folder.mkdir(exist_ok=True)

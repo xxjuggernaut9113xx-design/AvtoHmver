@@ -994,7 +994,7 @@ async function renderSearchPanel(panel) {
     const text = document.createElement('span'); text.textContent = provider.name || provider.id;
     const status = document.createElement('small');
     status.textContent = provider.authentication_required ? 'auth required'
-      : (provider.capabilities || []).includes('search')
+      : (provider.capabilities || []).some(capability => capability === 'search' || capability === 'catalog')
         ? (provider.availability || (provider.generated ? 'experimental' : 'available'))
         : 'direct URL only';
     label.append(check, text, status); providerList.append(label);
@@ -1041,6 +1041,14 @@ function assignSourcesToGroup(groupId) {
 function renderGroupsPanel(panel) {
   panel.replaceChildren(makePanelHeading('Groups', 'Organize sources in nested groups. Group tags remain inherited by their media.'));
   const newGroup = panelButton('+ New group'); newGroup.classList.add('btn-accent'); newGroup.addEventListener('click', () => createGroup().then(() => renderExplorerPanel('groups'))); panel.append(newGroup);
+  const transfers = document.createElement('div'); transfers.className = 'explorer-card-actions';
+  for (const [label, target] of [['Export source list', '#export-btn'], ['Import source list', '#import-trigger-btn'], ['Export portable .chpack', '#chpack-export-btn']]) {
+    const button = panelButton(label); button.addEventListener('click', () => explorerEl(target)?.click()); transfers.append(button);
+  }
+  if (['localhost', '127.0.0.1', '[::1]', '::1'].includes(location.hostname)) {
+    const linked = panelButton('Stage linked .chpack'); linked.addEventListener('click', () => explorerEl('#linked-package-open')?.click()); transfers.append(linked);
+  }
+  panel.append(transfers);
   const list = document.createElement('div'); list.className = 'explorer-card-list group-card-list';
   state.groups.forEach((group) => {
     const card = document.createElement('article'); card.className = 'explorer-card group-card';
