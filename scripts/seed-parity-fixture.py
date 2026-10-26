@@ -69,6 +69,7 @@ def main():
     cursor = connection.execute("INSERT INTO media(source_id,filepath,filename,type,added_at,downloaded,rating,file_size_bytes,nsfw_state) VALUES(1,'fixture-001/broken.mp4','Preview failure fixture','video','2026-10-26',1,2,?,'done')", (broken.stat().st_size,))
     broken_id = cursor.lastrowid
     connection.execute("UPDATE sources SET item_count=(SELECT COUNT(*) FROM media WHERE source_id=sources.id)")
+    connection.execute("UPDATE media SET auto_rating=3,manual_review_required=1,rating_source='auto' WHERE id IN (1,2)")
     connection.commit()
 
     origin = f"http://127.0.0.1:{ready['port']}"

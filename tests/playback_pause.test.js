@@ -3,6 +3,33 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
+test('GOON reflects pre-start pause and resumes only an armed or running session', () => {
+  const source = fs.readFileSync('static/library.js', 'utf8');
+  const shared = source.slice(source.indexOf('function goonSharedPause('), source.indexOf("document.addEventListener('avto-playback-pause'"));
+  const control = {textContent: '', attributes: {}, setAttribute(name, value) {this.attributes[name] = value;}};
+  let starts = 0, pauses = 0;
+  const context = {explorerEl: () => control, goonStartClock: () => starts++,
+    goonPauseClock(session) {pauses++; session.running = false;}};
+  vm.createContext(context); vm.runInContext(shared, context);
+  const session = {running: false};
+  context.goonSharedPause(session, true);
+  assert.equal(control.textContent, 'Resume');
+  assert.equal(control.attributes['aria-pressed'], 'true');
+  assert.equal(starts + pauses, 0);
+  context.goonSharedPause(session, false);
+  assert.equal(starts, 0, 'An unstarted session must remain unstarted');
+  session.resumeAfterPause = true;
+  context.goonSharedPause(session, false);
+  assert.equal(starts, 1);
+  assert.equal(session.resumeAfterPause, false);
+  session.running = true;
+  context.goonSharedPause(session, true);
+  assert.equal(pauses, 1);
+  context.goonSharedPause(session, false);
+  assert.equal(starts, 2);
+  assert.equal(control.textContent, 'Pause');
+});
+
 function fixture() {
   let time = 0, id = 0;
   const scheduled = new Map(), media = [], listeners = {};

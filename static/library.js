@@ -786,6 +786,8 @@ function goonPauseClock(session) {
 }
 function goonSharedPause(session, paused) {
   if (!session || session.ended) return;
+  const control = explorerEl('#goon-pause');
+  if (control) { control.textContent = paused ? 'Resume' : 'Pause'; control.setAttribute('aria-pressed', String(paused)); }
   if (paused) {
     session.resumeAfterPause = session.running || !!session.resumeAfterPause;
     if (session.running) goonPauseClock(session);
@@ -834,7 +836,7 @@ async function startGoonSession(items) {
   const metro = explorerEl('#goon-metronome'); if (metro) metro.checked = session.metronome.enabled;
   const metroVolume = explorerEl('#goon-metronome-volume'); if (metroVolume) metroVolume.value = String(session.metronome.volume);
   explorerEl('#goon-start')?.removeAttribute('hidden');
-  const pause = explorerEl('#goon-pause'); if (pause) pause.textContent = 'Pause';
+  goonSharedPause(session, avtoPlaybackClock.paused);
   const seek = explorerEl('#goon-seek'); if (seek) { seek.max = String(session.totalBeats); seek.value = '0'; }
   const meta = explorerEl('#goon-soundtrack'); if (meta) meta.textContent = `${session.soundtrack.provider || 'local'} · ${session.bpm} BPM${session.soundtrack.spotify_synchronization_disabled ? ' · visual sync disabled' : ''}`;
 }
