@@ -53,3 +53,5 @@ fixture. Both require the configured owned/enabled native-panel-one pack, take n
 parameters, operate separate decoder objects and stop their test transport. They
 do not start gameplay or operate menus. They are isolated-lab diagnostics and do
 not establish full native soundtrack/rhythm integration or speaker audibility.
+
+The read-only native_rhythm_state tool inspects the original BP_GlobalManager-owned beat manager and widget candidates. It never starts, pauses or rewrites a session. The current checked-delegate reader fails live layout acceptance; binding_reader_verified remains false and empty/failed bindings cannot authorize mutation. See ../native/RHYTHM_ADAPTER.md for exact native PDB evidence and pause-overlay observations.

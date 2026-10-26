@@ -130,4 +130,37 @@ test('stopped clock validates native readback and cleanup is idempotent',functio
     fails(function() owned:setStoppedClock(-1) end,'nonnegative');owned:close();owned:close();eq(f.scope.emptyCalls,1)
     fails(function() owned:readAll() end,'closed')
 end)
+test('read-only inspection requires exact manager and callback ownership',function()
+    local f=fixture();local owner=f.env.outer;local manager=f.manager
+    owner.BeatSpawnerManagerCPP=manager
+    manager.GetOuter=function() return owner end
+    owner.GetFullName=function() return "owner" end
+    manager.GetFullName=function() return "manager" end
+    manager.CompletedBeats=2;manager.TotalStrokes=8;manager.CurrentBeatIndex=3
+    local function widget(object,name)
+        return {IsValid=function() return true end,OnBeatReachedCenter={GetBindings=function()
+            return {{Object=object,FunctionName={ToString=function() return name end}}}
+        end}}
+    end
+    local foreign={IsValid=function() return true end,GetAddress=function() return 999 end}
+    local r=Rhythm.inspect(owner,{widget(manager,'OnBeatReachedCenter'),widget(foreign,'OnBeatReachedCenter'),widget(manager,'Other'),{}})
+    eq(r.owner_matches,true);eq(r.widgets_owned,1);eq(r.widgets_foreign,2);eq(r.widgets_unknown,1)
+    eq(r.completed,2);eq(r.total,8);eq(r.index,3);eq(f.scope.emptyCalls,0);eq(f.scope.spawnCalls,0);eq(f.scope.forbiddenCalls,0)
+    manager.GetOuter=function() return foreign end;eq(Rhythm.inspect(owner,{}).owner_matches,false)
+end)
+test('read-only inspection tolerates absent owner or manager without mutation',function()
+    eq(Rhythm.inspect(nil,{}).owner_valid,false)
+    local f=fixture();eq(Rhythm.inspect(f.env.outer,{}).manager_valid,false)
+    eq(f.scope.emptyCalls,0);eq(f.scope.spawnCalls,0)
+end)
+test('delegate read errors stay unknown and cannot establish mutation readiness',function()
+    local f=fixture();local owner=f.env.outer;local manager=f.manager
+    owner.BeatSpawnerManagerCPP=manager;owner.GetFullName=function() return 'owner' end
+    manager.GetFullName=function() return 'manager' end;manager.GetOuter=function() return owner end
+    manager.CompletedBeats=0;manager.TotalStrokes=1;manager.CurrentBeatIndex=0
+    local widget={IsValid=function() return true end,bIsMoving=true,OnBeatReachedCenter={GetBindings=function() error('Array failed invariants check') end}}
+    local r=Rhythm.inspect(owner,{widget})
+    eq(r.binding_reader_verified,false);eq(r.widgets_owned,0);eq(r.widgets_unknown,1);eq(r.widgets_moving,1)
+    assert(r.widget_error:find('Array failed invariants check',1,true));eq(f.scope.forbiddenCalls,0);eq(f.scope.emptyCalls,0)
+end)
 print(tostring(passed) .. ' native POD rhythm queue tests passed')

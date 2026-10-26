@@ -17,6 +17,7 @@ const definitions = {
     description: 'Read authoritative native UP and fanservice pack ownership/enablement. Purchases and toggles remain in original Unlocks.'},
   native_profile: {action: 'profile', readOnly: true, idempotent: true,
     description: 'Read the active native profile binding and in-process identity. Does not edit saves.'},
+  native_rhythm_state: {action: 'rhythmstate', readOnly: true, idempotent: true, description: 'Inspect original native beat-manager ownership, queue counters and exact widget delegate bindings without mutation.'},
   native_enable_fixture: {action: 'enablefixture', readOnly: false, idempotent: true,
     description: 'Enable only the fixed, already-owned synthetic test pack configured locally in mcp-test-pack.txt, through the original native backend. No purchase or UP grant.'},
   native_probe_video: {action: 'probevideo', readOnly: false, idempotent: false,

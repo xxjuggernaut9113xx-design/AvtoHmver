@@ -51,10 +51,10 @@ probe nonexistent elements. Its empty-array sparse-index branch allocates only
 one element, so the first assignment must be index 1. FBeatEvent does not have the
 string/container lifetime concerns of FCHPackMediaEntry.
 
-Required next isolated proof: construct a temporary manager with no delegate
+The isolated construction proof below passed: construct a temporary manager with no delegate
 bindings, leave it stopped, append two complete event tables, read every field
 back, append a third to exercise reallocation, then verify previous values and
-empty only that temporary queue. This has not been executed in the original
+empty only that temporary queue. This was executed in the isolated original
 runtime. Do not use the original live manager as the construction scratchpad.
 
 ## Exact widget ownership is available
@@ -133,3 +133,15 @@ integration gates.
 ## Isolated native probe result
 
 The fixed probebeatqueue action passed in the exact isolated v0.04 runtime: three complete rows, retained values after append, stopped TimelineOffset/readback 2.5, and cleanup of its own empty-delegate manager. Native UP remained 4. Evidence: D:/reJOIce/Deliverables/fanservice-edge-rhythm-20261025/native-pod-queue.json. This closes only POD construction/readback and stopped-clock gates, not the active-session gates above.
+
+## Live original-session inspection, October 26
+
+The read-only rhythmstate MCP action now inspects original manager ownership, queue counters, clock and widget candidates. Actual UI testing resumed after Computer Use permission was restored. The lab launched with its explicit -UserDir profile; the human handled age confirmation. The neutral color-bar fixture appeared during a normal original session. Native UP was 4 before and after the observed sessions; the inspector does not grant or settle rewards.
+
+The original manager GetOuter matched BP_GlobalManager. Three samples taken with the original pause overlay visible advanced position 7.444940 to 9.998726 to 12.528505 and CompletedBeats 2 to 3 to 5. The overlay does not establish a paused beat clock in this tested build. This is observation of the unchanged native behavior, not an adapter fix.
+
+Delegate ownership is **not established**. Live moving widgets returned empty GetBindings lists or `Array failed invariants check, ArrayNum exceeds ArrayMax`. The inspector keeps these unknown and reports binding_reader_verified=false. Do not use its counts as permission to mutate widgets.
+
+Exact PDB TPI records explain a candidate ABI mismatch: TMulticastScriptDelegate<FNotThreadSafeDelegateMode> type 0x2612d has size24 and InvocationList at8; TScriptDelegate<FNotThreadSafeDelegateMode> type0xb9b5 has size24, weak Object at8 and FunctionName at16. The unchecked sibling is a different16-byte type. A Guid16 overlay is incorrect. The supported Lua custom-array registration cannot attach the required UScriptStruct metadata, so no Vector24 overlay was installed. A corrected native delegate reader or native helper remains required before widget ownership acceptance.
+
+Raw PDB records, live-manager.json, pause-samples.json, menu-after.json and bounded custom-property feasibility evidence are retained under D:/reJOice/Deliverables/fanservice-native-session-20261026/. No original live manager, queue, delegate, widget clock or timer was written by this inspector.

@@ -255,7 +255,7 @@ local function diagnosticRequest()
     lastDiagnosticRequest = nonce
     local ok, result = pcall(function()
         if action ~= 'status' and action ~= 'catalog' and action ~= 'profile'
-            and action ~= 'enablefixture' and action ~= 'probevideo' and action ~= 'probeaudio' and action ~= 'probeaudiocontrols' and action ~= 'probeaudiooffline' and action ~= 'probebeatqueue' then
+            and action ~= 'enablefixture' and action ~= 'probevideo' and action ~= 'probeaudio' and action ~= 'probeaudiocontrols' and action ~= 'probeaudiooffline' and action ~= 'probebeatqueue' and action ~= 'rhythmstate' then
             error('Runtime MCP action is not supported.')
         end
         local store, profile = runtimeContext()
@@ -279,6 +279,15 @@ local function diagnosticRequest()
             audioProbeDeadline = os.time() + (audioControlProbe and 30 or 10)
             nativeMusic:open(approvedAudio.url,musicActor(),binding,12)
             return '{"started":true,"scope":"fixed synthetic native audio transport; no gameplay or age-screen action"}'
+        end
+        if action == 'rhythmstate' then
+            local state = Rhythm.inspect(FindFirstOf('BP_GlobalManager_C'),FindAllOf('PreciseBeatWidget') or {})
+            local values = {}
+            for key,value in pairs(state) do
+                values[#values+1] = quote(key) .. ':' .. (type(value) == 'boolean' and boolean(value) or type(value) == 'string' and quote(value) or tostring(value))
+            end
+            table.sort(values)
+            return '{' .. table.concat(values,',') .. ',"scope":"read-only original manager and widget binding inspection"}'
         end
         if action == 'probebeatqueue' then
             local fixture = diagnosticFixture(store)

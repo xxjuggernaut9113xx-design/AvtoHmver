@@ -1,5 +1,7 @@
 # Consolidated plan execution — 2026-10-22
 
+Latest continuation: [original native-session checks](NATIVE_SESSION_20261026.md) records restored Computer Use, the live delegate-layout blocker and verified Server installer lifecycle. Full native rhythm integration remains open.
+
 **Latest scoped checkpoint:** [Server/mobile/music continuation](SERVER_MOBILE_MUSIC_20261025.md) records the later API, card/timeline and live native audio fixes. Full rhythm/parity and physical-device gates remain open.
 
 Current checkpoint: `CURRENT_HANDOFF_20261023.md` records the saved-pack importer,
