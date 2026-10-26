@@ -1,5 +1,6 @@
 pub mod access;
 pub mod backup;
+pub mod classifier;
 pub mod diagnostics;
 pub mod discovery;
 pub mod downloads;

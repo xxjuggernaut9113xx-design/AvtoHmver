@@ -27,8 +27,8 @@ static THUMB_WORK: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(8)
 // Keying on the fingerprint rather than just media_id means a genuine fix —
 // re-syncing the source, replacing the file — is picked up automatically
 // the moment the file's size or mtime changes, with no explicit
-// invalidation needed. The cache itself is in-memory and per-process, so it
-// also resets naturally on restart.
+// invalidation needed. Failed stamps also persist on disk; decoder changes
+// and upgrades invalidate them even when the source file has not changed.
 type Fingerprint = Option<(u64, Option<SystemTime>)>;
 
 static FAILED_THUMBS: Lazy<Mutex<HashMap<i64, (String, String)>>> =
@@ -48,15 +48,40 @@ fn fingerprint(path: &Path) -> Fingerprint {
     Some((meta.len(), meta.modified().ok()))
 }
 
+#[cfg(test)]
 pub async fn get_or_create_thumb(
     media_id: i64,
     src: PathBuf,
     thumbs_dir: PathBuf,
     ffmpeg: String,
 ) -> Result<Vec<u8>> {
-    let _permit = THUMB_WORK.acquire().await?;
-    tokio::task::spawn_blocking(move || {
+    get_or_create_thumb_admitted(media_id, src, thumbs_dir, ffmpeg, None).await
+}
+
+pub async fn get_or_create_thumb_admitted(
+    media_id: i64,
+    src: PathBuf,
+    thumbs_dir: PathBuf,
+    ffmpeg: String,
+    lease: Option<crate::maintenance::BackgroundWorkerLease>,
+) -> Result<Vec<u8>> {
+    run_thumbnail_work(lease, move || {
         get_or_create_thumb_with_tool(media_id, &src, &thumbs_dir, &ffmpeg)
+    })
+    .await
+}
+
+async fn run_thumbnail_work(
+    lease: Option<crate::maintenance::BackgroundWorkerLease>,
+    work: impl FnOnce() -> Result<Vec<u8>> + Send + 'static,
+) -> Result<Vec<u8>> {
+    let permit = THUMB_WORK.acquire().await?;
+    tokio::task::spawn_blocking(move || {
+        // Cancellation of the HTTP future must not release admission while
+        // an uncancellable blocking decoder is still writing the cache.
+        let _permit = permit;
+        let _lease = lease;
+        work()
     })
     .await?
 }
@@ -79,6 +104,7 @@ pub fn get_or_create_thumb_with_tool(
         return Err(anyhow::anyhow!("Media file is unavailable"));
     }
     let stamp = format!("{}:{:?}", src.display(), current_fp);
+    let failure_stamp = format!("{stamp}:decoder={ffmpeg}:{}", env!("CARGO_PKG_VERSION"));
     let stamp_path = thumbs_dir.join(format!("{media_id}.stamp"));
     let failed_path = thumbs_dir.join(format!("{media_id}.failed"));
     if thumb_path.is_file() && std::fs::read_to_string(&stamp_path).ok().as_ref() == Some(&stamp) {
@@ -91,7 +117,7 @@ pub fn get_or_create_thumb_with_tool(
             .and_then(|file| file.set_modified(SystemTime::now()));
         return Ok(std::fs::read(&thumb_path)?);
     }
-    if std::fs::read_to_string(&failed_path).ok().as_ref() == Some(&stamp) {
+    if std::fs::read_to_string(&failed_path).ok().as_ref() == Some(&failure_stamp) {
         return Err(anyhow::anyhow!(
             "Thumbnail unavailable for this file version"
         ));
@@ -100,7 +126,7 @@ pub fn get_or_create_thumb_with_tool(
     // Already know this exact file (same size/mtime, or same "still missing")
     // failed last time — skip straight to the cached error, no I/O.
     if let Some((cached_stamp, msg)) = FAILED_THUMBS.lock().unwrap().get(&media_id) {
-        if *cached_stamp == stamp {
+        if *cached_stamp == failure_stamp {
             return Err(anyhow::anyhow!("{}", msg));
         }
     }
@@ -114,8 +140,8 @@ pub fn get_or_create_thumb_with_tool(
             if failures.len() >= 4096 {
                 failures.clear();
             }
-            failures.insert(media_id, (stamp.clone(), msg.clone()));
-            let _ = std::fs::write(&failed_path, &stamp);
+            failures.insert(media_id, (failure_stamp.clone(), msg.clone()));
+            let _ = std::fs::write(&failed_path, &failure_stamp);
             warn!(
                 "Could not decode image for thumbnail, media {}: {}",
                 media_id, msg
@@ -193,6 +219,59 @@ fn decode_preview(src: &Path, ffmpeg: &str) -> Result<image::DynamicImage> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::Duration;
+
+    #[test]
+    fn changing_the_decoder_retries_a_failed_preview_without_changing_the_original() {
+        let root = tempfile::tempdir().unwrap();
+        let source = root.path().join("video.mp4");
+        let cache = root.path().join("cache");
+        std::fs::write(&source, b"invalid fixture video").unwrap();
+        assert!(
+            get_or_create_thumb_with_tool(1947, &source, &cache, "missing-first-decoder").is_err()
+        );
+        let first = std::fs::read_to_string(cache.join("1947.failed")).unwrap();
+        assert!(get_or_create_thumb_with_tool(
+            1947,
+            &source,
+            &cache,
+            "missing-replacement-decoder"
+        )
+        .is_err());
+        let replacement = std::fs::read_to_string(cache.join("1947.failed")).unwrap();
+        assert_ne!(first, replacement);
+        assert!(replacement.contains("missing-replacement-decoder"));
+        assert_eq!(std::fs::read(source).unwrap(), b"invalid fixture video");
+    }
+
+    #[tokio::test]
+    async fn cancelled_thumbnail_request_keeps_its_worker_lease_until_blocking_work_finishes() {
+        let root = tempfile::tempdir().unwrap();
+        let state = crate::test_support::state(root.path());
+        let lease = state.maintenance.try_acquire_background_worker().unwrap();
+        let (started, ready) = tokio::sync::oneshot::channel();
+        let (release, wait) = std::sync::mpsc::channel();
+        let task = tokio::spawn(run_thumbnail_work(Some(lease), move || {
+            let _ = started.send(());
+            wait.recv_timeout(Duration::from_secs(5))?;
+            Ok(Vec::new())
+        }));
+        tokio::time::timeout(Duration::from_secs(5), ready)
+            .await
+            .unwrap()
+            .unwrap();
+        task.abort();
+        assert!(task.await.unwrap_err().is_cancelled());
+        assert_eq!(state.maintenance.active_background_workers(), 1);
+        release.send(()).unwrap();
+        for _ in 0..100 {
+            if state.maintenance.active_background_workers() == 0 {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+        assert_eq!(state.maintenance.active_background_workers(), 0);
+    }
 
     #[test]
     #[ignore = "requires the installed FFmpeg runtime"]

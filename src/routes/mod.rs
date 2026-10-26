@@ -171,6 +171,8 @@ pub const MUTATION_PERMISSIONS: &[MutationPermission] = owner_mutations![
     ("POST", "/api/storage/thumbnails/clear"),
     ("POST", "/api/storage/archives/cleanup"),
     ("POST", "/api/export/chpack"),
+    ("POST", "/api/export/chpack/linked"),
+    ("DELETE", "/api/export/chpack/linked/{id}"),
     ("POST", "/api/import"),
     ("POST", "/api/goon/session"),
     ("POST", "/api/goon/session/complete"),
@@ -449,6 +451,14 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         // ── Export / Import ────────────────────────────────────────────────
         .route("/api/export", get(export::export_sources))
         .route("/api/export/chpack", post(export::export_chpack))
+        .route(
+            "/api/export/chpack/linked",
+            get(export::linked_status).post(export::linked_start),
+        )
+        .route(
+            "/api/export/chpack/linked/{id}",
+            delete(export::linked_cancel),
+        )
         .route("/api/import", post(export::import_sources))
         // ── Stats / Log ────────────────────────────────────────────────────
         .route("/api/stats", get(misc::stats))

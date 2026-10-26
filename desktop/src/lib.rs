@@ -60,8 +60,11 @@ fn write_export_file(path: &std::path::Path, bytes: &[u8]) -> Result<(), String>
 /// actionable error the engine reports when setup goes wrong.
 fn phar_status_text(status: &avtohmver::phar::PharStatus) -> String {
     let mut text = format!(
-        "P-HAR: {:?} · {}% — {}",
-        status.phase, status.progress_percent, status.message
+        "P-HAR: {:?} · {}% · backend {} — {}",
+        status.phase,
+        status.progress_percent,
+        status.backend.as_str(),
+        status.message
     );
     if let Some(error) = status.actionable_error.as_deref() {
         text.push_str(&format!("\nAction needed: {error}"));
@@ -82,6 +85,11 @@ enum Work {
     Browse(Box<LibraryQuery>, u64),
     DownloadsStatus,
     ManageSnapshot,
+    StorageAction {
+        action: String,
+        id: i64,
+        confirmation: String,
+    },
     DiagnosticLog,
     Discover {
         cursor: Option<String>,
@@ -166,6 +174,7 @@ enum PageKind {
     PortraitWall,
 }
 enum Update {
+    StorageAction(Result<serde_json::Value, String>),
     Recovery(Result<RecoverySnapshot, String>),
     Navigation(Result<Vec<NavigationItem>, String>),
     Image(u64, u8, String, Result<NativeImage, String>),
@@ -1191,7 +1200,8 @@ fn apply_session_snapshot(
     }
     if view.panic.is_none() && view.player.paused_since.is_none() {
         if let Some(s) = snapshot {
-            view.session_audio.update(s);
+            let music = view.music.snapshot();
+            view.session_audio.update(s, &music);
         } else {
             view.session_audio.stop();
         }
@@ -2980,11 +2990,83 @@ fn manage_text(snapshot: &ManageSnapshot) -> String {
         "Library: {} media · {} sources · {} groups · {} tags\nDownloads: {} active · {} errors\nStorage: {}\nDiscovery: {} providers\nRemote access: {}\nDiagnostic log: {}",
         stats["total_media"], stats["total_sources"], stats["total_groups"], stats["total_tags"],
         stats["sources_downloading"], stats["sources_error"],
-        storage["total_bytes"].as_u64().map(|bytes| format!("{bytes} bytes")).unwrap_or_else(|| "calculating".into()),
+        storage_total(storage).map(|bytes| format!("{bytes} bytes")).unwrap_or_else(|| "Unknown".into()),
         providers,
         snapshot.remote_access["status"].as_str().unwrap_or("unavailable"),
         snapshot.log_location,
     )
+}
+
+fn storage_total(value: &serde_json::Value) -> Option<u64> {
+    let dashboard: avtohmver::services::storage::StorageDashboard =
+        serde_json::from_value(value.clone()).ok()?;
+    let c = dashboard.categories;
+    [
+        c.original_media,
+        c.thumbnail_cache,
+        c.metadata_sidecars,
+        c.backups,
+        c.phar_environment,
+        c.gallery_dl_archives,
+    ]
+    .into_iter()
+    .try_fold(0u64, u64::checked_add)
+}
+
+fn apply_storage_snapshot(window: &AvtoHmverNativeWindow, value: &serde_json::Value) {
+    let Ok(dashboard) =
+        serde_json::from_value::<avtohmver::services::storage::StorageDashboard>(value.clone())
+    else {
+        window.set_storage_summary("Storage accounting is unavailable. Refresh to retry.".into());
+        return;
+    };
+    let size = |value: Option<u64>| {
+        value
+            .map(|bytes| {
+                i64::try_from(bytes)
+                    .map(format_bytes)
+                    .unwrap_or_else(|_| format!("{bytes} B"))
+            })
+            .unwrap_or_else(|| "Unknown".into())
+    };
+    let c = &dashboard.categories;
+    window.set_storage_summary(format!("Media: {} · Thumbnails: {}\nMetadata: {} · Backups: {}\nClassifier: {} · Download archives: {}\nDisk free: {} of {}\n{}", size(Some(c.original_media)), size(Some(c.thumbnail_cache)), size(Some(c.metadata_sidecars)), size(Some(c.backups)), size(Some(c.phar_environment)), size(Some(c.gallery_dl_archives)), size(dashboard.disk.free_bytes), size(dashboard.disk.total_bytes), dashboard.note).into());
+    let previous = window
+        .get_storage_source()
+        .split(':')
+        .next()
+        .and_then(|value| value.parse::<i64>().ok());
+    let mut options = vec![slint::SharedString::from("Choose source")];
+    let mut selected = options[0].clone();
+    for source in dashboard.sources {
+        let label: slint::SharedString = format!(
+            "{}: {} — {} / {}{} · {}",
+            source.id,
+            source.name,
+            size(Some(source.used_bytes)),
+            source
+                .allowed_bytes
+                .map(|bytes| size(Some(bytes)))
+                .unwrap_or_else(|| "Unlimited".into()),
+            if source.at_or_over_limit {
+                " · At limit"
+            } else {
+                ""
+            },
+            source
+                .retention_keep_newest
+                .map(|count| format!("Keep {count} newest"))
+                .unwrap_or_else(|| "No retention rule".into())
+        )
+        .into();
+        if previous == Some(source.id) {
+            selected = label.clone();
+        }
+        options.push(label);
+    }
+    window.set_storage_source("Choose source".into());
+    window.set_storage_sources(ModelRc::new(VecModel::from(options)));
+    window.set_storage_source(selected);
 }
 
 fn recovery_text(snapshot: &RecoverySnapshot) -> String {
@@ -3813,6 +3895,12 @@ fn run_ui_inner(
         }
         let scope = state.install_scope;
         let data_dir = state.data_dir.clone();
+        window.set_classifier_backend(
+            avtohmver::phar::status(&data_dir, scope)
+                .backend
+                .as_str()
+                .into(),
+        );
         window.set_classifier_status(
             phar_status_text(&avtohmver::phar::status(&data_dir, scope)).into(),
         );
@@ -4286,6 +4374,29 @@ fn run_ui_inner(
                     let _ = updates.send(Update::Manage(result));
                 }
             }
+            Work::StorageAction {
+                action,
+                id,
+                confirmation,
+            } => {
+                if let Some(result) = run_until_shutdown(
+                    &handle,
+                    &mut work_stop,
+                    worker_client.storage_action(&action, id, confirmation),
+                ) {
+                    let succeeded = result.is_ok();
+                    let _ = updates.send(Update::StorageAction(result));
+                    if succeeded {
+                        if let Some(snapshot) = run_until_shutdown(
+                            &handle,
+                            &mut work_stop,
+                            worker_client.manage_snapshot(),
+                        ) {
+                            let _ = updates.send(Update::Manage(snapshot));
+                        }
+                    }
+                }
+            }
             Work::DiagnosticLog => {
                 if let Some(result) =
                     run_until_shutdown(&handle, &mut work_stop, worker_client.diagnostic_log())
@@ -4552,44 +4663,30 @@ fn run_ui_inner(
                 let text = match worker_host_state.as_ref() {
                     None => "Classifier controls need the local Host.".to_string(),
                     Some(state) => {
-                        let outcome: Result<avtohmver::phar::PharStatus, anyhow::Error> = (|| {
-                            let status = match action.as_str() {
-                                // Opt-in: requesting the install is the
-                                // explicit consent gate.
-                                "install" => {
-                                    avtohmver::phar::record_install_intent(
-                                        &state.data_dir,
-                                        state.install_scope,
-                                        true,
-                                        None,
-                                    )?;
-                                    avtohmver::phar::start_install(
-                                        &state.data_dir,
-                                        state.install_scope,
-                                    )?
-                                }
-                                "repair" => {
-                                    avtohmver::phar::repair(&state.data_dir, state.install_scope)?
-                                }
-                                // Evaluate/resume: picks up a requested,
-                                // paused, or stalled setup without
-                                // re-running the whole install.
-                                "evaluate" => avtohmver::phar::resume_requested_setup(
+                        use avtohmver::services::classifier::{self, Action};
+                        let control = match action.as_str() {
+                            "install" => Action::Install,
+                            "repair" => Action::Repair,
+                            "evaluate" => Action::Evaluate,
+                            "self-test" => Action::SelfTest,
+                            "cancel" => Action::Cancel,
+                            "disable" => Action::Configure {
+                                enabled: false,
+                                backend: None,
+                            },
+                            value if value.starts_with("backend:") => Action::Configure {
+                                enabled: avtohmver::phar::status(
                                     &state.data_dir,
                                     state.install_scope,
-                                )?,
-                                "self-test" => avtohmver::phar::self_test(
-                                    &state.data_dir,
-                                    state.install_scope,
-                                )?,
-                                "cancel" => {
-                                    avtohmver::phar::cancel(&state.data_dir, state.install_scope)?
-                                }
-                                _ => avtohmver::phar::status(&state.data_dir, state.install_scope),
-                            };
-                            Ok(status)
-                        })(
-                        );
+                                )
+                                .requested,
+                                backend: Some(avtohmver::phar::PharBackend::parse(
+                                    value.strip_prefix("backend:"),
+                                )),
+                            },
+                            _ => Action::Status,
+                        };
+                        let outcome = classifier::control(state, control);
                         match outcome {
                             Ok(status) => phar_status_text(&status),
                             Err(error) => format!("Classifier action failed: {error:#}"),
@@ -5838,8 +5935,17 @@ fn run_ui_inner(
     let weak = window.as_weak();
     let v = view.clone();
     let client_settings = client.clone();
+    let classifier_settings_state = host_state.clone();
     window.on_open_settings(move || {
         let Some(window) = weak.upgrade() else { return };
+        if let Some(state) = &classifier_settings_state {
+            window.set_classifier_backend(
+                avtohmver::phar::status(&state.data_dir, state.install_scope)
+                    .backend
+                    .as_str()
+                    .into(),
+            );
+        }
         window.set_classifier_status(
             client_settings
                 .classifier_status()
@@ -6406,6 +6512,52 @@ fn run_ui_inner(
     let tx = send.clone();
     window.on_complete_setup(move || {
         let _ = tx.send(Work::CompleteSetup);
+    });
+    let tx = send.clone();
+    let weak = window.as_weak();
+    window.on_storage_action(move |action| {
+        let Some(window) = weak.upgrade() else { return };
+        if window.get_storage_busy() {
+            return;
+        }
+        if action == "refresh" {
+            if tx.send(Work::ManageSnapshot) == EnqueueResult::Queued {
+                window.set_storage_action_status("Calculating storage usage...".into());
+            } else {
+                window.set_storage_action_status("The worker is busy. Retry refreshing.".into());
+            }
+            return;
+        }
+        if !window.get_local_host() {
+            return;
+        }
+        let id = if matches!(action.as_str(), "permit-once" | "cleanup-source") {
+            let selected = window.get_storage_source();
+            let Some(id) = selected
+                .split(':')
+                .next()
+                .and_then(|value| value.parse::<i64>().ok())
+            else {
+                window.set_storage_action_status("Choose a source first.".into());
+                return;
+            };
+            id
+        } else {
+            0
+        };
+        let work = Work::StorageAction {
+            action: action.to_string(),
+            id,
+            confirmation: window.get_storage_confirmation().into(),
+        };
+        if tx.send(work) == EnqueueResult::Queued {
+            window.set_storage_busy(true);
+            window.set_storage_confirmation("".into());
+            window.set_storage_action_status("Applying storage action...".into());
+        } else {
+            window
+                .set_storage_action_status("The worker is busy. Retry the storage action.".into());
+        }
     });
     let tx = send.clone();
     let weak = window.as_weak();
@@ -7498,11 +7650,20 @@ fn run_ui_inner(
                                     .unwrap_or_default()
                                     .into(),
                             );
+                            apply_storage_snapshot(&w, &snapshot.storage);
                             w.set_manage_status(manage_text(&snapshot).into());
                             w.set_settings_loaded(true);
                         }
                         Err(error) => w.set_manage_status(error.into()),
                     },
+                    Update::StorageAction(result) => {
+                        w.set_storage_busy(false);
+                        w.set_storage_action_status(match result {
+                            Ok(value) if value["storage_override_once"].as_bool() == Some(true) => "The selected source may exceed its storage quota on its next sync.".into(),
+                            Ok(value) => format!("Removed {} cached or eligible items ({} bytes). {}", value["removed_items"], value["removed_bytes"], value["message"].as_str().or_else(|| value["warning"].as_str()).unwrap_or("")).into(),
+                            Err(error) => error.into(),
+                        });
+                    }
                     Update::DiagnosticLog(result) => {
                         w.set_diagnostic_log(result.unwrap_or_else(|error| error).into())
                     }
@@ -8236,6 +8397,20 @@ mod tests {
         slint::platform::set_platform(Box::new(Headless(surface.clone()))).unwrap();
         let window = AvtoHmverNativeWindow::new().unwrap();
         window.set_local_host(true);
+        let mut storage = serde_json::json!({
+            "categories":{"original_media":1024,"thumbnail_cache":512,"metadata_sidecars":0,"backups":0,"phar_environment":0,"gallery_dl_archives":0},
+            "disk":{"free_bytes":null,"total_bytes":4096,"minimum_free_disk_bytes":null},
+            "sources":[{"id":7,"name":"Selected source","slug":"selected","status":"paused","used_bytes":1024,"allowed_bytes":2048,"at_or_over_limit":false,"retention_keep_newest":null,"storage_override_once":false}],
+            "note":"Fixture accounting"
+        });
+        window.set_storage_source("7: Previous label".into());
+        apply_storage_snapshot(&window, &storage);
+        assert!(window.get_storage_source().starts_with("7:"));
+        assert!(window.get_storage_summary().contains("Unknown"));
+        assert_eq!(storage_total(&storage), Some(1536));
+        storage["sources"] = serde_json::json!([]);
+        apply_storage_snapshot(&window, &storage);
+        assert_eq!(window.get_storage_source(), "Choose source");
         window.set_stage_open(true);
         window.set_stage_mode(3);
         window.set_can_control_sessions(true);
@@ -9692,8 +9867,10 @@ mod layout_render_tests {
             apply_native_palette(&w, theme);
             for (width, height) in [(800, 560), (1200, 800), (1600, 1000)] {
                 adapter.set_size(slint::PhysicalSize::new(width, height));
-                for mode in -2..5 {
-                    w.set_stage_open(mode >= 0);
+                for mode in -2..12 {
+                    w.set_stage_open((0..5).contains(&mode));
+                    w.set_settings_open(mode >= 5);
+                    w.set_settings_page((mode - 5).max(0));
                     w.set_workspace(0);
                     w.set_settings_layout("grid".into());
                     w.set_selected_count(if mode == -2 { 1 } else { 0 });
@@ -9711,7 +9888,7 @@ mod layout_render_tests {
                         thumbnail: w.get_preview(),
                         has_thumbnail: true,
                     }])));
-                    w.set_stage_mode(mode.max(0));
+                    w.set_stage_mode(mode.clamp(0, 4));
                     w.set_playback_loading(mode % 2 == 0);
                     w.set_playback_step("Fetching media…".into());
                     // Let widget palette and enabled-state transitions settle, as in the real event loop.

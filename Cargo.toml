@@ -47,7 +47,7 @@ image          = { version = "0.25", default-features = false, features = [
                    "jpeg", "png", "gif", "webp", "bmp", "tiff"] }
 
 # ZIP / .chpack building
-zip            = { version = "2.2.2", default-features = false, features = ["deflate"] }
+zip            = { version = "9", default-features = false, features = ["deflate"] }
 tempfile       = { version = "3", default-features = false }
 
 # CLI

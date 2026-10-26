@@ -82,11 +82,10 @@ pub async fn stream(
     };
     if q.native
         || q.browser
-            && (q.native
-                || !matches!(
-                    path.extension().and_then(|s| s.to_str()),
-                    Some("mp3" | "wav" | "m4a")
-                ))
+            && !matches!(
+                path.extension().and_then(|s| s.to_str()),
+                Some("mp3" | "wav" | "m4a")
+            )
     {
         let converted = match music::converted_path(&state, id, q.native) {
             Ok(path) => path,

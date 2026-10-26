@@ -1,8 +1,91 @@
 //! Snapshot-driven metronome using an independent native audio player.
-use crate::music::{Command, MusicPlayer};
+use crate::music::{Command, MusicPlayer, PlaybackSnapshot};
 use avtohmver::session::{AudioConfig, SessionState, SessionStatus};
 use std::io::Write;
 use std::path::{Path, PathBuf};
+
+pub struct MusicBeatMap {
+    track: String,
+    bpm: f64,
+    offset: f64,
+    markers: Vec<f64>,
+}
+
+impl MusicBeatMap {
+    pub fn new(track: &str, bpm: f64, offset: f64, markers: Vec<f64>) -> Result<Self, String> {
+        if !bpm.is_finite()
+            || !(40.0..=300.0).contains(&bpm)
+            || !offset.is_finite()
+            || !(-30.0..=30.0).contains(&offset)
+            || markers.len() > 4096
+            || markers
+                .iter()
+                .any(|value| !value.is_finite() || *value < 0.0)
+            || markers.windows(2).any(|pair| pair[1] <= pair[0])
+        {
+            return Err("Saved beat map contains invalid timing values".into());
+        }
+        Ok(Self {
+            track: crate::music::track_key(track),
+            bpm,
+            offset,
+            markers,
+        })
+    }
+
+    fn passed(&self, position: f64) -> u64 {
+        if self.markers.is_empty() {
+            if position < self.offset {
+                0
+            } else {
+                (((position - self.offset) * self.bpm / 60.0).floor() as u64).saturating_add(1)
+            }
+        } else {
+            // Offset aligns the first marker; edited maps retain their relative timing.
+            let adjusted = position - self.offset + self.markers[0];
+            self.markers.partition_point(|marker| *marker <= adjusted) as u64
+        }
+    }
+}
+
+#[derive(Default)]
+struct MusicBeatClock {
+    session: String,
+    revision: u64,
+    position: f64,
+    passed: u64,
+    running: bool,
+}
+
+impl MusicBeatClock {
+    fn update(
+        &mut self,
+        map: &MusicBeatMap,
+        music: &PlaybackSnapshot,
+        session: &str,
+        running: bool,
+    ) -> Option<bool> {
+        if map.track != music.path {
+            self.running = false;
+            return None;
+        }
+        let active = running && music.active && !music.paused;
+        let passed = map.passed(music.position);
+        let fresh = self.session != session || self.revision != music.revision;
+        let progressed = !fresh
+            && self.running
+            && active
+            && music.position >= self.position
+            && music.position - self.position <= 0.30
+            && passed == self.passed.saturating_add(1);
+        self.session = session.into();
+        self.revision = music.revision;
+        self.position = music.position;
+        self.passed = passed;
+        self.running = active;
+        Some(progressed)
+    }
+}
 
 #[derive(Default)]
 struct CueCursor {
@@ -163,6 +246,8 @@ fn pattern_position(phase: f64, pattern: &[f64]) -> (f64, bool) {
 
 pub struct SessionAudio {
     clock: BeatClock,
+    music_map: Option<MusicBeatMap>,
+    music_clock: MusicBeatClock,
     player: Option<MusicPlayer>,
     click: Option<tempfile::NamedTempFile>,
     config: Option<AudioConfig>,
@@ -183,6 +268,8 @@ impl SessionAudio {
     pub fn new() -> Self {
         Self {
             clock: BeatClock::default(),
+            music_map: None,
+            music_clock: MusicBeatClock::default(),
             player: None,
             click: None,
             config: None,
@@ -201,10 +288,28 @@ impl SessionAudio {
         self.config = Some(config);
     }
 
-    pub fn update(&mut self, state: &SessionState) {
+    pub fn sync_music_map(&mut self, map: Option<MusicBeatMap>) {
+        self.music_map = map;
+        self.music_clock = MusicBeatClock::default();
+        self.silence();
+    }
+
+    pub fn update(&mut self, state: &SessionState, music: &PlaybackSnapshot) {
         self.configure(state.audio.clone());
         self.update_cues(state);
-        let beat = self.clock.update(state);
+        let phase_beat = self.clock.update(state);
+        let beat = self
+            .music_map
+            .as_ref()
+            .and_then(|map| {
+                self.music_clock.update(
+                    map,
+                    music,
+                    &state.session_id,
+                    state.status == SessionStatus::Running && state.tempo.target_bpm > 0.0,
+                )
+            })
+            .unwrap_or(phase_beat);
         let config = self.config.as_ref().expect("audio configuration applied");
         if state.status != SessionStatus::Running
             || state.tempo.target_bpm == 0.0
@@ -252,6 +357,7 @@ impl SessionAudio {
         self.silence();
         self.silence_cues();
         self.clock.running = false;
+        self.music_clock.running = false;
     }
 
     pub fn error(&mut self) -> Option<String> {
@@ -356,6 +462,100 @@ fn click_file() -> std::io::Result<tempfile::NamedTempFile> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn music_map_follows_audio_position_and_preserves_pause_and_seek_boundaries() {
+        let map = MusicBeatMap::new("sample.wav", 120.0, 0.1, vec![0.1, 0.6, 1.1]).unwrap();
+        let snapshot = |position, revision, paused| PlaybackSnapshot {
+            revision,
+            position,
+            paused,
+            active: true,
+            path: crate::music::track_key("sample.wav"),
+        };
+        let mut clock = MusicBeatClock::default();
+        assert_eq!(
+            clock.update(&map, &snapshot(0.0, 1, false), "session", true),
+            Some(false)
+        );
+        assert_eq!(
+            clock.update(&map, &snapshot(0.12, 1, false), "session", true),
+            Some(true)
+        );
+        assert_eq!(
+            clock.update(&map, &snapshot(0.12, 1, true), "session", true),
+            Some(false)
+        );
+        assert_eq!(
+            clock.update(&map, &snapshot(0.12, 1, false), "session", true),
+            Some(false)
+        );
+        for position in [0.32, 0.52] {
+            assert_eq!(
+                clock.update(&map, &snapshot(position, 1, false), "session", true),
+                Some(false)
+            );
+        }
+        assert_eq!(
+            clock.update(&map, &snapshot(0.61, 1, false), "session", true),
+            Some(true)
+        );
+        assert_eq!(
+            clock.update(&map, &snapshot(0.8, 2, false), "session", true),
+            Some(false)
+        );
+        assert_eq!(
+            clock.update(&map, &snapshot(1.0, 2, false), "session", true),
+            Some(false)
+        );
+        assert_eq!(
+            clock.update(&map, &snapshot(1.12, 2, false), "session", true),
+            Some(true)
+        );
+        assert_eq!(
+            clock.update(&map, &snapshot(0.2, 3, false), "session", true),
+            Some(false)
+        );
+        assert_eq!(
+            clock.update(&map, &snapshot(0.4, 3, false), "session", true),
+            Some(false)
+        );
+        assert_eq!(
+            clock.update(&map, &snapshot(0.61, 3, false), "session", true),
+            Some(true)
+        );
+        assert_eq!(
+            clock.update(&map, &snapshot(0.61, 3, false), "session", false),
+            Some(false)
+        );
+    }
+
+    #[test]
+    fn music_map_offset_alignment_track_replacement_and_stalls_do_not_queue_catchup_cues() {
+        let map = MusicBeatMap::new("sample.wav", 120.0, 0.25, vec![0.1, 0.6]).unwrap();
+        assert_eq!(map.passed(0.2), 0);
+        assert_eq!(map.passed(0.26), 1);
+        assert_eq!(map.passed(0.76), 2);
+        let mut clock = MusicBeatClock::default();
+        let mut music = PlaybackSnapshot {
+            revision: 1,
+            position: 0.0,
+            active: true,
+            paused: false,
+            path: crate::music::track_key("sample.wav"),
+        };
+        assert_eq!(clock.update(&map, &music, "session", true), Some(false));
+        music.position = 5.0;
+        assert_eq!(clock.update(&map, &music, "session", true), Some(false));
+        music.path = "other.wav".into();
+        assert_eq!(clock.update(&map, &music, "session", true), None);
+        assert!(MusicBeatMap::new("sample.wav", 120.0, 0.0, vec![1.0, 0.5]).is_err());
+        assert!(MusicBeatMap::new("sample.wav", f64::NAN, 0.0, vec![]).is_err());
+        let grid = MusicBeatMap::new("sample.wav", 120.0, 0.25, vec![]).unwrap();
+        assert_eq!(grid.passed(0.2), 0);
+        assert_eq!(grid.passed(0.26), 1);
+        assert_eq!(grid.passed(0.76), 2);
+    }
     use avtohmver::session::{GameConfig, SessionCommand, SessionEngine};
 
     #[test]

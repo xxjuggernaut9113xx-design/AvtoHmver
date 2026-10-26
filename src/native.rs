@@ -766,7 +766,7 @@ impl Default for NativePreferences {
             width: 1200,
             height: 800,
             workspace: 0,
-            theme: "tactical".into(),
+            theme: default_native_theme(),
             layout: default_native_layout(),
             extra: Default::default(),
         }
@@ -1357,19 +1357,89 @@ impl Client {
             .map_err(|error| error.message().to_owned())
     }
 
+    pub async fn storage_action(
+        &self,
+        action: &str,
+        id: i64,
+        confirmation: String,
+    ) -> Result<Value, String> {
+        let Self::Local(client) = self else {
+            return Err("Storage cleanup is available only on the library computer".into());
+        };
+        let state = client.state.clone();
+        let peer = routes::OptionalConnectInfo::from(None);
+        match action {
+            "permit-once" => {
+                response(routes::storage::permit_one_sync(State(state), peer, Path(id)).await)
+            }
+            "cleanup-source" => {
+                let keep: Option<i64> = state
+                    .pool
+                    .get()
+                    .map_err(|error| error.to_string())?
+                    .query_row(
+                        "SELECT retention_keep_newest FROM sources WHERE id=?1",
+                        [id],
+                        |row| row.get(0),
+                    )
+                    .map_err(|error| error.to_string())?;
+                let keep = keep
+                    .ok_or("Set a source retention rule in Organization before applying cleanup")?;
+                let keep =
+                    u32::try_from(keep).map_err(|_| "The source retention rule is invalid")?;
+                response(
+                    routes::storage::cleanup_source(
+                        State(state),
+                        peer,
+                        Path(id),
+                        Json(routes::storage::CleanupSourceBody {
+                            confirmation,
+                            keep_newest: Some(keep),
+                        }),
+                    )
+                    .await,
+                )
+            }
+            "clear-thumbnails" => response(
+                routes::storage::clear_thumbnails(
+                    State(state),
+                    peer,
+                    Json(routes::storage::ConfirmationBody { confirmation }),
+                )
+                .await,
+            ),
+            "cleanup-archives" => response(
+                routes::storage::cleanup_archives(
+                    State(state),
+                    peer,
+                    Json(routes::storage::ArchiveCleanupBody {
+                        confirmation,
+                        age_days: None,
+                    }),
+                )
+                .await,
+            ),
+            _ => Err("Unknown storage action".into()),
+        }
+    }
+
     /// Human-readable classifier (P-HAR) status for the Local Admin panel.
     /// Host-only; the service is opt-in and this never performs network I/O.
     pub fn classifier_status(&self) -> Result<String, String> {
         let Self::Local(client) = self else {
             return Err("Classifier status is available only on the Host device".into());
         };
-        let status = crate::phar::status(&client.state.data_dir, client.state.install_scope);
+        let status = crate::services::classifier::control(
+            &client.state,
+            crate::services::classifier::Action::Status,
+        )
+        .map_err(|error| error.to_string())?;
         let mut text = format!("{:?}: {}", status.phase, status.message);
         if let Some(error) = status.actionable_error {
             text.push_str(&format!(" — {error}"));
         }
         if status.repair_required {
-            text.push_str(" (repair available in the browser admin panel)");
+            text.push_str(" (Repair is available in Local Admin)");
         }
         Ok(text)
     }
@@ -2246,12 +2316,15 @@ mod tests {
 
     #[test]
     fn native_preferences_migrate_device_appearance_defaults() {
-        assert_eq!(NativePreferences::default().theme, "tactical");
-        assert_eq!(crate::db::Settings::default().theme, "tactical");
+        assert_eq!(NativePreferences::default().theme, "system");
+        assert_eq!(crate::db::Settings::default().theme, "system");
         let mut saved_value = serde_json::to_value(NativePreferences::default()).unwrap();
         saved_value["theme"] = json!("ember");
-        let saved: NativePreferences = serde_json::from_value(saved_value).unwrap();
+        let saved: NativePreferences = serde_json::from_value(saved_value.clone()).unwrap();
         assert_eq!(saved.theme, "ember");
+        saved_value["theme"] = json!("tactical");
+        let saved: NativePreferences = serde_json::from_value(saved_value).unwrap();
+        assert_eq!(saved.theme, "tactical");
         let old = json!({"version":1,"queue":[],"width":1200,"height":800,"workspace":0,"future_option":{"enabled":true}});
         let preferences: NativePreferences = serde_json::from_value(old).unwrap();
         assert_eq!(preferences.theme, "system");

@@ -169,6 +169,7 @@ pub struct AppState {
     pub size_backfill: Arc<RwLock<media_files::SizeBackfillProgress>>,
     /// Version-aware discovery registry built once at process startup.
     pub(crate) discovery_pages: Arc<std::sync::Mutex<services::discovery::SearchPages>>,
+    pub linked_staging: Arc<linked_packages::StagingJobs>,
     pub search_registry: Arc<services::discovery::ProviderRegistry>,
     pub data_dir: PathBuf,
     pub library_dir: PathBuf,
@@ -408,7 +409,11 @@ pub async fn initialize_with_options(options: InitializeOptions) -> Result<AppSt
     } else {
         None
     };
-    let phar_status = match phar::resume_requested_setup(&data_dir, options.install_scope) {
+    let phar_status = match phar::start_install_with_lease(
+        &data_dir,
+        options.install_scope,
+        maintenance.try_acquire_background_worker(),
+    ) {
         Ok(status) => status,
         Err(error) => {
             warn!("P-HAR managed setup could not be resumed: {error}");
@@ -512,6 +517,7 @@ pub async fn initialize_with_options(options: InitializeOptions) -> Result<AppSt
         settings: Arc::new(RwLock::new(settings)),
         size_backfill: Arc::new(RwLock::new(media_files::SizeBackfillProgress::default())),
         discovery_pages: Default::default(),
+        linked_staging: Default::default(),
         search_registry,
         data_dir: data_dir.clone(),
         library_dir: library_dir.clone(),

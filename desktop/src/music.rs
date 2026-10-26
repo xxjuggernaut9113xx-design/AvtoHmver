@@ -2,8 +2,28 @@
 use crate::mpv_embed::{MpvInstance, PlayerEvent};
 use std::sync::{
     atomic::{AtomicBool, Ordering},
-    mpsc, Arc,
+    mpsc, Arc, Mutex,
 };
+
+#[derive(Clone, Default)]
+pub struct PlaybackSnapshot {
+    pub revision: u64,
+    pub path: String,
+    pub position: f64,
+    pub paused: bool,
+    pub active: bool,
+}
+
+pub fn track_key(raw: &str) -> String {
+    let value = std::path::Path::new(raw)
+        .canonicalize()
+        .map(|path| path.to_string_lossy().into_owned())
+        .unwrap_or_else(|_| raw.into());
+    let value = value.strip_prefix(r"\\?\").unwrap_or(&value).to_string();
+    #[cfg(windows)]
+    let value = value.to_lowercase();
+    value
+}
 pub enum Command {
     Load(Vec<String>, f64),
     Pause(bool),
@@ -15,6 +35,7 @@ pub struct MusicPlayer {
     tx: mpsc::Sender<Command>,
     errors: mpsc::Receiver<String>,
     suspended: Arc<AtomicBool>,
+    snapshot: Arc<Mutex<PlaybackSnapshot>>,
 }
 impl Default for MusicPlayer {
     fn default() -> Self {
@@ -27,6 +48,8 @@ impl MusicPlayer {
         let (errors_tx, errors) = mpsc::channel();
         let suspended = Arc::new(AtomicBool::new(false));
         let worker_suspended = suspended.clone();
+        let snapshot = Arc::new(Mutex::new(PlaybackSnapshot::default()));
+        let worker_snapshot = snapshot.clone();
         std::thread::spawn(move || {
             let mut player: Option<MpvInstance> = None;
             let mut tracks = vec![];
@@ -35,6 +58,8 @@ impl MusicPlayer {
             let mut applied_pause = false;
             let mut pending_end = false;
             let mut loaded = false;
+            let mut revision = 0u64;
+            let mut track_keys = Vec::new();
             loop {
                 match rx.recv_timeout(std::time::Duration::from_millis(50)) {
                     Ok(command) => {
@@ -48,6 +73,11 @@ impl MusicPlayer {
                                         player = Some(MpvInstance::create_audio()?);
                                     }
                                     tracks = paths;
+                                    track_keys = tracks
+                                        .iter()
+                                        .map(|path| track_key(path))
+                                        .collect::<Vec<_>>();
+                                    revision = revision.wrapping_add(1);
                                     index = 0;
                                     pending_end = false;
                                     loaded = false;
@@ -70,10 +100,14 @@ impl MusicPlayer {
                                         if applied_pause { "yes" } else { "no" },
                                     )
                                 }
-                                Command::Seek(seconds) => player
-                                    .as_mut()
-                                    .ok_or("No active music")?
-                                    .command(&["seek", &seconds.to_string(), "absolute"]),
+                                Command::Seek(seconds) => {
+                                    revision = revision.wrapping_add(1);
+                                    player.as_mut().ok_or("No active music")?.command(&[
+                                        "seek",
+                                        &seconds.to_string(),
+                                        "absolute",
+                                    ])
+                                }
                                 Command::Volume(v) => {
                                     player.as_mut().ok_or("No active music")?.set_property(
                                         "volume",
@@ -82,6 +116,8 @@ impl MusicPlayer {
                                 }
                                 Command::Stop => {
                                     tracks.clear();
+                                    track_keys.clear();
+                                    revision = revision.wrapping_add(1);
                                     pending_end = false;
                                     loaded = false;
                                     if let Some(p) = player.as_mut() {
@@ -126,12 +162,28 @@ impl MusicPlayer {
                         pending_end = false;
                         index += 1;
                         if let Some(path) = tracks.get(index) {
+                            revision = revision.wrapping_add(1);
                             loaded = false;
                             if let Err(e) = p.command(&["loadfile", path, "replace"]) {
                                 let _ = errors_tx.send(e);
                             }
                         }
                     }
+                    let position = p
+                        .property("time-pos")
+                        .ok()
+                        .and_then(|value| value.parse::<f64>().ok())
+                        .filter(|value| value.is_finite() && *value >= 0.0)
+                        .unwrap_or(0.0);
+                    *worker_snapshot
+                        .lock()
+                        .unwrap_or_else(|error| error.into_inner()) = PlaybackSnapshot {
+                        revision,
+                        path: track_keys.get(index).cloned().unwrap_or_default(),
+                        position,
+                        paused,
+                        active: loaded && !pending_end && index < tracks.len(),
+                    };
                 }
             }
         });
@@ -139,6 +191,7 @@ impl MusicPlayer {
             tx,
             errors,
             suspended,
+            snapshot,
         }
     }
     pub fn suspend(&self, paused: bool) {
@@ -149,5 +202,14 @@ impl MusicPlayer {
     }
     pub fn error(&self) -> Option<String> {
         self.errors.try_recv().ok()
+    }
+    pub fn snapshot(&self) -> PlaybackSnapshot {
+        let mut snapshot = self
+            .snapshot
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .clone();
+        snapshot.paused |= self.suspended.load(Ordering::Acquire);
+        snapshot
     }
 }

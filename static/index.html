@@ -77,6 +77,7 @@
         <a id="view-log-link" class="link-btn" href="/api/log" target="_blank" rel="noopener noreferrer">⚠ view log</a>
         <span class="muted">·</span>
         <button id="chpack-export-btn" class="link-btn" title="Export selected source as CockHero .chpack">🎮 export .chpack</button>
+        <button id="linked-package-open" class="link-btn" hidden>Stage linked .chpack</button>
       </div>
     </footer>
   </aside>
@@ -344,6 +345,21 @@
   <div class="feed-scroll" id="feed-scroll"></div>
 </div>
 
+<div id="linked-package-modal" class="modal-overlay" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="linked-package-title">
+    <h2 id="linked-package-title">Same-PC linked package</h2>
+    <p>Stage the downloaded media in this library. If its sources move, disappear or change, AvtoHmver removes the managed package. Original media and independent portable copies are preserved.</p>
+    <p>You can close this window while staging continues. Reopen it to see progress or cancel.</p>
+    <progress id="linked-package-progress" aria-label="Staging linked package" hidden></progress>
+    <p id="linked-package-status" role="status" aria-live="polite">Ready to stage.</p>
+    <p id="linked-package-path" class="mono small" style="overflow-wrap:anywhere" hidden></p>
+    <div class="modal-actions">
+      <button id="linked-package-close" class="btn btn-ghost">Close</button>
+      <button id="linked-package-cancel" class="btn btn-ghost" hidden>Cancel staging</button>
+      <button id="linked-package-start" class="btn btn-accent">Stage library</button>
+    </div>
+  </div>
+</div>
 <div id="toast" class="toast" hidden></div>
 <div id="source-menu" class="source-menu" hidden></div>
 
@@ -359,6 +375,7 @@
 <script src="/app.js"></script>
 <script src="/library.js"></script>
 <script src="/playback.js"></script>
+<script src="/linked-packages.js"></script>
 <script src="/motion.js"></script>
 <link rel="stylesheet" href="/playback.css">
 </body>

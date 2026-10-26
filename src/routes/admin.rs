@@ -20,6 +20,20 @@ use crate::maintenance::{MaintenanceKind, MaintenanceRequest};
 use crate::phar::{self, PharBackend};
 use crate::AppState;
 
+fn classifier_control(
+    state: &AppState,
+    action: crate::services::classifier::Action,
+) -> Result<phar::PharStatus, (StatusCode, Json<Value>)> {
+    crate::services::classifier::control(state, action).map_err(|error| {
+        let status = match error {
+            crate::services::classifier::Error::Forbidden => StatusCode::FORBIDDEN,
+            crate::services::classifier::Error::Unavailable(_) => StatusCode::SERVICE_UNAVAILABLE,
+            crate::services::classifier::Error::Failed(_) => StatusCode::INTERNAL_SERVER_ERROR,
+        };
+        (status, Json(json!({"error":error.to_string()})))
+    })
+}
+
 fn local_only(
     state: &AppState,
     peer: &Option<ConnectInfo<SocketAddr>>,
@@ -225,10 +239,10 @@ pub async fn phar_status(
     peer: super::OptionalConnectInfo,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     local_only(&state, &peer)?;
-    Ok(Json(json!(phar::status(
-        &state.data_dir,
-        state.install_scope
-    ))))
+    Ok(Json(json!(classifier_control(
+        &state,
+        crate::services::classifier::Action::Status
+    )?)))
 }
 
 #[derive(Debug, Deserialize)]
@@ -243,18 +257,13 @@ pub async fn phar_intent(
     Json(body): Json<PharIntentBody>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     local_only(&state, &peer)?;
-    let status = phar::record_install_intent(
-        &state.data_dir,
-        state.install_scope,
-        body.enabled,
-        body.backend,
-    )
-    .map_err(|error| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({"error": error.to_string()})),
-        )
-    })?;
+    let status = classifier_control(
+        &state,
+        crate::services::classifier::Action::Configure {
+            enabled: body.enabled,
+            backend: body.backend,
+        },
+    )?;
     Ok(Json(json!(status)))
 }
 
@@ -263,12 +272,7 @@ pub async fn phar_install(
     peer: super::OptionalConnectInfo,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     local_only(&state, &peer)?;
-    let status = phar::start_install(&state.data_dir, state.install_scope).map_err(|error| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({"error": error.to_string()})),
-        )
-    })?;
+    let status = classifier_control(&state, crate::services::classifier::Action::Evaluate)?;
     Ok(Json(json!({
         "accepted": true,
         "job_id": status.job_id,
@@ -282,12 +286,7 @@ pub async fn phar_cancel(
     peer: super::OptionalConnectInfo,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     local_only(&state, &peer)?;
-    let status = phar::cancel(&state.data_dir, state.install_scope).map_err(|error| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({"error": error.to_string()})),
-        )
-    })?;
+    let status = classifier_control(&state, crate::services::classifier::Action::Cancel)?;
     Ok(Json(json!(status)))
 }
 
@@ -296,12 +295,7 @@ pub async fn phar_repair(
     peer: super::OptionalConnectInfo,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     local_only(&state, &peer)?;
-    let status = phar::repair(&state.data_dir, state.install_scope).map_err(|error| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({"error": error.to_string()})),
-        )
-    })?;
+    let status = classifier_control(&state, crate::services::classifier::Action::Repair)?;
     Ok(Json(json!(status)))
 }
 
@@ -310,12 +304,7 @@ pub async fn phar_self_test(
     peer: super::OptionalConnectInfo,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     local_only(&state, &peer)?;
-    let status = phar::self_test(&state.data_dir, state.install_scope).map_err(|error| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({"error": error.to_string()})),
-        )
-    })?;
+    let status = classifier_control(&state, crate::services::classifier::Action::SelfTest)?;
     Ok(Json(json!(status)))
 }
 

@@ -296,9 +296,17 @@ export component AvtoHmverNativeWindow inherits Window {
     callback clip-selected(int);
     in-out property <string> recovery-status;
     in-out property <string> classifier-status;
+    in-out property <string> classifier-backend: "auto";
     callback classifier(string);
     callback recovery(string, string, string);
     in-out property <string> manage-status;
+    in-out property <string> storage-summary: "Refresh storage to calculate usage.";
+    in-out property <[string]> storage-sources: ["Choose source"];
+    in-out property <string> storage-source: "Choose source";
+    in-out property <string> storage-confirmation;
+    in-out property <string> storage-action-status;
+    in-out property <bool> storage-busy: false;
+    callback storage-action(string);
     in-out property <string> diagnostic-log;
     in-out property <string> discovery-status;
     in-out property <int> selected-count;
@@ -1073,6 +1081,10 @@ export component AvtoHmverNativeWindow inherits Window {
                     Button { text: "Load map"; enabled: !root.beat-busy; clicked => { root.playback-action("beat-load"); } }
                 }
                 HorizontalBox {
+                    Button { text: "Use confirmed map for music sync"; enabled: !root.beat-busy; clicked => { root.playback-action("beat-sync"); } }
+                    Button { text: "Use session tempo"; clicked => { root.playback-action("beat-sync-clear"); } }
+                }
+                HorizontalBox {
                     Text { text: "BPM"; } LineEdit { text <=> root.beat-bpm; enabled: !root.beat-busy; }
                     Text { text: "Offset (s)"; } LineEdit { text <=> root.beat-offset; enabled: !root.beat-busy; }
                 }
@@ -1159,7 +1171,7 @@ export component AvtoHmverNativeWindow inherits Window {
                         vertical-stretch: 1; spacing: 12px;
                         VerticalBox {
                             width: 178px; spacing: 5px;
-                            for section[index] in ["General", "Media & Storage", "Appearance", "Playback & GOON", "Key Binds"]: Button {
+                            for section[index] in ["General", "Media & Storage", "Appearance", "Playback & GOON", "Key Binds", "Local Admin", "Automation"]: Button {
                                 text: section;
                                 visible: index != 5 || root.local-host;
                                 primary: root.settings-page == index;
@@ -1187,6 +1199,22 @@ export component AvtoHmverNativeWindow inherits Window {
                             VerticalBox {
                                 spacing: 10px; alignment: start;
                                 Text { vertical-stretch: 0; text: "Media & Storage"; font-size: 18px; color: root.theme-text; }
+                                Text { vertical-stretch: 0; text: root.storage-summary; wrap: word-wrap; color: root.theme-text; }
+                                Button { text: "Refresh storage usage"; enabled: !root.storage-busy; clicked => { root.storage-action("refresh"); } }
+                                if root.local-host: ComboBox { height: 36px; model: root.storage-sources; current-value <=> root.storage-source; enabled: !root.storage-busy; }
+                                if root.local-host: Text { text: root.storage-source; wrap: word-wrap; color: root.theme-muted; }
+                                if root.local-host: Text { text: "Storage actions apply immediately. Retention preserves protected media and annotations. Type DELETE OLD MEDIA, CLEAR THUMBNAILS, or DELETE ARCHIVES for the corresponding cleanup."; wrap: word-wrap; color: root.theme-muted; }
+                                if root.local-host: LineEdit { text <=> root.storage-confirmation; placeholder-text: "Cleanup confirmation phrase"; enabled: !root.storage-busy; }
+                                if root.local-host: HorizontalBox {
+                                    Button { text: "Permit next source sync"; enabled: !root.storage-busy; clicked => { root.storage-action("permit-once"); } }
+                                    Button { text: "Apply source retention"; enabled: !root.storage-busy && root.storage-confirmation == "DELETE OLD MEDIA"; clicked => { root.storage-action("cleanup-source"); } }
+                                }
+                                if root.local-host: HorizontalBox {
+                                    Button { text: "Clear thumbnails"; enabled: !root.storage-busy && root.storage-confirmation == "CLEAR THUMBNAILS"; clicked => { root.storage-action("clear-thumbnails"); } }
+                                    Button { text: "Remove all archives"; enabled: !root.storage-busy && root.storage-confirmation == "DELETE ARCHIVES"; clicked => { root.storage-action("cleanup-archives"); } }
+                                }
+                                if root.storage-busy: ProgressIndicator { indeterminate: true; }
+                                Text { vertical-stretch: 0; text: root.storage-action-status; wrap: word-wrap; color: root.theme-text; }
                                 if root.local-host: Text { vertical-stretch: 0; text: "Maximum download file size in bytes (blank: unlimited)"; wrap: word-wrap; color: root.theme-text; }
                                 if root.local-host: LineEdit { height: 36px; vertical-stretch: 0; text <=> root.settings-draft-max-file-bytes; placeholder-text: "Unlimited"; }
                                 if root.local-host: Text { vertical-stretch: 0; text: "Maximum source storage in bytes (blank: unlimited)"; wrap: word-wrap; color: root.theme-text; }
@@ -1261,6 +1289,7 @@ export component AvtoHmverNativeWindow inherits Window {
                                 if root.local-host: Text { vertical-stretch: 0; text: "Discovery providers, comma-separated (blank: all enabled)"; wrap: word-wrap; color: root.theme-text; }
                                 if root.local-host: LineEdit { height: 36px; vertical-stretch: 0; text <=> root.settings-draft-search-providers; placeholder-text: "All enabled"; }
                                 Text { vertical-stretch: 0; text: "Classification is opt-in. Dependency and model availability are shown in Local Admin."; wrap: word-wrap; color: root.theme-muted; }
+                                if root.local-host: CheckBox { text: "Enable automatic media classification (restart required)"; checked <=> root.settings-draft-nsfw; }
                             }
                         }
                         if root.settings-page == 5 && root.local-host: ScrollView {
@@ -1289,6 +1318,13 @@ export component AvtoHmverNativeWindow inherits Window {
                                 Button { text: "Run maintenance"; enabled: !root.busy && (root.maintenance-required-phrase == "" || root.maintenance-confirmation == root.maintenance-required-phrase); clicked => { root.recovery(root.maintenance-action, "", root.maintenance-confirmation); } }
                                 Text { vertical-stretch: 0; text: root.recovery-status; wrap: word-wrap; color: root.theme-text; }
                                 Text { vertical-stretch: 0; text: "Classifier (P-HAR)"; font-size: 18px; color: root.theme-text; }
+                                Text { vertical-stretch: 0; text: "Setup and backend actions apply immediately. Automatic-classification preferences need Save and a restart."; wrap: word-wrap; color: root.theme-muted; }
+                                HorizontalBox {
+                                    vertical-stretch: 0;
+                                    ComboBox { model: ["auto", "cuda", "rocm"]; current-value <=> root.classifier-backend; }
+                                    Button { text: "Apply backend"; enabled: !root.busy; clicked => { root.classifier("backend:" + root.classifier-backend); } }
+                                    Button { text: "Disable P-HAR next launch"; enabled: !root.busy; clicked => { root.classifier("disable"); } }
+                                }
                                 Text { vertical-stretch: 0; text: "Classification is opt-in. Installing downloads the P-HAR runtime and models in the background; progress shows below."; wrap: word-wrap; color: root.theme-muted; }
                                 HorizontalBox {
                                     vertical-stretch: 0;

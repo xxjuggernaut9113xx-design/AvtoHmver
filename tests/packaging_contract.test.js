@@ -84,7 +84,11 @@ test('release workflow builds native Windows and Linux binaries without browser 
   assert.match(workflow, /windows-installers:/);
   assert.match(workflow, /smoke-desktop-installers\.ps1/);
   assert.match(workflow, /build-server-installers\.ps1/);
-  assert.match(workflow, /needs: \[dependency-security, windows-installers, linux\]/);
+  const release = workflow.slice(workflow.indexOf('\n  release:'));
+  const needs = release.match(/^\s+needs:\s*\[([^\]]+)\]/m)?.[1].split(',').map(value => value.trim()) || [];
+  for (const gate of ['dependency-security', 'fanservice-browser', 'windows-installers', 'linux']) {
+    assert.ok(needs.includes(gate), `release must wait for ${gate}`);
+  }
   assert.match(workflow, /cargo build -vv --release --locked -p \$\{\{ matrix\.package \}\} --bin/);
   assert.match(workflow, /RUST_LOG: debug/);
   assert.match(workflow, /RUST_BACKTRACE: full/);

@@ -9,7 +9,6 @@ use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use std::{
     path::{Path, PathBuf},
-    process::Command,
     sync::atomic::{AtomicU64, Ordering},
     thread,
 };
@@ -337,6 +336,14 @@ pub fn record_install_intent(
 
 /// Starts/resumes the durable setup job and returns its status without waiting.
 pub fn start_install(data_dir: &Path, scope: InstallScope) -> Result<PharStatus> {
+    start_install_with_lease(data_dir, scope, None)
+}
+
+pub fn start_install_with_lease(
+    data_dir: &Path,
+    scope: InstallScope,
+    lease: Option<crate::maintenance::BackgroundWorkerLease>,
+) -> Result<PharStatus> {
     let current = status(data_dir, scope);
     if !current.requested || current.support.tier == PharSupportTier::Unavailable {
         return Ok(current);
@@ -344,18 +351,15 @@ pub fn start_install(data_dir: &Path, scope: InstallScope) -> Result<PharStatus>
     if matches!(current.phase, PharPhase::Cancelled | PharPhase::Ready) {
         return Ok(current);
     }
-    if matches!(
-        current.phase,
-        PharPhase::Detecting
-            | PharPhase::ProvisioningRuntime
-            | PharPhase::FetchingSource
-            | PharPhase::InstallingDependencies
-            | PharPhase::DownloadingModels
-            | PharPhase::Verifying
-            | PharPhase::Probing
-    ) {
-        return Ok(current);
-    }
+    let job_lock = std::fs::OpenOptions::new()
+        .create(true)
+        .read(true)
+        .write(true)
+        .truncate(false)
+        .open(data_dir.join(".phar-setup.lock"))?;
+    fs4::FileExt::try_lock(&job_lock).map_err(|_| {
+        anyhow!("P-HAR setup is already running or stopping. Refresh its status and retry.")
+    })?;
     let _ = std::fs::remove_file(cancel_path(data_dir));
     let mut initial = new_state(
         PharPhase::Detecting,
@@ -370,7 +374,11 @@ pub fn start_install(data_dir: &Path, scope: InstallScope) -> Result<PharStatus>
     let owned = data_dir.to_path_buf();
     thread::Builder::new()
         .name("curator-phar-install".into())
-        .spawn(move || run_install(&owned, scope))
+        .spawn(move || {
+            let _job_lock = job_lock;
+            let _lease = lease;
+            run_install(&owned, scope);
+        })
         .map_err(|error| anyhow!(error))?;
     Ok(status(data_dir, scope))
 }
@@ -402,6 +410,10 @@ fn run_install(data_dir: &Path, scope: InstallScope) {
     let gpu = match detect_gpu(requested) {
         Ok(gpu) => gpu,
         Err(error) => {
+            if cancelled(data_dir) {
+                cancelled_state(data_dir, None);
+                return;
+            }
             fail(data_dir, PharPhase::Detecting, None, error.to_string());
             return;
         }
@@ -520,12 +532,16 @@ pub fn runtime_is_verified(data_dir: &Path) -> bool {
 }
 
 fn command_output(program: &str, args: &[&str]) -> Option<String> {
-    Command::new(program)
-        .args(args)
-        .output()
-        .ok()
-        .filter(|out| out.status.success())
-        .map(|out| String::from_utf8_lossy(&out.stdout).trim().to_owned())
+    let mut command = crate::process::blocking_command(program);
+    command.args(args);
+    crate::process::output_timeout_limited(
+        &mut command,
+        std::time::Duration::from_secs(8),
+        1024 * 1024,
+    )
+    .ok()
+    .filter(|out| out.status.success())
+    .map(|out| String::from_utf8_lossy(&out.stdout).trim().to_owned())
 }
 /// Pure selection is exposed for deterministic hardware-free tests.
 pub fn select_backend(

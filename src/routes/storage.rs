@@ -16,7 +16,7 @@ use crate::AppState;
 fn local_only(
     state: &AppState,
     peer: &Option<ConnectInfo<SocketAddr>>,
-) -> Result<(), (StatusCode, Json<Value>)> {
+) -> Result<crate::maintenance::BackgroundWorkerLease, (StatusCode, Json<Value>)> {
     if !state.edition.has_local_admin()
         || !peer.as_ref().is_none_or(|peer| peer.0.ip().is_loopback())
     {
@@ -25,7 +25,21 @@ fn local_only(
             Json(json!({"error":"Storage cleanup is available only from this device."})),
         ));
     }
-    Ok(())
+    if state.shutdown.is_cancelled() {
+        return Err((
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({"error":"AvtoHmver is shutting down"})),
+        ));
+    }
+    state
+        .maintenance
+        .try_acquire_background_worker()
+        .ok_or_else(|| {
+            (
+                StatusCode::SERVICE_UNAVAILABLE,
+                Json(json!({"error":"A local maintenance job is active"})),
+            )
+        })
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -51,7 +65,7 @@ pub async fn permit_one_sync(
     peer: super::OptionalConnectInfo,
     Path(id): Path<i64>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
-    local_only(&state, &peer)?;
+    let _lease = local_only(&state, &peer)?;
     let conn = state.pool.get().map_err(|error| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -95,14 +109,15 @@ pub async fn cleanup_source(
     Path(id): Path<i64>,
     Json(body): Json<CleanupSourceBody>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
-    local_only(&state, &peer)?;
+    let lease = local_only(&state, &peer)?;
     if body.confirmation != "DELETE OLD MEDIA" {
         return Err((
             StatusCode::BAD_REQUEST,
             Json(json!({"error":"Type DELETE OLD MEDIA to remove existing originals."})),
         ));
     }
-    if state.running_sources.lock().await.contains(&id) {
+    let running = state.running_sources.clone().lock_owned().await;
+    if running.contains(&id) {
         return Err((
             StatusCode::CONFLICT,
             Json(json!({"error":"Pause this source before removing old media."})),
@@ -132,6 +147,8 @@ pub async fn cleanup_source(
     };
     let worker_state = state.clone();
     let outcome = tokio::task::spawn_blocking(move || {
+        let _lease = lease;
+        let _source_admission = running;
         crate::storage::cleanup_source_keep_newest(&worker_state, id, keep_newest)
     })
     .await
@@ -164,7 +181,7 @@ pub async fn clear_thumbnails(
     peer: super::OptionalConnectInfo,
     Json(body): Json<ConfirmationBody>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
-    local_only(&state, &peer)?;
+    let lease = local_only(&state, &peer)?;
     if body.confirmation != "CLEAR THUMBNAILS" {
         return Err((
             StatusCode::BAD_REQUEST,
@@ -172,21 +189,23 @@ pub async fn clear_thumbnails(
         ));
     }
     let thumbs_dir = state.thumbs_dir.clone();
-    let outcome =
-        tokio::task::spawn_blocking(move || crate::storage::clear_thumbnail_cache(&thumbs_dir))
-            .await
-            .map_err(|_| {
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(json!({"error":"Thumbnail cleanup did not complete."})),
-                )
-            })?
-            .map_err(|error| {
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(json!({"error":error.to_string()})),
-                )
-            })?;
+    let outcome = tokio::task::spawn_blocking(move || {
+        let _lease = lease;
+        crate::storage::clear_thumbnail_cache(&thumbs_dir)
+    })
+    .await
+    .map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error":"Thumbnail cleanup did not complete."})),
+        )
+    })?
+    .map_err(|error| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error":error.to_string()})),
+        )
+    })?;
     Ok(Json(
         json!({"removed_items":outcome.removed_items,"removed_bytes":outcome.removed_bytes}),
     ))
@@ -204,7 +223,7 @@ pub async fn cleanup_archives(
     peer: super::OptionalConnectInfo,
     Json(body): Json<ArchiveCleanupBody>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
-    local_only(&state, &peer)?;
+    let lease = local_only(&state, &peer)?;
     if body.confirmation != "DELETE ARCHIVES" {
         return Err((
             StatusCode::BAD_REQUEST,
@@ -214,6 +233,7 @@ pub async fn cleanup_archives(
     let archives_dir = state.archives_dir.clone();
     let age_days = body.age_days.filter(|days| *days > 0);
     let outcome = tokio::task::spawn_blocking(move || {
+        let _lease = lease;
         crate::storage::remove_archives_older_than(&archives_dir, age_days)
     })
     .await
@@ -239,6 +259,67 @@ pub async fn cleanup_archives(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn cleanup_and_classifier_configuration_respect_maintenance_and_shutdown() {
+        let root = tempfile::tempdir().unwrap();
+        let state = crate::test_support::state(root.path());
+        let preview = state.thumbs_dir.join("1.jpg");
+        std::fs::write(&preview, b"preserve cache during maintenance").unwrap();
+        state.running_sources.lock().await.insert(999);
+        state
+            .maintenance
+            .start(
+                state.clone(),
+                crate::maintenance::MaintenanceRequest {
+                    kind: crate::maintenance::MaintenanceKind::CreateBackup,
+                    backup_id: None,
+                    confirmation: String::new(),
+                },
+            )
+            .await
+            .unwrap();
+        let result = clear_thumbnails(
+            State(state.clone()),
+            super::super::OptionalConnectInfo::from(None),
+            Json(ConfirmationBody {
+                confirmation: "CLEAR THUMBNAILS".into(),
+            }),
+        )
+        .await;
+        assert_eq!(result.unwrap_err().0, StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(
+            std::fs::read(&preview).unwrap(),
+            b"preserve cache during maintenance"
+        );
+        assert!(matches!(
+            crate::services::classifier::control(
+                &state,
+                crate::services::classifier::Action::Install
+            ),
+            Err(crate::services::classifier::Error::Unavailable(_))
+        ));
+        state.running_sources.lock().await.clear();
+        state.server_tasks.close();
+        tokio::time::timeout(
+            std::time::Duration::from_secs(10),
+            state.server_tasks.wait(),
+        )
+        .await
+        .unwrap();
+        state.shutdown.cancel();
+        let result = clear_thumbnails(
+            State(state.clone()),
+            super::super::OptionalConnectInfo::from(None),
+            Json(ConfirmationBody {
+                confirmation: "CLEAR THUMBNAILS".into(),
+            }),
+        )
+        .await;
+        assert_eq!(result.unwrap_err().0, StatusCode::SERVICE_UNAVAILABLE);
+        assert!(preview.exists());
+        assert_eq!(state.maintenance.active_background_workers(), 0);
+    }
 
     #[test]
     fn remote_storage_cleanup_stays_local_only() {

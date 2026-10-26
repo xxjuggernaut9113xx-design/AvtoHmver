@@ -100,11 +100,45 @@ fn beat_action(
     w: &AvtoHmverNativeWindow,
     action: &str,
     state: &Arc<AppState>,
+    view: &Rc<RefCell<ViewState>>,
     runtime: &tokio::runtime::Handle,
     work: &Rc<RefCell<BeatWork>>,
     replies: &std::sync::mpsc::Sender<(u64, Result<serde_json::Value, String>)>,
 ) -> Result<(), String> {
     use avtohmver::routes::goon::{BeatMapAnalyzeBody, BeatMapUpdateBody};
+    if action == "beat-sync-clear" {
+        view.borrow_mut().session_audio.sync_music_map(None);
+        w.set_beat_status("Music-map sync cleared. Session tempo controls the metronome.".into());
+        return Ok(());
+    }
+    if action == "beat-sync" {
+        if !state.edition.owns_library() || state.shutdown.is_cancelled() {
+            return Err("Local beat maps are unavailable".into());
+        }
+        let _lease = state
+            .maintenance
+            .try_acquire_background_worker()
+            .ok_or("A maintenance job is active")?;
+        let id: i64 = w
+            .get_beat_map_id()
+            .parse()
+            .map_err(|_| "Load and confirm a saved map first")?;
+        let conn = state.pool.get().map_err(|error| error.to_string())?;
+        let (track, bpm, offset, markers, confirmed): (String, f64, f64, String, bool) = conn.query_row(
+            "SELECT track_key,bpm,beat_offset_secs,markers,confirmed FROM beat_maps WHERE id=?1", [id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?))).map_err(|error| error.to_string())?;
+        if !confirmed {
+            return Err("Review, confirm and save the map before using it for music sync".into());
+        }
+        if !std::path::Path::new(&track).is_file() {
+            return Err("The mapped local track is unavailable".into());
+        }
+        let markers = serde_json::from_str(&markers).map_err(|_| "Saved markers are invalid")?;
+        let map = super::session_audio::MusicBeatMap::new(&track, bpm, offset, markers)?;
+        view.borrow_mut().session_audio.sync_music_map(Some(map));
+        w.set_beat_status(format!("Confirmed map {id} armed. Play its matching local track; session cues follow the audio position. Other tracks use session tempo.").into());
+        return Ok(());
+    }
     if let Some(track) = action.strip_prefix("beat-track:") {
         w.set_beat_track_id(track.split(':').next().unwrap_or_default().into());
         return Ok(());
@@ -434,6 +468,7 @@ pub(super) fn attach(
                 &w,
                 &action,
                 &action_state,
+                &view,
                 &runtime,
                 &action_beat_work,
                 &beat_replies,

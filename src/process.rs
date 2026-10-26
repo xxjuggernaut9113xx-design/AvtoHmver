@@ -244,6 +244,7 @@ mod tests {
         const FILES: &[&str] = &[
             "src/appearance.rs",
             "src/beat.rs",
+            "src/phar.rs",
             "src/downloader.rs",
             "src/duration.rs",
             "src/nsfw.rs",

@@ -4,7 +4,27 @@ Discover loads immutable search snapshots in batches of 40. Appending a batch pr
 
 Local search includes up to 2,000 matching sources and 2,000 matching creators. File counts and byte totals use catalog data; incomplete size data is labeled Unknown. Cumulative totals describe loaded results, not the entire provider index. Albums and creators can overlap, so these totals are sums of results rather than unique files across the library.
 
-Remote results use bounded provider responses. Balbums currently retrieves its first 50-result page; Kemono and Coomer use their existing bounded offset search. Erome retrieves up to three 36-album pages. Redgifs retrieves the first 100-result page. Discover continuously appends the available snapshot; it does not yet continue an unlimited remote index. This remaining limitation must not be described as full provider pagination parity.
+Continuous Discover now requests subsequent pages for all five implemented
+remote text-search providers: Erome uses 36-album pages, Balbums follows its
+actual next-page links and 20-result setting, Kemono/Coomer advance their
+50-post offsets, and Redgifs follows its reported page count. The legacy
+non-paged API retains its bounded initial responses. Kemono/Coomer pin the
+successful host for a search so later pages cannot silently switch indexes.
+Their calls are paced, and HTTP 429 preserves the page and its Retry-After
+cooldown (60 seconds when the provider supplies no usable delay).
+
+Redgifs now continues through its reported provider pages, requesting the next
+100-result page when scrolling exhausts the cached rows. Results append without
+reordering earlier rows; subsequent batches retain provider order. The initial
+batch uses the selected sort. Duplicate watch URLs are suppressed across pages,
+replayed cursors return cached rows, and failed requests retain their page for
+retry. An empty or fully repeated page ends continuation. The ten-minute search
+lifetime still applies. Tokens remain temporary and are never persisted.
+This follows the maintained extractor's `page`, `count`, and `pages` contract;
+The same cached-cursor, deduplication and terminal-page rules apply to the
+other searchable providers. Multiple providers take turns; a failed provider
+keeps its page for retry without preventing healthy providers from advancing.
+Provider errors remain visible until that provider recovers.
 
 Erome's public `/search?q=...&page=...` interface and Redgifs' temporary bearer-token `/v2/auth/temporary` plus `/v2/gifs/search?search_text=...` interface follow the maintained [Erome extractor](https://github.com/mikf/gallery-dl/blob/master/gallery_dl/extractor/erome.py) and [Redgifs extractor](https://github.com/mikf/gallery-dl/blob/master/gallery_dl/extractor/redgifs.py). Browser challenges, authentication changes, rate limits, unavailable hosts, and unsupported response shapes remain visible provider errors. Paste an Erome album URL or a Redgifs watch URL into Discover to use the direct-URL path when search is unavailable. No challenge bypass or user-token persistence is performed.
 

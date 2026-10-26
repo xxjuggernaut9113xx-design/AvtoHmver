@@ -1,7 +1,6 @@
 //! Same-PC staging. Only the managed package is invalidated; sources are never deleted.
 use crate::{
     chpack::{build_chpack_cancellable, copy_cancellable, ExportRow},
-    edition::Edition,
     AppState,
 };
 use anyhow::{Context, Result};
@@ -12,6 +11,125 @@ use std::{
     sync::Arc,
     time::{Duration, UNIX_EPOCH},
 };
+
+#[derive(Clone, Serialize)]
+pub struct StagingStatus {
+    pub id: String,
+    pub phase: String,
+    pub path: Option<String>,
+    pub error: Option<String>,
+}
+
+struct StagingJob {
+    status: StagingStatus,
+    cancel: Arc<std::sync::atomic::AtomicBool>,
+}
+
+#[derive(Default)]
+pub struct StagingJobs {
+    job: std::sync::Mutex<Option<StagingJob>>,
+}
+
+impl StagingJobs {
+    pub fn status(&self) -> Option<StagingStatus> {
+        let mut slot = self.job.lock().unwrap_or_else(|error| error.into_inner());
+        if let Some(job) = slot.as_mut() {
+            if job.status.phase == "complete"
+                && job
+                    .status
+                    .path
+                    .as_ref()
+                    .is_some_and(|path| !Path::new(path).is_file())
+            {
+                job.status.phase = "invalidated".into();
+                job.status.path = None;
+                job.status.error = Some(
+                    "Sources changed or managed staging was removed. Stage the library again."
+                        .into(),
+                );
+            }
+        }
+        slot.as_ref().map(|job| job.status.clone())
+    }
+
+    pub fn cancel(&self, id: &str) -> bool {
+        let mut slot = self.job.lock().unwrap_or_else(|error| error.into_inner());
+        let Some(job) = slot.as_mut().filter(|job| job.status.id == id) else {
+            return false;
+        };
+        if matches!(job.status.phase.as_str(), "running" | "cancelling") {
+            job.cancel.store(true, std::sync::atomic::Ordering::Release);
+            job.status.phase = "cancelling".into();
+        }
+        true
+    }
+
+    pub fn start(state: &Arc<AppState>) -> Result<StagingStatus> {
+        anyhow::ensure!(
+            state.edition.owns_library(),
+            "Viewer cannot stage local packages"
+        );
+        anyhow::ensure!(!state.shutdown.is_cancelled(), "AvtoHmver is shutting down");
+        let _admission = state
+            .maintenance
+            .try_acquire_background_worker()
+            .context("A maintenance job is active")?;
+        let mut slot = state
+            .linked_staging
+            .job
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        anyhow::ensure!(
+            !slot
+                .as_ref()
+                .is_some_and(|job| matches!(job.status.phase.as_str(), "running" | "cancelling")),
+            "Package staging is already running"
+        );
+        let status = StagingStatus {
+            id: format!("{:032x}", rand::random::<u128>()),
+            phase: "running".into(),
+            path: None,
+            error: None,
+        };
+        let cancel = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        *slot = Some(StagingJob {
+            status: status.clone(),
+            cancel: cancel.clone(),
+        });
+        let state = state.clone();
+        let id = status.id.clone();
+        state.clone().download_tasks.spawn(async move {
+            let result = stage_with_cancel(&state, cancel.clone()).await;
+            let mut slot = state
+                .linked_staging
+                .job
+                .lock()
+                .unwrap_or_else(|error| error.into_inner());
+            if let Some(job) = slot.as_mut().filter(|job| job.status.id == id) {
+                // A completed archive is committed even if Cancel races with completion.
+                // Never report a committed package as an abandoned partial write.
+                match result {
+                    Ok(path) => {
+                        job.status.phase = "complete".into();
+                        job.status.path = Some(path.to_string_lossy().into_owned());
+                    }
+                    Err(error) => {
+                        job.status.phase = if cancel.load(std::sync::atomic::Ordering::Acquire)
+                            || state.shutdown.is_cancelled()
+                        {
+                            "cancelled"
+                        } else {
+                            "failed"
+                        }
+                        .into();
+                        job.status.error = Some(error.to_string());
+                    }
+                }
+            }
+        });
+        Ok(status)
+    }
+}
 
 #[derive(Serialize, Deserialize)]
 struct Source {
@@ -81,6 +199,8 @@ fn build(library: &Path, rows: Vec<ExportRow>, cancelled: impl Fn() -> bool) -> 
     let staging = tempfile::Builder::new()
         .prefix("package-")
         .tempdir_in(&root)?;
+    let building_lease = fs::File::create(staging.path().join(".building.lock"))?;
+    fs4::FileExt::try_lock(&building_lease).context("locking package staging")?;
     fs::create_dir(staging.path().join("media"))?;
     let mut sources = Vec::new();
     let mut staged = Vec::new();
@@ -186,8 +306,28 @@ pub fn invalidate_changed(library: &Path) -> Result<usize> {
         }
         let directory = entry.path();
         let metadata = directory.join("links.json");
-        // An incomplete build is owned by TempDir and has no durable lease.
+        let marker = directory.join(".building.lock");
+        let owned = marker.is_file();
+        if owned {
+            let Ok(lease) = fs::OpenOptions::new().read(true).write(true).open(&marker) else {
+                continue;
+            };
+            if fs4::FileExt::try_lock(&lease).is_err() {
+                continue;
+            }
+            // The grace interval also protects the create-then-lock handoff.
+            if !metadata.is_file()
+                && lease.metadata()?.modified()?.elapsed().unwrap_or_default()
+                    < Duration::from_secs(60)
+            {
+                continue;
+            }
+        }
         if !metadata.is_file() {
+            if owned {
+                fs::remove_dir_all(&directory).context("removing abandoned partial package")?;
+                removed += 1;
+            }
             continue;
         }
         let sources: Vec<Source> = match fs::read(&metadata)
@@ -197,6 +337,10 @@ pub fn invalidate_changed(library: &Path) -> Result<usize> {
             Some(sources) => sources,
             None => {
                 tracing::warn!(path = %directory.display(), "Invalid linked package metadata");
+                if owned {
+                    fs::remove_dir_all(&directory).context("removing corrupt managed package")?;
+                    removed += 1;
+                }
                 continue;
             }
         };
@@ -217,8 +361,8 @@ pub async fn stage_with_cancel(
     cancel: Arc<std::sync::atomic::AtomicBool>,
 ) -> Result<PathBuf> {
     anyhow::ensure!(
-        state.edition == Edition::Host,
-        "Linked staging is available only on the local Host"
+        state.edition.owns_library(),
+        "Linked staging is available only to a local library owner"
     );
     anyhow::ensure!(!state.shutdown.is_cancelled(), "AvtoHmver is shutting down");
     let lease = state
@@ -259,7 +403,7 @@ pub async fn stage_with_cancel(
 }
 
 pub(crate) fn start_monitor(state: &AppState) {
-    if state.edition != Edition::Host {
+    if !state.edition.owns_library() {
         return;
     }
     let monitor = state.clone();
@@ -286,6 +430,27 @@ pub(crate) fn start_monitor(state: &AppState) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::edition::Edition;
+
+    #[test]
+    fn abandoned_owned_staging_is_reclaimed_only_after_its_build_lease_is_released() {
+        let root = tempfile::tempdir().unwrap();
+        let directory = stage_root(root.path())
+            .unwrap()
+            .join("package-abandoned-test");
+        fs::create_dir(&directory).unwrap();
+        let lease = fs::File::create(directory.join(".building.lock")).unwrap();
+        lease
+            .set_modified(std::time::SystemTime::now() - Duration::from_secs(61))
+            .unwrap();
+        fs4::FileExt::try_lock(&lease).unwrap();
+        fs::write(directory.join("partial.chpack"), b"incomplete").unwrap();
+        assert_eq!(invalidate_changed(root.path()).unwrap(), 0);
+        assert!(directory.exists());
+        drop(lease);
+        assert_eq!(invalidate_changed(root.path()).unwrap(), 1);
+        assert!(!directory.exists());
+    }
     #[test]
     fn cancelling_during_archive_copy_cleans_links_and_keeps_original() {
         let root = tempfile::tempdir().unwrap();
@@ -390,7 +555,7 @@ mod tests {
         );
     }
     #[tokio::test]
-    async fn only_local_host_can_stage_and_shutdown_is_denied() {
+    async fn library_owners_can_stage_and_viewer_and_shutdown_are_denied() {
         let root = tempfile::tempdir().unwrap();
         let state = crate::test_support::state(root.path());
         let mut server = (*state).clone();
@@ -399,14 +564,14 @@ mod tests {
             .await
             .unwrap_err()
             .to_string()
-            .contains("local Host"));
+            .contains("No downloaded"));
         let mut viewer = (*state).clone();
         viewer.edition = Edition::Viewer;
         assert!(stage(&Arc::new(viewer))
             .await
             .unwrap_err()
             .to_string()
-            .contains("local Host"));
+            .contains("local library owner"));
         let mut host = (*state).clone();
         host.edition = Edition::Host;
         host.shutdown.cancel();

@@ -678,31 +678,53 @@ pub struct SearchResponse {
 
 #[derive(Default)]
 pub(crate) struct SearchPages {
-    snapshots: HashMap<String, (std::time::Instant, SearchResponse)>,
+    snapshots: HashMap<String, SearchSnapshot>,
+}
+
+type SearchSnapshot = (
+    std::time::Instant,
+    SearchResponse,
+    Vec<ProviderContinuation>,
+);
+
+#[derive(Clone)]
+struct ProviderContinuation {
+    provider: String,
+    base: Option<String>,
+    query: String,
+    page: u64,
+    result_type: String,
 }
 
 impl SearchPages {
-    fn first(&mut self, mut response: SearchResponse, limit: usize) -> SearchResponse {
+    fn first(
+        &mut self,
+        mut response: SearchResponse,
+        limit: usize,
+        remote: Vec<ProviderContinuation>,
+    ) -> SearchResponse {
         self.snapshots
-            .retain(|_, (created, _)| created.elapsed() < Duration::from_secs(600));
-        if response.results.len() <= limit {
+            .retain(|_, (created, _, _)| created.elapsed() < Duration::from_secs(600));
+        if response.results.len() <= limit && remote.is_empty() {
             return response;
         }
         if self.snapshots.len() >= 32 {
             if let Some(oldest) = self
                 .snapshots
                 .iter()
-                .min_by_key(|(_, (created, _))| created)
+                .min_by_key(|(_, (created, _, _))| created)
                 .map(|(id, _)| id.clone())
             {
                 self.snapshots.remove(&oldest);
             }
         }
         let id = format!("{:032x}", rand::random::<u128>());
-        self.snapshots
-            .insert(id.clone(), (std::time::Instant::now(), response.clone()));
+        self.snapshots.insert(
+            id.clone(),
+            (std::time::Instant::now(), response.clone(), remote),
+        );
         response.results.truncate(limit);
-        response.next_cursor = Some(format!("{id}:{limit}"));
+        response.next_cursor = Some(format!("{id}:{}", response.results.len()));
         response
     }
 
@@ -714,18 +736,91 @@ impl SearchPages {
         };
         let (id, offset) = cursor.split_once(':').ok_or_else(bad)?;
         let offset = offset.parse::<usize>().map_err(|_| bad())?;
-        let (created, snapshot) = self.snapshots.get(id).ok_or_else(bad)?;
-        if created.elapsed() >= Duration::from_secs(600)
-            || offset == 0
-            || offset >= snapshot.results.len()
-        {
+        let (created, snapshot, remote) = self.snapshots.get(id).ok_or_else(bad)?;
+        if created.elapsed() >= Duration::from_secs(600) || offset > snapshot.results.len() {
             return Err(bad());
         }
         let end = offset.saturating_add(limit).min(snapshot.results.len());
-        let mut page = snapshot.clone();
-        page.results = snapshot.results[offset..end].to_vec();
-        page.next_cursor = (end < snapshot.results.len()).then(|| format!("{id}:{end}"));
-        Ok(page)
+        Ok(SearchResponse {
+            results: snapshot.results[offset..end].to_vec(),
+            providers: snapshot.providers.clone(),
+            provider_errors: snapshot.provider_errors.clone(),
+            next_cursor: (end < snapshot.results.len() || !remote.is_empty())
+                .then(|| format!("{id}:{end}")),
+        })
+    }
+
+    fn pending_remote(&self, cursor: &str) -> Option<ProviderContinuation> {
+        let (id, offset) = cursor.split_once(':')?;
+        let offset = offset.parse::<usize>().ok()?;
+        let (created, snapshot, remote) = self.snapshots.get(id)?;
+        (created.elapsed() < Duration::from_secs(600) && offset == snapshot.results.len())
+            .then(|| remote.first().cloned())
+            .flatten()
+    }
+
+    fn append_remote(
+        &mut self,
+        cursor: &str,
+        expected: &ProviderContinuation,
+        mut results: Vec<SearchResult>,
+        more: bool,
+    ) {
+        let Some((id, _)) = cursor.split_once(':') else {
+            return;
+        };
+        let Some((_, snapshot, remote)) = self.snapshots.get_mut(id) else {
+            return;
+        };
+        // Concurrent retries of a cursor may fetch twice, but commit once.
+        if remote.first().map(|value| (&value.provider, value.page))
+            != Some((&expected.provider, expected.page))
+        {
+            return;
+        }
+        if !expected.result_type.is_empty() {
+            results.retain(|value| value.result_type == expected.result_type);
+        }
+        let mut seen: HashSet<_> = snapshot
+            .results
+            .iter()
+            .map(|value| value.source_url.clone())
+            .collect();
+        results.retain(|value| seen.insert(value.source_url.clone()));
+        let progressed = !results.is_empty();
+        snapshot.results.extend(results);
+        snapshot
+            .provider_errors
+            .retain(|error| error.provider != expected.provider);
+        if more && progressed {
+            remote[0].page += 1;
+            remote.rotate_left(1);
+        } else {
+            remote.remove(0);
+        }
+    }
+
+    fn failed_remote(&mut self, cursor: &str, expected: &ProviderContinuation, error: String) {
+        let Some((id, _)) = cursor.split_once(':') else {
+            return;
+        };
+        let Some((_, snapshot, remote)) = self.snapshots.get_mut(id) else {
+            return;
+        };
+        if remote.first().map(|value| (&value.provider, value.page))
+            != Some((&expected.provider, expected.page))
+        {
+            return;
+        }
+        snapshot
+            .provider_errors
+            .retain(|error| error.provider != expected.provider);
+        snapshot.provider_errors.push(ProviderError {
+            provider: expected.provider.clone(),
+            error,
+        });
+        // Keep the failed page for retry while allowing healthy providers to advance.
+        remote.rotate_left(1);
     }
 }
 
@@ -909,11 +1004,23 @@ fn parse_erome(html: &str) -> Vec<SearchResult> {
 }
 
 async fn search_erome(query: &str) -> Result<Vec<SearchResult>, String> {
+    let mut results = Vec::new();
+    for page in 1..=3 {
+        let (albums, more) = search_erome_page(query, page).await?;
+        results.extend(albums);
+        if !more {
+            break;
+        }
+    }
+    Ok(results)
+}
+
+async fn search_erome_page(query: &str, page: u64) -> Result<(Vec<SearchResult>, bool), String> {
     if let Some(result) = provider_direct_url_result("erome", query) {
-        return Ok(vec![result]);
+        return Ok((vec![result], false));
     }
     if query.starts_with("https://") || query.starts_with("http://") {
-        return Ok(Vec::new());
+        return Ok((Vec::new(), false));
     }
     let client = reqwest::Client::builder()
         .user_agent("AvtoHmver discovery")
@@ -921,40 +1028,31 @@ async fn search_erome(query: &str) -> Result<Vec<SearchResult>, String> {
         .redirect(crate::url_guard::public_redirect_policy())
         .build()
         .map_err(|error| error.to_string())?;
-    let mut results = Vec::new();
-    for page in 1..=3 {
-        let response = client
-            .get("https://www.erome.com/search")
-            .query(&[("q", query), ("page", &page.to_string())])
-            .send()
-            .await
-            .map_err(|error| {
-                format!("Erome search unavailable: {error}; paste an album URL instead")
-            })?
-            .error_for_status()
-            .map_err(|error| format!("Erome search failed: {error}; paste an album URL instead"))?;
-        let mut bytes = Vec::new();
-        let mut stream = response.bytes_stream();
-        while let Some(chunk) = stream.next().await {
-            let chunk = chunk.map_err(|error| error.to_string())?;
-            if bytes.len().saturating_add(chunk.len()) > 4 * 1024 * 1024 {
-                return Err("Erome search response exceeded 4 MiB".into());
-            }
-            bytes.extend_from_slice(&chunk);
+    let response = client
+        .get("https://www.erome.com/search")
+        .query(&[("q", query), ("page", &page.to_string())])
+        .send()
+        .await
+        .map_err(|error| format!("Erome search unavailable: {error}; paste an album URL instead"))?
+        .error_for_status()
+        .map_err(|error| format!("Erome search failed: {error}; paste an album URL instead"))?;
+    let mut bytes = Vec::new();
+    let mut stream = response.bytes_stream();
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk.map_err(|error| error.to_string())?;
+        if bytes.len().saturating_add(chunk.len()) > 4 * 1024 * 1024 {
+            return Err("Erome search response exceeded 4 MiB".into());
         }
-        let html = String::from_utf8(bytes).map_err(|_| "Erome returned non-text search data")?;
-        let lower = html.to_ascii_lowercase();
-        if lower.contains("cf-chl-") || lower.contains("<title>just a moment") {
-            return Err("Erome requires a browser challenge; paste an album URL instead".into());
-        }
-        let albums = parse_erome(&html);
-        let full = albums.len() >= 36;
-        results.extend(albums);
-        if !full {
-            break;
-        }
+        bytes.extend_from_slice(&chunk);
     }
-    Ok(results)
+    let html = String::from_utf8(bytes).map_err(|_| "Erome returned non-text search data")?;
+    let lower = html.to_ascii_lowercase();
+    if lower.contains("cf-chl-") || lower.contains("<title>just a moment") {
+        return Err("Erome requires a browser challenge; paste an album URL instead".into());
+    }
+    let albums = parse_erome(&html);
+    let full = albums.len() >= 36;
+    Ok((albums, full))
 }
 
 async fn discovery_json(request: reqwest::RequestBuilder) -> Result<Value, String> {
@@ -1024,11 +1122,17 @@ fn parse_redgifs(value: &Value) -> Vec<SearchResult> {
 }
 
 async fn search_redgifs(query: &str) -> Result<Vec<SearchResult>, String> {
+    search_redgifs_page(query, 1)
+        .await
+        .map(|(results, _)| results)
+}
+
+async fn search_redgifs_page(query: &str, page: u64) -> Result<(Vec<SearchResult>, bool), String> {
     if let Some(result) = provider_direct_url_result("redgifs", query) {
-        return Ok(vec![result]);
+        return Ok((vec![result], false));
     }
     if query.starts_with("https://") || query.starts_with("http://") {
-        return Ok(Vec::new());
+        return Ok((Vec::new(), false));
     }
     // The public temporary-token and search interfaces match gallery-dl's
     // maintained RedgifsAPI adapter. No user credentials are persisted.
@@ -1049,7 +1153,11 @@ async fn search_redgifs(query: &str) -> Result<Vec<SearchResult>, String> {
             .bearer_auth(token)
             .header("Origin", "https://www.redgifs.com")
             .header("Referer", "https://www.redgifs.com/")
-            .query(&[("search_text", query), ("count", "100"), ("page", "1")]),
+            .query(&[
+                ("search_text", query),
+                ("count", "100"),
+                ("page", &page.to_string()),
+            ]),
     )
     .await?;
     if !response.get("gifs").is_some_and(Value::is_array) {
@@ -1057,7 +1165,11 @@ async fn search_redgifs(query: &str) -> Result<Vec<SearchResult>, String> {
             "Redgifs returned an unsupported search response; paste a watch URL instead".into(),
         );
     }
-    Ok(parse_redgifs(&response))
+    let more = response
+        .get("pages")
+        .and_then(Value::as_u64)
+        .is_some_and(|pages| page < pages);
+    Ok((parse_redgifs(&response), more))
 }
 
 async fn search_remote_provider(
@@ -1084,6 +1196,23 @@ async fn search_remote_provider(
     }
 }
 
+async fn search_provider_page(
+    provider: &str,
+    query: &str,
+    page: u64,
+    base: Option<&str>,
+) -> Result<(Vec<SearchResult>, bool), String> {
+    match provider {
+        "redgifs" => search_redgifs_page(query, page).await,
+        "erome" => search_erome_page(query, page).await,
+        "balbums" => search_balbums_page(query, page).await,
+        "kemono" | "coomer" => search_kemono_page(provider, query, page, base).await,
+        _ => search_remote_provider(provider.into(), query.into())
+            .await
+            .map(|results| (results, false)),
+    }
+}
+
 pub async fn search(
     state: &Arc<AppState>,
     query: SearchQuery,
@@ -1094,6 +1223,50 @@ pub async fn search(
         .unwrap_or(if query.paged { 40 } else { 100 })
         .clamp(1, 250);
     if let Some(cursor) = query.cursor.as_deref() {
+        let pending = state
+            .discovery_pages
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .pending_remote(cursor);
+        if let Some(remote) = pending {
+            let fetched = tokio::time::timeout(
+                Duration::from_secs(10),
+                search_provider_page(
+                    &remote.provider,
+                    &remote.query,
+                    remote.page,
+                    remote.base.as_deref(),
+                ),
+            )
+            .await
+            .map_err(|_| {
+                format!(
+                    "{} search timed out; retry or paste a direct URL",
+                    remote.provider
+                )
+            })
+            .and_then(|result| {
+                result.map_err(|error| {
+                    format!("{}: {error}. Retry or paste a direct URL", remote.provider)
+                })
+            });
+            let (results, more) = match fetched {
+                Ok(value) => value,
+                Err(error) => {
+                    state
+                        .discovery_pages
+                        .lock()
+                        .unwrap_or_else(|error| error.into_inner())
+                        .failed_remote(cursor, &remote, error.clone());
+                    return Err(bad(error));
+                }
+            };
+            state
+                .discovery_pages
+                .lock()
+                .unwrap_or_else(|error| error.into_inner())
+                .append_remote(cursor, &remote, results, more);
+        }
         return state
             .discovery_pages
             .lock()
@@ -1118,6 +1291,7 @@ pub async fn search(
 
     let mut results = Vec::new();
     let mut provider_errors = Vec::new();
+    let mut remote_continuations = Vec::new();
     if requested.iter().any(|provider| provider == "local") {
         let catalog_results = {
             let conn = state
@@ -1142,11 +1316,17 @@ pub async fn search(
         .collect::<Vec<_>>();
     let remote_outcomes = futures::stream::iter(remote_ids.into_iter().map(|provider| {
         let text = text.clone();
+        let paged = query.paged;
         async move {
-            let result = tokio::time::timeout(
-                Duration::from_secs(10),
-                search_remote_provider(provider.clone(), text),
-            )
+            let result = tokio::time::timeout(Duration::from_secs(10), async {
+                if paged {
+                    search_provider_page(&provider, &text, 1, None).await
+                } else {
+                    search_remote_provider(provider.clone(), text)
+                        .await
+                        .map(|results| (results, false))
+                }
+            })
             .await;
             match result {
                 Ok(Ok(results)) => (provider, Ok(results)),
@@ -1163,7 +1343,32 @@ pub async fn search(
     .await;
     for (provider, outcome) in remote_outcomes {
         match outcome {
-            Ok(values) => results.extend(values.into_iter().take(2000)),
+            Ok((values, more)) => {
+                if more
+                    && query.result_type.as_deref().is_none_or(|kind| {
+                        kind.is_empty()
+                            || values
+                                .iter()
+                                .any(|row| row.result_type.eq_ignore_ascii_case(kind))
+                    })
+                {
+                    remote_continuations.push(ProviderContinuation {
+                        provider: provider.clone(),
+                        base: values
+                            .first()
+                            .filter(|_| matches!(provider.as_str(), "kemono" | "coomer"))
+                            .map(|row| format!("https://{}", row.source)),
+                        query: text.clone(),
+                        page: 2,
+                        result_type: query
+                            .result_type
+                            .clone()
+                            .unwrap_or_default()
+                            .to_ascii_lowercase(),
+                    });
+                }
+                results.extend(values.into_iter().take(2000));
+            }
             Err(error) => provider_errors.push(ProviderError { provider, error }),
         }
     }
@@ -1208,7 +1413,7 @@ pub async fn search(
             .discovery_pages
             .lock()
             .unwrap_or_else(|error| error.into_inner())
-            .first(response, limit)
+            .first(response, limit, remote_continuations)
     } else {
         response
     })
@@ -1367,6 +1572,12 @@ fn parse_balbums_html(html: &str) -> Vec<SearchResult> {
 }
 
 async fn search_balbums(query: &str) -> Result<Vec<SearchResult>, String> {
+    search_balbums_page(query, 1)
+        .await
+        .map(|(results, _)| results)
+}
+
+async fn search_balbums_page(query: &str, page: u64) -> Result<(Vec<SearchResult>, bool), String> {
     let trimmed = query.trim();
     if is_balbums_url(trimmed) {
         let source_url = if trimmed.starts_with("http://") || trimmed.starts_with("https://") {
@@ -1374,31 +1585,34 @@ async fn search_balbums(query: &str) -> Result<Vec<SearchResult>, String> {
         } else {
             format!("https://{trimmed}")
         };
-        return Ok(vec![SearchResult {
-            title: "balbums.st collection".to_string(),
-            creator: None,
-            thumbnail: None,
-            source: "balbums.st".to_string(),
-            source_url,
-            provider: "balbums".to_string(),
-            result_type: "collection".to_string(),
-            item_count: None,
-            total_bytes: None,
-            date: None,
-            // An index URL must be resolved to its source page before it can
-            // enter gallery-dl. The UI keeps it available for preview/open.
-            gallery_dl_compatible: false,
-            gallery_dl_validated: false,
-            relevance: Some(100),
-        }]);
+        return Ok((
+            vec![SearchResult {
+                title: "balbums.st collection".to_string(),
+                creator: None,
+                thumbnail: None,
+                source: "balbums.st".to_string(),
+                source_url,
+                provider: "balbums".to_string(),
+                result_type: "collection".to_string(),
+                item_count: None,
+                total_bytes: None,
+                date: None,
+                // An index URL must be resolved to its source page before it can
+                // enter gallery-dl. The UI keeps it available for preview/open.
+                gallery_dl_compatible: false,
+                gallery_dl_validated: false,
+                relevance: Some(100),
+            }],
+            false,
+        ));
     }
     // URLs belong to the direct gallery-dl provider. Do not send them to an
     // unrelated index search endpoint.
     if trimmed.starts_with("https://") || trimmed.starts_with("http://") {
-        return Ok(Vec::new());
+        return Ok((Vec::new(), false));
     }
     let url = format!(
-        "https://balbums.st/?mode=broad&page=1&per=50&search={}&sort=latest",
+        "https://balbums.st/?mode=broad&page={page}&per=20&search={}&sort=latest",
         urlencoding::encode(trimmed)
     );
     let client = reqwest::Client::builder()
@@ -1432,7 +1646,29 @@ async fn search_balbums(query: &str) -> Result<Vec<SearchResult>, String> {
     }
     let html = String::from_utf8(bytes)
         .map_err(|_| "balbums.st returned non-text search data".to_string())?;
-    Ok(parse_balbums_html(&html))
+    let results = parse_balbums_html(&html);
+    let more = balbums_has_next(&html, page);
+    Ok((results, more))
+}
+
+fn balbums_has_next(html: &str, page: u64) -> bool {
+    let Some(next) = page.checked_add(1) else {
+        return false;
+    };
+    let base = reqwest::Url::parse("https://balbums.st/").unwrap();
+    BALBUMS_CARD.captures_iter(html).any(|card| {
+        let Some(raw) = card.name("url") else {
+            return false;
+        };
+        let Ok(link) = base.join(&raw.as_str().replace("&amp;", "&")) else {
+            return false;
+        };
+        link.host_str() == Some("balbums.st")
+            && link.path() == "/"
+            && link
+                .query_pairs()
+                .any(|(key, value)| key == "page" && value.parse::<u64>().ok() == Some(next))
+    })
 }
 
 // ─── Kemono / Coomer query adapter ───────────────────────────────────────────
@@ -1446,10 +1682,27 @@ async fn search_balbums(query: &str) -> Result<Vec<SearchResult>, String> {
 const KEMONO_MAX_RESPONSE_BYTES: usize = 4 * 1024 * 1024;
 const KEMONO_PAGE_SIZE: usize = 50;
 const KEMONO_MAX_PAGES: usize = 2;
+static KEMONO_REQUESTS: Lazy<std::sync::Mutex<HashMap<String, std::time::Instant>>> =
+    Lazy::new(|| std::sync::Mutex::new(HashMap::new()));
+
+fn reserve_provider_call(
+    deadline: &mut std::time::Instant,
+    now: std::time::Instant,
+) -> Result<Duration, String> {
+    let delay = deadline.saturating_duration_since(now);
+    if delay > Duration::from_secs(3) {
+        return Err(format!(
+            "Search is busy or rate limited; retry in {} seconds",
+            delay.as_secs().saturating_add(1)
+        ));
+    }
+    *deadline = (*deadline).max(now) + Duration::from_secs(2);
+    Ok(delay)
+}
 
 fn kemono_bases(provider: &str) -> &'static [&'static str] {
     match provider {
-        "kemono" => &["https://kemono.su", "https://kemono.cr"],
+        "kemono" => &["https://kemono.cr", "https://kemono.su"],
         "coomer" => &[
             "https://coomer.st",
             "https://coomer.su",
@@ -1557,6 +1810,14 @@ async fn kemono_fetch_page(
     query: &str,
     offset: usize,
 ) -> Result<Vec<SearchResult>, String> {
+    let delay = {
+        let now = std::time::Instant::now();
+        let mut requests = KEMONO_REQUESTS
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        reserve_provider_call(requests.entry(provider.into()).or_insert(now), now)?
+    };
+    tokio::time::sleep(delay).await;
     let url = format!(
         "{base}/api/v1/posts?q={}&o={offset}",
         urlencoding::encode(query)
@@ -1565,7 +1826,27 @@ async fn kemono_fetch_page(
         .get(url)
         .send()
         .await
-        .map_err(|error| format!("{provider} search request failed: {error}"))?
+        .map_err(|error| format!("{provider} search request failed: {error}"))?;
+    if response.status() == reqwest::StatusCode::TOO_MANY_REQUESTS {
+        let seconds = response
+            .headers()
+            .get(reqwest::header::RETRY_AFTER)
+            .and_then(|value| value.to_str().ok())
+            .and_then(|value| value.parse::<u64>().ok())
+            .unwrap_or(60)
+            .clamp(1, 3600);
+        KEMONO_REQUESTS
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .insert(
+                provider.into(),
+                std::time::Instant::now() + Duration::from_secs(seconds),
+            );
+        return Err(format!(
+            "{provider} rate limited search; retry after {seconds} seconds or paste a direct URL"
+        ));
+    }
+    let response = response
         .error_for_status()
         .map_err(|error| format!("{provider} search failed: {error}"))?;
     if response
@@ -1652,6 +1933,52 @@ async fn search_kemono_like(provider: &str, query: &str) -> Result<Vec<SearchRes
     } else {
         last_error
     })
+}
+
+async fn search_kemono_page(
+    provider: &str,
+    query: &str,
+    page: u64,
+    pinned_base: Option<&str>,
+) -> Result<(Vec<SearchResult>, bool), String> {
+    if let Some(result) = provider_direct_url_result(provider, query) {
+        return Ok((vec![result], false));
+    }
+    if query.starts_with("https://") || query.starts_with("http://") {
+        return Ok((Vec::new(), false));
+    }
+    let allowed = kemono_bases(provider);
+    let bases = if let Some(base) = pinned_base {
+        if !allowed.contains(&base) {
+            return Err("Invalid pinned provider host".into());
+        }
+        vec![base]
+    } else {
+        allowed.to_vec()
+    };
+    let offset = page
+        .checked_sub(1)
+        .and_then(|value| value.checked_mul(KEMONO_PAGE_SIZE as u64))
+        .and_then(|value| usize::try_from(value).ok())
+        .ok_or("Invalid provider page")?;
+    let client = reqwest::Client::builder()
+        .user_agent("AvtoHmver discovery")
+        .connect_timeout(Duration::from_secs(3))
+        .timeout(Duration::from_secs(5))
+        .redirect(crate::url_guard::public_redirect_policy())
+        .build()
+        .map_err(|error| error.to_string())?;
+    let mut last_error = "Provider search unavailable".to_string();
+    for base in bases {
+        match kemono_fetch_page(&client, base, provider, query, offset).await {
+            Ok(results) => {
+                let more = results.len() >= KEMONO_PAGE_SIZE;
+                return Ok((results, more));
+            }
+            Err(error) => last_error = error,
+        }
+    }
+    Err(last_error)
 }
 
 // ─── URL guards ──────────────────────────────────────────────────────────────
@@ -1807,6 +2134,47 @@ mod tests {
         }
     }
 
+    #[tokio::test]
+    #[ignore = "requires live Redgifs search and temporary-token endpoints"]
+    async fn live_redgifs_discover_continues_past_first_provider_page() {
+        let root = tempfile::tempdir().unwrap();
+        let state = crate::test_support::state(root.path());
+        let first = search(
+            &state,
+            SearchQuery {
+                query: Some("cosplay".into()),
+                provider: Some("redgifs".into()),
+                paged: true,
+                limit: Some(100),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        assert!(
+            first.provider_errors.is_empty(),
+            "{:?}",
+            first.provider_errors
+        );
+        assert_eq!(first.results.len(), 100);
+        let cursor = first
+            .next_cursor
+            .expect("search has additional provider pages");
+        let next_query = SearchQuery {
+            cursor: Some(cursor),
+            limit: Some(100),
+            ..Default::default()
+        };
+        let next = search(&state, next_query.clone()).await.unwrap();
+        assert!(!next.results.is_empty());
+        let seen: HashSet<_> = first.results.iter().map(|row| &row.source_url).collect();
+        assert!(next
+            .results
+            .iter()
+            .all(|row| !seen.contains(&row.source_url)));
+        assert_eq!(search(&state, next_query).await.unwrap(), next);
+    }
+
     #[test]
     fn redgifs_search_accepts_only_stable_watch_ids_and_keeps_unknown_sizes() {
         let results = parse_redgifs(&serde_json::json!({"gifs": [
@@ -1823,6 +2191,163 @@ mod tests {
         assert!(results[0].total_bytes.is_none());
         assert!(results[1].thumbnail.is_none());
         assert!(results.iter().all(|result| result.gallery_dl_validated));
+    }
+
+    #[test]
+    fn remote_discover_continuation_is_cached_deduplicated_and_retryable() {
+        let rows = |ids: &[&str]| {
+            parse_redgifs(
+                &serde_json::json!({"gifs": ids.iter().map(|id| serde_json::json!({"id":id})).collect::<Vec<_>>()}),
+            )
+        };
+        let mut pages = SearchPages::default();
+        let first = pages.first(
+            SearchResponse {
+                results: rows(&["First", "Second"]),
+                providers: vec!["redgifs".into()],
+                provider_errors: vec![],
+                next_cursor: None,
+            },
+            1,
+            vec![ProviderContinuation {
+                provider: "redgifs".into(),
+                base: None,
+                query: "sample".into(),
+                page: 2,
+                result_type: String::new(),
+            }],
+        );
+        let first_cursor = first.next_cursor.unwrap();
+        assert!(pages.pending_remote(&first_cursor).is_none());
+        let boundary = pages.next(&first_cursor, 1).unwrap().next_cursor.unwrap();
+        let pending = pages.pending_remote(&boundary).unwrap();
+        // Failed requests never mutate this pending page or consume its cursor.
+        assert_eq!(pages.pending_remote(&boundary).unwrap().page, 2);
+        pages.append_remote(
+            &boundary,
+            &pending,
+            rows(&["Second", "Third", "Fourth"]),
+            true,
+        );
+        pages.append_remote(&boundary, &pending, rows(&["ShouldNotAppear"]), true);
+        let third = pages.next(&boundary, 1).unwrap();
+        assert!(third.results[0].source_url.ends_with("/Third"));
+        assert_eq!(pages.next(&boundary, 1).unwrap(), third);
+        let fourth = pages
+            .next(third.next_cursor.as_deref().unwrap(), 1)
+            .unwrap();
+        assert!(fourth.results[0].source_url.ends_with("/Fourth"));
+        let end = fourth.next_cursor.unwrap();
+        let pending = pages.pending_remote(&end).unwrap();
+        assert_eq!(pending.page, 3);
+        pages.append_remote(&end, &pending, rows(&["Fourth"]), true);
+        let terminal = pages.next(&end, 1).unwrap();
+        assert!(terminal.results.is_empty());
+        assert!(terminal.next_cursor.is_none());
+        assert!(pages.pending_remote(&end).is_none());
+        assert!(pages.next("other-library:2", 1).is_err());
+    }
+
+    #[test]
+    fn mixed_provider_failure_keeps_failed_page_and_allows_other_provider_to_advance() {
+        let mut pages = SearchPages::default();
+        let first = pages.first(
+            SearchResponse {
+                results: vec![],
+                providers: vec!["redgifs".into(), "erome".into()],
+                provider_errors: vec![],
+                next_cursor: None,
+            },
+            40,
+            ["redgifs", "erome"]
+                .map(|provider| ProviderContinuation {
+                    provider: provider.into(),
+                    base: None,
+                    query: "sample".into(),
+                    page: 2,
+                    result_type: String::new(),
+                })
+                .to_vec(),
+        );
+        let cursor = first.next_cursor.unwrap();
+        let failed = pages.pending_remote(&cursor).unwrap();
+        pages.failed_remote(&cursor, &failed, "temporary failure".into());
+        let healthy = pages.pending_remote(&cursor).unwrap();
+        assert_eq!(healthy.provider, "erome");
+        let rows = parse_erome(
+            "<a href='/a/ValidAlbum'><img src='https://example.com/cover.jpg' alt='sample'></a>",
+        );
+        pages.append_remote(&cursor, &healthy, rows, false);
+        let page = pages.next(&cursor, 40).unwrap();
+        assert_eq!(page.results.len(), 1);
+        assert_eq!(page.provider_errors[0].provider, "redgifs");
+        let next = page.next_cursor.unwrap();
+        let retry = pages.pending_remote(&next).unwrap();
+        assert_eq!(retry.provider, "redgifs");
+        assert_eq!(retry.page, 2);
+        pages.append_remote(&next, &retry, vec![], false);
+        let terminal = pages.next(&next, 40).unwrap();
+        assert!(terminal.next_cursor.is_none());
+        assert!(terminal.provider_errors.is_empty());
+    }
+
+    #[test]
+    fn provider_pacing_bounds_bursts_and_preserves_a_rate_limit_deadline() {
+        let now = std::time::Instant::now();
+        let mut deadline = now;
+        assert_eq!(
+            reserve_provider_call(&mut deadline, now).unwrap(),
+            Duration::ZERO
+        );
+        assert_eq!(
+            reserve_provider_call(&mut deadline, now).unwrap(),
+            Duration::from_secs(2)
+        );
+        assert!(reserve_provider_call(&mut deadline, now).is_err());
+        deadline = now + Duration::from_secs(60);
+        assert!(reserve_provider_call(&mut deadline, now)
+            .unwrap_err()
+            .contains("retry in"));
+        assert_eq!(deadline, now + Duration::from_secs(60));
+        assert_eq!(
+            reserve_provider_call(&mut deadline, now + Duration::from_secs(61)).unwrap(),
+            Duration::ZERO
+        );
+        assert!(!balbums_has_next(
+            "<a href=\"https://unrelated.test/?page=2\">Next</a>",
+            1
+        ));
+        assert!(balbums_has_next(
+            "<a href=\"/?search=sample&amp;per=20&amp;page=2\">Next</a>",
+            1
+        ));
+    }
+
+    #[tokio::test]
+    #[ignore = "requires live public provider index endpoints"]
+    async fn live_other_discover_providers_continue_past_the_first_page() {
+        for (provider, query) in [
+            ("erome", "cosplay"),
+            ("balbums", "cosplay"),
+            ("kemono", "a"),
+            ("coomer", "a"),
+        ] {
+            let (first, more) = search_provider_page(provider, query, 1, None)
+                .await
+                .unwrap_or_else(|error| panic!("{provider}: {error}"));
+            assert!(more, "{provider} requires a query with multiple pages");
+            let base = matches!(provider, "kemono" | "coomer")
+                .then(|| format!("https://{}", first[0].source));
+            let (next, _) = search_provider_page(provider, query, 2, base.as_deref())
+                .await
+                .unwrap_or_else(|error| panic!("{provider}: {error}"));
+            assert!(!next.is_empty(), "{provider} second page empty");
+            let seen: HashSet<_> = first.iter().map(|row| &row.source_url).collect();
+            assert!(
+                next.iter().any(|row| !seen.contains(&row.source_url)),
+                "{provider} repeated its first page"
+            );
+        }
     }
 
     #[tokio::test]

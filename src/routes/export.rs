@@ -16,6 +16,64 @@ use tokio_util::io::ReaderStream;
 use crate::chpack::{build_chpack_cancellable, safe_pack_filename, ExportRow};
 use crate::AppState;
 
+fn linked_local_only(
+    state: &AppState,
+    peer: &super::OptionalConnectInfo,
+) -> Result<(), (StatusCode, Json<Value>)> {
+    if !state.edition.owns_library() || peer.as_ref().is_some_and(|peer| !peer.0.ip().is_loopback())
+    {
+        return Err((
+            StatusCode::FORBIDDEN,
+            Json(
+                json!({"error":"Linked staging is available only on this computer. Use portable export from another device."}),
+            ),
+        ));
+    }
+    Ok(())
+}
+
+pub async fn linked_status(
+    State(state): State<Arc<AppState>>,
+    peer: super::OptionalConnectInfo,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    linked_local_only(&state, &peer)?;
+    Ok(Json(json!({"job":state.linked_staging.status()})))
+}
+
+pub async fn linked_start(
+    State(state): State<Arc<AppState>>,
+    peer: super::OptionalConnectInfo,
+) -> Result<(StatusCode, Json<Value>), (StatusCode, Json<Value>)> {
+    linked_local_only(&state, &peer)?;
+    crate::linked_packages::StagingJobs::start(&state)
+        .map(|job| (StatusCode::ACCEPTED, Json(json!({"job":job}))))
+        .map_err(|error| {
+            (
+                if state.shutdown.is_cancelled() {
+                    StatusCode::SERVICE_UNAVAILABLE
+                } else {
+                    StatusCode::CONFLICT
+                },
+                Json(json!({"error":error.to_string()})),
+            )
+        })
+}
+
+pub async fn linked_cancel(
+    State(state): State<Arc<AppState>>,
+    peer: super::OptionalConnectInfo,
+    axum::extract::Path(id): axum::extract::Path<String>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    linked_local_only(&state, &peer)?;
+    if !state.linked_staging.cancel(&id) {
+        return Err((
+            StatusCode::NOT_FOUND,
+            Json(json!({"error":"Staging job not found"})),
+        ));
+    }
+    Ok(Json(json!({"job":state.linked_staging.status()})))
+}
+
 // ─── GET /api/export ─────────────────────────────────────────────────────────
 
 pub async fn export_sources(
@@ -279,6 +337,61 @@ pub async fn export_chpack(
 #[cfg(test)]
 mod package_tests {
     use super::*;
+
+    #[tokio::test]
+    async fn linked_http_jobs_reject_remote_callers_and_support_local_cancellation() {
+        let root = tempfile::tempdir().unwrap();
+        let state = crate::test_support::state(root.path());
+        let remote = super::super::OptionalConnectInfo::from(Some(axum::extract::ConnectInfo(
+            "100.64.0.2:1234".parse().unwrap(),
+        )));
+        assert_eq!(
+            linked_status(State(state.clone()), remote)
+                .await
+                .unwrap_err()
+                .0,
+            StatusCode::FORBIDDEN
+        );
+        assert_eq!(
+            linked_start(State(state.clone()), remote)
+                .await
+                .unwrap_err()
+                .0,
+            StatusCode::FORBIDDEN
+        );
+        assert!(state.linked_staging.status().is_none());
+        let local = super::super::OptionalConnectInfo::from(None);
+        let (status, Json(value)) = linked_start(State(state.clone()), local).await.unwrap();
+        assert_eq!(status, StatusCode::ACCEPTED);
+        let id = value["job"]["id"].as_str().unwrap().to_string();
+        assert_eq!(
+            linked_cancel(
+                State(state.clone()),
+                remote,
+                axum::extract::Path(id.clone())
+            )
+            .await
+            .unwrap_err()
+            .0,
+            StatusCode::FORBIDDEN
+        );
+        let _ = linked_cancel(State(state.clone()), local, axum::extract::Path(id))
+            .await
+            .unwrap();
+        state.download_tasks.close();
+        state.download_tasks.wait().await;
+        let job = state.linked_staging.status().unwrap();
+        assert!(matches!(job.phase.as_str(), "cancelled" | "failed"));
+        assert!(job.path.is_none());
+        assert_eq!(state.maintenance.active_background_workers(), 0);
+        assert_eq!(
+            linked_cancel(State(state), local, axum::extract::Path("unknown".into()))
+                .await
+                .unwrap_err()
+                .0,
+            StatusCode::NOT_FOUND
+        );
+    }
     fn request() -> ChpackBody {
         ChpackBody {
             source_id: None,

@@ -30,13 +30,20 @@ Mocked SDK tests verify controller pause/resume selection, late events, manual
 pause, units and teardown. Real provider autoplay, playlist end boundaries,
 authorization/revocation and embedded playback remain manual acceptance gates.
 The SDKs own their internal playlists; mocked tests do not prove their behavior
-at every provider-owned end boundary. Native connector and beat-map UI parity
-remain incomplete.
+at every provider-owned end boundary. External-provider native references retain
+the explicit limitations above.
 
 Native GOON setup now includes imported-track selection, cancellable FFmpeg
 analysis, a marker timeline, BPM and offset edits, marker edits, and explicit
 human confirmation. Invalid or unordered markers are rejected before writing.
 Rescanning uses the existing map identity even when no playlist is assigned.
 Cancellation kills and reaps the decoder and does not save an unfinished map.
-These editing controls do not yet establish native beat-map-driven rhythm or
-provider clock synchronization; those remain acceptance requirements.
+Choose **Use confirmed map for music sync** after saving confirmation. Native
+session cues then follow the matching local track's libmpv audio position.
+The offset aligns the first marker; an empty marker list uses the reviewed
+BPM grid. Other tracks use session tempo. **Use session tempo** clears the
+mapping without changing music playback. Seeking and track replacement reset
+the cue cursor, manual music pause suppresses synchronized cues, and delayed
+updates never queue catch-up beats. Shared Pause and panic silence cues
+immediately. Fixture tests cover these boundaries; real audio and native UI
+acceptance are recorded separately from those tests.

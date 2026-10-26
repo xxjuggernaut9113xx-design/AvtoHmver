@@ -8,7 +8,7 @@ use axum::{
 };
 use serde_json::json;
 
-use crate::thumb_worker::get_or_create_thumb;
+use crate::thumb_worker::get_or_create_thumb_admitted;
 use crate::AppState;
 
 pub async fn get_thumbnail(State(state): State<Arc<AppState>>, Path(id): Path<i64>) -> Response {
@@ -88,28 +88,32 @@ pub async fn get_thumbnail(State(state): State<Arc<AppState>>, Path(id): Path<i6
     // Images — generate/serve cached thumbnail
     // Thumbnail generation writes cache files even though this is a GET.
     // Lease it so an administrative cache rebuild has one owner at a time.
-    let Some(_worker) = state.maintenance.try_acquire_background_worker() else {
+    let Some(worker) = state.maintenance.try_acquire_background_worker() else {
         return (
             StatusCode::SERVICE_UNAVAILABLE,
             Json(json!({"error": "A local maintenance job is active."})),
         )
             .into_response();
     };
-    match get_or_create_thumb(
+    match get_or_create_thumb_admitted(
         id,
         src_path,
         state.thumbs_dir.clone(),
         state.ffmpeg_bin.clone(),
+        Some(worker),
     )
     .await
     {
         Ok(bytes) => {
             if let Some(limit) = state.settings.read().await.thumbnail_cache_max_bytes {
                 let thumbs_dir = state.thumbs_dir.clone();
-                let _ = tokio::task::spawn_blocking(move || {
-                    crate::storage::trim_thumbnail_cache(&thumbs_dir, limit)
-                })
-                .await;
+                if let Some(worker) = state.maintenance.try_acquire_background_worker() {
+                    let _ = tokio::task::spawn_blocking(move || {
+                        let _worker = worker;
+                        crate::storage::trim_thumbnail_cache(&thumbs_dir, limit)
+                    })
+                    .await;
+                }
             }
             (
                 StatusCode::OK,

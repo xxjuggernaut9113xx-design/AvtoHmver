@@ -24,6 +24,7 @@ The following table is generated from `routes::MUTATION_PERMISSIONS`. Tests comp
 <!-- BEGIN GENERATED MUTATION MATRIX -->
 | Method | Route | Host | Server | Viewer |
 |---|---|---:|---:|---:|
+| DELETE | `/api/export/chpack/linked/{id}` | Allow | Allow | Deny |
 | DELETE | `/api/goon/playlists/{id}` | Allow | Allow | Deny |
 | DELETE | `/api/groups/{id}` | Allow | Allow | Deny |
 | DELETE | `/api/groups/{id}/tags/{tag_id}` | Allow | Allow | Deny |
@@ -52,6 +53,7 @@ The following table is generated from `routes::MUTATION_PERMISSIONS`. Tests comp
 | POST | `/api/downloads/sources/{id}/pause` | Allow | Allow | Deny |
 | POST | `/api/downloads/sources/{id}/resume` | Allow | Allow | Deny |
 | POST | `/api/export/chpack` | Allow | Allow | Deny |
+| POST | `/api/export/chpack/linked` | Allow | Allow | Deny |
 | POST | `/api/fanservice/v1/export/chpack` | Allow | Allow | Allow |
 | POST | `/api/fanservice/v1/music/{id}/analyze` | Allow | Allow | Deny |
 | POST | `/api/goon/beat-maps/analyze` | Allow | Allow | Deny |

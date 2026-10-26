@@ -4,6 +4,11 @@ Current release scope (2026-10-01): Linux desktop acceptance is skipped at the u
 
 This table is the only status ledger. Detailed dated observations are linked from each ID. The [permission matrix](../permissions.md) defines role authority.
 
+2026-10-26 scope update: the new tactical theme requirement is skipped at the
+user's request. New installs use System; saved theme choices remain intact,
+including the already available optional Tactical palette. Branding, motion,
+reduced-motion support, and the remaining parity work stay in scope.
+
 H, V, and S denote intended Host, Viewer, and Server applicability (`✓`),
 limited applicability (`Scoped`), or exclusion (`—`). They do not claim
 completion. The service-layer column records current extraction direction.
@@ -30,16 +35,16 @@ completion. The service-layer column records current extraction direction.
 | [P-04](evidence/P-04.md) | Remote streaming | ✓ | Scoped | ✓ | Shared | Partial | Remote streaming checks |
 | [P-05](evidence/P-05.md) | Session authority | ✓ | Scoped | ✓ | Shared | Partial | Viewer and effect checks |
 | [P-06](evidence/P-06.md) | Modes/cues | ✓ | Scoped | ✓ | Mixed | Partial | Portrait Wall, music and beat-map acceptance |
-| [M-01](evidence/M-01.md) | Discover | ✓ | Scoped | ✓ | Shared | Partial | Remote index continuation and manual checks |
+| [M-01](evidence/M-01.md) | Discover | ✓ | Scoped | ✓ | Shared | Partial | Live provider availability and manual checks |
 | [M-02](evidence/M-02.md) | Organization/sources | ✓ | Scoped | ✓ | Shared | Partial | Source edit manual checks |
 | [M-03](evidence/M-03.md) | Activity | ✓ | Scoped | ✓ | Shared | Partial | Populated activity checks |
-| [M-04](evidence/M-04.md) | Import/export | ✓ | Scoped | ✓ | Shared | Partial | Browser staging and external importer acceptance |
+| [M-04](evidence/M-04.md) | Import/export | ✓ | Scoped | ✓ | Shared | Partial | External importer acceptance |
 | [S-01](evidence/S-01.md) | General | ✓ | Scoped | ✓ | Mixed | Partial | Remaining settings checks |
-| [S-02](evidence/S-02.md) | Media/Storage | ✓ | Scoped | ✓ | Mixed | Partial | Storage dashboard and manual controls |
+| [S-02](evidence/S-02.md) | Media/Storage | ✓ | Scoped | ✓ | Mixed | Partial | Manual storage control acceptance |
 | [S-03](evidence/S-03.md) | Appearance/Playback/Automation | ✓ | Scoped | ✓ | Mixed | Partial | Advanced controls deferred |
 | [S-04](evidence/S-04.md) | Local Admin | ✓ | — | ✓ | Mixed | Partial | Restore and restart checks |
-| [S-05](evidence/S-05.md) | Maintenance | ✓ | — | ✓ | Mixed | Partial | Maintenance cards |
-| [S-06](evidence/S-06.md) | Classifier | ✓ | — | ✓ | Mixed | Partial | Native classifier controls |
+| [S-05](evidence/S-05.md) | Maintenance | ✓ | — | ✓ | Mixed | Partial | Manual maintenance and recovery checks |
+| [S-06](evidence/S-06.md) | Classifier | ✓ | — | ✓ | Shared | Partial | Verified runtime availability and manual controls |
 | [D-01](evidence/D-01.md) | Host lifecycle | ✓ | — | — | Mixed | Partial | Installed lifecycle checks |
 | [D-02](evidence/D-02.md) | Viewer lifecycle | — | ✓ | — | Mixed | Partial | Real tailnet Viewer test |
 | [C-01](evidence/C-01.md) | Diagnostics | ✓ | Scoped | ✓ | Shared | Implemented | Linux manual check skipped |

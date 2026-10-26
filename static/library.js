@@ -906,6 +906,7 @@ async function loadMoreDiscovery() {
     const start = explorer.searchResults.length;
     explorer.searchResults.push(...(data.results || []).map(normalizeSearchResult));
     explorer.searchCursor = data.next_cursor || null;
+    explorer.searchErrors = data.provider_errors || [];
     renderSearchResults(panel, start); updateDiscoverStatus();
   } catch (error) { if (generation === explorer.searchGeneration) updateDiscoverStatus(`Load failed: ${error.message}. Retry loading below.`); }
   finally { if (generation === explorer.searchGeneration) explorer.searchPending = false; }
