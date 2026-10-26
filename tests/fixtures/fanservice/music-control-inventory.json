@@ -1,0 +1,48 @@
+{
+  "schema": 1,
+  "authority": "static shipped-artifact inventory; no runtime music-event behavior claim",
+  "v004_executable_sha256": "c645757d1112491952b67bf29502b4721133ba6940a9cfb08358f0dde127560f",
+  "v004_pdb_sha256": "fa1a7bd6918faf9a273e5b377bda9e36d0e59283441be3a54610d7910cc96dad",
+  "matching_pdb_guid_and_age": true,
+  "pdb_public_symbol_stream": 11,
+  "pdb_public_symbol_count": 1097286,
+  "pdb_music_symbol_matches": {
+    "beatmap": 0,
+    "musicmode": 0,
+    "speed_change": 0,
+    "BeatSpeedChanged": 10
+  },
+  "exact_speed_change_literal_offsets": {
+    "ascii": -1,
+    "utf-16-le": -1
+  },
+  "sample_map_count": 10,
+  "sample_map_sha256": [
+    "ec8baa533b33cdb65d11523b11ab1ecbd8a0a4360f155716e05fc20825882b76",
+    "0c06304a81c0d00ad9d414cc182e4cef0655ada34b75a454d61d7f2aa6ee8474",
+    "cc74f6ef9c4ab20dfae7036684379dcbd47babdb614b55d9d59c45fe91df7652",
+    "75ca7a3fbec394379d69a1818ed7c6ec935282be23e2e1e7ee98500eca88b402",
+    "d19232e8fc9fc5549104e58e671efd0c4e7d6c7fe0597368997cdea04fe3b9e1",
+    "bf26779ec006feee56f1b7b30ab731bd94a7566572cd80851881f10847ac7102",
+    "6b8e306870421cce9c477b0ee98c36360104b62507e3a995ac6811cae0257409",
+    "4be75ec48ffc375b7484d23ab9d9e5d52671b4e41a14f96ab8817cf5644b27ce",
+    "49ce293faf2830a493625d3d094a855fcffe94ab92e7638134f4a35044d8d437",
+    "09b788dca908b0b45161119a24229b8870f716dbe721f9f39d801dcd0da243ca"
+  ],
+  "sample_event_counts": {
+    "cycle_media": 3597,
+    "media_change": 177,
+    "background": 54,
+    "disable_break": 28,
+    "cum_event": 20
+  },
+  "sample_background_values": {
+    "normalbeatbackground": 31,
+    "succubusbackground": 12,
+    "successfulcumbackground": 8,
+    "temptationbackground": 1,
+    "tauntbackground": 1,
+    "mercybackground": 1
+  },
+  "speed_change_semantics": "unresolved; parser recognition and BeatSpeedChanged delegate do not establish JSON control behavior"
+}

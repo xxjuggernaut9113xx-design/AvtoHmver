@@ -21,6 +21,18 @@ const towerPanel=element('section'),objectiveStatus=element('p');towerPanel.id='
 const inventoryDialog=element('dialog'),inventoryBody=element('div'),inventoryTitle=element('h2','Inventory and loadout');inventoryDialog.id='inventory-dialog';inventoryDialog.append(inventoryTitle,inventoryBody,action('Close inventory',()=>inventoryDialog.close()));
 const challengeDialog=element('dialog'),challengeBody=element('div');challengeDialog.id='challenge-dialog';challengeDialog.append(element('h2','Challenges and modifiers'),challengeBody,action('Close challenges',()=>challengeDialog.close()));
 document.body.append(inventoryDialog,challengeDialog);$('controls').before(settingsPanel,towerPanel,objectiveStatus);$('controls').append(action('Inventory / loadout',()=>{renderInventory();inventoryDialog.showModal();}),action('Challenges / modifiers',()=>{renderChallenges();challengeDialog.showModal();}));
+const edgePanel=element('section'),edgeButton=action('Edge / E',()=>triggerEdge());edgePanel.id='edge-panel';edgePanel.setAttribute('aria-live','polite');objectiveStatus.after(edgePanel);$('controls').append(edgeButton);
+let edgeView='';
+function triggerEdge(){if(!started||paused||finished||!FanserviceEdge.allowed(run))return;objectiveEvents(run.edge());checkpoint(true);render();}
+function edgeAction(events){objectiveEvents(events);checkpoint(true);render();}
+function renderEdge(){
+ const e=state.edge,enabled=started&&!paused&&!finished&&FanserviceEdge.allowed(run);edgeButton.disabled=!enabled;
+ edgePanel.hidden=!e||e.phase==='idle'||finished;const seconds=e?.phase==='hold'?e.holdRemaining:e?.deadline?Math.max(0,Math.ceil(e.deadline-state.seconds)):0;
+ const view=JSON.stringify([e?.phase,seconds,e?.streak,e?.bank,paused,finished]);if(edgeView===view)return;edgeView=view;edgePanel.replaceChildren();if(edgePanel.hidden)return;
+ edgePanel.append(element('p',`Edge streak ${e.streak} · pending ${e.bank} coins · ${e.phase}${seconds?` · ${seconds} seconds`:''}.`));
+ if(['rest','mercy-rest'].includes(e.phase)){const button=action('Continue / G',()=>edgeAction(run.continueEdgeRest()));button.disabled=paused;edgePanel.append(button);}
+ if(e.phase==='mercy')for(const [accepted,title] of [[true,'Accept Mercy'],[false,'Continue streak']]){const button=action(title,()=>edgeAction(run.mercy(accepted)));button.disabled=paused;edgePanel.append(button);}
+}
 function settingsChanged(){const mode=Number(modeSelect.value),spec=FanserviceObjectives.specs[Number(objectiveSelect.value)];objectiveLabel.hidden=mode!==0;roundsLabel.hidden=mode!==1;targetInput.min=spec.min;targetInput.max=spec.max;targetInput.step=spec.sliderStep;targetInput.value=spec.defaultTarget;targetInput.disabled=spec.objective===0;}
 modeSelect.onchange=()=>{settingsChanged();if(run&&!started)installRun(makeRun());};objectiveSelect.onchange=settingsChanged;settingsChanged();
 function makeRun(){
@@ -33,6 +45,7 @@ function makeRun(){
 }
 function installRun(value){run=value;state=run.state;decks=rules.mediaPools(media,FanserviceModifiers.options(state.modifiers));remaining={};}
 function draw(pool=category,{prepare=true,force=false}={}){
+ if(prepare&&!force&&started&&FanserviceEdge.active(run)){status('Finish the active edge stage before drawing another card.');$('pool').value=category;return false;}
  if(prepare&&!force&&started&&!music&&state.card===3&&FanserviceCards.remaining(run)>0){status('Finish the active encounter before drawing another card.');$('pool').value=category;return false;}
  category=pool;$('pool').value=pool;decks??=rules.mediaPools(media,FanserviceModifiers.options(state.modifiers));
  if(!decks[pool]?.length){status(`No ${pool} media in the frozen selection. Choose another pool or organize its tags in full fanservice.`);return false;}
@@ -63,11 +76,11 @@ function event(e,{replay=false}={}){
  else if(e.type==='disable_break')state.breakSectionDisabled=e.value==='start';
  else if(e.type==='restore_break')state.breakSectionDisabled=false;
  else if(e.type==='grant_break'&&!replay)run.inventory.grant(4,1,itemContext());
- else if(e.type==='background')$('stage').style.background=`radial-gradient(ellipse at bottom,hsl(${Number(e.value)*43} 40% 25%),#101722)`;
+ else if(e.type==='background')FanserviceBackground.apply($('stage'),e.value,$('background-status'));
  else if(e.type==='edge'){$('caption').textContent='Edge checkpoint.';}
 }
 function reconcileTimeline(events){
- $('caption').textContent='';$('stage').style.background='';state.breakSectionDisabled=false;run.player.isAllowedToCum=false;
+ $('caption').textContent='';FanserviceBackground.apply($('stage'),'normalbeatbackground',$('background-status'));state.breakSectionDisabled=false;run.player.isAllowedToCum=false;
  timelinePool('slow',true);
  for(const entry of events)event(entry,{replay:true});
 }
@@ -94,12 +107,15 @@ function render(){
  const objective=run.roundObjective||run.objective.state,spec=FanserviceObjectives.specs.find(s=>s.objective===objective.objective);
  objectiveStatus.textContent=(run.tower?`Tower ${run.phase}. `:'')+(spec?`${spec.title}: ${objective.target}. `:'')+(run.objective.releaseDeadline===null?'':`Release window: ${Math.max(0,Math.ceil(run.objective.releaseDeadline-state.seconds))} seconds.`)+(state.seconds<breakUntil?` Break: ${Math.ceil(breakUntil-state.seconds)} seconds.`:'');
  $('finish').textContent=objective.objective===7?'Record tribute / Enter':'Finish / Enter';$('finish').disabled=!started||finished||paused||run.phase!=='playing'||(!run.player.isAllowedToCum&&state.meter<1);
- $('draw').disabled=$('tap').disabled=!started||finished||paused||run.phase!=='playing';
+ $('draw').disabled=$('tap').disabled=!started||finished||paused||run.phase!=='playing'||FanserviceEdge.active(run);renderEdge();
 }
 function objectiveEvents(events){
  if(events.some(e=>e.type==='card-beat'))pulseBeat();
- if(events.some(e=>e.type==='release-window-opened')){draw('cum',{force:true});status('Objective complete. 60 second release window.');}
- else if(events.some(e=>e.type==='card-complete'&&e.requestNextCard)&&run.phase==='playing')draw(category,{force:true});
+ if(events.some(e=>e.type==='release-window-opened')){run.cancelEdge();draw('cum',{force:true});status('Objective complete. 60 second release window.');}
+ else if(events.some(e=>e.type==='card-complete'&&e.requestNextCard)&&run.phase==='playing'&&!FanserviceEdge.active(run))draw(category,{force:true});
+ if(events.some(e=>e.type==='edge-card-started'))draw('fast',{prepare:false,force:true});
+ if(events.some(e=>e.type==='edge-streak-ended'&&e.requestNextCard)&&run.phase==='playing')draw('slow',{force:true});
+ if(events.some(e=>e.type==='edge-recorded'))status(events.find(e=>e.type==='edge-recorded').perfect?'Perfect edge recorded.':'Edge recorded.');
  if(events.some(e=>e.type==='tribute-recorded'))status(`Tribute recorded: ${state.milkingCount}.`);
  if(events.some(e=>e.type==='objective-reset'))status('Release window closed. Objective reset.');
  if(events.some(e=>['round-complete','round-failed'].includes(e.type))||run.phase!=='playing')renderTower();
@@ -189,7 +205,7 @@ $('pause').onclick=()=>{if(!started||finished)return;paused=!paused;if(paused){w
 function tap(){if(started&&!paused&&!finished&&!music&&run.phase==='playing')draw();}
 $('tap').onclick=tap;$('draw').onclick=()=>draw();$('pool').onchange=()=>draw($('pool').value);
 $('finish').onclick=()=>{if($('finish').disabled)return;if(state.meter>=1&&!run.player.isAllowedToCum)objectiveEvents(run.advance(0));objectiveEvents(run.climax());};$('end').onclick=()=>end(false);
-document.addEventListener('keydown',e=>{if(e.code==='Space'&&!['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName)){e.preventDefault();tap();}else if(e.code==='Enter'&&!$('finish').disabled)$('finish').click();});
+document.addEventListener('keydown',e=>{if(e.code==='Space'&&!['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName)){e.preventDefault();tap();}else if(e.code==='Enter'&&!$('finish').disabled)$('finish').click();else if(e.code==='KeyE'&&!e.repeat&&!['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName)){e.preventDefault();triggerEdge();}else if(e.code==='KeyG'&&!e.repeat&&!paused&&!finished&&!['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName)){e.preventDefault();edgeAction(run.continueEdgeRest());}});
 audio.addEventListener('waiting',()=>status('Buffering: rhythm clock is held at the actual playback position.'));audio.addEventListener('playing',()=>status('Playing from the client audio clock.'));audio.addEventListener('ended',()=>{if(state)state.BestMusicModeWinRounds=1;void end(true);});audio.addEventListener('error',()=>status('Soundtrack access failed. Reconnect or use an explicitly saved snapshot.'));
 audio.addEventListener('seeked',()=>{if(map&&state){rules.seek(map,audio.currentTime,clock,timelineCallbacks());checkpoint(true);render();}});
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&started&&!paused&&!finished)$('pause').click();});
@@ -223,6 +239,6 @@ async function restoreMedia(item){
  }
  if(saved)$('difficulty').value=String(run.config.difficulty??1);
  const missing=['slow','medium','fast','succubus','cum'].filter(pool=>!decks[pool].length);if(missing.length)throw Error('Enabled packs lack required gameplay pools: '+missing.join(', ')+'. Enable complementary packs or organize their tags in full fanservice.');
- if(music){store.validateMusic(music,{libraryId:library});map=music.beatmap;audio.src=music.url||new URL(music.stream_url,store.server());audio.hidden=false;if(saved)audio.addEventListener('loadedmetadata',()=>{audio.currentTime=saved.position;},{once:true});}
+ if(music){store.validateMusic(music,{libraryId:library,playable:true});map=music.beatmap;audio.src=music.url||new URL(music.stream_url,store.server());audio.hidden=false;if(saved)audio.addEventListener('loadedmetadata',()=>{audio.currentTime=saved.position;},{once:true});}
  draw(category,{prepare:!saved});renderTower();render();$('start').disabled=false;status(saved?'Unfinished session ready. Tap Start to resume.':'Ready. Tap Start to enable local playback and audio.');requestAnimationFrame(tick);
 })().catch(async error=>{status(error.message);$('start').disabled=true;if(!started&&!restoring)await releasePins().catch(()=>{});if(restoring)settingsPanel.append(action('Discard unfinished session',async()=>{if(!confirm('Discard this unfinished session without granting rewards? Saved library media and pack ownership are retained.'))return;await releasePins();localStorage.removeItem(checkpointKey);location.reload();}));});

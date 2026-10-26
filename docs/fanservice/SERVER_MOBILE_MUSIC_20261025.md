@@ -132,3 +132,7 @@ Server ZIP SHA-256:
 9e3365b2f43324dbde43a85debcb3504a8f29c61bad3c78303c7a23002fbd613.
 Android 0.3.10 debug APK SHA-256:
 710c7139b38a6547dbd7226604396f18d86bcab14974b7d302cf57d7a7d349c9.
+
+## Subsequent checkpoint
+
+See [Edge and native queue checkpoint](EDGE_RHYTHM_20261026.md) for the next verified changes and remaining gates.

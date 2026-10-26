@@ -30,3 +30,10 @@ test('control values allow bounded primitives and reject null, structured and no
  for(const value of ['start',false,1,'🎵'.repeat(1000)]){const music=fixture();music.beatmap.events[0].value=value;assert.equal(validate(music),music);}
  for(const value of [null,{},[],NaN,Infinity,'🎵'.repeat(1001)]){const music=fixture();music.beatmap.events[0].value=value;assert.throws(()=>validate(music),/controls/);}
 });
+
+
+test('undefined speed controls remain editable and storable but cannot silently start playback',()=>{
+ const music=fixture();music.beatmap.events=[{time:1,type:'speed_change',value:1.5}];
+ assert.equal(validate(music),music);assert.throws(()=>validate(music,{playable:true}),/unsupported speed_change semantics/);
+ assert.equal(music.beatmap.events[0].value,1.5);
+});

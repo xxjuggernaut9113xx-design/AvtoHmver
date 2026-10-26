@@ -1,7 +1,7 @@
 (function(root){
  'use strict';
  const load=(name,global)=>typeof module!=='undefined'&&module.exports?require('./'+name+'.js'):root[global];
- const Objectives=load('objectives','FanserviceObjectives'),Tower=load('tower','FanserviceTower'),Inventory=load('inventory','FanserviceInventory'),Items=load('items','FanserviceItems'),Economy=load('economy','FanserviceEconomy'),Cards=load('cards','FanserviceCards');
+ const Objectives=load('objectives','FanserviceObjectives'),Tower=load('tower','FanserviceTower'),Inventory=load('inventory','FanserviceInventory'),Items=load('items','FanserviceItems'),Economy=load('economy','FanserviceEconomy'),Cards=load('cards','FanserviceCards'),Edge=load('edge','FanserviceEdge');
  const copy=value=>JSON.parse(JSON.stringify(value));
  class Run {
   constructor(catalog,config={}){
@@ -33,15 +33,19 @@
   advance(seconds){
    if(this.phase!=='playing'||this.state.finished||!Number.isFinite(seconds)||seconds<0)return [];
    Economy.advance(this,seconds);this.state.seconds+=seconds;this.player.sessionLength=this.state.seconds;
-   const cards=Cards.advance(this);
+   const edge=Edge.advance(this),cards=Cards.advance(this);
    const stats=this.objectiveStats(),context=this.context();
    const expired=this.objective.expireReleaseWindow(this.player,stats,this.state.meter,this.state.seconds,context);
    this.state.meter=expired.meter;
    const events=expired.events.length?expired.events:this.objective.tick(this.player,stats,this.state.meter,this.state.seconds,context);
    this.state.CumWindowsHit=stats.cumWindowsHit;this.state.MissedCumWindows=stats.missedCumWindows;
-   return [...cards,...this.applyEvents(events)];
+   return [...edge,...cards,...this.applyEvents(events)];
   }
   beat(){return Economy.beat(this);}
+  edge(){return [...Edge.trigger(this),...this.advance(0)];}
+  continueEdgeRest(){return Edge.continueRest(this);}
+  mercy(accept){return Edge.mercy(this,accept);}
+  cancelEdge(){return Edge.cancel(this);}
   startCard(pool){return Cards.start(this,pool);}
   delayCard(seconds){return Cards.delay(this,seconds);}
   modifyCard(speed,factor=1){return Cards.rebuild(this,speed,factor);}
@@ -54,10 +58,11 @@
   climax(){if((this.roundObjective||this.objective.state)?.objective===7)return this.tribute();return this.applyEvents(this.objective.resolveClimax(this.player,this.context()));}
   applyEvents(events){
    for(const event of events){
-    if(event.type==='round-complete'||event.type==='round-failed')this.completeRound(event.type==='round-complete');
+    if(event.type==='release-window-opened'){Edge.cancel(this);this.state.card=6;}
+    else if(event.type==='round-complete'||event.type==='round-failed')this.completeRound(event.type==='round-complete');
     else if(event.type==='successful-cum'||event.type==='premature-cum'){
      if(this.tower)this.completeRound(event.type==='successful-cum');
-     else{this.player.hasCame=true;this.state.won=event.type==='successful-cum';this.phase='complete';}
+     else{Edge.cancel(this);this.player.hasCame=true;this.state.won=event.type==='successful-cum';this.phase='complete';}
     }
    }
    return events;
@@ -65,6 +70,7 @@
   completeRound(success){
    if(!this.tower||this.phase!=='playing')return false;
    const start=this.roundStart,s=this.state,metric=key=>(s[key]||0)-(start[key]||0);
+   Edge.cancel(this);
    this.tower.complete(success,{seconds:metric('seconds'),edges:metric('edges'),defensive:metric('DefensiveItemsUsed'),offensive:metric('OffensiveItemsUsed'),taunts:metric('TimesTaunted'),temptations:metric('AcceptedTemptation')});
    if(success&&!this.redeemedRounds.includes(this.tower.round)){
     for(const reward of this.tower.selected.native_rewards||[]){

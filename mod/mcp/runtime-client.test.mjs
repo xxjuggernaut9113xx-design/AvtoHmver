@@ -19,7 +19,7 @@ async function peer(directory, transform = value => value, previousNonce = null)
   for (let attempt = 0; attempt < 200; attempt++) {
     try {
       const packet = await fs.readFile(slot, 'utf8');
-      const match = /^FANSERVICE_MCP_1\n([a-f0-9]{32})\n([0-9]+)\n(status|catalog|profile|enablefixture|probevideo|probeaudio|probeaudiocontrols|probeaudiooffline)\n$/.exec(packet);
+      const match = /^FANSERVICE_MCP_1\n([a-f0-9]{32})\n([0-9]+)\n(status|catalog|profile|enablefixture|probevideo|probeaudio|probeaudiocontrols|probeaudiooffline|probebeatqueue)\n$/.exec(packet);
       assert.ok(match);
       if (match[1] === previousNonce) { await delay(5); continue; }
       const target = path.join(directory, '.fanservice-mcp.response.' + match[1]);
@@ -156,7 +156,7 @@ test('real MCP stdio connection distinguishes diagnostics and fixed synthetic ac
   try {
     await client.connect(transport);
     const listing = await client.listTools();
-    assert.deepEqual(listing.tools.map(tool => tool.name), ['native_status', 'native_catalog', 'native_profile', 'native_enable_fixture', 'native_probe_video', 'native_probe_audio_offline', 'native_probe_audio_controls', 'native_probe_audio']);
+    assert.deepEqual(listing.tools.map(tool => tool.name), ['native_status', 'native_catalog', 'native_profile', 'native_enable_fixture', 'native_probe_video', 'native_probe_beat_queue', 'native_probe_audio_offline', 'native_probe_audio_controls', 'native_probe_audio']);
     assert.ok(listing.tools.every(tool => !tool.annotations.destructiveHint));
     assert.ok(listing.tools.slice(0, 3).every(tool => tool.annotations.readOnlyHint));
     assert.equal(listing.tools[3].annotations.readOnlyHint, false);
@@ -167,7 +167,7 @@ test('real MCP stdio connection distinguishes diagnostics and fixed synthetic ac
     const reply = await client.callTool({name: 'native_catalog', arguments: {}});
     await native;
     assert.equal(reply.structuredContent.action, 'catalog');
-    for (const [name, action] of [['native_enable_fixture', 'enablefixture'], ['native_probe_video', 'probevideo'], ['native_probe_audio', 'probeaudio'], ['native_probe_audio_controls','probeaudiocontrols'], ['native_probe_audio_offline','probeaudiooffline']]) {
+    for (const [name, action] of [['native_enable_fixture', 'enablefixture'], ['native_probe_video', 'probevideo'], ['native_probe_audio', 'probeaudio'], ['native_probe_audio_controls','probeaudiocontrols'], ['native_probe_audio_offline','probeaudiooffline'], ['native_probe_beat_queue','probebeatqueue']]) {
       const nativeAction = peer(directory);
       const actionReply = await client.callTool({name, arguments: {}});
       await nativeAction;

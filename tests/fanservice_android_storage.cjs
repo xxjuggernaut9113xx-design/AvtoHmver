@@ -21,7 +21,7 @@ async function ready(){const deadline=Date.now()+120000;for(;;){try{await connec
  fs.mkdirSync(output,{recursive:true});
  try{
   assert.equal(adb('emu','avd','name').split(/\r?\n/)[0].trim(),'fanservice-test','Refuse any other device');
-  report.version=adb('shell','dumpsys','package','org.fanservice.viewer').match(/versionName=(\S+)/)?.[1];assert.equal(report.version,process.env.FANSERVICE_EXPECTED_ANDROID_VERSION||'0.3.10');
+  report.version=adb('shell','dumpsys','package','org.fanservice.viewer').match(/versionName=(\S+)/)?.[1];assert.equal(report.version,process.env.FANSERVICE_EXPECTED_ANDROID_VERSION||'0.3.11');
   adb('shell','am','start','-n','org.fanservice.viewer/.MainActivity');await ready();
   report.sync_module=await evaluate('typeof FanserviceProfileSync.Transport');assert.equal(report.sync_module,'function');
   report.existing_ids=await evaluate('(async()=> (await FanserviceStore.localFiles()).map(file=>file.id))()');

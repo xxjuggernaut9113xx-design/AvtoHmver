@@ -21,6 +21,7 @@ const definitions = {
     description: 'Enable only the fixed, already-owned synthetic test pack configured locally in mcp-test-pack.txt, through the original native backend. No purchase or UP grant.'},
   native_probe_video: {action: 'probevideo', readOnly: false, idempotent: false,
     description: 'Start the fixed localhost synthetic-video probe on a separate native decoder object. No UI input, age-screen interaction or caller-selected path/URL.'},
+  native_probe_beat_queue: {action: 'probebeatqueue', readOnly: false, idempotent: false, description: 'Check fixed neutral POD beat entries and a stopped clock on a new unbound manager. Does not start gameplay, bind widgets or operate original managers.'},
   native_probe_audio_offline: {action: 'probeaudiooffline', readOnly: false, idempotent: false, description: 'Verify fixed neutral lab-local file audio pause, seek, resume and reconnect. Requires the isolated native-panel-one fixture; no caller path or gameplay control.'},
   native_probe_audio_controls: {action: 'probeaudiocontrols', readOnly: false, idempotent: false, description: 'Verify fixed neutral audio pause, seek, resume and reconnect on separate owned decoder objects. No gameplay, UI input or caller parameters.'},
   native_probe_audio: {action: 'probeaudio', readOnly: false, idempotent: false, description: 'Start a fixed neutral native audio decoder probe. No gameplay start, age action, UP change or caller URL.'}

@@ -19,7 +19,7 @@ test('service worker retires only its older shell generations after current shel
 test('offline fetch uses the current shell rather than any older matching cache',async()=>{
  const w=worker();w.data.set('fanservice-shell-v1',new Map([['https://test.invalid/fanservice/rules.js',new Response('stale')]]));
  await w.lifecycle('install');w.setNetwork(async()=>{throw Error('offline');});
- const response=await w.request('https://test.invalid/fanservice/rules.js?session=one');assert.match(await response.text(),/^fanservice-shell-v14:/);
+ const response=await w.request('https://test.invalid/fanservice/rules.js?session=one');assert.match(await response.text(),/^fanservice-shell-v15:/);
  assert.equal((await w.request('https://test.invalid/fanservice/not-cached')).type,'error');
 });
 

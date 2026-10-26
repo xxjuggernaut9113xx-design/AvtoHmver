@@ -57,6 +57,14 @@ const origin=process.env.FANSERVICE_FIXTURE_ORIGIN||'http://127.0.0.1:42169';
   await page.getByRole('button',{name:'Record tribute / Enter',exact:true}).click();assert.equal(await page.evaluate(()=>state.milkingCount),1);assert.equal(await page.evaluate(()=>finished),false);
   await page.getByRole('button',{name:'Record tribute / Enter',exact:true}).click();await page.waitForFunction(()=>finished);
   assert.equal(await page.evaluate(()=>state.milkingCount),2);assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem(profileKey)).progression.sessions),3);assert.deepEqual(errors,[]);
-  console.log('Live economy smoke passed: profile-readiness race, real timer beats and loot, difficulty heat, exact reward/RNG/checkpoint restore, no resume draw reset, profile-preserving settlement, deterministic native-fixture encounter queue completions, and two actual Tribute button events.');
+  await page.goto(origin+'/fanservice/play.html?library='+encodeURIComponent(library));await page.getByText('Ready. Tap Start to enable local playback and audio.').waitFor();
+  await page.locator('#objective').selectOption('3');await page.locator('#objective-target').fill('2');await page.getByRole('button',{name:'Start',exact:true}).click();
+  await page.getByRole('button',{name:'Edge / E',exact:true}).click();assert.equal(await page.evaluate(()=>state.edges),1);
+  await page.getByRole('button',{name:'Continue / G',exact:true}).waitFor({timeout:5000});await page.getByRole('button',{name:'Continue / G',exact:true}).click();
+  await page.getByRole('button',{name:'Pause',exact:true}).click();const edgeBefore=await page.evaluate(()=>({id:sessionId,edge:state.edge,flow:state.cardFlow,edges:state.edges}));
+  await page.reload();await page.getByText('Unfinished session ready. Tap Start to resume.').waitFor();const edgeRestored=await page.evaluate(()=>({id:sessionId,edge:state.edge,flow:state.cardFlow,edges:state.edges}));assert.deepEqual(edgeRestored,edgeBefore);
+  await page.getByRole('button',{name:'Start',exact:true}).click();await page.keyboard.press('e');assert.equal(await page.evaluate(()=>state.edges),2);assert.equal(await page.evaluate(()=>run.player.isAllowedToCum),true);
+  await page.getByRole('button',{name:'Finish / Enter',exact:true}).click();await page.waitForFunction(()=>finished);const edgeProfile=await page.evaluate(()=>JSON.parse(localStorage.getItem(profileKey)));assert.equal(edgeProfile.progression.sessions,4);assert.equal(edgeProfile.progression.lifetime_metrics.Edges,2);assert.deepEqual(errors,[]);
+  console.log('Live economy smoke passed: profile-readiness race, real timer beats and loot, difficulty heat, exact reward/RNG/checkpoint restore, no resume draw reset, profile-preserving settlement, deterministic native-fixture encounter queue completions, two actual Tribute button events, and actual E/G Edge controls with checkpoint restore and natural Edge-objective completion.');
  }finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

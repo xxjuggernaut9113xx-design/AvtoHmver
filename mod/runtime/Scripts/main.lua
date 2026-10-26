@@ -93,6 +93,7 @@ local function runtimeContext()
 end
 local Music = assert(loadfile(directory .. '/Scripts/music.lua'))()
 local Companion = assert(loadfile(directory .. '/Scripts/companion.lua'))()
+local Rhythm = assert(loadfile(directory .. '/Scripts/rhythm.lua'))()
 local approvedAudio, audioProbeDeadline, audioControlProbe
 local stoppedMusic = {}
 local function musicBinding()
@@ -254,7 +255,7 @@ local function diagnosticRequest()
     lastDiagnosticRequest = nonce
     local ok, result = pcall(function()
         if action ~= 'status' and action ~= 'catalog' and action ~= 'profile'
-            and action ~= 'enablefixture' and action ~= 'probevideo' and action ~= 'probeaudio' and action ~= 'probeaudiocontrols' and action ~= 'probeaudiooffline' then
+            and action ~= 'enablefixture' and action ~= 'probevideo' and action ~= 'probeaudio' and action ~= 'probeaudiocontrols' and action ~= 'probeaudiooffline' and action ~= 'probebeatqueue' then
             error('Runtime MCP action is not supported.')
         end
         local store, profile = runtimeContext()
@@ -278,6 +279,20 @@ local function diagnosticRequest()
             audioProbeDeadline = os.time() + (audioControlProbe and 30 or 10)
             nativeMusic:open(approvedAudio.url,musicActor(),binding,12)
             return '{"started":true,"scope":"fixed synthetic native audio transport; no gameplay or age-screen action"}'
+        end
+        if action == 'probebeatqueue' then
+            local fixture = diagnosticFixture(store)
+            if not store:IsPackEnabled(fixture) then error('Enable the synthetic fixture before its beat queue probe.') end
+            local before = store:GetUnlockPoints()
+            local factory = StaticFindObject('/Script/Engine.Default__GameplayStatics')
+            if not factory:IsValid() then error('Native beat queue factory is unavailable.') end
+            local result = Rhythm.probe({find=StaticFindObject,
+                spawn=function(class,outer) return factory:SpawnObject(class,outer) end,
+                outer=FindFirstOf('BP_CHGameInstance_C')})
+            if store:GetUnlockPoints() ~= before then error('Unexpected native balance change during stopped beat queue probe.') end
+            return '{"count":' .. tostring(result.count) .. ',"roundtrip":' .. boolean(result.roundtrip)
+                .. ',"append_retained":' .. boolean(result.append_retained) .. ',"stopped_clock":' .. tostring(result.stopped_clock)
+                .. ',"cleaned":' .. boolean(result.cleaned) .. ',"scope":' .. quote(result.scope) .. '}'
         end
         if action == 'probevideo' then
             local fixture = diagnosticFixture(store)

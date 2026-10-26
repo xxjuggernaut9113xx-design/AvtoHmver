@@ -16,7 +16,7 @@ from verify_compatibility import identify, validate_registry, REGISTRY
 ROOT = Path(__file__).resolve().parent
 SOURCE = ROOT / 'runtime'
 NATIVE_SOURCE = ROOT / 'native'
-RUNTIME_FILES = ('Scripts/main.lua', 'Scripts/bridge.js', 'Scripts/music.lua', 'Scripts/companion.lua', 'Scripts/native-controls.js', 'Start-FanserviceNative.ps1', 'Start-FanserviceNative.cmd', 'Stop-FanserviceNative.cmd')
+RUNTIME_FILES = ('Scripts/main.lua', 'Scripts/bridge.js', 'Scripts/music.lua', 'Scripts/companion.lua', 'Scripts/rhythm.lua', 'Scripts/native-controls.js', 'Start-FanserviceNative.ps1', 'Start-FanserviceNative.cmd', 'Stop-FanserviceNative.cmd')
 NATIVE_FILES = ('host.mjs', 'companion-store.mjs', 'game-identity.mjs')
 MANIFEST = '.fanservice-runtime.json'
 GATES = ('loader_startup', 'lite_open_and_return_from_original_import', 'native_catalog_query')

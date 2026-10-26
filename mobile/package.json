@@ -1,6 +1,6 @@
 {
  "name":"fanservice-viewer-plus",
- "version":"0.3.10",
+ "version":"0.3.11",
  "private":true,
  "scripts":{"prepare:web":"node prepare-web.mjs","sync":"npm run prepare:web && cap sync android"},
  "dependencies":{"@capacitor/core":"8.5.3","@capacitor/android":"8.5.3"},

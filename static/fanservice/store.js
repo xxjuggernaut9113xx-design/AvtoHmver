@@ -45,7 +45,7 @@
   return verify(new Blob(parts,{type:response.headers.get('content-type')||'application/octet-stream'}));
  }
  async function downloadBlob(url){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),120000);try{return await boundedBlob(await fetch(url,{credentials:'same-origin',signal:controller.signal}));}catch(error){if(controller.signal.aborted)throw Error('Snapshot download timed out. The previous snapshot was retained.');throw error;}finally{clearTimeout(timer);}}
- function validateMusic(value,{libraryId,trackId}={}){
+ function validateMusic(value,{libraryId,trackId,playable=false}={}){
   const object=item=>item!==null&&typeof item==='object'&&!Array.isArray(item),finite=Number.isFinite;
   if(!object(value)||value.protocol!==1||typeof value.library_id!=='string'||!value.library_id||libraryId!==undefined&&value.library_id!==libraryId||!Number.isSafeInteger(value.track_id)||value.track_id<1||trackId!==undefined&&value.track_id!==trackId||!/^sha1:[a-f0-9]{40}$/.test(value.recording_id)||!finite(value.duration)||value.duration<=0||value.stream_url!==`/api/music/tracks/${value.track_id}/stream?browser=true`||value.native_stream_url!==undefined&&value.native_stream_url!==`/api/music/tracks/${value.track_id}/stream?native=true`||value.offset!==undefined&&(!finite(value.offset)||Math.abs(value.offset)>60))throw Error('Soundtrack identity or stream does not match its confirmed recording.');
   const map=value.beatmap;
@@ -54,6 +54,7 @@
   for(const beat of map.beats){if(!object(beat)||!finite(beat.time)||beat.time<previous||beat.time<0||beat.time>value.duration||!['stroke','rest','accent'].includes(beat.type))throw Error('Soundtrack beats must be sorted and remain inside the recording.');previous=beat.time;}
   const supported=new Set(['media_change','cycle_media','speed_change','background','text','disable_break','restore_break','grant_break','dialogue','edge','cum_event']);previous=-1;
   for(const event of map.events){if(!object(event)||!finite(event.time)||event.time<previous||event.time<0||event.time>value.duration||!supported.has(event.type)||event.value!==undefined&&(!['string','number','boolean'].includes(typeof event.value)||typeof event.value==='number'&&!finite(event.value)||String(event.value).length>2000))throw Error('Soundtrack controls must be supported and remain inside the recording.');previous=event.time;}
+  if(playable&&map.events.some(event=>event.type==='speed_change'))throw Error('This soundtrack uses unsupported speed_change semantics. Confirm explicit beat times without that control before playback. The saved map was retained.');
   return value;
  }
  async function download(pack,manifest,origin,music){
