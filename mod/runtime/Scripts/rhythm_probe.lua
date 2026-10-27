@@ -21,6 +21,8 @@ function Probe.new(env)
     end
     local report={phase='idle',passed=false,started=false,completed=0,index=0,position=0,paused_position=0,resumed_position=0,root_released=false}
     local scope
+    local audio=env.audio
+    if audio then for _,name in ipairs({'status','pause','resume'}) do assert(type(audio[name])=='function','Missing owned audio clock operation: '..name) end end
     local self={}
     local function wall()
         local value=env.now()
@@ -148,7 +150,7 @@ function Probe.new(env)
             local imageClass=env.find('/Script/UMG.Image')
             check(valid(managerClass) and valid(widgetClass) and valid(imageClass),'Owned native rhythm classes are unavailable.')
             scope={binding=binding,instance=instance,instanceAddress=address(instance),worldAddress=address(world),managerClassAddress=address(managerClass),widgetClassAddress=address(widgetClass),imageClassAddress=address(imageClass)}
-            local started=wall();scope.started=started;scope.deadline=started+15
+            local started=wall();scope.started=started;scope.deadline=started+(audio and 25 or 15)
             local token,managerAddress=env.createRoot(instance)
             scope.token=token
             check(token~=nil and finite(managerAddress) and managerAddress>0 and managerAddress%1==0,'Native rhythm factory returned invalid ownership.')
@@ -170,6 +172,12 @@ function Probe.new(env)
             manager.TotalStrokes=2;manager.CompletedBeats=0;manager.CurrentBeatIndex=0;manager.TimelineOffset=0
             for index,row in ipairs(rows) do manager.BeatQueue[index]=copy(row);scope.expectedCount=index end
             scope.queueReady=true;queueMatches(manager)
+            if audio then
+                local clock=audio:status()
+                check(clock.state=='playing' and finite(clock.position) and clock.position>=0 and clock.position<0.5,'Owned audio clock must be advancing before the first beat.')
+                manager.TimelineOffset=clock.position
+                report.clock_source='native audio decoder';report.max_clock_error=0
+            end
             manager:ResumeSequence()
             check(manager:IsSequenceRunning()==true,'Fresh native rhythm manager did not resume.')
             manager:CreateTestBeatWidget(copy(rows[1]))
@@ -192,6 +200,27 @@ function Probe.new(env)
         local ok,problem=pcall(function()
             local now=wall();check(now<scope.deadline,'Owned rhythm probe timed out.')
             local manager,position,completed,index=state()
+            if audio then
+                local clock=audio:status()
+                check((clock.state=='playing' or clock.state=='paused') and finite(clock.position) and clock.position>=0 and clock.position<12,'Owned audio clock became unavailable or discontinuous.')
+                check(not scope.lastAudio or clock.position>=scope.lastAudio-0.05,'Owned audio clock moved backwards without seek reconciliation.')
+                local beforeCorrection=math.abs(position-clock.position)
+                report.max_uncorrected_error=math.max(report.max_uncorrected_error or 0,beforeCorrection)
+                check(beforeCorrection<=0.25,'Owned audio clock jumped without seek reconciliation.')
+                if clock.state=='playing' and not manager:IsSequenceRunning() then manager:ResumeSequence();position=manager:GetMasterTimelinePosition() end
+                local platform=position+manager.MasterTimeReference-manager.TimelineOffset
+                check(finite(platform),'Owned audio platform reference is invalid.')
+                manager.MasterTimeReference=platform;manager.TimelineOffset=clock.position;manager.bIsRunning=clock.state=='playing'
+                if completed==0 then
+                    check(valid(scope.widget) and widgetOwnership(scope.widget),'Owned audio widget binding changed.')
+                    scope.widget.MasterTimeReference=platform;scope.widget.TimelineOffset=clock.position;scope.widget.bIsMoving=clock.state=='playing'
+                end
+                scope.lastAudio=clock.position
+                position=manager:GetMasterTimelinePosition();report.position=position;report.audio_position=clock.position
+                local difference=math.abs(position-clock.position)
+                report.max_clock_error=math.max(report.max_clock_error or 0,difference)
+                check(difference<=0.05,'Owned manager did not follow the native audio clock.')
+            end
             check(index==1,'Owned rhythm future event fired unexpectedly.')
             if report.phase=='running' and not scope.resumed then
                 check(completed==0,'Owned rhythm widget completed before the pause proof.')
@@ -203,6 +232,11 @@ function Probe.new(env)
                     local widget=scope.widget
                     scope.widgetPosition=platform-widget.MasterTimeReference+widget.TimelineOffset
                     check(finite(scope.widgetPosition) and scope.widgetPosition<rows[1].TargetHitTime,'Owned widget pause position is invalid.')
+                    if audio then
+                        audio:pause();local paused=audio:status()
+                        check(paused.state=='paused' and finite(paused.position) and math.abs(paused.position-position)<=0.05,'Owned decoder did not acknowledge pause.')
+                        position=paused.position;scope.widgetPosition=position
+                    end
                     widget.bIsMoving=false;manager.bIsRunning=false;manager.TimelineOffset=position
                     scope.pauseTime=now;scope.pausePosition=position;report.paused_position=position;report.phase='paused'
                 end
@@ -210,6 +244,10 @@ function Probe.new(env)
                 check(completed==0 and manager:IsSequenceRunning()==false and near(position,scope.pausePosition),'Owned rhythm clock or completion advanced during pause.')
                 check(valid(scope.widget) and widgetOwnership(scope.widget) and scope.widget.bIsMoving==false,'Owned rhythm widget moved during pause.')
                 if now-scope.pauseTime>=2 then
+                    if audio then
+                        audio:resume()
+                        if audio:status().state~='playing' then report.phase='resuming_audio';return end
+                    end
                     manager:ResumeSequence()
                     check(manager:IsSequenceRunning()==true,'Owned rhythm manager did not resume after pause.')
                     local resumed=manager:GetMasterTimelinePosition()
@@ -220,13 +258,19 @@ function Probe.new(env)
                     widget.MasterTimeReference=platform;widget.TimelineOffset=scope.widgetPosition;widget.bIsMoving=true
                     scope.resumed=true;report.resumed_position=resumed;report.phase='running'
                 end
+            elseif report.phase=='resuming_audio' then
+                if audio:status().state=='playing' then
+                    check(position>=scope.pausePosition and position-scope.pausePosition<=0.25,'Owned decoder resume position changed unexpectedly.')
+                    check(completed==0,'Owned audio widget completed during resume acknowledgement.')
+                    scope.resumed=true;report.resumed_position=position;report.phase='running'
+                end
             elseif report.phase=='running' and scope.resumed then
                 check(completed<=1,'Owned rhythm widget delivered a duplicate completion.')
                 if completed==1 then scope.observedTime=now;report.phase='observing' end
             elseif report.phase=='observing' then
                 check(completed==1,'Owned rhythm completion was not stable.')
                 if now-scope.observedTime>=1 then
-                    stopOwned('pause/resume probe passed');report.phase='complete';report.passed=true
+                    stopOwned(audio and 'audio-driven pause/resume probe passed' or 'pause/resume probe passed');report.phase='complete';report.passed=true
                 end
             end
         end)

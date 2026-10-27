@@ -146,7 +146,7 @@ if readerFile then
     else checkedBindingsError = tostring(problem) end
 end
 
-local approvedAudio, audioProbeDeadline, audioControlProbe
+local approvedAudio, audioProbeDeadline, audioControlProbe, audioRhythmPending, audioRhythmActive, audioRhythmFailure
 local stoppedMusic = {}
 local function musicBinding()
     local ok, _, profile = pcall(runtimeContext)
@@ -168,9 +168,11 @@ local function musicActor()
     return StaticFindObject('/Script/Engine.Default__GameplayStatics'):GetPlayerController(FindFirstOf('BP_CHGameInstance_C'), 0)
 end
 local function clockProbeJSON()
+    if audioRhythmFailure then return flatJSON({phase='failed',passed=false,started=true,error=audioRhythmFailure}) end
+    if audioRhythmPending then return flatJSON({phase='opening',passed=false,started=true,clock_source='native audio decoder'}) end
     return flatJSON(beatClockProbe and beatClockProbe:status() or {phase='idle',passed=false,started=false})
 end
-local function createClockProbe()
+local function createClockProbe(audio)
     if not checkedBindings or type(FanserviceCreateScratchRoot) ~= 'function' or type(FanserviceReleaseScratchRoot) ~= 'function' then
         error('Checked native scratch factory is unavailable.')
     end
@@ -188,7 +190,7 @@ local function createClockProbe()
                 return factory:SpawnObject(class,widget)
             end,
             instance=function() return FindFirstOf('BP_CHGameInstance_C') end,
-            binding=musicBinding,bindings=checkedBindings,now=os.time
+            binding=musicBinding,bindings=checkedBindings,now=os.time,audio=audio
         })
     end
     return beatClockProbe
@@ -271,8 +273,24 @@ assert(type(LoopInGameThreadWithDelay) == 'function', 'The pinned loader game-th
 LoopInGameThreadWithDelay(25, function()
         local ok, problem = pcall(function()
             if approvedAudio and browser and (not owner or not owner:IsValid() or not owner:IsInViewport() or not owner:IsVisible()) then stopNativeMusic('Import closed') end
-            if beatClockProbe then beatClockProbe:step() end
             nativeMusic:sample()
+            if audioRhythmPending then
+                local state=nativeMusic:status()
+                if state.state=='playing' then
+                    audioRhythmPending=false
+                    createClockProbe(nativeMusic):start()
+                elseif state.state=='error' or state.state=='stopped' or os.time()>=audioProbeDeadline then
+                    audioRhythmPending=false;audioRhythmActive=false;audioRhythmFailure=state.error or 'Owned audio rhythm decoder did not become ready.'
+                    stopNativeMusic('audio rhythm opening failed')
+                    error('Owned audio rhythm decoder did not become ready.')
+                end
+            end
+            if beatClockProbe then
+                local state=beatClockProbe:step()
+                if audioRhythmActive and (state.phase=='complete' or state.phase=='failed' or state.phase=='stopped') then
+                    audioRhythmActive=false;audioProbeDeadline=nil;stopNativeMusic('owned audio rhythm diagnostic finished')
+                end
+            end
             stepAudioControlProbe()
             if audioProbeDeadline and os.time() >= audioProbeDeadline then
                 stopNativeMusic('synthetic probe complete');audioProbeDeadline = nil
@@ -334,14 +352,32 @@ local function diagnosticRequest()
     lastDiagnosticRequest = nonce
     local ok, result = pcall(function()
         if action ~= 'status' and action ~= 'catalog' and action ~= 'profile'
-            and action ~= 'enablefixture' and action ~= 'probevideo' and action ~= 'probeaudio' and action ~= 'probeaudiocontrols' and action ~= 'probeaudiooffline' and action ~= 'probebeatqueue' and action ~= 'rhythmstate' and action ~= 'probeclock' and action ~= 'clockstatus' and action ~= 'stopclock' then
+            and action ~= 'enablefixture' and action ~= 'probevideo' and action ~= 'probeaudio' and action ~= 'probeaudiocontrols' and action ~= 'probeaudiooffline' and action ~= 'probebeatqueue' and action ~= 'rhythmstate' and action ~= 'probeclock' and action ~= 'clockstatus' and action ~= 'stopclock' and action ~= 'probeaudioclock' then
             error('Runtime MCP action is not supported.')
         end
         local store, profile = runtimeContext()
         if action == 'catalog' then return nativeState(store) end
         if action == 'clockstatus' then return clockProbeJSON() end
         if action == 'stopclock' then
+            if audioRhythmPending or audioRhythmActive then audioRhythmPending=false;audioRhythmActive=false;audioProbeDeadline=nil;stopNativeMusic('owned audio rhythm diagnostic stopped') end
             if beatClockProbe then beatClockProbe:stop('User stopped the owned rhythm diagnostic.') end
+            return clockProbeJSON()
+        end
+        if action == 'probeaudioclock' then
+            local fixture=diagnosticFixture(store)
+            if not store:IsPackEnabled(fixture) then error('Enable the synthetic fixture before its owned audio rhythm diagnostic.') end
+            if audioRhythmPending or audioRhythmActive then error('Owned audio rhythm diagnostic is already active.') end
+            if beatClockProbe then
+                local old=beatClockProbe:status()
+                if not old.root_released then error('Release the previous owned clock root before a new diagnostic.') end
+            end
+            beatClockProbe=nil;audioRhythmFailure=nil
+            stopNativeMusic('owned audio rhythm diagnostic requested')
+            local binding=musicBinding()
+            approvedAudio={url='file:///E:/fanservice-mod-lab/v004-native/synthetic-http/synthetic-tone.m4a',binding=binding}
+            audioControlProbe=nil;audioProbeDeadline=os.time()+35
+            nativeMusic:open(approvedAudio.url,musicActor(),binding,12)
+            audioRhythmPending=true;audioRhythmActive=true
             return clockProbeJSON()
         end
         if action == 'probeclock' then

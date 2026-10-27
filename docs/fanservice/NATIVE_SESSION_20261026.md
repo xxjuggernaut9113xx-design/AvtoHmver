@@ -14,11 +14,15 @@ The V3 bounded read-only helper passed live validation. It resolved the original
 
 The V4 owned-manager factory crashed inside StaticConstructObject_Internal. The game parameter structure is 0xA0 bytes and places SubobjectOverrides at +0x90; the installed SDK wrapper places that field at +0x80. Do not reuse that constructor route. The retained original Lovense shutdown ensure is a separate incident and does not establish the cause of an earlier exit.
 
-V5 instead uses reflected GameplayStatics.SpawnObject with checked parameter metadata and rejects pre-existing managers. Its root leases apply only to fresh owned managers and release only after stopped/empty validation. SHA256: `5741ba3a021e853476aa529eef4821e8eae16c840587d5b8988a74e4e8b010eb`. It is staged for isolated live acceptance; no live clock success is claimed yet.
+V5 instead uses reflected GameplayStatics.SpawnObject with checked parameter metadata and rejects pre-existing managers. Its root leases apply only to fresh owned managers and release only after stopped/empty validation. SHA256: `5741ba3a021e853476aa529eef4821e8eae16c840587d5b8988a74e4e8b010eb`. Its reflected factory passed isolated live acceptance with root acquisition and release.
 
-The bounded owned-clock probe tests one native widget across pause, resume and one center hit, then removes only owned objects and releases its root. Mock tests pass; native runtime acceptance remains pending. Audio-driven clock correction, seek retirement and once-only original session settlement remain required.
+The bounded owned-clock probe passed live: pause at 0.51644610241055 seconds, resume at 0.51645190268755, exactly one center hit, second future event untouched, owned widget cleanup and root release.
 
-Validation: 51 native/MCP top-level tests passed, including 17 rhythm inspection and 15 owned-probe cases. Native C++ contracts passed 37 delegate and 41 root-lease checks. All 19 installer tests passed, including legacy manifest upgrades and atomic shutdown publication under a forced writer/reader race.
+The audio-driven extension also passed live using the fixed neutral local AAC recording. It paused at 0.51083898544312 seconds, resumed at 0.53409992903471, completed exactly one beat and released its root. Final decoder position was 3.5062131881714. Largest sampled difference before correction was 0.031276799738407 seconds; immediately after correction it was 0.00013650208711624 seconds. These samples do not bound every native/UMG tick. Resume acknowledgement is asynchronous; the first test rejected it too early and cleaned up. The corrected test waits in a bounded resume state. Unexpected decoder jumps or unavailable clocks fail and clean up rather than awarding skipped beats.
+
+`native_probe_audio_beat_clock` starts only the fixed owned fixture diagnostic. It takes no caller URL, path, code or game control. The original manager, widgets and progression are not adopted. Original-session seek retirement, tick-order acceptance, buffering/reconnect reconciliation and once-only original session settlement remain required. Portable fixture evidence is retained in `evidence/native-clock-20261026.json`.
+
+Validation: 51 native/MCP top-level tests passed, including 17 rhythm inspection and 20 owned-probe cases. Native C++ contracts passed 37 delegate and 41 root-lease checks. All 19 installer tests passed, including legacy manifest upgrades and atomic shutdown publication under a forced writer/reader race.
 
 ## Current Server and mobile acceptance
 

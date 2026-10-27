@@ -72,9 +72,17 @@ local function fixture(options)
         end
         return {{address=998,function_name='OnBeatReachedCenter'}}
     end
+    if options.audio then
+        f.audio={state='playing',position=0}
+        function f.audio:status() return {state=self.state,position=self.position} end
+        function f.audio:pause() self.state='paused' end
+        function f.audio:resume() self.state='playing' end
+        env.audio=f.audio
+    end
     f.env=env;f.probe=Probe.new(env)
     function f:advance(seconds)
         self.clock=self.clock+seconds;self.wall=self.wall+seconds
+        if self.audio and self.audio.state=='playing' then self.audio.position=self.audio.position+seconds end
         if manager.bIsRunning and manager.CurrentBeatIndex==1 and manager:GetMasterTimelinePosition()>=20 then manager.CurrentBeatIndex=2 end
         if not options.noTick and self.widget and self.widget.bIsMoving and self.widget.BeatIcon then
             local position=self.clock-self.widget.MasterTimeReference+self.widget.TimelineOffset
@@ -175,5 +183,32 @@ test('a fresh factory object with an unexpected queue is never cleared or adopte
     local f=fixture();f.manager.BeatQueue[1]={foreign=true}
     local result=f.probe:start();eq(result.phase,'failed');contains(result.cleanup_error,'unknown entries')
     eq(f.manager.BeatQueue[1].foreign,true);eq(f.releases,0);eq(f.rooted,true)
+end)
+test('owned decoder clock drives native manager through pause and once-only completion',function()
+    local f=fixture({audio=true});f:pauseAndResume()
+    eq(f.audio.state,'playing');eq(f.audio.position,.5)
+    eq(f:advance(2.75).phase,'observing')
+    local result=f:advance(1.1);eq(result.phase,'complete');eq(result.passed,true);eq(result.root_released,true)
+    eq(result.clock_source,'native audio decoder');assert(result.max_clock_error<=.05);eq(f.foreignWrites,0)
+end)
+test('asynchronous decoder resume remains bounded and frozen until acknowledgement',function()
+    local f=fixture({audio=true});f.probe:start();f:advance(.5)
+    function f.audio:resume() self.requested=true end
+    local result=f:advance(2.1);eq(result.phase,'resuming_audio');eq(f.audio.requested,true);eq(f.widget.bIsMoving,false)
+    result=f:advance(.1);eq(result.phase,'resuming_audio');eq(f.manager.CompletedBeats,0)
+    f.audio.state='playing';result=f:advance(.05);assert(result.phase=='running',result.error or result.phase);assert(result.resumed_position>=.5)
+    f.probe:stop('test complete');eq(f.rooted,false)
+end)
+test('decoder failure stops only owned rhythm resources',function()
+    local f=fixture({audio=true});f.probe:start();f.audio.state='error'
+    local result=f.probe:step();eq(result.phase,'failed');contains(result.error,'audio clock became unavailable');eq(f.rooted,false);eq(f.foreignWrites,0)
+end)
+test('unexpected forward decoder seek fails instead of awarding a skipped beat',function()
+    local f=fixture({audio=true});f:pauseAndResume();f.audio.position=2.5
+    local result=f.probe:step();eq(result.phase,'failed');contains(result.error,'jumped without seek reconciliation');eq(f.rooted,false);eq(f.manager.CompletedBeats,0)
+end)
+test('decoder discontinuity fails before an unreconciled backwards seek',function()
+    local f=fixture({audio=true});f:pauseAndResume();f.audio.position=0
+    local result=f.probe:step();eq(result.phase,'failed');contains(result.error,'moved backwards');eq(f.rooted,false)
 end)
 print(tostring(passed)..' owned rhythm clock probe tests passed')

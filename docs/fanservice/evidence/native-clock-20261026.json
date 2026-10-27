@@ -1,0 +1,109 @@
+{
+  "date": "2026-10-26",
+  "build": "v004-exclusive-c645757d",
+  "scope": "isolated owned neutral diagnostics; not original-session acceptance",
+  "native_clock": [
+    {
+      "completed": 1,
+      "index": 1,
+      "manager_address": "1b02e1abbc0",
+      "passed": true,
+      "paused_position": 0.51644610241055,
+      "phase": "complete",
+      "position": 3.5362662002444,
+      "resumed_position": 0.51645190268755,
+      "root_released": true,
+      "started": true,
+      "stop_reason": "pause/resume probe passed"
+    }
+  ],
+  "audio_clock": [
+    {
+      "clock_source": "native audio decoder",
+      "passed": false,
+      "phase": "opening",
+      "started": true
+    },
+    {
+      "audio_position": 0.51083898544312,
+      "clock_source": "native audio decoder",
+      "completed": 0,
+      "index": 1,
+      "manager_address": "1b02e1ab140",
+      "max_clock_error": 8.9202076196671e-05,
+      "max_uncorrected_error": 0.029341403394938,
+      "passed": false,
+      "paused_position": 0.51083898544312,
+      "phase": "paused",
+      "position": 0.51083898544312,
+      "resumed_position": 0,
+      "root_released": false,
+      "started": true
+    },
+    {
+      "audio_position": 0.78947842121124,
+      "clock_source": "native audio decoder",
+      "completed": 0,
+      "index": 1,
+      "manager_address": "1b02e1ab140",
+      "max_clock_error": 8.9202076196671e-05,
+      "max_uncorrected_error": 0.029341403394938,
+      "passed": false,
+      "paused_position": 0.51083898544312,
+      "phase": "running",
+      "position": 0.78955931961536,
+      "resumed_position": 0.53409992903471,
+      "root_released": false,
+      "started": true
+    },
+    {
+      "audio_position": 1.8111563920975,
+      "clock_source": "native audio decoder",
+      "completed": 0,
+      "index": 1,
+      "manager_address": "1b02e1ab140",
+      "max_clock_error": 0.00011080130934715,
+      "max_uncorrected_error": 0.031276799738407,
+      "passed": false,
+      "paused_position": 0.51083898544312,
+      "phase": "running",
+      "position": 1.8112338930368,
+      "resumed_position": 0.53409992903471,
+      "root_released": false,
+      "started": true
+    },
+    {
+      "audio_position": 2.8096144199371,
+      "clock_source": "native audio decoder",
+      "completed": 0,
+      "index": 1,
+      "manager_address": "1b02e1ab140",
+      "max_clock_error": 0.00011080130934715,
+      "max_uncorrected_error": 0.031276799738407,
+      "passed": false,
+      "paused_position": 0.51083898544312,
+      "phase": "running",
+      "position": 2.8096953183413,
+      "resumed_position": 0.53409992903471,
+      "root_released": false,
+      "started": true
+    },
+    {
+      "audio_position": 3.5062131881714,
+      "clock_source": "native audio decoder",
+      "completed": 1,
+      "index": 1,
+      "manager_address": "1b02e1ab140",
+      "max_clock_error": 0.00013650208711624,
+      "max_uncorrected_error": 0.031276799738407,
+      "passed": true,
+      "paused_position": 0.51083898544312,
+      "phase": "complete",
+      "position": 3.5062362886965,
+      "resumed_position": 0.53409992903471,
+      "root_released": true,
+      "started": true,
+      "stop_reason": "audio-driven pause/resume probe passed"
+    }
+  ]
+}
