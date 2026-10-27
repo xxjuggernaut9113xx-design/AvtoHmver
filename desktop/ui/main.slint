@@ -389,6 +389,7 @@ export component AvtoHmverNativeWindow inherits Window {
         root.maintenance-action == "Remove P-HAR" ? "DELETE P-HAR" :
         root.maintenance-action == "Remove archives" ? "DELETE ARCHIVES" : "";
     in-out property <length> manage-discover-scroll-y: 0px;
+    in-out property <bool> discover-providers-open: false;
     in-out property <length> manage-activity-scroll-y: 0px;
     in-out property <length> manage-sources-scroll-y: 0px;
     in-out property <length> manage-settings-scroll-y: 0px;
@@ -665,13 +666,16 @@ export component AvtoHmverNativeWindow inherits Window {
                             Text { text: "Find public media across every connected provider. Queue the hits you want and AvtoHmver downloads them."; wrap: word-wrap; color: root.theme-muted; }
                             HorizontalBox { spacing: 8px;
                                 LineEdit { placeholder-text: "Find collections, creators, or a page URL"; text <=> root.manage-discovery-query; horizontal-stretch: 1; }
-                                ComboBox { model: ["Any type", "album", "creator", "collection", "post"]; current-index: 0; selected => { root.discovery-result-type = self.current-index == 0 ? "" : self.current-value; } }
-                                ComboBox { model: ["relevance", "date_desc", "date_asc"]; current-index: 0; selected => { root.discovery-sort = self.current-value; } }
                                 Button { text: "Search"; primary: true; enabled: root.can-discover && !root.busy && !root.discovery-searching; clicked => { root.discover(root.manage-discovery-query, 0, root.discovery-result-type, root.discovery-sort); } }
                                 if root.discovery-searching: Button { text: "Cancel"; clicked => { root.cancel-discover(); } }
                             }
-                            Text { text: "Providers"; font-size: 16px; font-weight: 700; color: root.theme-text; }
-                            GridLayout { spacing: 8px;
+                            HorizontalBox { spacing: 8px;
+                                ComboBox { model: ["Any type", "album", "creator", "collection", "post"]; current-index: 0; selected => { root.discovery-result-type = self.current-index == 0 ? "" : self.current-value; } }
+                                ComboBox { model: ["relevance", "date_desc", "date_asc"]; current-index: 0; selected => { root.discovery-sort = self.current-value; } }
+                                Rectangle { horizontal-stretch: 1; }
+                            }
+                            Button { text: root.discover-providers-open ? "Providers ▾" : "Providers ▸"; clicked => { root.discover-providers-open = !root.discover-providers-open; } }
+                            if root.discover-providers-open: GridLayout { spacing: 8px;
                                 for provider[idx] in root.provider-list: VerticalBox {
                                     row: idx / 3; col: Math.mod(idx, 3);
                                     CheckBox { text: provider.name; checked: provider.enabled; enabled: !provider.locked; toggled => { root.provider-toggled(idx, self.checked); } }
