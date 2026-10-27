@@ -984,6 +984,7 @@ export component AvtoHmverNativeWindow inherits Window {
                 for stars in [1, 2, 3, 4, 5]: Button { text: stars + " ★"; enabled: root.can-edit-library; clicked => { root.review-control("rate", stars); } }
                 Button { text: "Undo"; enabled: root.can-edit-library; clicked => { root.review-control("undo", 0); } }
             }
+            Button { text: root.player-paused ? "Resume" : "Pause"; vertical-stretch: 0; clicked => { root.player-control(root.player-paused ? "resume" : "pause", 0); } }
             Image { source: root.video-active ? root.video-frame : root.preview; image-fit: contain; vertical-stretch: 1; }
         }
         if root.stage-open && root.stage-mode == 4: MotionBox { reduced-motion: root.reduced-motion || root.player-paused; vertical-stretch: 1;
