@@ -163,4 +163,29 @@ test('delegate read errors stay unknown and cannot establish mutation readiness'
     eq(r.binding_reader_verified,false);eq(r.widgets_owned,0);eq(r.widgets_unknown,1);eq(r.widgets_moving,1)
     assert(r.widget_error:find('Array failed invariants check',1,true));eq(f.scope.forbiddenCalls,0);eq(f.scope.emptyCalls,0)
 end)
+test('checked reader bypasses the incompatible wrapper and copies exact callback identities',function()
+    local f=fixture();local owner=f.env.outer;local manager=f.manager
+    owner.BeatSpawnerManagerCPP=manager;owner.GetFullName=function() return 'owner' end
+    manager.GetFullName=function() return 'manager' end;manager.GetOuter=function() return owner end
+    manager.CompletedBeats=0;manager.TotalStrokes=1;manager.CurrentBeatIndex=0
+    for _,name in ipairs({'OnBeatFired','OnBeatHitCenter','OnSequenceEnd','OnSequencePaused','OnBeatSpeedChanged'}) do
+        manager[name].GetBindings=function() error('Incompatible wrapper must not be used') end
+    end
+    local widget={IsValid=function() return true end,bIsMoving=true}
+    local r=Rhythm.inspect(owner,{widget},function(object,name)
+        if object==widget then eq(name,'OnBeatReachedCenter');return {{address=manager:GetAddress(),function_name='OnBeatReachedCenter'}} end
+        eq(object,manager);return {{address=owner:GetAddress(),function_name='NativeCallback'}}
+    end)
+    eq(r.binding_reader_verified,true);eq(r.bindings,5);eq(r.widgets_owned,1);eq(r.widgets_foreign,0);eq(r.widgets_unknown,0)
+    eq(f.scope.forbiddenCalls,0);eq(f.scope.emptyCalls,0)
+end)
+test('expired or unresolved callbacks cannot claim a verified native reader',function()
+    local f=fixture();local owner=f.env.outer;local manager=f.manager
+    owner.BeatSpawnerManagerCPP=manager;owner.GetFullName=function() return 'owner' end
+    manager.GetFullName=function() return 'manager' end;manager.GetOuter=function() return owner end
+    manager.CompletedBeats=0;manager.TotalStrokes=1;manager.CurrentBeatIndex=0
+    local r=Rhythm.inspect(owner,{},function() return {{address=0,function_name=''}} end)
+    eq(r.binding_reader_verified,false);eq(r.bindings,5);eq(r.widgets_owned,0)
+    eq(f.scope.forbiddenCalls,0);eq(f.scope.emptyCalls,0)
+end)
 print(tostring(passed) .. ' native POD rhythm queue tests passed')

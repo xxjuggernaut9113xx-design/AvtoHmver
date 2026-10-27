@@ -21,9 +21,11 @@ def main():
     parser.add_argument('--source', type=Path, default=Path(__file__).resolve().parents[2])
     args = parser.parse_args()
     lab = args.lab.resolve()
-    allowed = Path('E:/fanservice-mod-lab').resolve()
-    if lab.parent != allowed or not lab.name.startswith('server-acceptance-'):
-        parser.error('Lab must be a new server-acceptance-* child of E:/fanservice-mod-lab')
+    allowed = {Path('E:/fanservice-mod-lab').resolve()}
+    if os.environ.get('LOCALAPPDATA'):
+        allowed.add((Path(os.environ['LOCALAPPDATA']) / 'fanservice/acceptance-lab').resolve())
+    if lab.parent not in allowed or not lab.name.startswith('server-acceptance-'):
+        parser.error('Lab must be a new server-acceptance-* child of E:/fanservice-mod-lab or LOCALAPPDATA/fanservice/acceptance-lab')
     lab.mkdir(exist_ok=False)
     release = args.release.resolve()
     stage = release / 'fanservice-server'

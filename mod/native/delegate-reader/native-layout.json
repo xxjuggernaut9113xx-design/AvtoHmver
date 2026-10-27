@@ -1,0 +1,9 @@
+{
+  "game_sha256": "c645757d1112491952b67bf29502b4721133ba6940a9cfb08358f0dde127560f",
+  "widget_delegate": {"name": "FOnBeatReachedCenter", "full_type": "0x28e6f", "size": 24},
+  "dynamic_base": {"name": "TBaseDynamicMulticastDelegate<FNotThreadSafeDelegateMode,void,FBeatEvent const &>", "full_type": "0xfeec", "offset": 0},
+  "multicast_base": {"name": "TMulticastScriptDelegate<FNotThreadSafeDelegateMode>", "full_type": "0x2612d", "size": 24, "invocation_list_offset": 8},
+  "invocation_list": {"name": "TArray<TScriptDelegate<FNotThreadSafeNotCheckedDelegateMode>,TSizedDefaultAllocator<32> >", "forward_type": "0x7d3b", "full_type": "0x15155", "size": 16},
+  "element": {"name": "TScriptDelegate<FNotThreadSafeNotCheckedDelegateMode>", "full_type": "0x10d3d", "size": 16, "object_offset": 0, "name_offset": 8},
+  "distinction": "Checked outer container has an eight-byte access detector. Its actual invocation array stores unchecked sixteen-byte elements, not the separately instantiated checked twenty-four-byte TScriptDelegate."
+}

@@ -33,6 +33,18 @@ local function quote(value)
     end) .. '"'
 end
 local function boolean(value) return value and 'true' or 'false' end
+local function flatJSON(value)
+    local parts = {}
+    for key,item in pairs(value) do
+        local kind = type(item)
+        if type(key) ~= 'string' or (kind ~= 'string' and kind ~= 'number' and kind ~= 'boolean') then error('Diagnostic state must contain primitive named fields.') end
+        if kind == 'number' and (item ~= item or item == math.huge or item == -math.huge) then error('Diagnostic state contains a nonfinite number.') end
+        parts[#parts+1] = quote(key) .. ':' .. (kind == 'string' and quote(item) or kind == 'boolean' and boolean(item) or tostring(item))
+    end
+    table.sort(parts)
+    return '{' .. table.concat(parts,',') .. '}'
+end
+
 local function stringValue(value, field)
     if value == nil then error('Native catalog omitted ' .. tostring(field or 'a required text field') .. '.') end
     if type(value) == 'string' then return value end
@@ -94,6 +106,46 @@ end
 local Music = assert(loadfile(directory .. '/Scripts/music.lua'))()
 local Companion = assert(loadfile(directory .. '/Scripts/companion.lua'))()
 local Rhythm = assert(loadfile(directory .. '/Scripts/rhythm.lua'))()
+local RhythmProbe = assert(loadfile(directory .. '/Scripts/rhythm_probe.lua'))()
+local beatClockProbe
+local checkedBindings, checkedBindingsError
+local readerPath = directory .. '/Native/fanservice-delegate-reader.dll'
+local readerConfig = io.open(directory .. '/Native/delegate-reader-module.txt','rb')
+if readerConfig then
+    local name = readerConfig:read(129);readerConfig:close()
+    name = name:match('^%s*(.-)%s*$')
+    local digest = name:match('^fanservice%-delegate%-reader%-([a-f0-9]+)%.dll$')
+    if #name > 128 or not digest or #digest ~= 12 then
+        checkedBindingsError = 'Checked delegate module name is invalid.';readerPath = nil
+    else readerPath = directory .. '/Native/' .. name end
+end
+local readerFile = readerPath and io.open(readerPath,'rb')
+if readerFile then
+    readerFile:close()
+    local loader,problem = package.loadlib(readerPath,'luaopen_fanservice_delegate_reader')
+    if loader then
+        FanserviceReadCheckedBindings = nil
+        local ok,value = pcall(loader)
+        if ok and type(FanserviceReadCheckedBindings) == 'function' then
+            local kinds = {OnBeatReachedCenter=0,OnBeatSpeedChanged=1,OnSequencePaused=2,OnBeatFired=3,OnBeatHitCenter=4,OnSequenceEnd=5}
+            checkedBindings = function(object,name)
+                local kind = assert(kinds[name],'Unknown checked native delegate.')
+                local count = FanserviceReadCheckedBindings(object:GetAddress(),kind,0)
+                if type(count) ~= 'number' or count % 1 ~= 0 or count < 0 or count > 64 then error('Invalid checked native delegate count.') end
+                local result = {}
+                for index=1,count do
+                    local current,address,functionName = FanserviceReadCheckedBindings(object:GetAddress(),kind,index)
+                    if current ~= count or type(address) ~= 'number' or address < 0 or address % 1 ~= 0
+                        or type(functionName) ~= 'string' or #functionName > 1024 then error('Checked native delegate changed during inspection.') end
+                    result[index] = {address=address,function_name=functionName}
+                end
+                if FanserviceReadCheckedBindings(object:GetAddress(),kind,0) ~= count then error('Checked native delegate changed after inspection.') end
+                return result
+            end
+        else checkedBindingsError = tostring(value or 'Checked native reader did not register.') end
+    else checkedBindingsError = tostring(problem) end
+end
+
 local approvedAudio, audioProbeDeadline, audioControlProbe
 local stoppedMusic = {}
 local function musicBinding()
@@ -114,6 +166,32 @@ local function musicActor()
     local actor = FindFirstOf('BP_GlobalManager_C')
     if actor:IsValid() then return actor end
     return StaticFindObject('/Script/Engine.Default__GameplayStatics'):GetPlayerController(FindFirstOf('BP_CHGameInstance_C'), 0)
+end
+local function clockProbeJSON()
+    return flatJSON(beatClockProbe and beatClockProbe:status() or {phase='idle',passed=false,started=false})
+end
+local function createClockProbe()
+    if not checkedBindings or type(FanserviceCreateScratchRoot) ~= 'function' or type(FanserviceReleaseScratchRoot) ~= 'function' then
+        error('Checked native scratch factory is unavailable.')
+    end
+    if not beatClockProbe then
+        beatClockProbe = RhythmProbe.new({
+            createRoot=function(instance) return FanserviceCreateScratchRoot(instance:GetAddress()) end,
+            releaseRoot=function(token) return FanserviceReleaseScratchRoot(token) end,
+            managers=function() return FindAllOf('BeatSpawnerManager') or {} end,
+            widgets=function() return FindAllOf('PreciseBeatWidget') or {} end,
+            find=StaticFindObject,
+            spawnImage=function(widget)
+                local factory = StaticFindObject('/Script/Engine.Default__GameplayStatics')
+                local class = StaticFindObject('/Script/UMG.Image')
+                if not factory:IsValid() or not class:IsValid() then error('Scratch image factory is unavailable.') end
+                return factory:SpawnObject(class,widget)
+            end,
+            instance=function() return FindFirstOf('BP_CHGameInstance_C') end,
+            binding=musicBinding,bindings=checkedBindings,now=os.time
+        })
+    end
+    return beatClockProbe
 end
 local function audioJSON()
     local state = nativeMusic:status()
@@ -193,6 +271,7 @@ assert(type(LoopInGameThreadWithDelay) == 'function', 'The pinned loader game-th
 LoopInGameThreadWithDelay(25, function()
         local ok, problem = pcall(function()
             if approvedAudio and browser and (not owner or not owner:IsValid() or not owner:IsInViewport() or not owner:IsVisible()) then stopNativeMusic('Import closed') end
+            if beatClockProbe then beatClockProbe:step() end
             nativeMusic:sample()
             stepAudioControlProbe()
             if audioProbeDeadline and os.time() >= audioProbeDeadline then
@@ -255,11 +334,23 @@ local function diagnosticRequest()
     lastDiagnosticRequest = nonce
     local ok, result = pcall(function()
         if action ~= 'status' and action ~= 'catalog' and action ~= 'profile'
-            and action ~= 'enablefixture' and action ~= 'probevideo' and action ~= 'probeaudio' and action ~= 'probeaudiocontrols' and action ~= 'probeaudiooffline' and action ~= 'probebeatqueue' and action ~= 'rhythmstate' then
+            and action ~= 'enablefixture' and action ~= 'probevideo' and action ~= 'probeaudio' and action ~= 'probeaudiocontrols' and action ~= 'probeaudiooffline' and action ~= 'probebeatqueue' and action ~= 'rhythmstate' and action ~= 'probeclock' and action ~= 'clockstatus' and action ~= 'stopclock' then
             error('Runtime MCP action is not supported.')
         end
         local store, profile = runtimeContext()
         if action == 'catalog' then return nativeState(store) end
+        if action == 'clockstatus' then return clockProbeJSON() end
+        if action == 'stopclock' then
+            if beatClockProbe then beatClockProbe:stop('User stopped the owned rhythm diagnostic.') end
+            return clockProbeJSON()
+        end
+        if action == 'probeclock' then
+            local fixture = diagnosticFixture(store)
+            if not store:IsPackEnabled(fixture) then error('Enable the synthetic fixture before its owned rhythm diagnostic.') end
+            createClockProbe():start()
+            return clockProbeJSON()
+        end
+
         if action == 'profile' then return profile end
         if action == 'enablefixture' then
             local fixture = diagnosticFixture(store)
@@ -281,7 +372,9 @@ local function diagnosticRequest()
             return '{"started":true,"scope":"fixed synthetic native audio transport; no gameplay or age-screen action"}'
         end
         if action == 'rhythmstate' then
-            local state = Rhythm.inspect(FindFirstOf('BP_GlobalManager_C'),FindAllOf('PreciseBeatWidget') or {})
+            local state = Rhythm.inspect(FindFirstOf('BP_GlobalManager_C'),FindAllOf('PreciseBeatWidget') or {},checkedBindings)
+            state.reader_available = checkedBindings ~= nil
+            if checkedBindingsError then state.reader_error=checkedBindingsError end
             local values = {}
             for key,value in pairs(state) do
                 values[#values+1] = quote(key) .. ':' .. (type(value) == 'boolean' and boolean(value) or type(value) == 'string' and quote(value) or tostring(value))
@@ -326,7 +419,7 @@ local function diagnosticRequest()
         local menu = FindFirstOf('ImportMenuWidget_C')
         local visible = menu:IsValid() and menu:IsInViewport() and menu:IsVisible()
         return '{"ready":true,"read_only":true,"original_unlocks_authoritative":true,"import_visible":'
-            .. boolean(visible) .. ',"profile":' .. profile .. ',"video_probe":' .. diagnosticVideo .. ',"audio_probe":' .. audioJSON() .. '}'
+            .. boolean(visible) .. ',"profile":' .. profile .. ',"video_probe":' .. diagnosticVideo .. ',"audio_probe":' .. audioJSON() .. ',"beat_clock_probe":' .. clockProbeJSON() .. '}'
     end)
     if ok and #result > 4 * 1024 * 1024 then ok, result = false, 'Native diagnostic response exceeds 4 MiB.' end
     local response = '{"protocol":1,"nonce":' .. quote(nonce)

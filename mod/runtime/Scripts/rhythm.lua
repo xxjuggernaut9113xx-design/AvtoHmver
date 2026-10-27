@@ -144,8 +144,8 @@ function Rhythm.probe(env)
     result.cleaned = true
     return result
 end
-function Rhythm.inspect(owner, candidates)
-    local result = {owner_valid=valid(owner),manager_valid=false,owner_matches=false,queue_count=0,completed=0,total=0,index=0,running=false,position=0,widgets_owned=0,widgets_foreign=0,widgets_unknown=0,widgets_moving=0,widgets_empty=0,bindings=0,binding_reader_verified=false,widget_error=""}
+function Rhythm.inspect(owner, candidates, reader)
+    local result = {owner_valid=valid(owner),manager_valid=false,owner_matches=false,queue_count=0,completed=0,total=0,index=0,running=false,position=0,widgets_owned=0,widgets_foreign=0,widgets_unknown=0,widgets_moving=0,widgets_empty=0,widgets_matched=0,widgets_shared=0,binding_sample="",bindings=0,binding_reader_verified=false,widget_error=""}
     if not result.owner_valid then return result end
     local manager = owner.BeatSpawnerManagerCPP
     if not valid(manager) then return result end
@@ -153,6 +153,7 @@ function Rhythm.inspect(owner, candidates)
     result.owner_name = owner:GetFullName()
     result.manager_name = manager:GetFullName()
     local address = manager:GetAddress()
+    result.manager_address=string.format("%x",address)
     local outer = manager:GetOuter()
     result.owner_matches = valid(outer) and outer:GetAddress() == owner:GetAddress()
     local function number(value)
@@ -165,32 +166,60 @@ function Rhythm.inspect(owner, candidates)
     result.index = number(manager.CurrentBeatIndex)
     result.running = manager:IsSequenceRunning() == true
     result.position = number(manager:GetMasterTimelinePosition())
+    local decoded,readerFailed = false,false
+    local function bindings(object,name)
+        if reader then
+            local rows = reader(object,name)
+            for _,row in ipairs(rows) do
+                if row.address > 0 and row.function_name ~= '' then decoded=true end
+            end
+            return rows
+        end
+        local result = {}
+        for _,binding in pairs(object[name]:GetBindings() or {}) do
+            local functionName = binding.FunctionName:ToString()
+            local target = binding.Object
+            result[#result+1] = {address=valid(target) and target:GetAddress() or 0,function_name=functionName}
+        end
+        return result
+    end
     for _,name in ipairs(delegates) do
-        local list = manager[name]:GetBindings()
-        if list then for _ in pairs(list) do result.bindings=result.bindings+1 end end
+        local list = bindings(manager,name)
+        for _ in pairs(list) do result.bindings=result.bindings+1 end
     end
     if candidates and #candidates > 10000 then error("Native rhythm inspection exceeds 10000 widget candidates.") end
     for _,widget in ipairs(candidates or {}) do
         local ok,owned,foreign = pcall(function()
             if not valid(widget) then return false,false end
             if widget.bIsMoving == true then result.widgets_moving=result.widgets_moving+1 end
-            local list = widget.OnBeatReachedCenter:GetBindings()
+            local list = bindings(widget,'OnBeatReachedCenter')
             if not list or next(list) == nil then result.widgets_empty=result.widgets_empty+1 end
             local matched,other = false,false
+            if result.binding_sample == '' then
+                local sample = {}
+                for index,binding in ipairs(list or {}) do
+                    if index > 4 then break end
+                    sample[#sample+1] = string.format('%x:%s',binding.address,binding.function_name)
+                end
+                result.binding_sample = table.concat(sample,';'):sub(1,1024)
+            end
             for _,binding in pairs(list or {}) do
-                local object = binding.Object
-                if valid(object) and object:GetAddress() == address and binding.FunctionName:ToString() == 'OnBeatReachedCenter' then matched=true
+                if binding.address == address and binding.function_name == 'OnBeatReachedCenter' then matched=true
                 else other=true end
             end
+            if matched then result.widgets_matched=result.widgets_matched+1 end
+            if matched and other then result.widgets_shared=result.widgets_shared+1 end
             return matched,other
         end)
         if not ok then
             result.widgets_unknown=result.widgets_unknown+1
+            readerFailed=true
             if result.widget_error == "" then result.widget_error=tostring(owned):sub(1,500) end
         elseif owned and not foreign then result.widgets_owned=result.widgets_owned+1
         elseif foreign then result.widgets_foreign=result.widgets_foreign+1
         else result.widgets_unknown=result.widgets_unknown+1 end
     end
+    result.binding_reader_verified = type(reader) == 'function' and decoded and not readerFailed
     return result
 end
 return Rhythm

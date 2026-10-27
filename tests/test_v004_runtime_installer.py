@@ -131,6 +131,77 @@ class RuntimeInstallerTests(unittest.TestCase):
                 process.wait(timeout=5)
             process.communicate()
 
+    @unittest.skipUnless(os.name == 'nt', 'Windows atomic shutdown publication test')
+    def test_atomic_shutdown_is_visible_only_when_complete_and_unlocked(self):
+        binary = self.root / 'atomic stop/CockHero/Binaries/Win64'
+        runtime_dir = binary / 'ue4ss/Mods/Fanservice'
+        native = runtime_dir / 'Native'
+        native.mkdir(parents=True)
+        (binary / 'CockHero.exe').write_bytes(b'never executed')
+        launcher = runtime.ROOT / 'runtime/Start-FanserviceNative.ps1'
+        script = launcher.read_text(encoding='utf-8')
+        marker = '$stream.Write($bytes,0,$bytes.Length);'
+        self.assertEqual(script.count(marker), 1)
+        (runtime_dir / launcher.name).write_text(script.replace(marker, marker + 'Start-Sleep -Milliseconds 250;'), encoding='utf-8')
+        helper = native / 'host.mjs'
+        helper.write_text("import * as fs from 'node:fs/promises';import path from 'node:path';"
+                          "const root=process.argv[2],lock=path.join(root,'.fanservice-companion.host.lock'),owner='a'.repeat(32),report=path.join(root,'atomic-report.json');"
+                          "const handle=await fs.open(lock,'wx');await handle.writeFile(owner);await handle.sync();let busy=false,temporarySeen=0;"
+                          "const timer=setInterval(async()=>{if(busy)return;busy=true;try{"
+                          "const names=await fs.readdir(root);if(names.some(n=>/^\\.fanservice-companion\\.shutdown\\.[a-f0-9]{32}\\.tmp$/.test(n)))temporarySeen++;"
+                          "const stop=path.join(root,'.fanservice-companion.shutdown');let value;"
+                          "try{value=await fs.readFile(stop,'utf8');}catch(error){if(error.code==='ENOENT')return;throw error;}"
+                          "if(value!=='FANSERVICE_COMPANION_STOP_1\\n'+owner)throw Error('Published incomplete shutdown bytes');"
+                          "clearInterval(timer);await fs.writeFile(report,JSON.stringify({value,temporarySeen,unlocked:true}));"
+                          "await fs.unlink(stop);await handle.close();await fs.unlink(lock);"
+                          "}catch(error){clearInterval(timer);await fs.writeFile(report,JSON.stringify({error:error.code||error.message,temporarySeen}));await handle.close();process.exitCode=1;}finally{busy=false;}},1);", encoding='utf-8')
+        for attempt in range(3):
+            with self.subTest(attempt=attempt):
+                process = subprocess.Popen(['node', str(helper), str(runtime_dir)], creationflags=subprocess.CREATE_NO_WINDOW,
+                                           stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                try:
+                    lock = runtime_dir / '.fanservice-companion.host.lock'
+                    deadline = time.monotonic() + 10
+                    while (not lock.exists() or lock.stat().st_size != 32) and time.monotonic() < deadline:
+                        if process.poll() is not None:
+                            self.fail(process.communicate()[1].decode())
+                        time.sleep(.01)
+                    self.assertTrue(lock.exists())
+                    result = subprocess.run(['powershell.exe', '-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass',
+                                             '-File', str(runtime_dir / launcher.name), '-Stop'], capture_output=True, timeout=20)
+                    report = json.loads((runtime_dir / 'atomic-report.json').read_text())
+                    self.assertEqual(result.returncode, 0, result.stderr.decode(errors='replace') + repr(report))
+                    process.wait(timeout=5)
+                    self.assertEqual(process.returncode, 0)
+                    self.assertTrue(report['unlocked'])
+                    self.assertGreater(report['temporarySeen'], 0)
+                    self.assertEqual(report['value'], 'FANSERVICE_COMPANION_STOP_1\n' + 'a' * 32)
+                    self.assertEqual(list(runtime_dir.glob('.fanservice-companion.shutdown*')), [])
+                finally:
+                    if process.poll() is None:
+                        process.terminate()
+                        process.wait(timeout=5)
+                    process.communicate()
+
+    @unittest.skipUnless(os.name == 'nt', 'Windows shutdown collision preservation test')
+    def test_atomic_shutdown_preserves_existing_command_and_foreign_temporary(self):
+        binary = self.root / 'foreign stop/CockHero/Binaries/Win64'
+        runtime_dir = binary / 'ue4ss/Mods/Fanservice'
+        native = runtime_dir / 'Native'
+        native.mkdir(parents=True)
+        (binary / 'CockHero.exe').write_bytes(b'never executed')
+        (native / 'host.mjs').write_text('never executed', encoding='utf-8')
+        launcher = runtime.ROOT / 'runtime/Start-FanserviceNative.ps1'
+        shutil.copy2(launcher, runtime_dir / launcher.name)
+        (runtime_dir / '.fanservice-companion.host.lock').write_text('a' * 32)
+        (runtime_dir / '.fanservice-companion.shutdown').write_bytes(b'foreign pending command')
+        (runtime_dir / '.fanservice-companion.shutdown.foreign.tmp').write_bytes(b'foreign staged data')
+        before = {path.name: path.read_bytes() for path in runtime_dir.iterdir() if path.is_file()}
+        result = subprocess.run(['powershell.exe', '-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass',
+                                 '-File', str(runtime_dir / launcher.name), '-Stop'], capture_output=True, timeout=20)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual({path.name: path.read_bytes() for path in runtime_dir.iterdir() if path.is_file()}, before)
+
     def save_registry(self):
         self.registry.write_text(json.dumps(self.data))
 
@@ -153,6 +224,94 @@ class RuntimeInstallerTests(unittest.TestCase):
         for name in ('Saved/save.sav', 'packs/original.chpack', 'Extracted/original/manifest.json',
                      'ue4ss/Mods/Other/readme.txt'):
             self.assertEqual((self.binary / name).read_bytes(), b'untouched')
+
+    def legacy_manifest(self, missing):
+        record = runtime.install(self.game, self.archive)
+        for name in missing:
+            self.assertNotIn(name, runtime.REQUIRED_CORE)
+            (self.binary / name).unlink()
+            del record['files'][name]
+        (self.binary / runtime.MANIFEST).write_text(json.dumps(record), encoding='utf-8')
+        return record
+
+    def snapshot_binary(self):
+        return {path.relative_to(self.binary).as_posix(): path.read_bytes()
+                for path in self.binary.rglob('*') if path.is_file()}
+
+    def test_legacy_upgrade_adds_absent_new_files_and_preserves_save(self):
+        added = {runtime.PREFIX + 'Scripts/rhythm.lua', runtime.PREFIX + 'Scripts/rhythm_probe.lua'}
+        old = self.legacy_manifest(added)
+        save = self.binary / 'Saved/foreign-profile.sav'
+        save.parent.mkdir()
+        save.write_bytes(b'original profile bytes')
+        before = runtime.status(self.game)
+        self.assertTrue(before['integrity_verified'])
+        self.assertTrue(before['upgrade_available'])
+        self.assertFalse(before['installation_blocked'])
+        self.assertEqual(set(before['pending_files']), added)
+        self.assertEqual(before['missing_files'], [])
+        latest = runtime.install(self.game, self.archive)
+        self.assertEqual(set(latest['files']), runtime.OWNED)
+        self.assertTrue(set(old['files']).issubset(latest['files']))
+        for name in added:
+            self.assertEqual((self.binary / name).read_bytes(), (self.source / name.removeprefix(runtime.PREFIX)).read_bytes())
+        self.assertEqual(save.read_bytes(), b'original profile bytes')
+        after = runtime.status(self.game)
+        self.assertTrue(after['integrity_verified'])
+        self.assertFalse(after['upgrade_available'])
+        self.assertEqual(after['pending_files'], [])
+
+    def test_stable_core_legacy_manifest_can_upgrade(self):
+        self.legacy_manifest(runtime.OWNED - runtime.REQUIRED_CORE)
+        before = runtime.status(self.game)
+        self.assertTrue(before['integrity_verified'])
+        self.assertEqual(set(before['pending_files']), runtime.OWNED - runtime.REQUIRED_CORE)
+        self.assertEqual(set(runtime.install(self.game, self.archive)['files']), runtime.OWNED)
+
+    def test_legacy_pending_path_is_never_adopted(self):
+        added = runtime.PREFIX + 'Scripts/rhythm_probe.lua'
+        self.legacy_manifest({added})
+        (self.binary / added).write_bytes(b'unowned manual probe')
+        snapshot = self.snapshot_binary()
+        state = runtime.status(self.game)
+        self.assertTrue(state['integrity_verified'])
+        self.assertEqual(state['unowned_files'], [added])
+        self.assertTrue(state['installation_blocked'])
+        for operation in (lambda: runtime.install(self.game, self.archive), lambda: runtime.remove(self.game)):
+            with self.assertRaisesRegex(ValueError, 'not owned'):
+                operation()
+            self.assertEqual(self.snapshot_binary(), snapshot)
+
+    def test_legacy_removal_deletes_only_manifest_owned_files(self):
+        old = self.legacy_manifest(runtime.OWNED - runtime.REQUIRED_CORE)
+        for name in ('Saved/foreign-profile.sav', runtime.PREFIX + 'Native/untracked-note.txt'):
+            path = self.binary / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(b'retain foreign data')
+        result = runtime.remove(self.game)
+        self.assertTrue(result['removed'])
+        self.assertEqual(result['files'], len(old['files']))
+        for name in old['files']:
+            self.assertFalse((self.binary / name).exists())
+        self.assertFalse((self.binary / runtime.MANIFEST).exists())
+        for name in ('Saved/foreign-profile.sav', runtime.PREFIX + 'Native/untracked-note.txt'):
+            self.assertEqual((self.binary / name).read_bytes(), b'retain foreign data')
+
+    def test_invalid_legacy_schema_or_paths_never_modify_files(self):
+        record = runtime.install(self.game, self.archive)
+        invalid = [{}, {name: value for name, value in record['files'].items() if name != 'dwmapi.dll'},
+                   {**record['files'], 'Saved/foreign-profile.sav': '0' * 64},
+                   {**record['files'], '../dwmapi.dll': '0' * 64},
+                   {**record['files'], 'dwmapi.dll': 'A' * 64},
+                   {runtime.PREFIX + 'Scripts/main.lua': '0' * 64}]
+        for files in invalid:
+            with self.subTest(paths=sorted(files)):
+                (self.binary / runtime.MANIFEST).write_text(json.dumps({**record, 'files': files}), encoding='utf-8')
+                snapshot = self.snapshot_binary()
+                for operation in (lambda: runtime.install(self.game, self.archive), lambda: runtime.remove(self.game), lambda: runtime.status(self.game)):
+                    with self.assertRaisesRegex(ValueError, 'ownership manifest'):
+                        operation()
+                    self.assertEqual(self.snapshot_binary(), snapshot)
 
     def test_gate_and_unknown_build_reject_without_writes(self):
         self.data['candidates'][0]['verified']['native_catalog_query'] = False
@@ -268,6 +427,8 @@ class RuntimeInstallerTests(unittest.TestCase):
         self.assertFalse(result['integrity_verified'])
         self.assertEqual(result['changed_files'], ['dwmapi.dll'])
         self.assertEqual(result['missing_files'], [runtime.PREFIX + 'Scripts/main.lua'])
+
+
 
 
 if __name__ == '__main__':

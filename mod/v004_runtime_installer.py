@@ -16,7 +16,7 @@ from verify_compatibility import identify, validate_registry, REGISTRY
 ROOT = Path(__file__).resolve().parent
 SOURCE = ROOT / 'runtime'
 NATIVE_SOURCE = ROOT / 'native'
-RUNTIME_FILES = ('Scripts/main.lua', 'Scripts/bridge.js', 'Scripts/music.lua', 'Scripts/companion.lua', 'Scripts/rhythm.lua', 'Scripts/native-controls.js', 'Start-FanserviceNative.ps1', 'Start-FanserviceNative.cmd', 'Stop-FanserviceNative.cmd')
+RUNTIME_FILES = ('Scripts/main.lua', 'Scripts/bridge.js', 'Scripts/music.lua', 'Scripts/companion.lua', 'Scripts/rhythm.lua', 'Scripts/rhythm_probe.lua', 'Scripts/native-controls.js', 'Start-FanserviceNative.ps1', 'Start-FanserviceNative.cmd', 'Stop-FanserviceNative.cmd')
 NATIVE_FILES = ('host.mjs', 'companion-store.mjs', 'game-identity.mjs')
 MANIFEST = '.fanservice-runtime.json'
 GATES = ('loader_startup', 'lite_open_and_return_from_original_import', 'native_catalog_query')
@@ -25,6 +25,9 @@ PREFIX = 'ue4ss/Mods/Fanservice/'
 OWNED = frozenset((*LOADER_FILES, 'ue4ss/UE4SS-settings.ini', 'ue4ss/Mods/mods.txt',
                    *(PREFIX + name for name in RUNTIME_FILES),
                    *(PREFIX + 'Native/' + name for name in NATIVE_FILES), PREFIX + 'server-origin.txt'))
+REQUIRED_CORE = frozenset((*LOADER_FILES, 'ue4ss/UE4SS-settings.ini', 'ue4ss/Mods/mods.txt',
+                           PREFIX + 'Scripts/main.lua', PREFIX + 'Scripts/bridge.js',
+                           PREFIX + 'server-origin.txt'))
 SETTINGS = b'''[General]
 EnableHotReloadSystem = 0
 EnableAutoReloadingLuaMods = 0
@@ -103,7 +106,8 @@ def _read_manifest(directory):
     record = json.loads(path.read_text(encoding='utf-8'))
     if (not isinstance(record, dict) or record.get('version') != 1 or record.get('build_id') != packs.TARGET
             or record.get('component') != 'experimental-runtime'
-            or not isinstance(record.get('files'), dict) or set(record['files']) != OWNED
+            or not isinstance(record.get('files'), dict)
+            or not REQUIRED_CORE.issubset(record['files']) or not set(record['files']).issubset(OWNED)
             or any(not isinstance(value, str) or not re.fullmatch('[0-9a-f]{64}', value)
                    for value in record['files'].values())):
         raise ValueError('Invalid runtime ownership manifest.')
@@ -113,7 +117,7 @@ def _read_manifest(directory):
 def _verify_owned(directory, record):
     for relative in OWNED:
         path = _safe(directory, relative)
-        if record is None:
+        if record is None or relative not in record['files']:
             if path.exists():
                 raise ValueError('Existing runtime files are not owned by this installer; no files changed.')
         elif not path.is_file() or packs.digest(path) != record['files'][relative]:
@@ -224,8 +228,8 @@ def remove(game_root):
         if record is None:
             return dict(removed=False, reason='No owned runtime component is installed.')
         _verify_owned(directory, record)
-        _transaction(directory, {**{relative: None for relative in sorted(OWNED)}, MANIFEST: None})
-    return dict(removed=True, files=len(OWNED), saves_preserved=True)
+        _transaction(directory, {**{relative: None for relative in sorted(record['files'])}, MANIFEST: None})
+    return dict(removed=True, files=len(record['files']), saves_preserved=True)
 
 
 def status(game_root):
@@ -243,10 +247,14 @@ def status(game_root):
             missing.append(relative)
         elif packs.digest(path) != expected:
             changed.append(relative)
+    pending = sorted(OWNED - set(record['files']))
+    conflicts = [relative for relative in pending if _safe(directory, relative).exists()]
     return dict(installed=True, component=record['component'],
                 build_id=packs.TARGET, full_mod_supported=False,
                 integrity_verified=not missing and not changed,
-                missing_files=missing, changed_files=changed)
+                missing_files=missing, changed_files=changed,
+                pending_files=pending, upgrade_available=bool(pending),
+                unowned_files=conflicts, installation_blocked=bool(conflicts or missing or changed))
 
 
 def main():

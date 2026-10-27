@@ -23,8 +23,16 @@ if ($Stop) {
     } finally { $lockStream.Dispose() }
     if ($owner -notmatch '^[a-f0-9]{32}$') { throw 'The helper lock is invalid and was retained for inspection.' }
     $shutdown = Join-Path $runtime '.fanservice-companion.shutdown'
-    $stream = [IO.File]::Open($shutdown,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
-    try { $bytes=[Text.Encoding]::UTF8.GetBytes("FANSERVICE_COMPANION_STOP_1`n$owner");$stream.Write($bytes,0,$bytes.Length);$stream.Flush() } finally { $stream.Dispose() }
+    $shutdownTemporary = $shutdown + '.' + [Guid]::NewGuid().ToString('N') + '.tmp'
+    $temporaryCreated = $false
+    try {
+        $stream = [IO.File]::Open($shutdownTemporary,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
+        $temporaryCreated = $true
+        try { $bytes=[Text.Encoding]::UTF8.GetBytes("FANSERVICE_COMPANION_STOP_1`n$owner");$stream.Write($bytes,0,$bytes.Length);$stream.Flush() } finally { $stream.Dispose() }
+        [IO.File]::Move($shutdownTemporary,$shutdown)
+    } finally {
+        if ($temporaryCreated -and (Test-Path -LiteralPath $shutdownTemporary -PathType Leaf)) { Remove-Item -LiteralPath $shutdownTemporary }
+    }
     for ($attempt=0;$attempt -lt 100;$attempt++) { if (!(Test-Path -LiteralPath $lock)) { Write-Output 'Native companion stopped. Companion profiles and snapshots were retained.';return };Start-Sleep -Milliseconds 100 }
     throw 'The helper has not stopped yet. Its lock and companion data were retained; inspect its diagnostics before modifying the runtime.'
 }

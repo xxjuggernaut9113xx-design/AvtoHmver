@@ -73,7 +73,7 @@ binding immediately before a write. Object address alone is not a durable ID.
 
 Enumeration may discover candidates; only positively matched widgets can be
 frozen, rebased, retired or removed. Preserve foreign and ambiguous widgets.
-Delegate reads and ownership filtering still need original-runtime acceptance.
+The corrected V3 reader passed original-runtime ownership inspection on October 26. The checked multicast has its array header at +8; its stored delegates are unchecked 16-byte elements, not the separate 24-byte checked single-delegate type. See NATIVE_SESSION_20261026.md for evidence. Mutation, retirement and clock integration still need isolated runtime acceptance.
 Do not clear an entire delegate list; any eventual binding change must preserve
 unknown listeners and restore only bindings owned by the adapter.
 
