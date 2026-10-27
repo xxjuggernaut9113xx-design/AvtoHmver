@@ -1,5 +1,13 @@
 # Original v0.05 music-session integration
 
+## Original session acceptance passed
+
+After the user cleared startup age confirmation, Computer Use navigated the original `Start Game > Playlist > Manage` controls, found and selected `fanservice neutral import`, chose one round, and started the run. The isolated profile had no enabled media, so the game continued with blank media for this audio-only test.
+
+The native log confirms the configured library root `game/CockHero/beatmaps`, the three-beat map, a 44.1 kHz stereo 12-second WAV, the two-second intro lead-in, the first audio-clock callback, song completion and playback stopping at exactly `12.000s`. The original Victory summary showed three strokes, highest combo three and a fourteen-second run including lead-in. The game was returned through its original Return to Menu control and remains open on the left screen.
+
+Evidence: `evidence/native-v005-music-session-20261027.json`. This proves the exported neutral recording enters the original v0.05 Music session through its normal selection flow and reaches its native end/summary. It does not prove pause/seek/reconnect behavior, automatic Server delivery, fanservice media selection or full mod compatibility. Earlier pending-playback statements below describe the preceding checkpoint.
+
 ## Runtime correction: active scan path
 
 The first staging used the native default-root helper without checking the actual menu/library initialization path. That was insufficient. The real v0.05 startup log explicitly scans `E:/fanservice-mod-lab/game/CockHero/beatmaps`. After adding the neutral pack there, a fresh exact-build launch found eleven JSON files, loaded `fanservice neutral import` with three beats and `Audio: OK`, and reported eleven valid beatmaps. This is verified native library import; audible playback and session behavior remain pending. Retained evidence: `evidence/native-v005-library-import-20261027.json`.

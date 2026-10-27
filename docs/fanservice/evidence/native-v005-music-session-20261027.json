@@ -1,0 +1,24 @@
+{
+  "build_exe_sha256": "a8f46896593d8724cefb9a232db5772df48ae5731da78cfacbec82e98d040c10",
+  "source_log": "E:/fanservice-mod-lab/v005-music-export/native-import-next.log",
+  "lines": [
+    "[2026.10.27-21.47.02:758][708]LogTemp: [MusicModeManager] Configured round session: rounds=1 endless=No mode=0 root='E:/fanservice-mod-lab/game/CockHero/beatmaps'",
+    "[2026.10.27-21.47.02:758][708]LogTemp: [MusicModeManager] Beatmap loaded: 'fanservice neutral import' by fanservice | 3 beats, 0 events | Duration: 12.0s | BPM: 120",
+    "[2026.10.27-21.47.02:768][708]LogTemp: [MusicModeManager] WAV loaded: 44100 Hz, 2 ch, 12.0s, volume 1.995x",
+    "[2026.10.27-21.47.02:768][708]LogTemp: [MusicModeManager] Music mode started: 'fanservice neutral import' | BPM: 120 | Duration: 12.0s | TravelTime: 1.75s",
+    "[2026.10.27-21.47.04:740][709]LogTemp: [MusicModeManager] Audible playback started after 2.000s lead-in",
+    "[2026.10.27-21.47.04:743][711]LogTemp: Warning: [MusicModeManager] Clock anchored by first playback callback. Audio at 0.000s",
+    "[2026.10.27-21.47.16:754][296]LogTemp: [MusicModeManager] Song complete. Duration: 12.0s",
+    "[2026.10.27-21.47.16:754][296]LogTemp: [MusicModeManager] Stopping playback at audio time: 12.000s"
+  ],
+  "ui": {
+    "path": "Start Game > Playlist > Manage",
+    "selected": "fanservice neutral import",
+    "rounds": 1,
+    "result": "Victory",
+    "duration": "0:14",
+    "highest_combo": 3,
+    "total_strokes": 3
+  },
+  "scope": "original native selection, WAV load, playback callbacks, song end and native summary; blank media; no automatic Server integration"
+}

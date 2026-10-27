@@ -1,6 +1,6 @@
 # Consolidated plan execution — 2026-10-22
 
-Music target update: [original v0.05 Music session](NATIVE_MUSIC_V005_20261027.md). The user selected its existing native music mode. Original-format recording-bound WAV export and neutral-pack staging are implemented; native menu/playback acceptance and automatic Server-to-library wiring remain open.
+Music target update: [original v0.05 Music session](NATIVE_MUSIC_V005_20261027.md). Original-format WAV export, native library discovery, original Playlist selection, three-beat playback, song end and Victory summary passed in the isolated v0.05 build. Automatic Server delivery, fanservice media selection and broader session controls remain open.
 
 Current continuation: [native seek/reconnect acceptance](NATIVE_RECONCILE_20261027.md). Owned native audio-clock, seek, reconnect and backward replay pass; original-session callback/timer adoption and reward settlement remain open. Older counts and blocker descriptions below are historical.
 
