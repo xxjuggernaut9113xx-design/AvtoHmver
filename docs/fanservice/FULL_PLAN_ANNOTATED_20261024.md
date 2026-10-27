@@ -1,5 +1,7 @@
 # fanservice — full plan, annotated
 
+Current music target: [original v0.05 Music session](NATIVE_MUSIC_V005_20261027.md), selected by the user. Native-format WAV export and neutral staging pass; original-menu playback and automatic Server integration remain pending. The earlier v0.04 owned-clock results are diagnostic foundations, not v0.05 support.
+
 Current continuation: [native seek/reconnect acceptance](NATIVE_RECONCILE_20261027.md). Owned native audio-clock, seek, reconnect and backward replay pass; original-session callback/timer adoption and reward settlement remain open. Older counts and blocker descriptions below are historical.
 
 Latest continuation: [original native-session checks](NATIVE_SESSION_20261026.md) records restored Computer Use, the live delegate-layout blocker and verified Server installer lifecycle. Full native rhythm integration remains open.

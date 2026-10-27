@@ -1,5 +1,7 @@
 # Consolidated plan execution — 2026-10-22
 
+Music target update: [original v0.05 Music session](NATIVE_MUSIC_V005_20261027.md). The user selected its existing native music mode. Original-format recording-bound WAV export and neutral-pack staging are implemented; native menu/playback acceptance and automatic Server-to-library wiring remain open.
+
 Current continuation: [native seek/reconnect acceptance](NATIVE_RECONCILE_20261027.md). Owned native audio-clock, seek, reconnect and backward replay pass; original-session callback/timer adoption and reward settlement remain open. Older counts and blocker descriptions below are historical.
 
 Latest continuation: [original native-session checks](NATIVE_SESSION_20261026.md) records restored Computer Use, the live delegate-layout blocker and verified Server installer lifecycle. Full native rhythm integration remains open.
