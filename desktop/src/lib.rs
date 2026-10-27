@@ -4221,7 +4221,7 @@ fn run_ui_inner(
             Work::ExportSources => {
                 if let Some(path) = rfd::FileDialog::new()
                     .set_title("Export AvtoHmver source list")
-                    .set_file_name("curator-sources.json")
+                    .set_file_name("avtohmver-sources.json")
                     .save_file()
                 {
                     let result = run_until_shutdown(
@@ -8827,7 +8827,7 @@ mod tests {
             ("Clear tag assignments", Some("CLEAR TAG ASSIGNMENTS")),
             ("Clear session history", Some("CLEAR SESSION HISTORY")),
             ("Rebuild caches", Some("REBUILD CACHES")),
-            ("Factory reset", Some("RESET CURATOR")),
+            ("Factory reset", Some("RESET AVTOHMVER")),
             ("Remove P-HAR", Some("DELETE P-HAR")),
             ("Remove archives", Some("DELETE ARCHIVES")),
         ] {

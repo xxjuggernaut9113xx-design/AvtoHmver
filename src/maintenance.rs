@@ -63,9 +63,20 @@ impl MaintenanceKind {
             Self::ClearTagAssignments => Some("CLEAR TAG ASSIGNMENTS"),
             Self::ClearInteractiveHistory => Some("CLEAR SESSION HISTORY"),
             Self::RebuildCaches => Some("REBUILD CACHES"),
-            Self::FactoryReset => Some("RESET CURATOR"),
+            Self::FactoryReset => Some("RESET AVTOHMVER"),
             Self::RemovePharEnvironment => Some("DELETE P-HAR"),
             Self::RemoveArchives => Some("DELETE ARCHIVES"),
+        }
+    }
+
+    pub fn accepts_confirmation(self, confirmation: &str) -> bool {
+        let confirmation = confirmation.trim();
+        match self.confirmation_phrase() {
+            None => true,
+            Some(phrase) => {
+                confirmation == phrase
+                    || (self == Self::FactoryReset && confirmation == "RESET CURATOR")
+            }
         }
     }
 
@@ -214,10 +225,9 @@ impl MaintenanceController {
         state: Arc<AppState>,
         request: MaintenanceRequest,
     ) -> std::result::Result<MaintenanceJob, String> {
-        if let Some(phrase) = request.kind.confirmation_phrase() {
-            if request.confirmation.trim() != phrase {
-                return Err(format!("Type {phrase} to run this maintenance action."));
-            }
+        if !request.kind.accepts_confirmation(&request.confirmation) {
+            let phrase = request.kind.confirmation_phrase().unwrap_or_default();
+            return Err(format!("Type {phrase} to run this maintenance action."));
         }
         if matches!(
             request.kind,
@@ -588,7 +598,7 @@ fn create_backup(state: &AppState) -> Result<String> {
     let directory = backups_dir(&state.data_dir);
     std::fs::create_dir_all(&directory)?;
     let id = format!(
-        "curator-backup-{}-{:08x}.zip",
+        "avtohmver-backup-{}-{:08x}.zip",
         Utc::now().format("%Y%m%dT%H%M%SZ"),
         rand::random::<u32>()
     );
@@ -945,8 +955,11 @@ mod tests {
     fn destructive_actions_have_explicit_confirmation_phrases() {
         assert_eq!(
             MaintenanceKind::FactoryReset.confirmation_phrase(),
-            Some("RESET CURATOR")
+            Some("RESET AVTOHMVER")
         );
+        assert!(MaintenanceKind::FactoryReset.accepts_confirmation("RESET AVTOHMVER"));
+        assert!(MaintenanceKind::FactoryReset.accepts_confirmation("RESET CURATOR"));
+        assert!(!MaintenanceKind::FactoryReset.accepts_confirmation("RESET SOMETHING ELSE"));
         assert!(MaintenanceKind::DeleteGroups.is_destructive());
         assert!(!MaintenanceKind::CreateBackup.is_destructive());
     }

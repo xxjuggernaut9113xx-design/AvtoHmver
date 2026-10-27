@@ -1248,7 +1248,7 @@ function renderAdminPanel(panel) {
     ['Clear interactive-session history', 'clear_interactive_history', 'CLEAR SESSION HISTORY', 'Delete logged interactive and Cock Hero sessions.'],
     ['Rebuild thumbnails and caches', 'rebuild_caches', 'REBUILD CACHES', 'Clear derived cache files; originals are untouched.'],
     ['Reconcile library metadata', 'reconcile_library', '', 'Check the media library and restart file-size backfill.'],
-    ['Factory reset database/settings', 'factory_reset', 'RESET CURATOR', 'Stages reset for restart; media, archives, P-HAR, and backups remain.'],
+    ['Factory reset database/settings', 'factory_reset', 'RESET AVTOHMVER', 'Stages reset for restart; media, archives, P-HAR, and backups remain.'],
     ['Delete P-HAR environment', 'remove_phar_environment', 'DELETE P-HAR', 'Remove the managed P-HAR files and disable its setup request.'],
     ['Delete archives', 'remove_archives', 'DELETE ARCHIVES', 'Remove downloaded archive files; media remains. gallery-dl may reconsider older posts on a later sync.'],
   ].forEach(([label, kind, confirmation, description]) => actions.append(adminActionButton(label, kind, confirmation, description)));
