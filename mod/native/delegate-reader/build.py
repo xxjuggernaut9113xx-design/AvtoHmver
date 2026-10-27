@@ -96,6 +96,7 @@ def main():
         'installed':False, 'api':'FanserviceReadCheckedBindings(addressInteger,kindInteger,indexInteger) -> count,addressInteger,functionString',
         'scratch_api':'FanserviceCreateScratchRoot(gameInstanceAddress) -> token,managerAddress; FanserviceReleaseScratchRoot(token) -> bool',
         'guard_api':'FanserviceScratchGuardStatus(token) -> accepted,suppressed,malformed,changed,generation,bypassed'}
+    manifest['audio_api']='FanserviceCreateAudioRoot(actorAddress) -> token,playerAddress; FanserviceReleaseAudioRoot(token) -> bool'
     (output/'build-manifest.json').write_text(json.dumps(manifest, indent=2)+'\n', encoding='utf-8')
     print('DLL SHA-256:', manifest['dll_sha256'])
 

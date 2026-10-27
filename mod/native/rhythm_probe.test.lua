@@ -98,7 +98,7 @@ local function fixture(options)
     function f:advance(seconds)
         self.clock=self.clock+seconds;self.wall=self.wall+seconds
         if not self.pauseWorld then self.worldClock=self.worldClock+seconds end
-        if self.finalAt and self.worldClock>=self.finalAt then self.finalAt=nil;manager.bIsRunning=false;queue:Empty();manager.TotalStrokes=0 end
+        if self.finalAt and self.worldClock>=self.finalAt then self.finalAt=nil;manager.bIsRunning=false;queue:Empty();manager.CurrentBeatIndex=0 end
         if self.audio and self.audio.state=='playing' then self.audio.position=self.audio.position+seconds end
         if manager.bIsRunning and manager.CurrentBeatIndex==1 and manager:GetMasterTimelinePosition()>=20 then manager.CurrentBeatIndex=2 end
         if not options.noTick and self.widget and self.widget.bIsMoving and self.widget.BeatIcon then

@@ -23,7 +23,7 @@ function Music.new(env)
         and type(env.currentBinding) == 'function' and type(env.authorize) == 'function',
         'Native music requires an object factory, active profile binding and trusted URL authorization.')
     local self = {state='stopped', position=0, duration=0, desiredPaused=false, played=false}
-    local player, sound, actor, binding, url, original, originalPaused, pendingSeek, reopenPosition
+    local player, sound, actor, binding, url, original, originalPaused, pendingSeek, reopenPosition, playerLease
     local mathLibrary, timespanReady
     local now = env.now or os.time
     local openDeadline, seekDeadline, bufferDeadline, lastProgressAt, expectedDuration, prerollStarted, backendSampled, playDeadline
@@ -80,7 +80,14 @@ function Music.new(env)
             and originalPaused and same(original, activeOriginal()) then
             attempt(function() if original:GetPlayState() == 2 then original:SetPaused(false) end end)
         end
-        player, sound, actor, binding, url, original, originalPaused, pendingSeek, reopenPosition = nil,nil,nil,nil,nil,nil,nil,nil,nil
+        if playerLease~=nil then
+            attempt(function()
+                if type(env.releasePlayer)~='function' or env.releasePlayer(playerLease)~=true then error('Owned native audio root release was refused; lease retained for retry.') end
+                playerLease=nil
+            end)
+        end
+        if playerLease==nil then player,actor=nil,nil end
+        sound, binding, url, original, originalPaused, pendingSeek, reopenPosition = nil,nil,nil,nil,nil,nil,nil
         openDeadline, seekDeadline, bufferDeadline, lastProgressAt, expectedDuration, prerollStarted, backendSampled, playDeadline = nil,nil,nil,nil,nil,nil,nil,nil
         self.state, self.played, self.advancing = 'stopped', false, false
         self.reason = reason
@@ -92,7 +99,7 @@ function Music.new(env)
             advancing=self.state == 'playing' and self.advancing == true, reason=self.reason, error=self.error, cleanup_error=self.cleanup_error,
             native_ready=self.native_ready, native_preparing=self.native_preparing, native_playing=self.native_playing,
             native_buffering=self.native_buffering, native_position=self.native_position, native_duration=self.native_duration,
-            native_backend=self.native_backend}
+            native_backend=self.native_backend,root_pending=playerLease~=nil}
     end
     function self:open(value, owner, token, recordingDuration)
         authorize(value, token)
@@ -102,6 +109,7 @@ function Music.new(env)
         end
         if not valid(owner) then error('Soundtrack needs a valid native actor owner.') end
         self:stop('replaced')
+        if playerLease~=nil then error('Previous native audio root remains owned; retry Stop before replacing it.') end
         actor, binding, url, expectedDuration = owner, token, value, recordingDuration
         openDeadline = now() + 120
         self.state, self.position, self.duration, self.played, self.desiredPaused = 'opening',0,0,false,false
@@ -113,7 +121,11 @@ function Music.new(env)
             mathLibrary = env.find('/Script/Engine.Default__KismetMathLibrary')
             if not valid(playerClass) or not valid(soundClass) or not valid(mathLibrary) then error('Native media audio classes are unavailable.') end
             ensureTimespan()
-            player = env.spawn(playerClass, actor)
+            if env.acquirePlayer then
+                if type(env.releasePlayer)~='function' then error('Native audio root release operation is missing.') end
+                player,playerLease=env.acquirePlayer(playerClass,actor)
+                if playerLease==nil then error('Native audio factory did not return its owned root lease.') end
+            else player = env.spawn(playerClass, actor) end
             if not valid(player) then error('Native audio player construction failed.') end
             player.PlayOnOpen = false
             player:SetLooping(false)

@@ -11,7 +11,9 @@ template<class Backend> class ScratchRoots {
     std::map<std::int64_t, typename Backend::Record> records;
     std::int64_t next = 1;
 public:
-    explicit ScratchRoots(Backend value = {}) : backend(std::move(value)) {}
+    explicit ScratchRoots(Backend value = {},std::int64_t first=1) : backend(std::move(value)),next(first) {
+        if(first<=0)throw std::runtime_error("Root lease token range must be positive.");
+    }
     template<class Visitor> auto inspect(std::int64_t token,Visitor visitor) {
         auto slot=records.find(token);
         if(slot==records.end() || !backend.valid(slot->second) || !backend.rooted(slot->second))

@@ -21,6 +21,13 @@ int main() {
     int passed=0;auto check=[&](bool value){if(!value)throw std::runtime_error("Lease assertion failed.");++passed;};
     auto fails=[&](const std::function<void()>& fn){bool caught=false;try{fn();}catch(const std::runtime_error&){caught=true;}check(caught);};
     {
+        auto state=std::make_shared<State>();
+        fails([&]{fanservice::ScratchRoots<Fake> invalid(Fake{state},0);});
+        fanservice::ScratchRoots<Fake> audio(Fake{state},INT64_C(4294967296));
+        auto [token,address]=audio.create(100);check(token==INT64_C(4294967296) && address==1000);
+        check(!audio.release(1));check(state->objects[0].root);check(audio.release(token));
+    }
+    {
         auto s=std::make_shared<State>();fanservice::ScratchRoots<Fake> roots(Fake{s});auto [token,address]=roots.create(100);
         check(token==1 && address==1000 && s->objects[0].root);check(s->set==1 && s->clear==0);
         check(roots.inspect(token,[](auto record){return record;})==0);

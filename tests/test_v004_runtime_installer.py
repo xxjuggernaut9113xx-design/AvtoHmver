@@ -77,7 +77,11 @@ class RuntimeInstallerTests(unittest.TestCase):
         (binary / 'CockHero.exe').write_bytes(b'never executed')
         launcher = runtime.ROOT / 'runtime/Start-FanserviceNative.ps1'
         shutil.copy2(launcher, runtime_dir / launcher.name)
-        (native / 'host.mjs').write_text("import {writeFileSync} from 'node:fs';writeFileSync(new URL('./received-args.json',import.meta.url),JSON.stringify(process.argv.slice(2)));", encoding='utf-8')
+        (native / 'host.mjs').write_text("import * as fs from 'node:fs/promises';import path from 'node:path';"
+            "const root=process.argv[3],lock=path.join(root,'.fanservice-companion.host.lock'),ready=path.join(root,'.fanservice-companion.ready'),owner='a'.repeat(32);"
+            "const handle=await fs.open(lock,'wx');await handle.writeFile(owner);await handle.sync();await fs.writeFile(ready,owner);"
+            "await fs.writeFile(new URL('./received-args.json',import.meta.url),JSON.stringify(process.argv.slice(2)));"
+            "setTimeout(async()=>{await fs.unlink(ready);await handle.close();await fs.unlink(lock);},1000);", encoding='utf-8')
         data = self.root / 'companion data with spaces'
         env = dict(os.environ, LOCALAPPDATA=str(self.root / 'local app data'))
         subprocess.run(['powershell.exe', '-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', str(runtime_dir / launcher.name), '-CompanionDataRoot', str(data)], env=env, capture_output=True, check=True, timeout=20)
@@ -87,6 +91,9 @@ class RuntimeInstallerTests(unittest.TestCase):
             time.sleep(.05)
         self.assertEqual(json.loads(received.read_text()), ['--runtime-dir', str(runtime_dir), '--game-root', str(game), '--store-root', str(data)])
         self.assertEqual((binary / 'CockHero.exe').read_bytes(), b'never executed')
+        deadline=time.monotonic()+5
+        while (runtime_dir / '.fanservice-companion.host.lock').exists() and time.monotonic()<deadline:
+            time.sleep(.05)
 
     @unittest.skipUnless(os.name == 'nt', 'Windows helper lock sharing test')
     def test_stop_launcher_reads_live_node_lock_and_preserves_profile_data(self):
@@ -201,6 +208,41 @@ class RuntimeInstallerTests(unittest.TestCase):
                                  '-File', str(runtime_dir / launcher.name), '-Stop'], capture_output=True, timeout=20)
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual({path.name: path.read_bytes() for path in runtime_dir.iterdir() if path.is_file()}, before)
+
+    @unittest.skipUnless(os.name == 'nt', 'Windows stale helper recovery test')
+    def test_stale_helper_tokens_are_archived_with_bytes_and_profiles_preserved(self):
+        binary=self.root / 'stale helper/CockHero/Binaries/Win64'
+        runtime_dir=binary / 'ue4ss/Mods/Fanservice'
+        (runtime_dir / 'Native').mkdir(parents=True)
+        (binary / 'CockHero.exe').write_bytes(b'never executed')
+        (runtime_dir / 'Native/host.mjs').write_text('never executed')
+        launcher=runtime.ROOT / 'runtime/Start-FanserviceNative.ps1'
+        shutil.copy2(launcher,runtime_dir / launcher.name)
+        values={'.fanservice-companion.host.lock':b'a'*32,'.fanservice-companion.ready':b'a'*32,
+                '.fanservice-companion.shutdown':b'FANSERVICE_COMPANION_STOP_1\n'+b'a'*32}
+        for name,data in values.items(): (runtime_dir / name).write_bytes(data)
+        sentinel=runtime_dir / 'profile-sentinel.json';sentinel.write_bytes(b'retain profile bytes')
+        result=subprocess.run(['powershell.exe','-NoLogo','-NoProfile','-ExecutionPolicy','Bypass','-File',str(runtime_dir / launcher.name),'-Stop'],capture_output=True,timeout=20)
+        self.assertEqual(result.returncode,0,result.stderr.decode(errors='replace'))
+        archived=list((runtime_dir / '.fanservice-stale-helper').iterdir());self.assertEqual(len(archived),1)
+        self.assertEqual({p.name:p.read_bytes() for p in archived[0].iterdir()},values)
+        self.assertTrue(all(not (runtime_dir / name).exists() for name in values))
+        self.assertEqual(sentinel.read_bytes(),b'retain profile bytes')
+
+    @unittest.skipUnless(os.name == 'nt', 'Windows launcher readiness failure test')
+    def test_launcher_does_not_claim_ready_when_helper_exits_immediately(self):
+        binary=self.root / 'failed helper/CockHero/Binaries/Win64'
+        runtime_dir=binary / 'ue4ss/Mods/Fanservice'
+        (runtime_dir / 'Native').mkdir(parents=True)
+        (binary / 'CockHero.exe').write_bytes(b'never executed')
+        (runtime_dir / 'Native/host.mjs').write_text("process.stderr.write('fixture startup failure');process.exitCode=17;",encoding='utf-8')
+        launcher=runtime.ROOT / 'runtime/Start-FanserviceNative.ps1';shutil.copy2(launcher,runtime_dir / launcher.name)
+        env=dict(os.environ,LOCALAPPDATA=str(self.root / 'local app data'))
+        result=subprocess.run(['powershell.exe','-NoLogo','-NoProfile','-ExecutionPolicy','Bypass','-File',str(runtime_dir / launcher.name)],env=env,capture_output=True,timeout=20)
+        self.assertNotEqual(result.returncode,0)
+        self.assertNotIn('Native companion ready.',result.stdout.decode(errors='replace'))
+        self.assertIn('exited before readiness',result.stderr.decode(errors='replace'))
+        self.assertEqual((binary / 'CockHero.exe').read_bytes(),b'never executed')
 
     def save_registry(self):
         self.registry.write_text(json.dumps(self.data))

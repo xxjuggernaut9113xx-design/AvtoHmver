@@ -147,7 +147,7 @@ function Probe.new(env)
         unbound(manager)
         report.native_queue_count=#manager.BeatQueue;report.native_index=manager.CurrentBeatIndex;report.native_total=manager.TotalStrokes;report.native_running=manager:IsSequenceRunning()==true
         if finalize and scope.resumed and #manager.BeatQueue==0 then
-            check(manager:IsSequenceRunning()==false and manager.CurrentBeatIndex==#rows and manager.TotalStrokes==0,'Owned native finalization left an inconsistent stopped manager.')
+            check(manager:IsSequenceRunning()==false and manager.CurrentBeatIndex==0 and manager.TotalStrokes==#rows,'Owned native finalization left an inconsistent stopped manager.')
             scope.queueEmptied=true;report.native_finalized=true
         elseif scope.queueEmptied then check(#manager.BeatQueue==0,'Finalized owned queue acquired unknown entries.')
         else queueMatches(manager) end

@@ -15,6 +15,7 @@
 #include <LuaMadeSimple/LuaMadeSimple.hpp>
 #include <Unreal/NameTypes.hpp>
 #include <Unreal/FWeakObjectPtr.hpp>
+#include <Unreal/FString.hpp>
 #include <Unreal/UnrealInitializer.hpp>
 #include <Unreal/CoreUObject/UObject/Class.hpp>
 #include <Unreal/CoreUObject/UObject/UnrealType.hpp>
@@ -137,6 +138,41 @@ void ensure_guard_hook() {
     },options);
     if(!guard_callback)throw std::runtime_error("Scratch beat guard hook registration failed.");
 }
+RC::Unreal::UObject* spawn_fixed_fresh(RC::Unreal::UClass* type,RC::Unreal::UObject* outer,std::string_view inventory) {
+    using namespace RC::Unreal;
+    auto statics_type=UObjectGlobals::StaticFindObject<UClass*>(nullptr,nullptr,L"/Script/Engine.GameplayStatics");
+    auto statics=UObjectGlobals::StaticFindObject<UObject*>(nullptr,nullptr,L"/Script/Engine.Default__GameplayStatics");
+    auto spawn=UObjectGlobals::StaticFindObject<UFunction*>(nullptr,nullptr,L"/Script/Engine.GameplayStatics:SpawnObject");
+    if(!statics_type || !statics || !spawn || statics->GetClassPrivate()!=statics_type
+        || spawn->GetOuterPrivate()!=statics_type || !spawn->HasAllFunctionFlags(FUNC_Static|FUNC_Native)
+        || spawn->GetNumParms()!=3 || spawn->GetParmsSize()!=24 || spawn->GetReturnValueOffset()!=16)
+        throw std::runtime_error("Scratch factory SpawnObject reflection signature is incompatible.");
+    const std::array<const wchar_t*,3> names={L"ObjectClass",L"Outer",L"ReturnValue"};
+    const std::array<const wchar_t*,3> kinds={L"ClassProperty",L"ObjectProperty",L"ObjectProperty"};
+    for(std::size_t index=0;index<names.size();++index) {
+        auto property=spawn->FindProperty(FName(names[index],FNAME_Find));
+        if(!property || property->GetClass().GetName()!=kinds[index]
+        || property->GetOffset_Internal()!=static_cast<int>(index*sizeof(void*))
+        || property->GetElementSize()!=sizeof(void*) || property->GetArrayDim()!=1
+        || !property->HasAllPropertyFlags(CPF_Parm)
+        || (index<2 && property->HasAnyPropertyFlags(CPF_OutParm|CPF_ReturnParm))
+        || (index==2 && !property->HasAllPropertyFlags(CPF_OutParm|CPF_ReturnParm)))
+        throw std::runtime_error("Scratch factory SpawnObject pointer parameter layout is incompatible.");
+    }
+    std::vector<UObject*> previous;
+    UObjectGlobals::FindAllOf(inventory,previous,false);
+    if(previous.size()>4096)throw std::runtime_error("Scratch factory manager inventory exceeds its bound.");
+    struct SpawnParameters {UClass* object_class;UObject* outer;UObject* result;};
+    static_assert(sizeof(SpawnParameters)==24 && offsetof(SpawnParameters,outer)==8 && offsetof(SpawnParameters,result)==16);
+    SpawnParameters parameters{};parameters.object_class=type;parameters.outer=outer;
+    statics->ProcessEvent(spawn,&parameters);
+    auto manager=parameters.result;
+    for(auto existing:previous)if(manager==existing)throw std::runtime_error("Scratch factory SpawnObject returned a pre-existing manager.");
+    if(!manager || manager==outer || manager->GetClassPrivate()!=type || manager->GetOuterPrivate()!=outer
+        || !UObjectGlobals::IsValidObjectForFindXOf(manager))throw std::runtime_error("Scratch factory returned an invalid exact manager.");
+    if(!manager->HasAnyFlags(RF_Transient))manager->SetFlags(RF_Transient);
+    return manager;
+}
 struct NativeScratch {
     struct Record {
         RC::Unreal::FWeakObjectPtr manager{},outer{},type{};
@@ -158,37 +194,7 @@ struct NativeScratch {
         if(!outer || !game_instance_type || !type || !UObjectGlobals::IsValidObjectForFindXOf(outer)
             || !outer->IsA(game_instance_type) || outer->GetClassPrivate()->GetName()!=L"BP_CHGameInstance_C")
             throw std::runtime_error("Scratch factory requires the live exact BP_CHGameInstance_C outer.");
-        auto statics_type=UObjectGlobals::StaticFindObject<UClass*>(nullptr,nullptr,L"/Script/Engine.GameplayStatics");
-        auto statics=UObjectGlobals::StaticFindObject<UObject*>(nullptr,nullptr,L"/Script/Engine.Default__GameplayStatics");
-        auto spawn=UObjectGlobals::StaticFindObject<UFunction*>(nullptr,nullptr,L"/Script/Engine.GameplayStatics:SpawnObject");
-        if(!statics_type || !statics || !spawn || statics->GetClassPrivate()!=statics_type
-            || spawn->GetOuterPrivate()!=statics_type || !spawn->HasAllFunctionFlags(FUNC_Static|FUNC_Native)
-            || spawn->GetNumParms()!=3 || spawn->GetParmsSize()!=24 || spawn->GetReturnValueOffset()!=16)
-            throw std::runtime_error("Scratch factory SpawnObject reflection signature is incompatible.");
-        const std::array<const wchar_t*,3> names={L"ObjectClass",L"Outer",L"ReturnValue"};
-        const std::array<const wchar_t*,3> kinds={L"ClassProperty",L"ObjectProperty",L"ObjectProperty"};
-        for(std::size_t index=0;index<names.size();++index) {
-            auto property=spawn->FindProperty(FName(names[index],FNAME_Find));
-            if(!property || property->GetClass().GetName()!=kinds[index]
-                || property->GetOffset_Internal()!=static_cast<int>(index*sizeof(void*))
-                || property->GetElementSize()!=sizeof(void*) || property->GetArrayDim()!=1
-                || !property->HasAllPropertyFlags(CPF_Parm)
-                || (index<2 && property->HasAnyPropertyFlags(CPF_OutParm|CPF_ReturnParm))
-                || (index==2 && !property->HasAllPropertyFlags(CPF_OutParm|CPF_ReturnParm)))
-                throw std::runtime_error("Scratch factory SpawnObject pointer parameter layout is incompatible.");
-        }
-        std::vector<UObject*> previous;
-        UObjectGlobals::FindAllOf(std::string_view("BeatSpawnerManager"),previous,false);
-        if(previous.size()>4096)throw std::runtime_error("Scratch factory manager inventory exceeds its bound.");
-        struct SpawnParameters {UClass* object_class;UObject* outer;UObject* result;};
-        static_assert(sizeof(SpawnParameters)==24 && offsetof(SpawnParameters,outer)==8 && offsetof(SpawnParameters,result)==16);
-        SpawnParameters parameters{};parameters.object_class=type;parameters.outer=outer;
-        statics->ProcessEvent(spawn,&parameters);
-        auto manager=parameters.result;
-        for(auto existing:previous)if(manager==existing)throw std::runtime_error("Scratch factory SpawnObject returned a pre-existing manager.");
-        if(!manager || manager==outer || manager->GetClassPrivate()!=type || manager->GetOuterPrivate()!=outer
-            || !UObjectGlobals::IsValidObjectForFindXOf(manager))throw std::runtime_error("Scratch factory returned an invalid exact manager.");
-        if(!manager->HasAnyFlags(RF_Transient))manager->SetFlags(RF_Transient);
+        auto manager=spawn_fixed_fresh(type,outer,"BeatSpawnerManager");
         Record record;record.manager=manager;record.outer=outer;record.type=type;
         record.manager_address=reinterpret_cast<std::uintptr_t>(manager);record.outer_address=requested_outer;
         record.class_address=reinterpret_cast<std::uintptr_t>(type);record.factory_created=true;
@@ -236,6 +242,84 @@ struct NativeScratch {
     std::uintptr_t address(const Record& record) {return record.manager_address;}
 };
 fanservice::ScratchRoots<NativeScratch> scratch_roots;
+RC::Unreal::UFunction* audio_query(const wchar_t* path,const wchar_t* kind,int size) {
+    using namespace RC::Unreal;
+    auto type=UObjectGlobals::StaticFindObject<UClass*>(nullptr,nullptr,L"/Script/MediaAssets.MediaPlayer");
+    auto function=UObjectGlobals::StaticFindObject<UFunction*>(nullptr,nullptr,path);
+    if(!type || !function || function->GetOuterPrivate()!=type || !function->HasAllFunctionFlags(FUNC_Native)
+        || function->HasAnyFunctionFlags(FUNC_Static) || function->GetNumParms()!=1
+        || function->GetParmsSize()!=size || function->GetReturnValueOffset()!=0)
+        throw std::runtime_error("Audio root closed-state query signature is incompatible.");
+    auto property=function->FindProperty(FName(L"ReturnValue",FNAME_Find));
+    if(!property || property->GetClass().GetName()!=kind || property->GetOffset_Internal()!=0
+        || property->GetElementSize()!=size || property->GetArrayDim()!=1
+        || !property->HasAllPropertyFlags(CPF_Parm|CPF_OutParm|CPF_ReturnParm))
+        throw std::runtime_error("Audio root closed-state return layout is incompatible.");
+    if(size==1) {
+        auto boolean=static_cast<FBoolProperty*>(property);
+        if(!boolean->IsNativeBool() || boolean->GetByteOffset()!=0 || boolean->GetByteMask()!=1)
+            throw std::runtime_error("Audio root closed-state bool storage is incompatible.");
+    }
+    return function;
+}
+struct NativeAudio : NativeScratch {
+    Record create(std::uintptr_t requested_outer) {
+        using namespace RC::Unreal;
+        std::vector<UObject*> actors,controllers;
+        UObjectGlobals::FindAllOf(std::string_view("BP_GlobalManager_C"),actors,false);
+        UObjectGlobals::FindAllOf(std::string_view("PlayerController"),controllers,false);
+        if(actors.size()>128 || controllers.size()>128)throw std::runtime_error("Audio root actor inventory exceeds its bound.");
+        UObject* outer=nullptr;
+        auto actor_type=UObjectGlobals::StaticFindObject<UClass*>(nullptr,nullptr,L"/Script/Engine.Actor");
+        auto controller_type=UObjectGlobals::StaticFindObject<UClass*>(nullptr,nullptr,L"/Script/Engine.PlayerController");
+        for(auto actor:actors)if(reinterpret_cast<std::uintptr_t>(actor)==requested_outer
+            && actor->GetClassPrivate()->GetName()==L"BP_GlobalManager_C")outer=actor;
+        for(auto actor:controllers)if(reinterpret_cast<std::uintptr_t>(actor)==requested_outer
+            && controller_type && actor->IsA(controller_type))outer=actor;
+        if(!outer || !actor_type || !outer->IsA(actor_type) || !UObjectGlobals::IsValidObjectForFindXOf(outer))
+            throw std::runtime_error("Audio root requires a live exact global manager or player controller actor.");
+        auto type=UObjectGlobals::StaticFindObject<UClass*>(nullptr,nullptr,L"/Script/MediaAssets.MediaPlayer");
+        if(!type)throw std::runtime_error("Audio root fixed MediaPlayer class is unavailable.");
+        auto player=spawn_fixed_fresh(type,outer,"MediaPlayer");
+        Record record;record.manager=player;record.outer=outer;record.type=type;record.factory_created=true;
+        record.manager_address=reinterpret_cast<std::uintptr_t>(player);record.outer_address=requested_outer;
+        record.class_address=reinterpret_cast<std::uintptr_t>(type);return record;
+    }
+    void require_idle(const Record& record) {
+        using namespace RC::Unreal;
+        if(!valid(record))throw std::runtime_error("Audio root closed-state identity changed.");
+        auto player=guarded_weak_get(&record.manager);
+        static_assert(sizeof(FString)==16);
+        auto url_function=audio_query(L"/Script/MediaAssets.MediaPlayer:GetUrl",L"StrProperty",16);
+        FString url;player->ProcessEvent(url_function,&url);
+        if(url.Len()!=0)throw std::runtime_error("Audio root release/acquisition requires an empty media URL.");
+        for(auto path:{L"/Script/MediaAssets.MediaPlayer:IsReady",L"/Script/MediaAssets.MediaPlayer:IsPreparing"}) {
+            auto function=audio_query(path,L"BoolProperty",1);std::uint8_t result=0;
+            player->ProcessEvent(function,&result);
+            if(result!=0)throw std::runtime_error("Audio root release/acquisition requires a closed, unprepared player.");
+        }
+    }
+    void set_root(const Record& record) {
+        if(!valid(record) || rooted(record))throw std::runtime_error("Audio root acquisition identity/root flag changed.");
+        guarded_weak_get(&record.manager)->SetRootSet();
+    }
+    void clear_root(const Record& record) {
+        if(!valid(record) || !rooted(record))throw std::runtime_error("Audio root release identity/root flag changed.");
+        require_idle(record);guarded_weak_get(&record.manager)->ClearRootSet();
+    }
+};
+fanservice::ScratchRoots<NativeAudio> audio_roots(NativeAudio{},INT64_C(4294967296));
+int create_audio(const Lua& lua) {
+    game_thread_identity();if(lua.get_stack_size()!=1 || !lua.is_integer(1))throw std::runtime_error("Expected one audio owner actor address integer.");
+    auto outer=lua.get_integer(1);if(outer<=0)throw std::runtime_error("Audio owner address must be positive.");
+    auto [token,address]=audio_roots.create(static_cast<std::uintptr_t>(outer));
+    lua.set_integer(token);lua.set_integer(static_cast<std::int64_t>(address));return 2;
+}
+int release_audio(const Lua& lua) {
+    game_thread_identity();if(lua.get_stack_size()!=1 || !lua.is_integer(1))throw std::runtime_error("Expected one audio root token integer.");
+    auto token=lua.get_integer(1);if(token<INT64_C(4294967296))throw std::runtime_error("Audio root token belongs to another lease family.");
+    lua.set_bool(audio_roots.release(token));return 1;
+}
 int create_scratch(const Lua& lua) {
     game_thread_identity();if(lua.get_stack_size()!=1 || !lua.is_integer(1))throw std::runtime_error("Expected one GameInstance address integer.");
     auto outer=lua.get_integer(1);if(outer<=0)throw std::runtime_error("Scratch GameInstance address must be positive.");
@@ -294,6 +378,8 @@ extern "C" __declspec(dllexport) int luaopen_fanservice_delegate_reader(lua_Stat
         if(!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS|GET_MODULE_HANDLE_EX_FLAG_PIN,reinterpret_cast<LPCWSTR>(&luaopen_fanservice_delegate_reader),&pinned))return 0;
         Lua lua(state);lua.register_function("FanserviceReadCheckedBindings",read_bindings);
         lua.register_function("FanserviceCreateScratchRoot",create_scratch);
+        lua.register_function("FanserviceCreateAudioRoot",create_audio);
+        lua.register_function("FanserviceReleaseAudioRoot",release_audio);
         lua.register_function("FanserviceScratchGuardStatus",guard_status);
         lua.register_function("FanserviceReleaseScratchRoot",release_scratch);return 0;
     }catch(const std::exception& e){if(state){Lua lua(state);lua.set_string(e.what(),std::strlen(e.what()));return 1;}return 0;}catch(...){return 0;}

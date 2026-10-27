@@ -362,4 +362,25 @@ test('invalid local file URI forms cannot replace an existing authorized transpo
     eq(f.player.closeCalls,0);eq(f.transport:status().state,'playing')
 end)
 
+test('owned native audio player lease is acquired before use and released after decoder close',function()
+    local f=fixture();local released=0
+    f.env.acquirePlayer=function(_,owner) eq(owner,f.actor);return f.player,'audio-lease' end
+    f.env.releasePlayer=function(token) eq(token,'audio-lease');assert(f.player.closeCalls>0);released=released+1;return true end
+    f.open();eq(f.transport:status().root_pending,true);f.transport:stop('test');eq(released,1);eq(f.transport:status().root_pending,false)
+    f.transport:stop('again');eq(released,1)
+end)
+test('refused audio root release retains ownership for Stop retry and blocks replacement',function()
+    local f=fixture();local allow=false
+    f.env.acquirePlayer=function() return f.player,7 end
+    f.env.releasePlayer=function(token) eq(token,7);return allow end
+    f.open();local result=f.transport:stop('test');eq(result.root_pending,true);assert(result.cleanup_error:find('lease retained',1,true))
+    fails(function() f.open() end,'Previous native audio root remains owned');eq(f.transport:status().root_pending,true)
+    allow=true;eq(f.transport:stop('retry').root_pending,false)
+end)
+test('partial audio construction releases its fresh player lease without pausing original music',function()
+    local f=fixture();local released=0
+    f.env.acquirePlayer=function() return f.player,7 end;f.env.releasePlayer=function() released=released+1;return true end
+    f.actor.AddComponentByClass=function() error('Component rejected') end
+    fails(function() f.open() end,'Component rejected');eq(released,1);eq(f.transport:status().root_pending,false);eq(f.original.pauseCalls,0)
+end)
 print(tostring(passed) .. ' native audio transport tests passed')

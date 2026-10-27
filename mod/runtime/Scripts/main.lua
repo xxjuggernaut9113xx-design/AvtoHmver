@@ -113,6 +113,8 @@ FanserviceReadCheckedBindings=nil
 FanserviceCreateScratchRoot=nil
 FanserviceReleaseScratchRoot=nil
 FanserviceScratchGuardStatus=nil
+FanserviceCreateAudioRoot=nil
+FanserviceReleaseAudioRoot=nil
 local readerPath = directory .. '/Native/fanservice-delegate-reader.dll'
 local readerConfig = io.open(directory .. '/Native/delegate-reader-module.txt','rb')
 if readerConfig then
@@ -163,6 +165,29 @@ local nativeMusic = Music.new({
             BelongsToClass='/Script/CoreUObject.Timespan',OffsetInternal=0})
     end,
     spawn=function(class, outer) return StaticFindObject('/Script/Engine.Default__GameplayStatics'):SpawnObject(class, outer) end,
+    acquirePlayer=function(class,actor)
+        if type(FanserviceCreateAudioRoot)~='function' or type(FanserviceReleaseAudioRoot)~='function' then error('Install the matching owned audio lifetime helper before native soundtrack playback.') end
+        local token,address=FanserviceCreateAudioRoot(actor:GetAddress())
+        local found
+        local ok,problem=pcall(function()
+            local players=FindAllOf('MediaPlayer') or {}
+            if #players>4096 then error('Native audio player inventory exceeds its bound.') end
+            for _,player in ipairs(players) do
+                if player:IsValid() and player:GetAddress()==address then
+                    if found or player:GetClass():GetAddress()~=class:GetAddress() or player:GetOuter():GetAddress()~=actor:GetAddress() then error('Native audio root identity is ambiguous or foreign.') end
+                    found=player
+                end
+            end
+            if not found then error('Fresh rooted audio player was not found.') end
+        end)
+        if not ok then
+            local released,cleanup=pcall(FanserviceReleaseAudioRoot,token)
+            if not released or cleanup~=true then error(tostring(problem)..'; fresh audio root retained, token '..tostring(token)) end
+            error(problem)
+        end
+        return found,token
+    end,
+    releasePlayer=function(token) return FanserviceReleaseAudioRoot(token) end,
     currentBinding=musicBinding,
     authorize=function(url, binding) return approvedAudio and approvedAudio.url == url and approvedAudio.binding == binding end
 })
@@ -222,6 +247,7 @@ local function audioJSON()
         .. ',"native_duration":' .. (state.native_duration and quote(state.native_duration) or 'null')
         .. ',"native_backend":' .. (state.native_backend and quote(state.native_backend) or 'null')
         .. ',"controls":' .. controls
+        .. ',"root_pending":' .. boolean(state.root_pending)
         .. ',"scope":"native audio transport; rhythm-session integration remains gated"}'
 end
 local function stopNativeMusic(reason)

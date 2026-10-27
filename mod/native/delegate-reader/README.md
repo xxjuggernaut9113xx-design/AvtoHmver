@@ -105,6 +105,34 @@ to one day, pattern indexes to 0..4095, and nonnegative multipliers to 1000.
 Fresh leases get fresh ledgers. Native direct calls and delayed native lambdas are
 outside this reflected proof; this API does not authorize original-session takeover.
 
+## Owned audio player leases
+
+`FanserviceCreateAudioRoot(actorAddress)` creates and roots a fresh exact native
+`/Script/MediaAssets.MediaPlayer`, returning its opaque positive token and address.
+The actor must match the live SDK inventory and be either the exact
+`BP_GlobalManager_C` or a `PlayerController` subclass. The same reflected factory
+and pre-existing-object exclusion used for scratch managers applies. Existing
+players are never adopted. The actor, player, and exact native class are tracked
+with weak identities. The audio table holds at most eight leases and its token
+range starts at 4294967296.
+
+Acquisition and release require the player to be closed: reflected `GetUrl` returns
+an empty `FString`, and both `IsReady` and `IsPreparing` return false. Each native
+query validates its exact MediaPlayer owner, native instance-function flags,
+single return parameter, offset, size, property type, and return flags before
+dispatch. Bool byte storage is also validated. No guessed MediaPlayer field
+offsets are read. The root protects the player across Lua wrapper collection;
+the live actor remains the caller's ownership boundary.
+
+Call the player's normal `Close()` first, then
+`FanserviceReleaseAudioRoot(token)`. Unknown/already-released audio tokens return
+false; tokens below the audio range are rejected. Changed identities, changed
+root flags, nonempty URLs, ready players, or preparing players retain the lease
+and raise an error. The caller must retain the token and retry cleanup rather
+than discard a failed release. Releasing clears only this fresh player's root;
+it does not close players or alter any original game player. Audio leases do not
+install beat guards.
+
 The lease table allocates its slot before setting the root flag. Acquisition
 requires an initially unrooted, stopped manager with an empty queue. Root flag
 readback is checked. Failed acquisition rolls back only a verified flag set by
