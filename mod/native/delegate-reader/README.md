@@ -93,9 +93,9 @@ identity and monotonic lease generation are eligible. No external manager can be
 registered. Releasing a stopped, empty lease removes only its own scope; the pinned
 global callback remains inert for every untracked object.
 
-`FanserviceScratchGuardStatus(token)` returns six integers: admitted events,
+`FanserviceScratchGuardStatus(token)` returns seven integers: admitted events,
 suppressed events, malformed events, changed identities, generation, and bypassed
-calls. Admission means permission to execute the native function, not proof of its
+calls, followed by decoder-clock deferrals. Admission means permission to execute the native function, not proof of its
 gameplay completion. Previously prevented or stopped-manager calls bypass the
 ledger. Only game-thread calls are considered. A later event with the same ordinal
 must retain all five other semantic fields; padding is ignored. Identical repeats,
@@ -104,6 +104,19 @@ suppressed through the supported `PreventOriginalFunctionCall` API. Time is boun
 to one day, pattern indexes to 0..4095, and nonnegative multipliers to 1000.
 Fresh leases get fresh ledgers. Native direct calls and delayed native lambdas are
 outside this reflected proof; this API does not authorize original-session takeover.
+
+`FanserviceSetScratchClock(token,position,playing)` returns true after updating
+only that live owned lease's guard on the game thread. Position must be finite
+within 0..86400 seconds; backwards updates support explicit seeks. Clock gating
+starts disabled for each fresh lease and becomes enabled on its first update.
+While paused or before an event's target reaches the last observed decoder time,
+an unseen reflected callback is deferred without consuming its beat identity. Deferrals
+increment only the seventh status counter. Event validity is checked first, so
+malformed events still increment malformed/suppressed. Already admitted ordinals
+are classified as duplicates or changed identities before clock gating, including
+while paused or after a backwards seek; the existing ledger prevents replay rewards.
+The caller must explicitly redeliver eligible deferred events; the helper does
+not retain a callback queue, extrapolate time, or operate original managers.
 
 ## Owned audio player leases
 

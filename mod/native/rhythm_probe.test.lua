@@ -23,10 +23,11 @@ local function fixture(options)
     manager.TotalStrokes=0;manager.CompletedBeats=0;manager.CurrentBeatIndex=0
     local queue={};function queue:Empty() for key in pairs(self) do if type(key)=='number' then self[key]=nil end end end
     manager.BeatQueue=queue
-    f.guard={accepted=0,suppressed=0,changed=0}
+    f.guard={accepted=0,suppressed=0,changed=0,deferred=0}
     function manager:OnBeatReachedCenter(event)
         if options.guard then
             if f.guard.accepted>0 then f.guard.suppressed=f.guard.suppressed+1;if event.TargetHitTime~=3.2 then f.guard.changed=f.guard.changed+1 end;return end
+            if options.clockGate and (not f.guard.clockPlaying or event.TargetHitTime>f.guard.clockPosition) then f.guard.deferred=f.guard.deferred+1;return end
             f.guard.accepted=f.guard.accepted+1
         end
         if self.bIsRunning then
@@ -93,7 +94,8 @@ local function fixture(options)
         env.audio=f.audio;env.reconcile=options.reconcile;env.finalize=options.finalize
         function env.worldTime() return f.worldClock end
     end
-    if options.guard then function env.guardStatus() return f.guard.accepted,f.guard.suppressed,0,f.guard.changed,1,0 end end
+    if options.guard then function env.guardStatus() return f.guard.accepted,f.guard.suppressed,0,f.guard.changed,1,0,f.guard.deferred end end
+    if options.clockGate then function env.setClock(_,position,playing) f.guard.clockPosition=position;f.guard.clockPlaying=playing;return true end end
     f.env=env;f.probe=Probe.new(env)
     function f:advance(seconds)
         self.clock=self.clock+seconds;self.wall=self.wall+seconds
@@ -286,5 +288,10 @@ end)
 test('missing native final callback cannot be relabeled completed by owned cleanup',function()
     local f=fixture({audio=true,guard=true,finalize=true,noFinalTimer=true});f:pauseAndResume();f:advance(2.75)
     local result=f:advance(30);eq(result.phase,'failed');eq(result.passed,false);contains(result.error,'timed out');eq(result.root_released,true)
+end)
+test('native widget can tick early but decoder-gated delivery waits for observed audio',function()
+    local f=fixture({audio=true,guard=true,clockGate=true,reconcile=true});f.probe:start();local result
+    for i=1,500 do result=f:advance(.05);if result.phase=='failed' then error(result.error..' / '..tostring(result.cleanup_error)) end;if result.phase=='complete' then break end end
+    eq(result.passed,true);eq(result.guard_accepted,1);assert(result.guard_deferred>=1);eq(result.guard_suppressed,2);eq(result.completed,1);eq(result.delivery_source,'observed decoder clock');eq(result.root_released,true)
 end)
 print(tostring(passed)..' owned rhythm clock probe tests passed')

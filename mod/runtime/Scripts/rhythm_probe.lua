@@ -29,6 +29,10 @@ function Probe.new(env)
     if reconcile then assert(audio and type(audio.seek)=='function' and type(audio.reconnect)=='function','Owned reconciliation requires seek and reconnect operations.') end
     if audio then for _,name in ipairs({'status','pause','resume'}) do assert(type(audio[name])=='function','Missing owned audio clock operation: '..name) end end
     local self={}
+    if env.setClock then assert(audio and type(env.guardStatus)=='function','Owned decoder gating requires audio and guarded hit evidence.') end
+    local function feedClock(position,playing)
+        if env.setClock then check(env.setClock(scope.token,position,playing)==true,'Owned decoder clock gate update was refused.') end
+    end
     local function wall()
         local value=env.now()
         check(finite(value),'Owned rhythm probe wall clock is invalid.')
@@ -124,6 +128,7 @@ function Probe.new(env)
             end
         end
         for _,widget in ipairs(widgets) do widget.bIsMoving=false end
+        feedClock(manager:GetMasterTimelinePosition(),false)
         manager.bIsRunning=false
         for _,widget in ipairs(widgets) do
             check(widgetOwnership(widget),'Owned rhythm widget changed before retirement.')
@@ -202,17 +207,25 @@ function Probe.new(env)
                 check(clock.state=='playing' and finite(clock.position) and clock.position>=0 and clock.position<0.5,'Owned audio clock must be advancing before the first beat.')
                 manager.TimelineOffset=clock.position
                 report.clock_source='native audio decoder';report.max_clock_error=0
+                feedClock(clock.position,true)
             end
             manager:ResumeSequence()
             check(manager:IsSequenceRunning()==true,'Fresh native rhythm manager did not resume.')
             manager.CurrentBeatIndex=1
             createWidget(manager)
+            if env.setClock then
+                manager:OnBeatReachedCenter(copy(rows[1]))
+                local accepted,suppressed,malformed,changed,generation,bypassed,deferred=env.guardStatus(scope.token)
+                check(manager.CompletedBeats==0 and accepted==0 and suppressed==0 and malformed==0 and changed==0 and deferred>=1,'Owned decoder gate did not defer the premature native callback.')
+                report.premature_callback_blocked=true
+            end
             report.phase='running';report.started=true;report.manager_address=string.format('%x',managerAddress)
         end)
         if not ok then fail(problem);return copy(report) end
         return copy(report)
     end
     local function freeze(manager,position)
+        feedClock(position,false)
         manager.bIsRunning=false;manager.TimelineOffset=position
         if scope.widget and valid(scope.widget) and widgetOwnership(scope.widget) then scope.widget.bIsMoving=false end
     end
@@ -233,7 +246,7 @@ function Probe.new(env)
         if scope.widget and valid(scope.widget) and widgetOwnership(scope.widget) and manager.CompletedBeats==0 then
             scope.widget.MasterTimeReference=platform;scope.widget.TimelineOffset=position;scope.widget.bIsMoving=running
         end
-        scope.lastAudio=position
+        scope.lastAudio=position;feedClock(position,running)
     end
     function self:step()
         if not scope or report.phase=='idle' or report.phase=='complete' or report.phase=='failed' or report.phase=='stopped' then return copy(report) end
@@ -241,13 +254,13 @@ function Probe.new(env)
             local now=wall();check(now<scope.deadline,'Owned rhythm probe timed out.')
             local manager,position,completed,index=state()
             if finalize and scope.queueEmptied then
-                local accepted,suppressed,malformed,changed,generation=env.guardStatus(scope.token)
+                local accepted,suppressed,malformed,changed,generation,bypassed,deferred=env.guardStatus(scope.token)
                 check(accepted==1 and malformed==0 and changed==0 and completed==1,'Owned native finalization did not retain exactly one guarded completion.')
                 local worldTime=env.worldTime()
                 check(finite(worldTime) and worldTime>=0,'Owned native drain world time is unavailable.')
                 if not scope.drainStarted then
-                    scope.drainStarted=worldTime;audio:pause();report.phase='native_draining'
-                    report.guard_accepted=accepted;report.guard_suppressed=suppressed;report.guard_generation=generation;report.guard_verified=true
+                    scope.drainStarted=worldTime;audio:pause();feedClock(position,false);report.phase='native_draining'
+                    report.guard_accepted=accepted;report.guard_suppressed=suppressed;report.guard_generation=generation;report.guard_deferred=deferred or 0;report.guard_verified=true
                 end
                 check(worldTime>=scope.drainStarted,'Owned drain world time moved backwards.')
                 report.drained_world_seconds=worldTime-scope.drainStarted
@@ -292,11 +305,18 @@ function Probe.new(env)
                     check(valid(scope.widget) and widgetOwnership(scope.widget),'Owned audio widget binding changed.')
                     scope.widget.MasterTimeReference=platform;scope.widget.TimelineOffset=clock.position;scope.widget.bIsMoving=clock.state=='playing'
                 end
-                scope.lastAudio=clock.position
+                scope.lastAudio=clock.position;feedClock(clock.position,clock.state=='playing')
                 position=manager:GetMasterTimelinePosition();report.position=position;report.audio_position=clock.position
                 local difference=math.abs(position-clock.position)
                 report.max_clock_error=math.max(report.max_clock_error or 0,difference)
                 check(difference<=0.05,'Owned manager did not follow the native audio clock.')
+                if env.setClock and completed==0 and clock.state=='playing' and clock.position>=rows[1].TargetHitTime then
+                    retireCurrent()
+                    manager:OnBeatReachedCenter(copy(rows[1]))
+                    completed=manager.CompletedBeats;report.completed=completed
+                    check(completed==1,'Decoder-clock delivery did not complete exactly one owned beat.')
+                    report.delivery_source='observed decoder clock'
+                end
             end
             check(index==1,'Owned rhythm future event fired unexpectedly.')
             if report.phase=='running' and not scope.resumed then
@@ -314,6 +334,7 @@ function Probe.new(env)
                         check(paused.state=='paused' and finite(paused.position) and math.abs(paused.position-position)<=0.05,'Owned decoder did not acknowledge pause.')
                         position=paused.position;scope.widgetPosition=position
                     end
+                    feedClock(position,false)
                     widget.bIsMoving=false;manager.bIsRunning=false;manager.TimelineOffset=position
                     scope.pauseTime=now;scope.pausePosition=position;report.paused_position=position;report.phase='paused'
                 end
@@ -352,14 +373,14 @@ function Probe.new(env)
                 check(completed<=1,'Owned rhythm widget delivered a duplicate completion.')
                 if completed==1 then
                     if env.guardStatus and not finalize then
-                        local accepted,suppressed,malformed,changed,generation,bypassed=env.guardStatus(scope.token)
+                        local accepted,suppressed,malformed,changed,generation,bypassed,deferred=env.guardStatus(scope.token)
                         check(accepted==1 and suppressed==0 and malformed==0 and changed==0 and finite(generation) and generation>0,'Owned reflected hit guard did not observe the native completion.')
                         manager:OnBeatReachedCenter(copy(rows[1]))
                         local altered=copy(rows[1]);altered.TargetHitTime=altered.TargetHitTime+0.1
                         manager:OnBeatReachedCenter(altered)
-                        accepted,suppressed,malformed,changed,generation,bypassed=env.guardStatus(scope.token)
+                        accepted,suppressed,malformed,changed,generation,bypassed,deferred=env.guardStatus(scope.token)
                         check(manager.CompletedBeats==1 and accepted==1 and suppressed==2 and malformed==0 and changed==1,'Owned reflected guard did not suppress duplicate and changed-identity hits.')
-                        report.guard_accepted=accepted;report.guard_suppressed=suppressed;report.guard_changed=changed;report.guard_generation=generation;report.guard_bypassed=bypassed;report.guard_verified=true
+                        report.guard_accepted=accepted;report.guard_suppressed=suppressed;report.guard_changed=changed;report.guard_generation=generation;report.guard_bypassed=bypassed;report.guard_deferred=deferred or 0;report.guard_verified=true
                     end
                     scope.observedTime=now;report.phase='observing'
                 end

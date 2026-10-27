@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <map>
+#include <stdexcept>
 
 namespace fanservice {
 struct GuardBeat {
@@ -13,11 +14,18 @@ struct GuardBeat {
     float multiplier=0;
 };
 static_assert(sizeof(GuardBeat)==40 && offsetof(GuardBeat,interval)==24 && offsetof(GuardBeat,ordinal)==32);
-enum class BeatDecision { accepted,duplicate,malformed,changed };
+enum class BeatDecision { accepted,duplicate,malformed,changed,deferred };
 class BeatLedger {
     std::map<std::int32_t,GuardBeat> delivered;
+    bool clock_enabled=false,playing=false;
+    double observed_position=0;
 public:
-    std::uint64_t accepted=0,suppressed=0,malformed=0,changed=0;
+    std::uint64_t accepted=0,suppressed=0,malformed=0,changed=0,deferred=0;
+    void set_clock(double position,bool is_playing) {
+        if(!std::isfinite(position) || position<0 || position>86400)
+            throw std::runtime_error("Owned scratch decoder clock must be finite and within 0..86400 seconds.");
+        observed_position=position;playing=is_playing;clock_enabled=true;
+    }
     BeatDecision observe(const GuardBeat& event) {
         if(!std::isfinite(event.fire) || !std::isfinite(event.target) || !std::isfinite(event.interval)
             || !std::isfinite(event.multiplier) || event.fire<0 || event.target<event.fire || event.target>86400
@@ -34,6 +42,9 @@ public:
                 ++changed;return BeatDecision::changed;
             }
             return BeatDecision::duplicate;
+        }
+        if(clock_enabled && (!playing || event.target>observed_position)) {
+            ++deferred;return BeatDecision::deferred;
         }
         delivered.emplace(event.ordinal,event);++accepted;return BeatDecision::accepted;
     }

@@ -29,5 +29,32 @@ int main() {
     fanservice::BeatLedger nextLease;check(nextLease.observe(first)==D::accepted);
     auto boundary=first;boundary.ordinal=4096;boundary.pattern=4095;check(nextLease.observe(boundary)==D::accepted);
     check(nextLease.observe(boundary)==D::duplicate);
+    {
+        fanservice::BeatLedger own,foreign;
+        own.set_clock(0,false);check(own.observe(first)==D::deferred);
+        check(own.accepted==0 && own.suppressed==0 && own.deferred==1);
+        own.set_clock(100,false);check(own.observe(first)==D::deferred);
+        own.set_clock(3.199,true);check(own.observe(first)==D::deferred);
+        auto altered=first;altered.target=3.3;
+        check(own.observe(altered)==D::deferred);
+        own.set_clock(3.2,true);check(own.observe(first)==D::accepted);
+        check(own.accepted==1 && own.suppressed==0 && own.deferred==4);
+        own.set_clock(1,true);check(own.observe(first)==D::duplicate);
+        own.set_clock(4,true);check(own.observe(first)==D::duplicate);
+        check(own.observe(altered)==D::changed);
+        check(own.accepted==1 && own.suppressed==3 && own.changed==1);
+        own.set_clock(0,false);check(own.observe(altered)==D::changed);
+        own.set_clock(0,false);auto invalid=first;invalid.ordinal=0;
+        check(own.observe(invalid)==D::malformed);
+        check(own.malformed==1 && own.suppressed==5 && own.deferred==4);
+        for(double clock:{-1.0,86401.0,std::numeric_limits<double>::quiet_NaN(),std::numeric_limits<double>::infinity()}) {
+            bool rejected=false;try{own.set_clock(clock,true);}catch(const std::runtime_error&){rejected=true;}
+            check(rejected);
+        }
+        auto unseen=first;unseen.ordinal=2;check(own.observe(unseen)==D::deferred);
+        check(foreign.accepted==0 && foreign.suppressed==0 && foreign.deferred==0);
+        check(foreign.observe(first)==D::accepted);
+        fanservice::BeatLedger fresh;check(fresh.observe(first)==D::accepted);
+    }
     std::cout<<count<<" scoped beat deduplication contracts passed.\n";
 }

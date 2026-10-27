@@ -338,10 +338,27 @@ int guard_status(const Lua& lua) {
         if(slot==guards.end() || slot->second.generation!=record.generation || !guard_identity(slot->second))
             throw std::runtime_error("Scratch beat guard is not active for this lease.");
         const auto& scope=slot->second;
-        for(auto value:{scope.ledger.accepted,scope.ledger.suppressed,scope.ledger.malformed,scope.ledger.changed,scope.generation,scope.bypassed})
+        for(auto value:{scope.ledger.accepted,scope.ledger.suppressed,scope.ledger.malformed,scope.ledger.changed,scope.generation,scope.bypassed,scope.ledger.deferred})
             lua.set_integer(static_cast<std::int64_t>(value));
-        return 6;
+        return 7;
     });
+}
+int set_scratch_clock(const Lua& lua) {
+    game_thread_identity();
+    if(lua.get_stack_size()!=3 || !lua.is_integer(1) || !lua.is_number(2) || !lua.is_bool(3))
+        throw std::runtime_error("Expected scratch token integer, decoder position number and playing boolean.");
+    const auto playing=lua.get_bool(3);
+    const auto position=lua.get_number(2);
+    const auto token=lua.get_integer(1);
+    if(token<=0)throw std::runtime_error("Scratch root token must be positive.");
+    scratch_roots.inspect(token,[&](const NativeScratch::Record& record) {
+        std::lock_guard lock(guards_mutex);auto slot=guards.find(record.manager_address);
+        if(slot==guards.end() || slot->second.generation!=record.generation || !guard_identity(slot->second))
+            throw std::runtime_error("Scratch decoder clock requires this lease's live owned guard.");
+        slot->second.ledger.set_clock(position,playing);
+        return true;
+    });
+    lua.set_bool(true);return 1;
 }
 std::string utf8(const std::wstring& text) {
     if(text.size()>1024)throw std::runtime_error("Checked delegate callback name is too long.");
@@ -381,6 +398,7 @@ extern "C" __declspec(dllexport) int luaopen_fanservice_delegate_reader(lua_Stat
         lua.register_function("FanserviceCreateAudioRoot",create_audio);
         lua.register_function("FanserviceReleaseAudioRoot",release_audio);
         lua.register_function("FanserviceScratchGuardStatus",guard_status);
+        lua.register_function("FanserviceSetScratchClock",set_scratch_clock);
         lua.register_function("FanserviceReleaseScratchRoot",release_scratch);return 0;
     }catch(const std::exception& e){if(state){Lua lua(state);lua.set_string(e.what(),std::strlen(e.what()));return 1;}return 0;}catch(...){return 0;}
 }
