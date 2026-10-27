@@ -14,7 +14,7 @@ local function object(address,class,outer)
 end
 local function fixture(options)
     options=options or {}
-    local f={clock=0,wall=0,binding='profile:1',created=0,releases=0,removed=0,foreignWrites=0,foreignRemoved=0,rooted=false,failRelease=false}
+    local f={clock=0,wall=0,binding='profile:1',created=0,releases=0,removed=0,foreignWrites=0,foreignRemoved=0,rooted=false,failRelease=false,widgets={}}
     local managerClass,widgetClass,imageClass=object(11),object(12),object(13)
     local world=object(20);world.className='/Script/Engine.World';f.world=world
     local instance=object(30);function instance:GetWorld() return f.world end
@@ -33,7 +33,7 @@ local function fixture(options)
     f.foreign=setmetatable({}, {__index=foreignBacking,__newindex=function(_,key,value) f.foreignWrites=f.foreignWrites+1;foreignBacking[key]=value end})
     function manager:CreateTestBeatWidget(event)
         if options.noWidget then return end
-        local widget=object(50,widgetClass,instance);f.widget=widget
+        local widget=object(50+#f.widgets,widgetClass,instance);f.widget=widget;f.widgets[#f.widgets+1]=widget
         widget.bIsMoving=true;widget.MasterTimeReference=self.MasterTimeReference;widget.TimelineOffset=self.TimelineOffset
         widget.CurrentBeatEvent={};for key,value in pairs(event) do widget.CurrentBeatEvent[key]=value end
         widget.inViewport=true
@@ -50,7 +50,7 @@ local function fixture(options)
         f.rooted=false;return true
     end
     function env.managers() return {object(998),manager} end
-    function env.widgets() return f.widget and {f.foreign,f.widget} or {f.foreign} end
+    function env.widgets() local values={f.foreign};for _,widget in ipairs(f.widgets) do values[#values+1]=widget end;return values end
     function env.find(path)
         return ({['/Script/CockHero.BeatSpawnerManager']=managerClass,['/Script/CockHero.PreciseBeatWidget']=widgetClass,['/Script/UMG.Image']=imageClass})[path]
     end
@@ -63,7 +63,7 @@ local function fixture(options)
     function env.now() return f.wall end
     function env.bindings(value,name)
         if value==manager then return f.foreignManagerBinding and {{address=998,function_name='Foreign'}} or {} end
-        if value==f.widget then
+        if value.class==widgetClass and value~=f.foreign then
             eq(name,'OnBeatReachedCenter')
             if f.retiredWidget then return {} end
             local result={{address=manager.address,function_name='OnBeatReachedCenter'}}
@@ -77,7 +77,9 @@ local function fixture(options)
         function f.audio:status() return {state=self.state,position=self.position} end
         function f.audio:pause() self.state='paused' end
         function f.audio:resume() self.state='playing' end
-        env.audio=f.audio
+        function f.audio:seek(position) self.position=position;self.state='paused' end
+        function f.audio:reconnect() self.state='playing' end
+        env.audio=f.audio;env.reconcile=options.reconcile
     end
     f.env=env;f.probe=Probe.new(env)
     function f:advance(seconds)
@@ -210,5 +212,44 @@ end)
 test('decoder discontinuity fails before an unreconciled backwards seek',function()
     local f=fixture({audio=true});f:pauseAndResume();f.audio.position=0
     local result=f.probe:step();eq(result.phase,'failed');contains(result.error,'moved backwards');eq(f.rooted,false)
+end)
+test('owned seek retires the old widget, reconnects, and backward replay cannot award twice',function()
+    local f=fixture({audio=true,reconcile=true});eq(f.probe:start().phase,'running')
+    local result
+    for index=1,500 do
+        result=f:advance(.05)
+        if result.phase=='failed' then error(result.error..' / '..tostring(result.cleanup_error)) end
+        if result.phase=='complete' then break end
+    end
+    eq(result.phase,'complete');eq(result.passed,true);eq(result.replay_verified,true);eq(result.root_released,true)
+    eq(#f.widgets,2);eq(result.retired_widgets,2);eq(f.widgets[1].inViewport,false);eq(f.widgets[1].bIsMoving,false)
+    eq(result.completed,1);assert(result.seek_position>=1.25);assert(result.reconnect_position>=2);assert(result.backward_position>=.75)
+    eq(f.foreignWrites,0);eq(f.foreignRemoved,0)
+end)
+test('a failed seek leaves no live owned widget or manager root',function()
+    local f=fixture({audio=true,reconcile=true});f.probe:start();f:advance(.5)
+    function f.audio:seek() self.state='error' end
+    eq(f:advance(2.1).phase,'seeking_forward')
+    local result=f:advance(.05);eq(result.phase,'failed');contains(result.error,'decoder failed');eq(result.root_released,true)
+    eq(f.widgets[1].inViewport,false);eq(f.foreignWrites,0)
+end)
+test('stale retired widget activity is detected without removing foreign widgets',function()
+    local f=fixture({audio=true,reconcile=true});f.probe:start();f:advance(.5);eq(f:advance(2.1).phase,'seeking_forward')
+    f.widgets[1].bIsMoving=true
+    local result=f.probe:step();eq(result.phase,'failed');contains(result.error,'became active again')
+    eq(f.foreignWrites,0);eq(f.foreignRemoved,0);eq(result.root_released,false)
+end)
+test('a seek that never acknowledges expires and releases only its own root',function()
+    local f=fixture({audio=true,reconcile=true});f.probe:start();f:advance(.5)
+    function f.audio:seek() self.state='seeking' end
+    eq(f:advance(2.1).phase,'seeking_forward');eq(f:advance(1).phase,'seeking_forward')
+    local result=f:advance(38);eq(result.phase,'failed');contains(result.error,'timed out');eq(result.root_released,true);eq(f.foreignWrites,0)
+end)
+test('reconnect cannot silently accept a different recording position',function()
+    local f=fixture({audio=true,reconcile=true});f.probe:start()
+    function f.audio:reconnect() self.position=8;self.state='playing' end
+    local result
+    for i=1,200 do result=f:advance(.05);if result.phase=='failed' then break end end
+    eq(result.phase,'failed');contains(result.error,'restore its bound position');eq(result.root_released,true);eq(f.manager.CompletedBeats,0)
 end)
 print(tostring(passed)..' owned rhythm clock probe tests passed')

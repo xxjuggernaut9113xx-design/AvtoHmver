@@ -22,6 +22,8 @@ function Probe.new(env)
     local report={phase='idle',passed=false,started=false,completed=0,index=0,position=0,paused_position=0,resumed_position=0,root_released=false}
     local scope
     local audio=env.audio
+    local reconcile=env.reconcile==true
+    if reconcile then assert(audio and type(audio.seek)=='function' and type(audio.reconnect)=='function','Owned reconciliation requires seek and reconnect operations.') end
     if audio then for _,name in ipairs({'status','pause','resume'}) do assert(type(audio[name])=='function','Missing owned audio clock operation: '..name) end end
     local self={}
     local function wall()
@@ -75,10 +77,23 @@ function Probe.new(env)
         local found={}
         for _,widget in ipairs(candidates) do
             local ours=widgetOwnership(widget)
-            if ours then found[#found+1]=widget end
+            if scope.retired and scope.retired[address(widget)] then
+                check(not widget.bIsMoving and not widget:IsInViewport(),'Retired owned rhythm widget became active again.')
+            elseif ours then found[#found+1]=widget end
         end
         check(#found<=1,'Owned rhythm probe created unexpected duplicate widgets.')
         return found
+    end
+    local function createWidget(manager)
+            manager:CreateTestBeatWidget(copy(rows[1]))
+            local widgets=discover();check(#widgets==1,'Fresh bare native beat widget was not identified.')
+            local widget=widgets[1];scope.widget=widget;scope.widgetAddress=address(widget)
+            local image=env.spawnImage(widget)
+            check(valid(image) and sameObject(image:GetClass(),scope.imageClassAddress) and sameObject(image:GetOuter(),scope.widgetAddress),'Rhythm image factory returned a foreign image.')
+            widget.BeatIcon=image
+            check(sameObject(widget.BeatIcon,address(image)),'Owned rhythm image assignment failed.')
+            widget:SetDesiredSizeInViewport({X=64,Y=64})
+            check(widget.bIsMoving==true,'Bare native rhythm widget did not start moving.')
     end
     local function stopOwned(reason)
         if not scope then return true end
@@ -126,7 +141,7 @@ function Probe.new(env)
     end
     local function state()
         local manager=managerIdentity()
-        unbound(manager);queueMatches(manager)
+        unbound(manager);queueMatches(manager);discover()
         check(env.binding()==scope.binding,'Owned rhythm profile/session binding changed.')
         local instance=env.instance()
         check(sameObject(instance,scope.instanceAddress),'Owned rhythm game instance changed.')
@@ -150,7 +165,7 @@ function Probe.new(env)
             local imageClass=env.find('/Script/UMG.Image')
             check(valid(managerClass) and valid(widgetClass) and valid(imageClass),'Owned native rhythm classes are unavailable.')
             scope={binding=binding,instance=instance,instanceAddress=address(instance),worldAddress=address(world),managerClassAddress=address(managerClass),widgetClassAddress=address(widgetClass),imageClassAddress=address(imageClass)}
-            local started=wall();scope.started=started;scope.deadline=started+(audio and 25 or 15)
+            local started=wall();scope.started=started;scope.deadline=started+(reconcile and 40 or audio and 25 or 15)
             local token,managerAddress=env.createRoot(instance)
             scope.token=token
             check(token~=nil and finite(managerAddress) and managerAddress>0 and managerAddress%1==0,'Native rhythm factory returned invalid ownership.')
@@ -180,26 +195,62 @@ function Probe.new(env)
             end
             manager:ResumeSequence()
             check(manager:IsSequenceRunning()==true,'Fresh native rhythm manager did not resume.')
-            manager:CreateTestBeatWidget(copy(rows[1]))
             manager.CurrentBeatIndex=1
-            local widgets=discover();check(#widgets==1,'Fresh bare native beat widget was not identified.')
-            local widget=widgets[1];scope.widget=widget;scope.widgetAddress=address(widget)
-            local image=env.spawnImage(widget)
-            check(valid(image) and sameObject(image:GetClass(),scope.imageClassAddress) and sameObject(image:GetOuter(),scope.widgetAddress),'Rhythm image factory returned a foreign image.')
-            widget.BeatIcon=image
-            check(sameObject(widget.BeatIcon,address(image)),'Owned rhythm image assignment failed.')
-            widget:SetDesiredSizeInViewport({X=64,Y=64})
-            check(widget.bIsMoving==true,'Bare native rhythm widget did not start moving.')
+            createWidget(manager)
             report.phase='running';report.started=true;report.manager_address=string.format('%x',managerAddress)
         end)
         if not ok then fail(problem);return copy(report) end
         return copy(report)
+    end
+    local function freeze(manager,position)
+        manager.bIsRunning=false;manager.TimelineOffset=position
+        if scope.widget and valid(scope.widget) and widgetOwnership(scope.widget) then scope.widget.bIsMoving=false end
+    end
+    local function retireCurrent()
+        local widget=scope.widget
+        check(valid(widget) and widgetOwnership(widget),'Owned seek widget cannot be retired safely.')
+        widget.bIsMoving=false;widget:RemoveFromParent()
+        check(not widget:IsInViewport(),'Owned seek widget remained in the viewport.')
+        scope.retired=scope.retired or {};scope.retired[address(widget)]=true
+        scope.widget=nil;scope.widgetAddress=nil;report.retired_widgets=(report.retired_widgets or 0)+1
+    end
+    local function rebase(manager,position,running)
+        manager.TimelineOffset=position
+        if running and not manager:IsSequenceRunning() then manager:ResumeSequence() end
+        local current=manager:GetMasterTimelinePosition()
+        local platform=current+manager.MasterTimeReference-manager.TimelineOffset
+        manager.MasterTimeReference=platform;manager.TimelineOffset=position;manager.bIsRunning=running
+        if scope.widget and valid(scope.widget) and widgetOwnership(scope.widget) and manager.CompletedBeats==0 then
+            scope.widget.MasterTimeReference=platform;scope.widget.TimelineOffset=position;scope.widget.bIsMoving=running
+        end
+        scope.lastAudio=position
     end
     function self:step()
         if not scope or report.phase=='idle' or report.phase=='complete' or report.phase=='failed' or report.phase=='stopped' then return copy(report) end
         local ok,problem=pcall(function()
             local now=wall();check(now<scope.deadline,'Owned rhythm probe timed out.')
             local manager,position,completed,index=state()
+            if reconcile and (report.phase=='seeking_forward' or report.phase=='reconnecting' or report.phase=='seeking_backward' or report.phase=='resuming_replay') then
+                local clock=audio:status()
+                check(finite(clock.position) and clock.position>=0 and clock.position<12,'Owned reconciliation clock is invalid.')
+                check(clock.state~='error' and clock.state~='ended' and clock.state~='stopped','Owned reconciliation decoder failed.')
+                check(completed==(scope.replaying and 1 or 0),'Owned completion changed during transport reconciliation.')
+                freeze(manager,manager.TimelineOffset)
+                if report.phase=='seeking_forward' and clock.state=='paused' and math.abs(clock.position-1.5)<=0.25 then
+                    rebase(manager,clock.position,false);createWidget(manager);rebase(manager,clock.position,false)
+                    scope.pausePosition=clock.position;report.seek_position=clock.position
+                    audio:resume();report.phase='resuming_audio'
+                elseif report.phase=='reconnecting' and clock.state=='playing' then
+                    check(clock.position>=scope.reconnectFrom-0.05 and clock.position<=scope.reconnectFrom+0.5,'Owned reconnect did not restore its bound position.')
+                    rebase(manager,clock.position,true);scope.reconnected=true;report.reconnect_position=clock.position;report.phase='running'
+                elseif report.phase=='seeking_backward' and clock.state=='paused' and math.abs(clock.position-1.0)<=0.25 then
+                    rebase(manager,clock.position,false);report.backward_position=clock.position
+                    audio:resume();report.phase='resuming_replay'
+                elseif report.phase=='resuming_replay' and clock.state=='playing' then
+                    rebase(manager,clock.position,true);report.phase='replaying'
+                end
+                return
+            end
             if audio then
                 local clock=audio:status()
                 check((clock.state=='playing' or clock.state=='paused') and finite(clock.position) and clock.position>=0 and clock.position<12,'Owned audio clock became unavailable or discontinuous.')
@@ -244,6 +295,9 @@ function Probe.new(env)
                 check(completed==0 and manager:IsSequenceRunning()==false and near(position,scope.pausePosition),'Owned rhythm clock or completion advanced during pause.')
                 check(valid(scope.widget) and widgetOwnership(scope.widget) and scope.widget.bIsMoving==false,'Owned rhythm widget moved during pause.')
                 if now-scope.pauseTime>=2 then
+                    if reconcile then
+                        retireCurrent();audio:seek(1.5);report.phase='seeking_forward';return
+                    end
                     if audio then
                         audio:resume()
                         if audio:status().state~='playing' then report.phase='resuming_audio';return end
@@ -265,12 +319,26 @@ function Probe.new(env)
                     scope.resumed=true;report.resumed_position=position;report.phase='running'
                 end
             elseif report.phase=='running' and scope.resumed then
+                if reconcile and not scope.reconnected and position>=2.0 then
+                    check(completed==0,'Owned beat completed before reconnect proof.')
+                    freeze(manager,position);scope.reconnectFrom=position;audio:reconnect();report.phase='reconnecting';return
+                end
                 check(completed<=1,'Owned rhythm widget delivered a duplicate completion.')
                 if completed==1 then scope.observedTime=now;report.phase='observing' end
             elseif report.phase=='observing' then
                 check(completed==1,'Owned rhythm completion was not stable.')
+                if reconcile and now-scope.observedTime>=1 then
+                    audio:pause();freeze(manager,position);scope.replaying=true
+                    if scope.widget and valid(scope.widget) and widgetOwnership(scope.widget) then retireCurrent() end
+                    audio:seek(1.0);report.phase='seeking_backward';return
+                end
                 if now-scope.observedTime>=1 then
                     stopOwned(audio and 'audio-driven pause/resume probe passed' or 'pause/resume probe passed');report.phase='complete';report.passed=true
+                end
+            elseif report.phase=='replaying' then
+                check(completed==1,'Backward replay delivered a duplicate completion.')
+                if position>=3.5 then
+                    stopOwned('owned seek/reconnect/replay reconciliation passed');report.phase='complete';report.passed=true;report.replay_verified=true
                 end
             end
         end)

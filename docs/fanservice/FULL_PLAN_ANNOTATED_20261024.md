@@ -1,5 +1,7 @@
 # fanservice — full plan, annotated
 
+Current continuation: [native seek/reconnect acceptance](NATIVE_RECONCILE_20261027.md). Owned native audio-clock, seek, reconnect and backward replay pass; original-session callback/timer adoption and reward settlement remain open. Older counts and blocker descriptions below are historical.
+
 Latest continuation: [original native-session checks](NATIVE_SESSION_20261026.md) records restored Computer Use, the live delegate-layout blocker and verified Server installer lifecycle. Full native rhythm integration remains open.
 
 **Latest scoped checkpoint:** [Server/mobile/music continuation](SERVER_MOBILE_MUSIC_20261025.md) records the later API, card/timeline and live native audio fixes. Full rhythm/parity and physical-device gates remain open.
