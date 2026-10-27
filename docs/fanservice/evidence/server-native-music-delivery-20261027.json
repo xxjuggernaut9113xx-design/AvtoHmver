@@ -1,0 +1,13 @@
+{
+  "directory": "E:\\fanservice-mod-lab\\v005-server-delivery-ci\\native-server-music",
+  "recording_id": "sha1:4f797f3c4b455efdf9b07ae9cf7e864941a26c1f",
+  "beats": 24,
+  "events": 2,
+  "audio_file": "song.wav",
+  "native_acceptance": "pending",
+  "source_recording_id": "sha1:fe2f570a22c067ad00861df511d107167d651450",
+  "library_id": "test-instance",
+  "track_id": 1,
+  "converted": true,
+  "next_step": "Refresh the original Playlist library or restart the game; select and play through its original controls."
+}

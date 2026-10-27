@@ -1,5 +1,17 @@
 # Original v0.05 music-session integration
 
+## Server delivery implemented
+
+`mod/native/music-delivery.mjs` fetches the selected track's confirmed `/api/fanservice/v1/music/{id}/manifest` and original recording from one configured Server origin. It verifies the original SHA1 before conversion, converts unsupported source audio to native-compatible 44.1 kHz stereo PCM16 WAV with an explicitly selected FFmpeg executable, validates the resulting WAV and duration, and re-fetches the confirmed manifest before publishing. A changed recording or confirmation, failed conversion, oversized response or existing output folder is rejected. Original and converted recording identities remain distinct in the result.
+
+```powershell
+node mod/native/music-delivery.mjs 'http://127.0.0.1:42169' 1 'E:/fanservice-mod-lab/game/CockHero/beatmaps/NEW_PACK_DIRECTORY' 'C:/Users/webma/scoop/shims/ffmpeg.exe'
+```
+
+The destination must be a new folder under the library actually scanned by the selected game. The worker does not purchase/enable media, alter the game or bypass Import access. The game must refresh/rescan its library or restart before a newly delivered track can be selected. Automatic music delivery is implemented as an explicit CLI operation; a Server selection button, native refresh integration and ownership-aware media delivery are still pending.
+
+All 25 combined export/delivery/host tests pass. The real Rust Server fixture also passed AAC-to-WAV delivery, including source recording identity, three confirmed beats, conversion, WAV bounds and output validation. The repeatable `tests/fanservice_native_music_delivery.cjs` is wired into `tests/run_fanservice_ci.py`; the runner's fresh isolated Server test passed and cleaned up its own process. Local output is retained at `E:/fanservice-mod-lab/v005-server-delivery-ci/`. No user library or music was used.
+
 ## Original session acceptance passed
 
 After the user cleared startup age confirmation, Computer Use navigated the original `Start Game > Playlist > Manage` controls, found and selected `fanservice neutral import`, chose one round, and started the run. The isolated profile had no enabled media, so the game continued with blank media for this audio-only test.
@@ -41,7 +53,7 @@ Run with Node.js 22 or newer:
 node mod/native/music-pack.mjs ABSOLUTE_MANIFEST_JSON ABSOLUTE_ORIGINAL_RECORDING NEW_ABSOLUTE_PACK_DIRECTORY
 ```
 
-The input must be the confirmed `/api/fanservice/v1/music/{id}` manifest and the exact original recording identified by its `recording_id`; a transcoded stream has different bytes and is rejected. The tool does not install a mod or operate game menus. Its result explicitly reports `native_acceptance: pending`. The library validator lists WAV/Ogg/MP3, but the actual music decoder rejects non-WAV files. This exporter accepts only standard mono/stereo 16-bit PCM WAV and validates its chunks and duration. Odd-sized chunks before the data payload are rejected because the native scanner does not account for padding. Non-WAV Server recordings still need an explicit conversion step.
+The input must be the confirmed `/api/fanservice/v1/music/{id}/manifest` manifest and the exact original recording identified by its `recording_id`; a transcoded stream has different bytes and is rejected. The tool does not install a mod or operate game menus. Its result explicitly reports `native_acceptance: pending`. The library validator lists WAV/Ogg/MP3, but the actual music decoder rejects non-WAV files. This exporter accepts only standard mono/stereo 16-bit PCM WAV and validates its chunks and duration. Odd-sized chunks before the data payload are rejected because the native scanner does not account for padding. Non-WAV Server recordings still need an explicit conversion step.
 
 Seven contract tests pass with `node --test mod/native/music-pack.test.mjs`, covering the original layout, duration preservation, recording mismatch, invalid maps and preservation of an existing destination. A real neutral 44.1 kHz stereo PCM WAV pack was exported to `E:/fanservice-mod-lab/v005-music-export/neutral-pack/`. It contains three synthetic beats, no gameplay events, and has not yet been imported or played in v0.05.
 
