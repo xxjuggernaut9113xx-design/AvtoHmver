@@ -18,8 +18,11 @@
 #include <Unreal/UnrealInitializer.hpp>
 #include <Unreal/CoreUObject/UObject/Class.hpp>
 #include <Unreal/CoreUObject/UObject/UnrealType.hpp>
+#include <Unreal/Hooks/Hooks.hpp>
+#include <Unreal/Hooks/CallbackIterationData.hpp>
 #include "reader_contract.hpp"
 #include "root_lease.hpp"
+#include "beat_guard.hpp"
 
 namespace {
 using RC::LuaMadeSimple::Lua;
@@ -75,11 +78,71 @@ bool guarded_name(const RC::Unreal::FName* name,std::wstring* output) {
 void game_thread_identity() {
     identity();if(!RC::Unreal::IsInGameThread())throw std::runtime_error("Checked delegate operations require the game thread.");
 }
+struct GuardScope {
+    RC::Unreal::FWeakObjectPtr manager{},outer{},type{};
+    std::uintptr_t address=0,outer_address=0,class_address=0;
+    std::uint64_t generation=0,bypassed=0;
+    fanservice::BeatLedger ledger;
+};
+std::mutex guards_mutex;
+std::map<std::uintptr_t,GuardScope> guards;
+std::uint64_t next_guard_generation=1;
+RC::Unreal::UFunction* guarded_hit_function=nullptr;
+RC::Unreal::Hook::GlobalCallbackId guard_callback=0;
+bool guard_identity(const GuardScope& scope) {
+    auto manager=guarded_weak_get(&scope.manager),outer=guarded_weak_get(&scope.outer),type=guarded_weak_get(&scope.type);
+    return manager && outer && type && reinterpret_cast<std::uintptr_t>(manager)==scope.address
+        && reinterpret_cast<std::uintptr_t>(outer)==scope.outer_address && reinterpret_cast<std::uintptr_t>(type)==scope.class_address
+        && manager->GetClassPrivate()==type && manager->GetOuterPrivate()==outer && manager->IsRootSet();
+}
+void ensure_guard_hook() {
+    using namespace RC::Unreal;
+    if(guard_callback)return;
+    auto function=UObjectGlobals::StaticFindObject<UFunction*>(nullptr,nullptr,L"/Script/CockHero.BeatSpawnerManager:OnBeatReachedCenter");
+    auto event=UObjectGlobals::StaticFindObject<UScriptStruct*>(nullptr,nullptr,L"/Script/CockHero.BeatEvent");
+    if(!function || !event || !function->HasAllFunctionFlags(RC::Unreal::FUNC_Native)
+        || function->GetReturnProperty()!=nullptr || function->GetNumParms()!=1 || function->GetParmsSize()!=40 || event->GetPropertiesSize()!=40)
+        throw std::runtime_error("Scratch beat guard reflected event size is incompatible.");
+    auto parameter=function->FindProperty(FName(L"BeatEvent",FNAME_Find));
+    if(!parameter || parameter->GetClass().GetName()!=L"StructProperty" || parameter->GetOffset_Internal()!=0
+        || parameter->GetElementSize()!=40 || parameter->GetArrayDim()!=1 || !parameter->HasAllPropertyFlags(CPF_Parm)
+        || parameter->HasAnyPropertyFlags(CPF_ReturnParm) || static_cast<FStructProperty*>(parameter)->GetStruct().Get()!=event)
+        throw std::runtime_error("Scratch beat guard reflected event parameter is incompatible.");
+    const std::array<const wchar_t*,6> names={L"AbsoluteFireTime",L"TargetHitTime",L"PatternIndex",L"Interval",L"BeatNumber",L"CustomMultiplier"};
+    const std::array<const wchar_t*,6> kinds={L"DoubleProperty",L"DoubleProperty",L"IntProperty",L"DoubleProperty",L"IntProperty",L"FloatProperty"};
+    const std::array<int,6> offsets={0,8,16,24,32,36},sizes={8,8,4,8,4,4};
+    for(std::size_t i=0;i<names.size();++i) {
+        auto property=event->FindProperty(FName(names[i],FNAME_Find));
+        if(!property || property->GetClass().GetName()!=kinds[i] || property->GetOffset_Internal()!=offsets[i]
+            || property->GetElementSize()!=sizes[i] || property->GetArrayDim()!=1)
+            throw std::runtime_error("Scratch beat guard reflected event fields are incompatible.");
+    }
+    guarded_hit_function=function;
+    Hook::FCallbackOptions options;options.OwnerModName=L"FanserviceScratchRoot";options.HookName=L"OwnedBeatDeduplication";
+    guard_callback=Hook::RegisterProcessEventPreCallback([](Hook::TCallbackIterationData<void>& data,UObject* context,UFunction* target,void* parameters) {
+        if(target!=guarded_hit_function || !context || !IsInGameThread())return;
+        std::lock_guard lock(guards_mutex);
+        auto slot=guards.find(reinterpret_cast<std::uintptr_t>(context));
+        if(slot==guards.end() || !guard_identity(slot->second))return;
+        auto& scope=slot->second;
+        if(data.OriginalFunctionCallPrevented()){++scope.bypassed;return;}
+        try {
+            std::uint8_t running=0;copy_readable(scope.address+264,&running,1);
+            if(!(running&1)){++scope.bypassed;return;}
+            fanservice::GuardBeat event{};copy_readable(reinterpret_cast<std::uintptr_t>(parameters),&event,sizeof(event));
+            if(scope.ledger.observe(event)!=fanservice::BeatDecision::accepted)data.PreventOriginalFunctionCall();
+        }catch(...) {
+            ++scope.ledger.malformed;++scope.ledger.suppressed;data.PreventOriginalFunctionCall();
+        }
+    },options);
+    if(!guard_callback)throw std::runtime_error("Scratch beat guard hook registration failed.");
+}
 struct NativeScratch {
     struct Record {
         RC::Unreal::FWeakObjectPtr manager{},outer{},type{};
         std::uintptr_t manager_address=0,outer_address=0,class_address=0;
         bool factory_created=false;
+        std::uint64_t generation=0;
     };
     Record create(std::uintptr_t requested_outer) {
         using namespace RC::Unreal;
@@ -128,7 +191,9 @@ struct NativeScratch {
         if(!manager->HasAnyFlags(RF_Transient))manager->SetFlags(RF_Transient);
         Record record;record.manager=manager;record.outer=outer;record.type=type;
         record.manager_address=reinterpret_cast<std::uintptr_t>(manager);record.outer_address=requested_outer;
-        record.class_address=reinterpret_cast<std::uintptr_t>(type);record.factory_created=true;return record;
+        record.class_address=reinterpret_cast<std::uintptr_t>(type);record.factory_created=true;
+        if(next_guard_generation==UINT64_MAX)throw std::runtime_error("Scratch beat guard generation limit reached.");
+        record.generation=next_guard_generation++;return record;
     }
     bool fresh(const Record& record) {return record.factory_created;}
     bool valid(const Record& record) {
@@ -152,11 +217,21 @@ struct NativeScratch {
     }
     void set_root(const Record& record) {
         if(!valid(record) || rooted(record))throw std::runtime_error("Scratch root acquisition identity/root flag changed.");
+        ensure_guard_hook();
         guarded_weak_get(&record.manager)->SetRootSet();
+        std::lock_guard lock(guards_mutex);
+        GuardScope scope;scope.manager=record.manager;scope.outer=record.outer;scope.type=record.type;
+        scope.address=record.manager_address;scope.outer_address=record.outer_address;scope.class_address=record.class_address;scope.generation=record.generation;
+        if(!guards.emplace(record.manager_address,std::move(scope)).second)throw std::runtime_error("Scratch beat guard identity was already tracked.");
     }
     void clear_root(const Record& record) {
         if(!valid(record) || !rooted(record))throw std::runtime_error("Scratch root release identity/root flag changed.");
+        require_idle(record);
+        std::lock_guard lock(guards_mutex);
+        auto slot=guards.find(record.manager_address);
+        if(slot!=guards.end() && slot->second.generation!=record.generation)throw std::runtime_error("Scratch beat guard generation changed.");
         guarded_weak_get(&record.manager)->ClearRootSet();
+        if(slot!=guards.end())guards.erase(slot);
     }
     std::uintptr_t address(const Record& record) {return record.manager_address;}
 };
@@ -170,6 +245,19 @@ int release_scratch(const Lua& lua) {
     game_thread_identity();if(lua.get_stack_size()!=1 || !lua.is_integer(1))throw std::runtime_error("Expected one scratch root token integer.");
     auto token=lua.get_integer(1);if(token<=0)throw std::runtime_error("Scratch root token must be positive.");
     lua.set_bool(scratch_roots.release(token));return 1;
+}
+int guard_status(const Lua& lua) {
+    game_thread_identity();if(lua.get_stack_size()!=1 || !lua.is_integer(1))throw std::runtime_error("Expected one scratch root token integer.");
+    auto token=lua.get_integer(1);if(token<=0)throw std::runtime_error("Scratch root token must be positive.");
+    return scratch_roots.inspect(token,[&](const NativeScratch::Record& record) {
+        std::lock_guard lock(guards_mutex);auto slot=guards.find(record.manager_address);
+        if(slot==guards.end() || slot->second.generation!=record.generation || !guard_identity(slot->second))
+            throw std::runtime_error("Scratch beat guard is not active for this lease.");
+        const auto& scope=slot->second;
+        for(auto value:{scope.ledger.accepted,scope.ledger.suppressed,scope.ledger.malformed,scope.ledger.changed,scope.generation,scope.bypassed})
+            lua.set_integer(static_cast<std::int64_t>(value));
+        return 6;
+    });
 }
 std::string utf8(const std::wstring& text) {
     if(text.size()>1024)throw std::runtime_error("Checked delegate callback name is too long.");
@@ -206,6 +294,7 @@ extern "C" __declspec(dllexport) int luaopen_fanservice_delegate_reader(lua_Stat
         if(!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS|GET_MODULE_HANDLE_EX_FLAG_PIN,reinterpret_cast<LPCWSTR>(&luaopen_fanservice_delegate_reader),&pinned))return 0;
         Lua lua(state);lua.register_function("FanserviceReadCheckedBindings",read_bindings);
         lua.register_function("FanserviceCreateScratchRoot",create_scratch);
+        lua.register_function("FanserviceScratchGuardStatus",guard_status);
         lua.register_function("FanserviceReleaseScratchRoot",release_scratch);return 0;
     }catch(const std::exception& e){if(state){Lua lua(state);lua.set_string(e.what(),std::strlen(e.what()));return 1;}return 0;}catch(...){return 0;}
 }

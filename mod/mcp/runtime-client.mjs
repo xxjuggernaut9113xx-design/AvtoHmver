@@ -6,7 +6,7 @@ import {setTimeout as delay} from 'node:timers/promises';
 
 export const BUILD = 'v004-exclusive-c645757d';
 const LIMIT = 4 * 1024 * 1024;
-const actions = new Set(['status', 'catalog', 'profile', 'enablefixture', 'probevideo', 'probeaudio', 'probeaudiocontrols', 'probeaudiooffline', 'probebeatqueue', 'rhythmstate', 'probeaudioreconcile', 'probeaudioclock', 'probeclock', 'clockstatus', 'stopclock']);
+const actions = new Set(['status', 'catalog', 'profile', 'enablefixture', 'probevideo', 'probeaudio', 'probeaudiocontrols', 'probeaudiooffline', 'probebeatqueue', 'rhythmstate', 'probeaudiofinalization', 'probeaudioreconcile', 'probeaudioclock', 'probeclock', 'clockstatus', 'stopclock']);
 
 async function checkedDirectory(directory) {
   if (!path.isAbsolute(directory)) throw Error('Runtime directory must be absolute.');

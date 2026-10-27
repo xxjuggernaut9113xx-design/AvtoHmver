@@ -14,7 +14,7 @@ local function object(address,class,outer)
 end
 local function fixture(options)
     options=options or {}
-    local f={clock=0,wall=0,binding='profile:1',created=0,releases=0,removed=0,foreignWrites=0,foreignRemoved=0,rooted=false,failRelease=false,widgets={}}
+    local f={clock=0,wall=0,binding='profile:1',created=0,releases=0,removed=0,foreignWrites=0,foreignRemoved=0,rooted=false,failRelease=false,widgets={},worldClock=0}
     local managerClass,widgetClass,imageClass=object(11),object(12),object(13)
     local world=object(20);world.className='/Script/Engine.World';f.world=world
     local instance=object(30);function instance:GetWorld() return f.world end
@@ -23,6 +23,17 @@ local function fixture(options)
     manager.TotalStrokes=0;manager.CompletedBeats=0;manager.CurrentBeatIndex=0
     local queue={};function queue:Empty() for key in pairs(self) do if type(key)=='number' then self[key]=nil end end end
     manager.BeatQueue=queue
+    f.guard={accepted=0,suppressed=0,changed=0}
+    function manager:OnBeatReachedCenter(event)
+        if options.guard then
+            if f.guard.accepted>0 then f.guard.suppressed=f.guard.suppressed+1;if event.TargetHitTime~=3.2 then f.guard.changed=f.guard.changed+1 end;return end
+            f.guard.accepted=f.guard.accepted+1
+        end
+        if self.bIsRunning then
+            self.CompletedBeats=self.CompletedBeats+1
+            if options.finalize and not options.noFinalTimer and self.CompletedBeats>=self.TotalStrokes and self.CurrentBeatIndex>=#self.BeatQueue then f.finalAt=f.worldClock+.05 end
+        end
+    end
     function manager:GetWorld() return self.CachedWorld end
     function manager:SetWorld(value) self.CachedWorld=value end
     function manager:IsSequenceRunning() return self.bIsRunning end
@@ -79,18 +90,22 @@ local function fixture(options)
         function f.audio:resume() self.state='playing' end
         function f.audio:seek(position) self.position=position;self.state='paused' end
         function f.audio:reconnect() self.state='playing' end
-        env.audio=f.audio;env.reconcile=options.reconcile
+        env.audio=f.audio;env.reconcile=options.reconcile;env.finalize=options.finalize
+        function env.worldTime() return f.worldClock end
     end
+    if options.guard then function env.guardStatus() return f.guard.accepted,f.guard.suppressed,0,f.guard.changed,1,0 end end
     f.env=env;f.probe=Probe.new(env)
     function f:advance(seconds)
         self.clock=self.clock+seconds;self.wall=self.wall+seconds
+        if not self.pauseWorld then self.worldClock=self.worldClock+seconds end
+        if self.finalAt and self.worldClock>=self.finalAt then self.finalAt=nil;manager.bIsRunning=false;queue:Empty();manager.TotalStrokes=0 end
         if self.audio and self.audio.state=='playing' then self.audio.position=self.audio.position+seconds end
         if manager.bIsRunning and manager.CurrentBeatIndex==1 and manager:GetMasterTimelinePosition()>=20 then manager.CurrentBeatIndex=2 end
         if not options.noTick and self.widget and self.widget.bIsMoving and self.widget.BeatIcon then
             local position=self.clock-self.widget.MasterTimeReference+self.widget.TimelineOffset
             if position>=self.widget.CurrentBeatEvent.TargetHitTime then
                 self.widget.bIsMoving=false
-                if manager.bIsRunning then manager.CompletedBeats=manager.CompletedBeats+1 end
+                if manager.bIsRunning then manager:OnBeatReachedCenter(self.widget.CurrentBeatEvent) end
             end
         end
         return self.probe:step()
@@ -251,5 +266,25 @@ test('reconnect cannot silently accept a different recording position',function(
     local result
     for i=1,200 do result=f:advance(.05);if result.phase=='failed' then break end end
     eq(result.phase,'failed');contains(result.error,'restore its bound position');eq(result.root_released,true);eq(f.manager.CompletedBeats,0)
+end)
+test('reflected guard proof checks duplicate and changed identity without a second completion',function()
+    local f=fixture({audio=true,reconcile=true,guard=true});f.probe:start();local result
+    for i=1,500 do result=f:advance(.05);if result.phase=='failed' then error(result.error) end;if result.phase=='complete' then break end end
+    eq(result.passed,true);eq(result.guard_verified,true);eq(result.guard_accepted,1);eq(result.guard_suppressed,2);eq(result.guard_changed,1);eq(result.root_released,true)
+end)
+test('native finalization drains progressing world time before releasing the owned root',function()
+    local f=fixture({audio=true,guard=true,finalize=true});f:pauseAndResume()
+    eq(f:advance(2.75).phase,'observing');eq(f.manager.CompletedBeats,1)
+    local result=f:advance(.06);eq(result.phase,'native_draining');eq(result.native_finalized,true);eq(f.rooted,true)
+    result=f:advance(.26);eq(result.phase,'complete');eq(result.passed,true);eq(result.root_released,true);eq(result.guard_accepted,1)
+end)
+test('paused world time does not falsely drain a native completion timer',function()
+    local f=fixture({audio=true,guard=true,finalize=true});f:pauseAndResume();f:advance(2.75);f:advance(.06)
+    f.pauseWorld=true;local result=f:advance(2);eq(result.phase,'native_draining');eq(result.drained_world_seconds,0);eq(f.rooted,true)
+    f.pauseWorld=false;result=f:advance(.26);eq(result.phase,'complete');eq(result.root_released,true)
+end)
+test('missing native final callback cannot be relabeled completed by owned cleanup',function()
+    local f=fixture({audio=true,guard=true,finalize=true,noFinalTimer=true});f:pauseAndResume();f:advance(2.75)
+    local result=f:advance(30);eq(result.phase,'failed');eq(result.passed,false);contains(result.error,'timed out');eq(result.root_released,true)
 end)
 print(tostring(passed)..' owned rhythm clock probe tests passed')

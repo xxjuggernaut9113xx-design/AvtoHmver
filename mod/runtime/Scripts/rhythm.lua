@@ -144,9 +144,28 @@ function Rhythm.probe(env)
     result.cleaned = true
     return result
 end
+function Rhythm.sessionState(owner)
+    local result={session_state_known=false,pause_menu_known=false,pause_menu_visible=false,decision_known=false,decision_active=false,stop_sequence_known=false,stop_sequence=false}
+    if not valid(owner) then return result end
+    local ok,stop=pcall(function() return owner.bStopSequence end)
+    if ok and type(stop)=='boolean' then result.stop_sequence_known=true;result.stop_sequence=stop end
+    local decisionOK,decision=pcall(function() return owner.ActiveDecisionWidget end)
+    if decisionOK and decision~=nil then result.decision_known=true;result.decision_active=valid(decision) end
+    local uiOK,ui=pcall(function() return owner.UIManager end)
+    if uiOK and valid(ui) then
+        local pauseOK,pause=pcall(function() return ui.PauseMenuMasterBorder end)
+        if pauseOK and valid(pause) then
+            local visibleOK,visible=pcall(function() return pause:IsVisible() end)
+            if visibleOK and type(visible)=='boolean' then result.pause_menu_known=true;result.pause_menu_visible=visible end
+        end
+    end
+    result.session_state_known=result.pause_menu_known and result.decision_known and result.stop_sequence_known
+    return result
+end
 function Rhythm.inspect(owner, candidates, reader)
     local result = {owner_valid=valid(owner),manager_valid=false,owner_matches=false,queue_count=0,completed=0,total=0,index=0,running=false,position=0,widgets_owned=0,widgets_foreign=0,widgets_unknown=0,widgets_moving=0,widgets_empty=0,widgets_matched=0,widgets_shared=0,binding_sample="",bindings=0,binding_reader_verified=false,widget_error=""}
     if not result.owner_valid then return result end
+    for key,value in pairs(Rhythm.sessionState(owner)) do result[key]=value end
     local manager = owner.BeatSpawnerManagerCPP
     if not valid(manager) then return result end
     result.manager_valid = true
@@ -183,10 +202,15 @@ function Rhythm.inspect(owner, candidates, reader)
         end
         return result
     end
+    local callbackSample={}
     for _,name in ipairs(delegates) do
         local list = bindings(manager,name)
-        for _ in pairs(list) do result.bindings=result.bindings+1 end
+        for _,binding in pairs(list) do
+            result.bindings=result.bindings+1
+            if #callbackSample<16 then callbackSample[#callbackSample+1]=name..'='..string.format('%x:%s',binding.address,binding.function_name) end
+        end
     end
+    result.manager_binding_sample=table.concat(callbackSample,';'):sub(1,2048)
     if candidates and #candidates > 10000 then error("Native rhythm inspection exceeds 10000 widget candidates.") end
     for _,widget in ipairs(candidates or {}) do
         local ok,owned,foreign = pcall(function()

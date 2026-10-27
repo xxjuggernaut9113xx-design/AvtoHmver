@@ -188,4 +188,17 @@ test('expired or unresolved callbacks cannot claim a verified native reader',fun
     eq(r.binding_reader_verified,false);eq(r.bindings,5);eq(r.widgets_owned,0)
     eq(f.scope.forbiddenCalls,0);eq(f.scope.emptyCalls,0)
 end)
+test('original settings visibility remains distinct from native running state',function()
+    local f=fixture();local owner=f.env.outer
+    owner.bStopSequence=false;owner.ActiveDecisionWidget={IsValid=function() return false end}
+    owner.UIManager={IsValid=function() return true end,PauseMenuMasterBorder={IsValid=function() return true end,IsVisible=function() return true end}}
+    local result=Rhythm.sessionState(owner);eq(result.session_state_known,true);eq(result.pause_menu_visible,true);eq(result.decision_active,false);eq(result.stop_sequence,false)
+    owner.ActiveDecisionWidget={IsValid=function() return true end};eq(Rhythm.sessionState(owner).decision_active,true)
+    eq(f.scope.forbiddenCalls,0);eq(f.scope.emptyCalls,0)
+end)
+test('unknown original UI fields fail closed without inferring an unpaused session',function()
+    local f=fixture();local result=Rhythm.sessionState(f.env.outer)
+    eq(result.session_state_known,false);eq(result.pause_menu_known,false);eq(result.decision_known,false)
+    f.env.outer.bStopSequence=true;result=Rhythm.sessionState(f.env.outer);eq(result.stop_sequence_known,true);eq(result.stop_sequence,true)
+end)
 print(tostring(passed) .. ' native POD rhythm queue tests passed')

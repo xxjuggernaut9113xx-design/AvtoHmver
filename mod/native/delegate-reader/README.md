@@ -78,6 +78,33 @@ inventory, then constructs the exact native BeatSpawnerManager with that outer,
 transient flags and an automatically unique name. Caller-supplied managers are
 never adopted. Weak manager/outer/class identities are retained with the token.
 
+Construction uses the game's reflected `GameplayStatics.SpawnObject` through
+`ProcessEvent`, after validating its three pointer parameters and return layout.
+The V4 direct SDK `StaticConstructObject` factory crashed before returning: the
+installed loader converted `SubobjectOverrides` to offset 0x80 while the exact
+game's constructor requires 0x90. That factory is removed. Successful V5 runtime
+creation establishes only the reflected factory path, not original-session adoption.
+
+Each newly rooted lease automatically receives a scoped ProcessEvent pre-hook
+guard for the native `OnBeatReachedCenter` UFunction. The function, its single
+40-byte `BeatEvent` parameter, and all six numeric field types/offsets/sizes are
+validated before the guard becomes active. Only the exact weak manager/class/outer
+identity and monotonic lease generation are eligible. No external manager can be
+registered. Releasing a stopped, empty lease removes only its own scope; the pinned
+global callback remains inert for every untracked object.
+
+`FanserviceScratchGuardStatus(token)` returns six integers: admitted events,
+suppressed events, malformed events, changed identities, generation, and bypassed
+calls. Admission means permission to execute the native function, not proof of its
+gameplay completion. Previously prevented or stopped-manager calls bypass the
+ledger. Only game-thread calls are considered. A later event with the same ordinal
+must retain all five other semantic fields; padding is ignored. Identical repeats,
+changed identities, nonfinite/malformed values, and ordinals outside 1..4096 are
+suppressed through the supported `PreventOriginalFunctionCall` API. Time is bounded
+to one day, pattern indexes to 0..4095, and nonnegative multipliers to 1000.
+Fresh leases get fresh ledgers. Native direct calls and delayed native lambdas are
+outside this reflected proof; this API does not authorize original-session takeover.
+
 The lease table allocates its slot before setting the root flag. Acquisition
 requires an initially unrooted, stopped manager with an empty queue. Root flag
 readback is checked. Failed acquisition rolls back only a verified flag set by

@@ -22,6 +22,9 @@ function Probe.new(env)
     local report={phase='idle',passed=false,started=false,completed=0,index=0,position=0,paused_position=0,resumed_position=0,root_released=false}
     local scope
     local audio=env.audio
+    local finalize=env.finalize==true
+    local rows=finalize and {rows[1]} or rows
+    if finalize then assert(audio and type(env.worldTime)=='function' and type(env.guardStatus)=='function','Owned finalization requires native audio, world time and guarded hit evidence.') end
     local reconcile=env.reconcile==true
     if reconcile then assert(audio and type(audio.seek)=='function' and type(audio.reconnect)=='function','Owned reconciliation requires seek and reconnect operations.') end
     if audio then for _,name in ipairs({'status','pause','resume'}) do assert(type(audio[name])=='function','Missing owned audio clock operation: '..name) end end
@@ -141,7 +144,14 @@ function Probe.new(env)
     end
     local function state()
         local manager=managerIdentity()
-        unbound(manager);queueMatches(manager);discover()
+        unbound(manager)
+        report.native_queue_count=#manager.BeatQueue;report.native_index=manager.CurrentBeatIndex;report.native_total=manager.TotalStrokes;report.native_running=manager:IsSequenceRunning()==true
+        if finalize and scope.resumed and #manager.BeatQueue==0 then
+            check(manager:IsSequenceRunning()==false and manager.CurrentBeatIndex==#rows and manager.TotalStrokes==0,'Owned native finalization left an inconsistent stopped manager.')
+            scope.queueEmptied=true;report.native_finalized=true
+        elseif scope.queueEmptied then check(#manager.BeatQueue==0,'Finalized owned queue acquired unknown entries.')
+        else queueMatches(manager) end
+        discover()
         check(env.binding()==scope.binding,'Owned rhythm profile/session binding changed.')
         local instance=env.instance()
         check(sameObject(instance,scope.instanceAddress),'Owned rhythm game instance changed.')
@@ -167,7 +177,7 @@ function Probe.new(env)
             scope={binding=binding,instance=instance,instanceAddress=address(instance),worldAddress=address(world),managerClassAddress=address(managerClass),widgetClassAddress=address(widgetClass),imageClassAddress=address(imageClass)}
             local started=wall();scope.started=started;scope.deadline=started+(reconcile and 40 or audio and 25 or 15)
             local token,managerAddress=env.createRoot(instance)
-            scope.token=token
+            scope.token=token;report.lease_token=token
             check(token~=nil and finite(managerAddress) and managerAddress>0 and managerAddress%1==0,'Native rhythm factory returned invalid ownership.')
             scope.managerAddress=managerAddress
             local candidates=env.managers() or {};check(#candidates<=10000,'Owned rhythm manager enumeration exceeds its limit.')
@@ -184,7 +194,7 @@ function Probe.new(env)
             manager:SetWorld(world);scope.worldReady=true;managerIdentity()
             manager.TestBeatWidgetClass=widgetClass
             manager.CurrentBeatTravelTime=3.0
-            manager.TotalStrokes=2;manager.CompletedBeats=0;manager.CurrentBeatIndex=0;manager.TimelineOffset=0
+            manager.TotalStrokes=#rows;manager.CompletedBeats=0;manager.CurrentBeatIndex=0;manager.TimelineOffset=0
             for index,row in ipairs(rows) do manager.BeatQueue[index]=copy(row);scope.expectedCount=index end
             scope.queueReady=true;queueMatches(manager)
             if audio then
@@ -230,6 +240,22 @@ function Probe.new(env)
         local ok,problem=pcall(function()
             local now=wall();check(now<scope.deadline,'Owned rhythm probe timed out.')
             local manager,position,completed,index=state()
+            if finalize and scope.queueEmptied then
+                local accepted,suppressed,malformed,changed,generation=env.guardStatus(scope.token)
+                check(accepted==1 and malformed==0 and changed==0 and completed==1,'Owned native finalization did not retain exactly one guarded completion.')
+                local worldTime=env.worldTime()
+                check(finite(worldTime) and worldTime>=0,'Owned native drain world time is unavailable.')
+                if not scope.drainStarted then
+                    scope.drainStarted=worldTime;audio:pause();report.phase='native_draining'
+                    report.guard_accepted=accepted;report.guard_suppressed=suppressed;report.guard_generation=generation;report.guard_verified=true
+                end
+                check(worldTime>=scope.drainStarted,'Owned drain world time moved backwards.')
+                report.drained_world_seconds=worldTime-scope.drainStarted
+                if report.drained_world_seconds>=0.25 then
+                    stopOwned('owned native finalization and world timer drain passed');report.phase='complete';report.passed=true
+                end
+                return
+            end
             if reconcile and (report.phase=='seeking_forward' or report.phase=='reconnecting' or report.phase=='seeking_backward' or report.phase=='resuming_replay') then
                 local clock=audio:status()
                 check(finite(clock.position) and clock.position>=0 and clock.position<12,'Owned reconciliation clock is invalid.')
@@ -324,9 +350,22 @@ function Probe.new(env)
                     freeze(manager,position);scope.reconnectFrom=position;audio:reconnect();report.phase='reconnecting';return
                 end
                 check(completed<=1,'Owned rhythm widget delivered a duplicate completion.')
-                if completed==1 then scope.observedTime=now;report.phase='observing' end
+                if completed==1 then
+                    if env.guardStatus and not finalize then
+                        local accepted,suppressed,malformed,changed,generation,bypassed=env.guardStatus(scope.token)
+                        check(accepted==1 and suppressed==0 and malformed==0 and changed==0 and finite(generation) and generation>0,'Owned reflected hit guard did not observe the native completion.')
+                        manager:OnBeatReachedCenter(copy(rows[1]))
+                        local altered=copy(rows[1]);altered.TargetHitTime=altered.TargetHitTime+0.1
+                        manager:OnBeatReachedCenter(altered)
+                        accepted,suppressed,malformed,changed,generation,bypassed=env.guardStatus(scope.token)
+                        check(manager.CompletedBeats==1 and accepted==1 and suppressed==2 and malformed==0 and changed==1,'Owned reflected guard did not suppress duplicate and changed-identity hits.')
+                        report.guard_accepted=accepted;report.guard_suppressed=suppressed;report.guard_changed=changed;report.guard_generation=generation;report.guard_bypassed=bypassed;report.guard_verified=true
+                    end
+                    scope.observedTime=now;report.phase='observing'
+                end
             elseif report.phase=='observing' then
                 check(completed==1,'Owned rhythm completion was not stable.')
+                if finalize then return end
                 if reconcile and now-scope.observedTime>=1 then
                     audio:pause();freeze(manager,position);scope.replaying=true
                     if scope.widget and valid(scope.widget) and widgetOwnership(scope.widget) then retireCurrent() end

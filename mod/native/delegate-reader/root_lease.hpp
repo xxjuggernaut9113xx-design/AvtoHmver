@@ -12,6 +12,12 @@ template<class Backend> class ScratchRoots {
     std::int64_t next = 1;
 public:
     explicit ScratchRoots(Backend value = {}) : backend(std::move(value)) {}
+    template<class Visitor> auto inspect(std::int64_t token,Visitor visitor) {
+        auto slot=records.find(token);
+        if(slot==records.end() || !backend.valid(slot->second) || !backend.rooted(slot->second))
+            throw std::runtime_error("Scratch root inspection requires a live owned lease.");
+        return visitor(slot->second);
+    }
     std::pair<std::int64_t,std::uintptr_t> create(std::uintptr_t outer) {
         if(records.size()>=8 || next==INT64_MAX)throw std::runtime_error("Scratch root lease limit reached.");
         const auto token=next++;

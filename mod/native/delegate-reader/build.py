@@ -79,7 +79,9 @@ def main():
         'cl.exe '+flags+' "'+str(ROOT/'contract_test.cpp')+'" /Fo"'+str(output/'contract_test.obj')+'" /Fe"'+str(output/'contract_test.exe')+'"\r\nif errorlevel 1 exit /b 1\r\n'
         '"'+str(output/'contract_test.exe')+'"\r\nif errorlevel 1 exit /b 1\r\n'
         'cl.exe '+flags+' "'+str(ROOT/'root_lease_test.cpp')+'" /Fo"'+str(output/'root_lease_test.obj')+'" /Fe"'+str(output/'root_lease_test.exe')+'"\r\nif errorlevel 1 exit /b 1\r\n'
-        '"'+str(output/'root_lease_test.exe')+'"\r\nexit /b %errorlevel%\r\n', encoding='utf-8')
+        '"'+str(output/'root_lease_test.exe')+'"\r\nif errorlevel 1 exit /b 1\r\n'
+        'cl.exe '+flags+' "'+str(ROOT/'beat_guard_test.cpp')+'" /Fo"'+str(output/'beat_guard_test.obj')+'" /Fe"'+str(output/'beat_guard_test.exe')+'"\r\n'
+        'if errorlevel 1 exit /b 1\r\n"'+str(output/'beat_guard_test.exe')+'"\r\nexit /b %errorlevel%\r\n',encoding='utf-8')
     result = subprocess.run(['cmd.exe', '/d', '/c', str(script)], cwd=output, capture_output=True)
     (output/'build.log').write_bytes(result.stdout+result.stderr)
     print(result.stdout.decode(errors='replace')[-12000:])
@@ -90,9 +92,10 @@ def main():
     manifest = {'game_sha256':'c645757d1112491952b67bf29502b4721133ba6940a9cfb08358f0dde127560f', 'loader_sha256':LOADER_SHA,
         'public_commit':'8333063595fa3c49ad307f3b0f732accbb760d25', 'sdk_commit':'fbb4fdd3fffc59d5b5268b23a643f500f702115e',
         'fmt_header_version':'11.0.2', 'sources':sources, 'dependency_header_hashes':headers,
-        'dll_sha256':digest(output/'fanservice_delegate_reader.dll'), 'tests':'contract_test.exe and root_lease_test.exe passed; game runtime not executed',
+        'dll_sha256':digest(output/'fanservice_delegate_reader.dll'), 'tests':'contract_test.exe, root_lease_test.exe and beat_guard_test.exe passed; game runtime not executed',
         'installed':False, 'api':'FanserviceReadCheckedBindings(addressInteger,kindInteger,indexInteger) -> count,addressInteger,functionString',
-        'scratch_api':'FanserviceCreateScratchRoot(gameInstanceAddress) -> token,managerAddress; FanserviceReleaseScratchRoot(token) -> bool'}
+        'scratch_api':'FanserviceCreateScratchRoot(gameInstanceAddress) -> token,managerAddress; FanserviceReleaseScratchRoot(token) -> bool',
+        'guard_api':'FanserviceScratchGuardStatus(token) -> accepted,suppressed,malformed,changed,generation,bypassed'}
     (output/'build-manifest.json').write_text(json.dumps(manifest, indent=2)+'\n', encoding='utf-8')
     print('DLL SHA-256:', manifest['dll_sha256'])
 

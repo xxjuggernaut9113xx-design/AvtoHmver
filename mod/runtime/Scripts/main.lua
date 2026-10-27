@@ -109,6 +109,10 @@ local Rhythm = assert(loadfile(directory .. '/Scripts/rhythm.lua'))()
 local RhythmProbe = assert(loadfile(directory .. '/Scripts/rhythm_probe.lua'))()
 local beatClockProbe
 local checkedBindings, checkedBindingsError
+FanserviceReadCheckedBindings=nil
+FanserviceCreateScratchRoot=nil
+FanserviceReleaseScratchRoot=nil
+FanserviceScratchGuardStatus=nil
 local readerPath = directory .. '/Native/fanservice-delegate-reader.dll'
 local readerConfig = io.open(directory .. '/Native/delegate-reader-module.txt','rb')
 if readerConfig then
@@ -146,7 +150,7 @@ if readerFile then
     else checkedBindingsError = tostring(problem) end
 end
 
-local approvedAudio, audioProbeDeadline, audioControlProbe, audioRhythmPending, audioRhythmActive, audioRhythmFailure, audioRhythmReconcile
+local approvedAudio, audioProbeDeadline, audioControlProbe, audioRhythmPending, audioRhythmActive, audioRhythmFailure, audioRhythmReconcile, audioRhythmFinalize
 local stoppedMusic = {}
 local function musicBinding()
     local ok, _, profile = pcall(runtimeContext)
@@ -172,7 +176,7 @@ local function clockProbeJSON()
     if audioRhythmPending then return flatJSON({phase='opening',passed=false,started=true,clock_source='native audio decoder'}) end
     return flatJSON(beatClockProbe and beatClockProbe:status() or {phase='idle',passed=false,started=false})
 end
-local function createClockProbe(audio,reconcile)
+local function createClockProbe(audio,reconcile,finalize)
     if not checkedBindings or type(FanserviceCreateScratchRoot) ~= 'function' or type(FanserviceReleaseScratchRoot) ~= 'function' then
         error('Checked native scratch factory is unavailable.')
     end
@@ -190,7 +194,9 @@ local function createClockProbe(audio,reconcile)
                 return factory:SpawnObject(class,widget)
             end,
             instance=function() return FindFirstOf('BP_CHGameInstance_C') end,
-            binding=musicBinding,bindings=checkedBindings,now=os.time,audio=audio,reconcile=reconcile
+            binding=musicBinding,bindings=checkedBindings,now=os.time,audio=audio,reconcile=reconcile,finalize=finalize,
+            worldTime=function() return StaticFindObject('/Script/Engine.Default__GameplayStatics'):GetTimeSeconds(FindFirstOf('BP_CHGameInstance_C')) end,
+            guardStatus=type(FanserviceScratchGuardStatus)=='function' and function(token) return FanserviceScratchGuardStatus(token) end or nil
         })
     end
     return beatClockProbe
@@ -278,7 +284,7 @@ LoopInGameThreadWithDelay(25, function()
                 local state=nativeMusic:status()
                 if state.state=='playing' then
                     audioRhythmPending=false
-                    createClockProbe(nativeMusic,audioRhythmReconcile):start()
+                    createClockProbe(nativeMusic,audioRhythmReconcile,audioRhythmFinalize):start()
                 elseif state.state=='error' or state.state=='stopped' or os.time()>=audioProbeDeadline then
                     audioRhythmPending=false;audioRhythmActive=false;audioRhythmFailure=state.error or 'Owned audio rhythm decoder did not become ready.'
                     stopNativeMusic('audio rhythm opening failed')
@@ -352,7 +358,7 @@ local function diagnosticRequest()
     lastDiagnosticRequest = nonce
     local ok, result = pcall(function()
         if action ~= 'status' and action ~= 'catalog' and action ~= 'profile'
-            and action ~= 'enablefixture' and action ~= 'probevideo' and action ~= 'probeaudio' and action ~= 'probeaudiocontrols' and action ~= 'probeaudiooffline' and action ~= 'probebeatqueue' and action ~= 'rhythmstate' and action ~= 'probeclock' and action ~= 'clockstatus' and action ~= 'stopclock' and action ~= 'probeaudioclock' and action ~= 'probeaudioreconcile' then
+            and action ~= 'enablefixture' and action ~= 'probevideo' and action ~= 'probeaudio' and action ~= 'probeaudiocontrols' and action ~= 'probeaudiooffline' and action ~= 'probebeatqueue' and action ~= 'rhythmstate' and action ~= 'probeclock' and action ~= 'clockstatus' and action ~= 'stopclock' and action ~= 'probeaudioclock' and action ~= 'probeaudioreconcile' and action ~= 'probeaudiofinalization' then
             error('Runtime MCP action is not supported.')
         end
         local store, profile = runtimeContext()
@@ -363,7 +369,7 @@ local function diagnosticRequest()
             if beatClockProbe then beatClockProbe:stop('User stopped the owned rhythm diagnostic.') end
             return clockProbeJSON()
         end
-        if action == 'probeaudioclock' or action == 'probeaudioreconcile' then
+        if action == 'probeaudioclock' or action == 'probeaudioreconcile' or action == 'probeaudiofinalization' then
             local fixture=diagnosticFixture(store)
             if not store:IsPackEnabled(fixture) then error('Enable the synthetic fixture before its owned audio rhythm diagnostic.') end
             if audioRhythmPending or audioRhythmActive then error('Owned audio rhythm diagnostic is already active.') end
@@ -375,7 +381,7 @@ local function diagnosticRequest()
             stopNativeMusic('owned audio rhythm diagnostic requested')
             local binding=musicBinding()
             approvedAudio={url='file:///E:/fanservice-mod-lab/v004-native/synthetic-http/synthetic-tone.m4a',binding=binding}
-            audioRhythmReconcile=action=='probeaudioreconcile'
+            audioRhythmReconcile=action=='probeaudioreconcile';audioRhythmFinalize=action=='probeaudiofinalization'
             audioControlProbe=nil;audioProbeDeadline=os.time()+(audioRhythmReconcile and 50 or 35)
             nativeMusic:open(approvedAudio.url,musicActor(),binding,12)
             audioRhythmPending=true;audioRhythmActive=true
@@ -410,6 +416,15 @@ local function diagnosticRequest()
         end
         if action == 'rhythmstate' then
             local state = Rhythm.inspect(FindFirstOf('BP_GlobalManager_C'),FindAllOf('PreciseBeatWidget') or {},checkedBindings)
+            local worldOK,worldTime,paused=pcall(function()
+                local factory=StaticFindObject('/Script/Engine.Default__GameplayStatics')
+                local instance=FindFirstOf('BP_CHGameInstance_C')
+                return factory:GetTimeSeconds(instance),factory:IsGamePaused(instance)
+            end)
+            state.world_time_known=worldOK and type(worldTime)=='number' and worldTime==worldTime and worldTime>=0 and worldTime<math.huge
+            if state.world_time_known then state.world_time=worldTime end
+            state.world_pause_known=worldOK and type(paused)=='boolean'
+            if state.world_pause_known then state.world_paused=paused end
             state.reader_available = checkedBindings ~= nil
             if checkedBindingsError then state.reader_error=checkedBindingsError end
             local values = {}

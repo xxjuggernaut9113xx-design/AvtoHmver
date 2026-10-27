@@ -23,8 +23,11 @@ int main() {
     {
         auto s=std::make_shared<State>();fanservice::ScratchRoots<Fake> roots(Fake{s});auto [token,address]=roots.create(100);
         check(token==1 && address==1000 && s->objects[0].root);check(s->set==1 && s->clear==0);
+        check(roots.inspect(token,[](auto record){return record;})==0);
+        fails([&]{roots.inspect(999,[](auto record){return record;});});
         for(auto& o:s->objects)if(!o.root)o.valid=false;
         check(s->objects[0].valid);check(roots.release(token));check(!s->objects[0].root && s->clear==1);check(!roots.release(token));
+        fails([&]{roots.inspect(token,[](auto record){return record;});});
         auto next=roots.create(100);check(next.first>token && next.second!=address);check(roots.release(next.first));
     }
     for(int scenario=0;scenario<4;++scenario) {
