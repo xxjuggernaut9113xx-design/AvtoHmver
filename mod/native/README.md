@@ -1,5 +1,9 @@
 # Native Windows companion candidate
 
+The original v0.05 Music-session integration is now the selected music target.
+See [the current native music work](../../docs/fanservice/NATIVE_MUSIC_V005_20261027.md)
+for the recording-bound original-format exporter and its remaining native checks.
+
 The v0.04 companion now implements profile-bound definitions, snapshot storage,
 reviewed synchronization and a native audio transport. **Original rhythm-session
 integration and in-game acceptance of this revision are not complete.** The
