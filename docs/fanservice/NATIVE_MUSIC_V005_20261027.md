@@ -1,5 +1,13 @@
 # Original v0.05 music-session integration
 
+## Runtime correction: active scan path
+
+The first staging used the native default-root helper without checking the actual menu/library initialization path. That was insufficient. The real v0.05 startup log explicitly scans `E:/fanservice-mod-lab/game/CockHero/beatmaps`. After adding the neutral pack there, a fresh exact-build launch found eleven JSON files, loaded `fanservice neutral import` with three beats and `Audio: OK`, and reported eleven valid beatmaps. This is verified native library import; audible playback and session behavior remain pending. Retained evidence: `evidence/native-v005-library-import-20261027.json`.
+
+The user also had the separate v0.04 test process open when asked to check the v0.05 music menu. It is no longer running; the correct isolated v0.05 game has been launched on the left screen with a separate music-test profile. The updated Computer Use runtime initializes successfully. Its startup age confirmation is left to the user under the computer-use guidance.
+
+Future automatic library integration must use the actual configured/scanned library path. The statically derived fallback helper described below does not establish the root selected by the original menu or caller.
+
 The user selected the original v0.05 Music session instead of a replacement v0.04 card scheduler. This supersedes the unresolved card-versus-full-song design choice. The full integration remains unfinished.
 
 ## Selected local build
