@@ -676,9 +676,18 @@ pub struct SearchResponse {
     pub next_cursor: Option<String>,
 }
 
-#[derive(Default)]
 pub(crate) struct SearchPages {
     snapshots: HashMap<String, SearchSnapshot>,
+    ttl: Duration,
+}
+
+impl Default for SearchPages {
+    fn default() -> Self {
+        Self {
+            snapshots: HashMap::new(),
+            ttl: Duration::from_secs(600),
+        }
+    }
 }
 
 type SearchSnapshot = (
@@ -704,7 +713,7 @@ impl SearchPages {
         remote: Vec<ProviderContinuation>,
     ) -> SearchResponse {
         self.snapshots
-            .retain(|_, (created, _, _)| created.elapsed() < Duration::from_secs(600));
+            .retain(|_, (created, _, _)| created.elapsed() < self.ttl);
         if response.results.len() <= limit && remote.is_empty() {
             return response;
         }
@@ -737,7 +746,7 @@ impl SearchPages {
         let (id, offset) = cursor.split_once(':').ok_or_else(bad)?;
         let offset = offset.parse::<usize>().map_err(|_| bad())?;
         let (created, snapshot, remote) = self.snapshots.get(id).ok_or_else(bad)?;
-        if created.elapsed() >= Duration::from_secs(600) || offset > snapshot.results.len() {
+        if created.elapsed() >= self.ttl || offset > snapshot.results.len() {
             return Err(bad());
         }
         let end = offset.saturating_add(limit).min(snapshot.results.len());
@@ -754,7 +763,7 @@ impl SearchPages {
         let (id, offset) = cursor.split_once(':')?;
         let offset = offset.parse::<usize>().ok()?;
         let (created, snapshot, remote) = self.snapshots.get(id)?;
-        (created.elapsed() < Duration::from_secs(600) && offset == snapshot.results.len())
+        (created.elapsed() < self.ttl && offset == snapshot.results.len())
             .then(|| remote.first().cloned())
             .flatten()
     }
@@ -2813,15 +2822,7 @@ mod tests {
         )
         .await
         .is_err());
-        let id = cursor.split_once(':').unwrap().0;
-        state
-            .discovery_pages
-            .lock()
-            .unwrap()
-            .snapshots
-            .get_mut(id)
-            .unwrap()
-            .0 -= Duration::from_secs(601);
+        state.discovery_pages.lock().unwrap().ttl = Duration::ZERO;
         assert!(search(
             &state,
             SearchQuery {
