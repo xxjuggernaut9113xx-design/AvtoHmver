@@ -305,7 +305,13 @@ impl NativePlayer {
                 self.status.failed = false;
                 self.loading_since = None;
                 self.status.position_secs = 0.0;
-                self.send(command)
+                if self.commands.is_some() {
+                    self.send(command)
+                } else {
+                    // Still-image previews may stop playback before libmpv has
+                    // ever started. There is no worker to stop in that case.
+                    Ok(())
+                }
             }
             PlayerCommand::Shutdown => {
                 self.teardown();
@@ -629,6 +635,16 @@ fn apply_worker_command(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn stopping_before_video_worker_starts_is_not_a_playback_error() {
+        let mut player = NativePlayer::default();
+        let status = player.apply(PlayerCommand::Stop);
+        assert_eq!(status.message, "Stopped");
+        assert!(!status.failed);
+        assert!(!status.loading);
+        assert!(player.commands.is_none());
+    }
+
     #[test]
     fn saved_clip_ranges_reject_invalid_bounds_and_reset_for_physical_media() {
         let mut player = NativePlayer::default();
