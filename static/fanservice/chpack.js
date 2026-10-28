@@ -20,9 +20,9 @@
    const bytes=await read(await fetchMedia(url,{signal,credentials:'same-origin'}),signal,onBytes);
    files.push({name:'media/'+name,bytes});entries.push({file:name,type:item.type==='video'?'video':'image'});
   }
-  let preview='';const coverIndex=media.findIndex(m=>String(m.id)===String(pack.cover_id));
+  let preview;const coverIndex=media.findIndex(m=>String(m.id)===String(pack.cover_id));
   if(coverIndex>=0){if(media[coverIndex].type!=='image')throw Error('Cover must be an image.');preview='preview.'+entries[coverIndex].file.split('.').pop();files.push({name:preview,bytes:files[coverIndex].bytes});}
-  const manifest={version:'0.02a',name:pack.name.trim(),author:pack.author||'fanservice',description:pack.description||'',preview,unlock_cost:pack.unlock_cost||0,required_challenge:'',patreon_exclusive:false,image_count:entries.filter(e=>e.type==='image').length,video_count:entries.filter(e=>e.type==='video').length,total_media:entries.length,media:entries,social_links:{onlyfans:'',fansly:'',twitter:'',linktree:'',manyvids:'',redgifs:'',discord:'',patreon:'',subscribestar:'',kofi:''}};
+  const manifest={version:'0.02a',name:pack.name.trim(),author:pack.author||'fanservice',description:pack.description||'',...(preview?{preview}:{}),unlock_cost:pack.unlock_cost||0,required_challenge:'',patreon_exclusive:false,image_count:entries.filter(e=>e.type==='image').length,video_count:entries.filter(e=>e.type==='video').length,total_media:entries.length,media:entries,social_links:{onlyfans:'',fansly:'',twitter:'',linktree:'',manyvids:'',redgifs:'',discord:'',patreon:'',subscribestar:'',kofi:''}};
   files.push({name:'manifest.json',bytes:encoder.encode(JSON.stringify(manifest,null,2))});return zip(files,signal);
  }
  async function zip(files,signal){const parts=[],central=[];let offset=0,centralSize=0;

@@ -40,7 +40,8 @@ struct Manifest {
     name: String,
     author: String,
     description: String,
-    preview: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    preview: Option<String>,
     unlock_cost: i64,
     required_challenge: &'static str,
     patreon_exclusive: bool,
@@ -199,7 +200,7 @@ pub(crate) fn build_selected_chpack(
         anyhow::bail!("No accessible files on disk for this selection");
     }
 
-    let mut preview = String::new();
+    let mut preview = None;
     if let Some(cover) = metadata.cover {
         let path = dunce::canonicalize(library_dir.join(cover)).context("resolving cover")?;
         anyhow::ensure!(
@@ -215,9 +216,10 @@ pub(crate) fn build_selected_chpack(
             matches!(ext.as_str(), "png" | "jpg" | "jpeg" | "webp" | "bmp"),
             "Unsupported cover image"
         );
-        preview = format!("preview.{ext}");
-        zip.start_file(&preview, options)?;
+        let preview_name = format!("preview.{ext}");
+        zip.start_file(&preview_name, options)?;
         copy_cancellable(std::fs::File::open(path)?, &mut zip, cancelled)?;
+        preview = Some(preview_name);
     }
     let manifest = Manifest {
         version: "0.02a",
@@ -352,6 +354,7 @@ mod tests {
         assert_eq!(manifest["video_count"], 2);
         assert_eq!(manifest["total_media"], 3);
         assert_eq!(manifest["media"][2]["type"], "video");
+        assert!(manifest.get("preview").is_none());
         std::fs::write(root.path().join("outside.png"), b"original").unwrap();
         let escaped = build_chpack_cancellable(
             "Test".into(),

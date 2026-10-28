@@ -23,7 +23,7 @@ function inspect(file){const r=spawnSync('python',['-c',"import zipfile,json,sys
  await page.locator('#local-files').setInputFiles({name:'private-phone.png',mimeType:'image/png',buffer:png});await page.getByRole('button',{name:'Add selected phone files'}).click();await page.getByRole('checkbox',{name:'Select local private-phone.png',exact:true}).check();
  await page.getByRole('button',{name:'Create Pack',exact:true}).click();await page.locator('#pack-name').fill('Phone-only export');
  const posts=[];page.on('request',request=>{if(request.method()==='POST')posts.push(request.url());});
- await page.locator('#export-selection').click();const phone=await download('phone-local.chpack');assert.equal(phone.manifest.total_media,1);assert.equal(phone.manifest.media[0].type,'image');assert.deepEqual(posts,[],'phone bytes must never be uploaded or posted to an export service');
+ await page.locator('#export-selection').click();const phone=await download('phone-local.chpack');assert.equal(phone.manifest.total_media,1);assert.equal(phone.manifest.media[0].type,'image');assert.equal('preview' in phone.manifest,false,'a pack without a cover must omit the optional preview');assert.deepEqual(posts,[],'phone bytes must never be uploaded or posted to an export service');
  await page.evaluate(()=>{globalThis.Capacitor={isNativePlatform:()=>true};});await page.locator('#export-selection').click();await page.locator('dialog[open] > p[role=status]').filter({hasText:'This Android shell has no archive saving support.'}).waitFor();assert.deepEqual(posts,[]);await page.getByRole('button',{name:'Close',exact:true}).click();
  for(const mode of ['saved','cancelled','failed']){
   await page.evaluate(mode=>{
