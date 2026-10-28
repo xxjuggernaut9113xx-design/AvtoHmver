@@ -272,7 +272,13 @@ impl NativePlayer {
             }
             PlayerCommand::SetPaused(paused) => {
                 self.status.paused = paused;
-                self.send(command)
+                if self.commands.is_some() {
+                    self.send(command)
+                } else {
+                    // Shared pause also covers still images before a video
+                    // worker has been started.
+                    Ok(())
+                }
             }
             PlayerCommand::Seek(position) => {
                 let position = if let Some((start, end)) = self.clip_range {
@@ -643,6 +649,17 @@ mod tests {
         assert!(!status.failed);
         assert!(!status.loading);
         assert!(player.commands.is_none());
+    }
+
+    #[test]
+    fn pausing_before_video_worker_starts_is_not_a_playback_error() {
+        let mut player = NativePlayer::default();
+        for paused in [true, false, true] {
+            let status = player.apply(PlayerCommand::SetPaused(paused));
+            assert_eq!(status.paused, paused);
+            assert!(!status.failed);
+            assert!(player.commands.is_none());
+        }
     }
 
     #[test]
