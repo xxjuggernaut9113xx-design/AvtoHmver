@@ -1,0 +1,47 @@
+{
+  "date": "2026-10-29",
+  "build_id": "v0051-hotfix-public-a8f46896",
+  "executable_sha256": "a8f46896593d8724cefb9a232db5772df48ae5731da78cfacbec82e98d040c10",
+  "scope": "isolated original-game main menu and neutral Server recording",
+  "source": {
+    "adapter_tested_sha256": "52e00fbdecd170e55bd3200b491573c78ee25da354563dcc00d70c74dae96e8d",
+    "retained_log": "E:/fanservice-mod-lab/v005-ui-20261029/game-initial-url.log",
+    "lua_log": "E:/fanservice-mod-lab/v005-ui-20261029/entry-success-ue4ss.log",
+    "later_source_change": "Retry uses LoadURL(urlInitial) instead of the shipped LoadString backend with reversed semantics; retry branch not exercised by successful initial navigation."
+  },
+  "passed": {
+    "guard_denied_before_user_age_dismissal": true,
+    "guard_allowed_after_user_age_dismissal": true,
+    "independent_entry_visible": true,
+    "entry_document_title_handshake": true,
+    "entry_click_opens_configured_server": true,
+    "native_controls_visible": true,
+    "saved_profile_round_trip": true,
+    "ui_music_delivery": true,
+    "close_restores_original_menu": true,
+    "close_renews_companion_generation": true,
+    "reopens_after_original_playlist_menu_navigation": true
+  },
+  "music_delivery": {
+    "track_id": 1,
+    "title": "synthetic-tone.m4a",
+    "folder": "CockHero/beatmaps/fanservice-1-bed20393d4650d646078",
+    "duration_seconds": 12,
+    "stroke_beats": 24,
+    "events": 0,
+    "audio_file": "song.wav",
+    "ui_result": "saved; open Start Game -> Playlist -> Manage; refresh library or restart"
+  },
+  "preserved": {
+    "original_import_entitlement": true,
+    "original_unlocks_purchase_and_toggles": true,
+    "wallet_before_and_after": 62
+  },
+  "pending": [
+    "new delivery discovered after original-library refresh/restart",
+    "profile-switch acceptance",
+    "snapshot/sync acceptance through this panel",
+    "dedicated runtime installer lifecycle",
+    "full supported-build certification"
+  ]
+}

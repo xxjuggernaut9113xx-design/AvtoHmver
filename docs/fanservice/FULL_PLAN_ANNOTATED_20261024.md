@@ -1,5 +1,7 @@
 # fanservice — full plan, annotated
 
+Latest v0.05 continuation: [independent in-game entry and companion](NATIVE_COMPANION_V005_20261029.md). The separate button opens the configured Server, reads the native profile and delivers neutral music into the original Playlist folder. Close restores the native menu and renews the epoch. The original Import entitlement and Unlocks controls are preserved. Dedicated installer, panel snapshot/sync acceptance and full certification remain open; older compatibility blockers below are historical.
+
 Current native checkpoint: [v0.05 media/music acceptance](NATIVE_MEDIA_V005_20261029.md). Confirmed Server delivery/conversion, original Unlocks purchase/toggles, enabled media filtering, image display, native video promotion, 24-beat Playlist completion, restart persistence and owned uninstall pass. Embedded v0.05 UI/companion integration, live HTTP streaming and broader session controls remain pending. The earlier v0.04 owned-clock results are diagnostic foundations, not v0.05 support.
 
 Current continuation: [native seek/reconnect acceptance](NATIVE_RECONCILE_20261027.md). Owned native audio-clock, seek, reconnect and backward replay pass; original-session callback/timer adoption and reward settlement remain open. Older counts and blocker descriptions below are historical.

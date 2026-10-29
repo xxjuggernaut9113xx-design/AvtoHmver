@@ -12,7 +12,7 @@
   let sequence = 0;
   let current = null;
   const queue = [];
-  const companionActions = new Set(['companionread','definitions','definitionsbegin','definitionschunk','definitionscommit','snapshotdownload','snapshotdelete','synchandshake','syncconfigure','syncupload','syncpreview','syncapply','musicprepare','sessionrelease','musicstatus','musicpause','musicresume','musicseek','musicreconnect','musicstop']);
+  const companionActions = new Set(['companionread','definitions','definitionsbegin','definitionschunk','definitionscommit','snapshotdownload','snapshotdelete','synchandshake','syncconfigure','syncupload','syncpreview','syncapply','musicprepare','musicdeliver','sessionrelease','musicstatus','musicpause','musicresume','musicseek','musicreconnect','musicstop']);
   function cancelAll(message) {
     if (current) {
       clearTimeout(current.timer);

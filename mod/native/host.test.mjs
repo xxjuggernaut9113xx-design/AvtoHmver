@@ -4,26 +4,83 @@ import * as fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import {NativeCompanionHost} from './host.mjs';
+import {nativeBuildConfig,DEFAULT_NATIVE_BUILD} from './game-identity.mjs';
 import {sealConnection} from './sealed-test.mjs';
+import {createHash} from 'node:crypto';
 const pack={id:'custom:test',name:'Synthetic',description:'Neutral fixture',library_id:'library-one',unlock_cost:1,selection:{ids:[1],rules:[]}};
 const music={protocol:1,library_id:'library-one',track_id:1,recording_id:'sha1:'+'a'.repeat(40),duration:12,native_stream_url:'/api/music/tracks/1/stream?native=true',beatmap:{meta:{duration:12,bpm:120},beats:[{time:0,type:'stroke'},{time:1,type:'rest'}],events:[]}};
 const json=(value,status=200)=>new Response(JSON.stringify(value),{status,headers:{'content-type':'application/json'}});
-async function fixture(t,fetch=async()=>json({})){
+async function fixture(t,fetch=async()=>json({}),{buildId=DEFAULT_NATIVE_BUILD}={}){
  const base=await fs.mkdtemp(path.join(os.tmpdir(),'native-host-'));t.after(()=>fs.rm(base,{recursive:true,force:true}));
- const runtimeDir=path.join(base,'runtime'),gameRoot=path.join(base,'game'),packs=path.join(gameRoot,'CockHero/Binaries/Win64/packs');await fs.mkdir(runtimeDir);await fs.mkdir(packs,{recursive:true});
+ const runtimeDir=path.join(base,'runtime'),gameRoot=path.join(base,'game'),packs=path.join(gameRoot,nativeBuildConfig(buildId).packDirectory);await fs.mkdir(runtimeDir);await fs.mkdir(packs,{recursive:true});
  await fs.writeFile(path.join(runtimeDir,'server-origin.txt'),'http://127.0.0.1:42169\n');
- const state={protocol:1,build_id:'v004-exclusive-c645757d',slot:'PlayerSave',user_index:0,save_address:'101',store_address:'202',generation:1,epoch:'123-1',updated_at:1000,native_catalog:{unlock_points:4,packs:[{id:'fanservice-test-123',owned:true,enabled:true}]}};
+ const state={protocol:1,build_id:buildId,slot:'PlayerSave',user_index:0,save_address:'101',store_address:'202',generation:1,epoch:'123-1',updated_at:1000,native_catalog:{unlock_points:4,packs:[{id:'fanservice-test-123',owned:true,enabled:true}]}};
  const pulse=()=>fs.writeFile(path.join(runtimeDir,'.fanservice-companion.state'),JSON.stringify(state));await pulse();
  await fs.writeFile(path.join(packs,'.fanservice-receipts.json'),JSON.stringify({version:1,packs:{[pack.id]:{custom_id:pack.id,build_id:state.build_id,filename:'fanservice-test-123.chpack',sha256:'b'.repeat(64)}}}));
- const host=await new NativeCompanionHost({verifyBuild:false,runtimeDir,gameRoot,storeRoot:path.join(base,'data'),fetch:(url,options)=>String(url).endsWith('/capabilities')?json({library_id:'library-one'}):fetch(url,options),now:()=>1000,timeoutMs:50}).initialize();let sequence=0;
+ const host=await new NativeCompanionHost({verifyBuild:false,runtimeDir,gameRoot,storeRoot:path.join(base,'data'),buildId,fetch:(url,options)=>String(url).endsWith('/capabilities')?json({library_id:'library-one'}):fetch(url,options),now:()=>1000,timeoutMs:50}).initialize();let sequence=0;
  const request=(action,payload={})=>({action,payload,nonce:'123-1-'+(++sequence),generation:state.generation,epoch:state.epoch});
  const call=async(action,payload)=>{if(action==='syncconfigure'&&payload?.key){const exchange=await host.handle(request('synchandshake'));payload=await sealConnection(exchange,payload);}return host.handle(request(action,payload));};
  return {base,runtimeDir,gameRoot,state,pulse,host,request,call};
 }
+function deliveryFixture(){
+ const audio=Buffer.alloc(16044);audio.write('RIFF');audio.writeUInt32LE(audio.length-8,4);audio.write('WAVEfmt ',8);audio.writeUInt32LE(16,16);audio.writeUInt16LE(1,20);audio.writeUInt16LE(1,22);audio.writeUInt32LE(8000,24);audio.writeUInt32LE(16000,28);audio.writeUInt16LE(2,32);audio.writeUInt16LE(16,34);audio.write('data',36);audio.writeUInt32LE(16000,40);
+ const manifest={protocol:1,library_id:'library-one',track_id:1,recording_id:'sha1:'+createHash('sha1').update(audio).digest('hex'),duration:1,beatmap:{meta:{title:'Delivered neutral',duration:1,bpm:120,offset:0},beats:[{time:.5,type:'stroke'}],events:[]}};
+ return {audio,manifest};
+}
+test('v005 music delivery uses only its original library and confirmed profile revision',async t=>{
+ const {audio,manifest}=deliveryFixture();
+ const f=await fixture(t,async url=>url.endsWith('/stream')?new Response(audio):json(manifest),{buildId:'v0051-hotfix-public-a8f46896'});
+ const library=path.join(f.gameRoot,'CockHero/beatmaps');await fs.mkdir(library);
+ const result=await f.call('musicdeliver',{track_id:1,expected_revision:0});
+ assert.equal(result.title,'Delivered neutral');assert.equal(path.dirname(result.directory),library);
+ assert.deepEqual(await fs.readFile(path.join(result.directory,'song.wav')),audio);
+ assert.equal(f.state.native_catalog.unlock_points,4);
+ await assert.rejects(f.call('musicdeliver',{track_id:1,expected_revision:3}),/definitions changed/);
+ await assert.rejects(f.call('musicdeliver',{track_id:1,expected_revision:0,output_directory:'elsewhere'}),/positive Server/);
+ const old=await fixture(t);await assert.rejects(old.call('musicdeliver',{track_id:1,expected_revision:0}),/pinned v0.05/);
+});
+test('v005 profile change during music download prevents original-library publication',async t=>{
+ const {audio,manifest}=deliveryFixture();let f;
+ f=await fixture(t,async url=>{if(url.endsWith('/stream')){f.state.slot='AnotherProfile';await f.pulse();return new Response(audio);}return json(manifest);},{buildId:'v0051-hotfix-public-a8f46896'});
+ const library=path.join(f.gameRoot,'CockHero/beatmaps');await fs.mkdir(library);
+ await assert.rejects(f.call('musicdeliver',{track_id:1,expected_revision:0}),/profile|context|generation/i);
+ assert.deepEqual(await fs.readdir(library),[]);
+});
 test('native file IPC binds profile and nonce and retains its request for the native sender',async t=>{
  const f=await fixture(t),request=f.request('companionread');const packet=`FANSERVICE_COMPANION_1\n${request.nonce}\n1\n123-1\ncompanionread\n{}`;
  await fs.writeFile(path.join(f.runtimeDir,'.fanservice-companion.request'),packet);assert.equal(await f.host.pollOnce(),true);
  const response=await fs.readFile(path.join(f.runtimeDir,'.fanservice-companion.response.'+request.nonce),'utf8');assert.ok(response.startsWith(`FANSERVICE_COMPANION_1\n${request.nonce}\n1\n`));assert.equal(JSON.parse(response.split('\n').slice(3).join('\n')).data.binding.slot,'PlayerSave');assert.equal(await f.host.pollOnce(),false);assert.equal(await fs.readFile(path.join(f.runtimeDir,'.fanservice-companion.request'),'utf8'),packet);
+});
+test('explicit v005 host uses its native receipt root and rejects mixed-build state',async t=>{
+ const buildId='v0051-hotfix-public-a8f46896',f=await fixture(t,undefined,{buildId});
+ const legacy=path.join(f.gameRoot,'CockHero/Binaries/Win64/packs');await fs.mkdir(legacy,{recursive:true});await fs.writeFile(path.join(legacy,'.fanservice-receipts.json'),'foreign-v004-path');
+ const state=await f.call('companionread');assert.equal(state.binding.build_id,buildId);
+ assert.equal(f.host.buildId,buildId);assert.throws(()=>{f.host.buildId=DEFAULT_NATIVE_BUILD;},TypeError);
+ await f.host.authorize(await f.host.context(),pack.id,{enabled:true});
+ const file=path.join(f.gameRoot,'CockHero/packs/.fanservice-receipts.json'),ledger=JSON.parse(await fs.readFile(file,'utf8'));
+ ledger.packs[pack.id].build_id=DEFAULT_NATIVE_BUILD;await fs.writeFile(file,JSON.stringify(ledger));
+ await assert.rejects(f.host.authorize(await f.host.context(),pack.id),/receipt ledger is unsafe/);
+ f.state.build_id=DEFAULT_NATIVE_BUILD;await f.pulse();await assert.rejects(f.call('companionread'),/heartbeat/);
+});
+test('persisted sessions require the expected build; untagged legacy sessions remain v004-only',async t=>{
+ for(const buildId of [DEFAULT_NATIVE_BUILD,'v0051-hotfix-public-a8f46896']){
+  const f=await fixture(t,undefined,{buildId}),file=path.join(f.runtimeDir,'.fanservice-music-sessions.json');
+  const entry={slot:'PlayerSave',user_index:0,session_id:'native-123-1-1'};
+  const reopen=()=>new NativeCompanionHost({verifyBuild:false,buildId,runtimeDir:f.runtimeDir,gameRoot:f.gameRoot,storeRoot:path.join(f.base,'data'),now:()=>1000}).initialize();
+  await fs.writeFile(file,JSON.stringify({'123-1-1':entry}));
+  if(buildId===DEFAULT_NATIVE_BUILD)assert.equal((await reopen()).sessions.size,1);else await assert.rejects(reopen(),/session registry/);
+  await fs.writeFile(file,JSON.stringify({'123-1-1':{...entry,build_id:buildId===DEFAULT_NATIVE_BUILD?'v0051-hotfix-public-a8f46896':DEFAULT_NATIVE_BUILD}}));
+  await assert.rejects(reopen(),/session registry/);
+ }
+});
+test('v005 soundtrack pins survive restart and release from their own build namespace',async t=>{
+ const buildId='v0051-hotfix-public-a8f46896';
+ const f=await fixture(t,async url=>String(url).includes('/resolve')?json({library_id:'library-one',media:[{id:1,type:'image',file:'sample.png',tags:['slow'],url:'/api/media/1'}]}):String(url).includes('/manifest')?json(music):new Response('neutral',{headers:{'content-length':'7'}}),{buildId});
+ await f.call('definitions',{expected_revision:0,packs:[pack]});await f.call('snapshotdownload',{pack_id:pack.id,track_id:1,expected_revision:1});const prepared=await f.call('musicprepare',{pack_id:pack.id});
+ const saved=JSON.parse(await fs.readFile(path.join(f.runtimeDir,'.fanservice-music-sessions.json'),'utf8'));assert.equal(saved[prepared.command_nonce].build_id,buildId);
+ const packet=await fs.readFile(path.join(f.runtimeDir,'.fanservice-music-command.'+prepared.command_nonce),'utf8'),file=new URL(decodeURIComponent(packet.split('\n')[4]));await f.call('snapshotdelete',{pack_id:pack.id});assert.ok((await fs.stat(file)).size>0);
+ const restarted=await new NativeCompanionHost({verifyBuild:false,buildId,runtimeDir:f.runtimeDir,gameRoot:f.gameRoot,storeRoot:path.join(f.base,'data'),now:()=>1000}).initialize();
+ f.state.stopped_music=[prepared.command_nonce];await f.pulse();await restarted.reapStopped();assert.equal(restarted.sessions.size,0);await assert.rejects(fs.stat(file),{code:'ENOENT'});
 });
 test('definition writes strip all native authority and reject stale native generations',async t=>{
  const f=await fixture(t);await f.call('definitions',{expected_revision:0,packs:[{...pack,owned:true,enabled:true,unlock_points:999,progression:{level:30}}]});const result=await f.call('companionread');assert.deepEqual(result.packs,[pack]);assert.equal(result.unlock_points,undefined);

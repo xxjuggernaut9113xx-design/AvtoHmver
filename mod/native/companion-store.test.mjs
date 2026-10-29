@@ -26,6 +26,17 @@ test('portable sanitation cannot apply wallet, ownership, progression, local fil
  assert.deepEqual(sanitizeDefinitions([input]),[{...pack(),selection:{ids:[1],rules:[{source_id:1}]}}]);
  for(const bad of [[pack(),pack()], [{...pack(),selection:{ids:[],rules:[],local_ids:['only-local']}}], [{...pack(),id:'../../escape'}]])assert.throws(()=>sanitizeDefinitions(bad));
 });
+test('v005 bindings separate profiles and reject copied v004 metadata without changing it',async t=>{
+ const {store,options}=await fixture(t);
+ const next=await CompanionStore.open({...options,buildId:'v0051-hotfix-public-a8f46896'});
+ assert.notEqual(next.binding.install_id,store.binding.install_id);assert.notEqual(next.binding.profile_id,store.binding.profile_id);
+ await store.saveDefinitions([pack()],{expectedRevision:0});assert.deepEqual((await next.read()).packs,[]);
+ const previous=await fs.readFile(path.join(store.directory,'profile.json'));
+ await fs.writeFile(path.join(next.directory,'profile.json'),previous);
+ await assert.rejects(next.read(),/metadata is invalid/);
+ assert.deepEqual(await fs.readFile(path.join(next.directory,'profile.json')),previous);
+ assert.deepEqual((await store.read()).packs,[pack()]);
+});
 test('optimistic saves persist through reopen and never overwrite a conflicting revision',async t=>{
  const {store,options}=await fixture(t);const saved=await store.saveDefinitions([pack()],{expectedRevision:0});assert.equal(saved.revision,1);
  await assert.rejects(store.saveDefinitions([],{expectedRevision:0}),RevisionConflict);const reopened=await CompanionStore.open(options);assert.deepEqual((await reopened.read()).packs,[pack()]);

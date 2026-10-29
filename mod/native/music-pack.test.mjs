@@ -62,3 +62,9 @@ test('retains existing destination and every unowned file',async t=>{
   await assert.rejects(exportMusicPack(f),{code:'EEXIST'});
   assert.deepEqual(await fs.readdir(f.outputDirectory),['keep']);
 });
+test('profile invalidation during publication rolls back only the new pack',async t=>{
+  const f=await fixture(t);let calls=0;
+  await assert.rejects(exportMusicPack({...f,assertCurrent:async()=>{if(++calls===4)throw Error('Profile changed');}}),/Profile changed/);
+  await assert.rejects(fs.stat(f.outputDirectory),{code:'ENOENT'});
+  assert.deepEqual(await fs.readFile(f.audioFile),recording);
+});

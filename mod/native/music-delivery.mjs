@@ -27,18 +27,21 @@ async function download(fetch,url,limit,signal) {
   return Buffer.concat(parts,total);
 }
 
-export async function deliverServerMusic({serverOrigin,trackId,outputDirectory,ffmpeg,fetch=globalThis.fetch}) {
+export async function deliverServerMusic({serverOrigin,trackId,outputDirectory,ffmpeg,fetch=globalThis.fetch,assertCurrent=async()=>{},signal:parentSignal}) {
+  await assertCurrent();
   const server=origin(serverOrigin);
   if(!Number.isSafeInteger(trackId)||trackId<1)throw Error('A positive Server track ID is required.');
   if(typeof outputDirectory!=='string'||!path.isAbsolute(outputDirectory))throw Error('A new absolute output pack directory is required.');
   // Fail before downloads when the caller selected an occupied destination.
   try {await fs.lstat(outputDirectory);throw Error('Existing music pack destination was retained.');}catch(error){if(error.code!=='ENOENT')throw error;}
-  const signal=AbortSignal.timeout(300000),manifestURL=server+`/api/fanservice/v1/music/${trackId}/manifest`;
+  const timeout=AbortSignal.timeout(300000),signal=parentSignal?AbortSignal.any([timeout,parentSignal]):timeout,manifestURL=server+`/api/fanservice/v1/music/${trackId}/manifest`;
   const manifest=JSON.parse((await download(fetch,manifestURL,4*1024*1024,signal)).toString('utf8'));
   if(manifest.track_id!==trackId||typeof manifest.library_id!=='string'||!manifest.library_id)throw Error('Server returned a different soundtrack identity.');
   originalBeatmap(manifest,'song.wav');
+  await assertCurrent();
   const source=await download(fetch,server+`/api/music/tracks/${trackId}/stream`,256*1024*1024,signal);
   if(sha1(source)!==manifest.recording_id)throw Error('Server recording changed or does not match the confirmed beatmap.');
+  await assertCurrent();
   const temporary=await fs.mkdtemp(path.join(os.tmpdir(),'fanservice-music-delivery-'));
   try {
     let audio=source,converted=false;
@@ -47,17 +50,18 @@ export async function deliverServerMusic({serverOrigin,trackId,outputDirectory,f
       const executable=await fs.lstat(ffmpeg);if(!executable.isFile()||executable.isSymbolicLink())throw Error('FFmpeg must be an existing regular executable.');
       const input=path.join(temporary,'recording'),output=path.join(temporary,'converted.wav');
       await fs.writeFile(input,source,{flag:'wx'});
-      await run(ffmpeg,['-nostdin','-v','error','-i',input,'-map_metadata','-1','-vn','-ar','44100','-ac','2','-c:a','pcm_s16le','-fs','268435456',output],{timeout:300000,maxBuffer:1024*1024,windowsHide:true});
+      await run(ffmpeg,['-nostdin','-v','error','-i',input,'-map_metadata','-1','-vn','-ar','44100','-ac','2','-c:a','pcm_s16le','-fs','268435456',output],{timeout:300000,maxBuffer:1024*1024,windowsHide:true,signal});
       const stat=await fs.stat(output);if(stat.size>256*1024*1024)throw Error('Converted WAV exceeds the native export limit.');
       audio=await fs.readFile(output);validateWave(audio,manifest.duration);converted=true;
     }
     const latest=JSON.parse((await download(fetch,manifestURL,4*1024*1024,signal)).toString('utf8'));
     if(JSON.stringify(latest)!==JSON.stringify(manifest))throw Error('Confirmed soundtrack changed during delivery; retry.');
+    await assertCurrent();
     const nativeManifest={...manifest,recording_id:sha1(audio)};
     const manifestFile=path.join(temporary,'manifest.json'),audioFile=path.join(temporary,'song.wav');
     await fs.writeFile(manifestFile,JSON.stringify(nativeManifest),{flag:'wx'});await fs.writeFile(audioFile,audio,{flag:'wx'});
-    const result=await exportMusicPack({manifestFile,audioFile,outputDirectory});
-    return {...result,source_recording_id:manifest.recording_id,library_id:manifest.library_id,track_id:trackId,converted,
+    const result=await exportMusicPack({manifestFile,audioFile,outputDirectory,assertCurrent});
+    return {...result,title:manifest.beatmap.meta.title||'fanservice soundtrack',source_recording_id:manifest.recording_id,library_id:manifest.library_id,track_id:trackId,converted,
       next_step:'Refresh the original Playlist library or restart the game; select and play through its original controls.'};
   } finally {await fs.rm(temporary,{recursive:true,force:true});}
 }

@@ -1,6 +1,6 @@
 local Companion = {}
 local actions = {companionread=true,definitions=true,definitionsbegin=true,definitionschunk=true,definitionscommit=true,snapshotdownload=true,snapshotdelete=true,
-    synchandshake=true,syncconfigure=true,syncupload=true,syncpreview=true,syncapply=true,musicprepare=true,sessionrelease=true}
+    synchandshake=true,syncconfigure=true,syncupload=true,syncpreview=true,syncapply=true,musicprepare=true,musicdeliver=true,sessionrelease=true}
 local function read(path, maximum)
     local file = io.open(path, 'rb')
     if not file then return nil end

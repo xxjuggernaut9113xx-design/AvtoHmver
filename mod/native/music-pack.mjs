@@ -76,7 +76,8 @@ async function regular(file, limit) {
   } finally { await handle.close(); }
 }
 
-export async function exportMusicPack({manifestFile,audioFile,outputDirectory}) {
+export async function exportMusicPack({manifestFile,audioFile,outputDirectory,assertCurrent=async()=>{}}) {
+  await assertCurrent();
   for (const value of [manifestFile,audioFile,outputDirectory]) if (typeof value !== 'string' || !path.isAbsolute(value)) throw Error('Absolute source and destination paths are required.');
   const manifest = JSON.parse((await regular(manifestFile,4*1024*1024)).toString('utf8'));
   const filename = 'song'+path.extname(audioFile).toLowerCase();
@@ -90,14 +91,17 @@ export async function exportMusicPack({manifestFile,audioFile,outputDirectory}) 
     if (!stat.isDirectory() || stat.isSymbolicLink()) throw Error('Music destination ancestors must be existing directories without links.');
     const parent = path.dirname(ancestor); if (parent === ancestor) break; ancestor = parent;
   }
+  await assertCurrent();
   await fs.mkdir(outputDirectory);
   const written = [];
   try {
     for (const [name,bytes] of [[filename,audio],['beatmap.json',JSON.stringify(map,null,2)+'\n']]) {
+      await assertCurrent();
       const destination = path.join(outputDirectory,name), handle = await fs.open(destination,'wx',0o600);
       written.push(destination);
       try { await handle.writeFile(bytes); await handle.sync(); } finally { await handle.close(); }
     }
+    await assertCurrent();
   } catch (error) {
     for (const file of written.reverse()) await fs.unlink(file).catch(()=>{});
     await fs.rmdir(outputDirectory).catch(()=>{});

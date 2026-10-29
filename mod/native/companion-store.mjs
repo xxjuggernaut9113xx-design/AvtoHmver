@@ -3,8 +3,9 @@ import {constants} from 'node:fs';
 import path from 'node:path';
 import {createHash,randomBytes} from 'node:crypto';
 import {setTimeout as delay} from 'node:timers/promises';
+import {DEFAULT_NATIVE_BUILD,nativeBuildConfig} from './game-identity.mjs';
 
-export const NATIVE_BUILD='v004-exclusive-c645757d';
+export const NATIVE_BUILD=DEFAULT_NATIVE_BUILD;
 const DEFAULTS=Object.freeze({itemBytes:256*1024*1024,totalBytes:2*1024*1024*1024,mediaCount:10000,metadataBytes:16*1024*1024,timeoutMs:120000});
 const hash=value=>createHash('sha256').update(value).digest('hex');
 const clone=value=>JSON.parse(JSON.stringify(value));
@@ -83,7 +84,8 @@ async function publishDirectory(source,target){
 
 export class CompanionStore {
  static async open({root,gameRoot,buildId=NATIVE_BUILD,slot,userIndex,limits={}}){
-  if(buildId!==NATIVE_BUILD||!text(slot,512)||!integer(userIndex,0,2147483647))throw Error('Invalid exact native build/profile binding.');
+  nativeBuildConfig(buildId);
+  if(!text(slot,512)||!integer(userIndex,0,2147483647))throw Error('Invalid exact native build/profile binding.');
   const canonical=await directoryChain(gameRoot),install=hash(JSON.stringify([process.platform==='win32'?canonical.toLowerCase():canonical,buildId]));
   const binding={install_id:install,build_id:buildId,slot,user_index:userIndex};binding.profile_id=hash(JSON.stringify(binding));
   const base=await directoryChain(root,{create:true}),directory=await directoryChain(path.join(base,install,binding.profile_id),{create:true});

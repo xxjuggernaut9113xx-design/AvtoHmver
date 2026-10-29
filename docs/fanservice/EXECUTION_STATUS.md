@@ -1,5 +1,7 @@
 # Consolidated plan execution — 2026-10-22
 
+Current companion continuation: [v0.05 companion backend and independent entry](NATIVE_COMPANION_V005_20261029.md). The in-game button, configured Server panel, saved-profile round trip, neutral music delivery and close/epoch renewal pass live. Snapshot/sync panel acceptance and the dedicated v0.05 runtime installer remain open. The source and tests do not constitute full-mod certification.
+
 Current native checkpoint: [v0.05 media and music acceptance](NATIVE_MEDIA_V005_20261029.md). Confirmed Server music delivery/conversion, original Unlocks purchase and toggles, enabled media filtering, image display, native video promotion, 24-beat Playlist completion, restart ownership/enablement and owned-cache uninstall pass. Embedded v0.05 menu/companion integration, live HTTP streaming, broader session controls and full supported-build acceptance remain open.
 
 Current continuation: [native seek/reconnect acceptance](NATIVE_RECONCILE_20261027.md). Owned native audio-clock, seek, reconnect and backward replay pass; original-session callback/timer adoption and reward settlement remain open. Older counts and blocker descriptions below are historical.
