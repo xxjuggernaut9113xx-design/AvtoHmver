@@ -24,9 +24,16 @@ standalone page did not receive the game presentation class. Lua syntax checks
 pass. Previews are retained in
 `E:/fanservice-mod-lab/v005-ui-20261029/native-theme-*.png`.
 
-The update has **not** been installed or visually verified in the original game.
-Automatic approval review rejected the combined installer/helper/game-launch
-command with “blocked by policy”; no more specific reason was returned. The
-previous installed runtime and its successful functional acceptance remain the
-prior checkpoint. Use the existing runtime installer to review/apply this source
-revision once that action is available.
+Original-game acceptance now passes after the user applied the prepared update
+and opened the isolated game. Installed `main.lua` and `native-controls.js`
+hashes match the source revision. At 1920 × 1080, the monochrome entry, framed
+library, hover state, selected-media outline, keyboard focus, local-media drawer
+and pack-creation dialog rendered in the actual WebView. Keyboard selection,
+Create Pack, Cancel, local-drawer open/close, Back to the original main menu and
+reopening Fanservice were exercised. No test pack was saved or purchased.
+
+Read-only acceptance logs are retained at
+`E:/fanservice-mod-lab/v005-ui-20261029/native-style-acceptance-ue4ss.log`.
+The capture occasionally omits text on an intermediate frame; refreshed
+observations showed the complete controls. This is a presentation acceptance
+checkpoint, not a new full-gameplay or native sync certification.

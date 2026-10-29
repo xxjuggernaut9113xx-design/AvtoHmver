@@ -1,0 +1,30 @@
+{
+  "date": "2026-10-29",
+  "build_id": "v0051-hotfix-public-a8f46896",
+  "source_commit": "c2c31e57",
+  "installation": "User applied the prepared installer and opened the isolated game.",
+  "installed_source_hashes_match": true,
+  "files_sha256": {
+    "Scripts/main.lua": "cf35652a77efabc2b43ebc4fb0a938b1c9aa2eeb4ece142037c0eb8554eb5031",
+    "Scripts/native-controls.js": "8fe11aaf08ab7c2bc33519f83977b6c7da7c671002f84cedb71b137f56f091b1"
+  },
+  "observed_game_resolution": [1920, 1080],
+  "passed": [
+    "monochrome main-menu entry and hover state",
+    "configured Server library with game-only styling",
+    "white framed panels, flat buttons and uppercase headings",
+    "keyboard focus and neutral-media selection outline",
+    "styled Create Pack dialog",
+    "Cancel returns to library without saving a pack",
+    "local-media drawer open and close",
+    "Back returns to original main menu",
+    "Fanservice panel reopens"
+  ],
+  "retained_log": "E:/fanservice-mod-lab/v005-ui-20261029/native-style-acceptance-ue4ss.log",
+  "notes": [
+    "Intermediate Computer Use captures sometimes omit text; refreshed captures show the complete controls.",
+    "No original-game font or private asset is distributed.",
+    "The existing 83 native/MCP checks passed before live visual acceptance.",
+    "This is presentation acceptance; broader gameplay and native snapshot/sync acceptance remain separate."
+  ]
+}

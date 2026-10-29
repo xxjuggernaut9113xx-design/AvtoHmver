@@ -1,6 +1,6 @@
 # Consolidated plan execution — 2026-10-22
 
-Latest presentation revision: [game-only native-style UI](NATIVE_UI_STYLE_20261029.md) adds monochrome framed menus, flat controls and compact import drawers. Browser previews and 83 native/MCP checks pass. Automatic approval review blocked install/launch, so original-game visual acceptance of this styling remains open.
+Latest presentation revision: [game-only native-style UI](NATIVE_UI_STYLE_20261029.md) adds monochrome framed menus, flat controls and compact import drawers. Browser previews and 83 native/MCP checks pass. After the user installed and opened the update, actual-game library/dialog rendering, keyboard selection, local drawer and Back/reopen checks passed at 1920 × 1080.
 
 Current companion continuation: [v0.05 companion backend and independent entry](NATIVE_COMPANION_V005_20261029.md). The in-game button, configured Server panel, saved-profile round trip, neutral music delivery and close/reopen pass live. The dedicated installer/helper starts and its actual upgrade/remove/reinstall preserves protocol bytes and seven protected loader/settings/save files. Snapshot/sync panel acceptance and full certification remain open.
 
