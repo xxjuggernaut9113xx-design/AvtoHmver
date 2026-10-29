@@ -1,5 +1,7 @@
 # Consolidated plan execution — 2026-10-22
 
+Latest presentation revision: [game-only native-style UI](NATIVE_UI_STYLE_20261029.md) adds monochrome framed menus, flat controls and compact import drawers. Browser previews and 83 native/MCP checks pass. Automatic approval review blocked install/launch, so original-game visual acceptance of this styling remains open.
+
 Current companion continuation: [v0.05 companion backend and independent entry](NATIVE_COMPANION_V005_20261029.md). The in-game button, configured Server panel, saved-profile round trip, neutral music delivery and close/reopen pass live. The dedicated installer/helper starts and its actual upgrade/remove/reinstall preserves protocol bytes and seven protected loader/settings/save files. Snapshot/sync panel acceptance and full certification remain open.
 
 Current native checkpoint: [v0.05 media and music acceptance](NATIVE_MEDIA_V005_20261029.md). Confirmed Server music delivery/conversion, original Unlocks purchase and toggles, enabled media filtering, image display, native video promotion, 24-beat Playlist completion, restart ownership/enablement and owned-cache uninstall pass. Embedded v0.05 menu/companion integration, live HTTP streaming, broader session controls and full supported-build acceptance remain open.

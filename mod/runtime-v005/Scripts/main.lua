@@ -115,9 +115,9 @@ end
 local function attach(menu)
     owner, lastClick = menu, 0
     entryToken = epoch .. '-' .. tostring(menu:GetAddress())
-    entryHTML = '<!doctype html><title>FANSERVICE_ENTRY_READY:' .. entryToken .. '</title><meta name="viewport" content="width=device-width"><style>body{margin:0;background:#101923}button{width:100%;height:55px;background:#12b886;color:#10202a;border:2px solid #a4dbc4;font:20px system-ui;cursor:pointer}</style><button>Fanservice</button><script>let n=0;document.querySelector("button").onclick=()=>{document.title="FANSERVICE_ENTRY:' .. entryToken .. ':"+(++n)};</script>'
+    entryHTML = '<!doctype html><title>FANSERVICE_ENTRY_READY:' .. entryToken .. '</title><meta name="viewport" content="width=device-width"><style>*{box-sizing:border-box}body{margin:0;background:#000;color:#fff}button{width:100%;height:66px;background:#000;color:#fff;border:1px solid #fff;border-radius:0;font:900 27px "Arial Black",Arial,sans-serif;letter-spacing:2px;text-transform:uppercase;cursor:pointer}button:hover{background:#fff;color:#000}button:focus-visible{outline:3px solid #59cfff;outline-offset:-4px}</style><button>Fanservice</button><script>let n=0;document.querySelector("button").onclick=()=>{document.title="FANSERVICE_ENTRY:' .. entryToken .. ':"+(++n)};</script>'
     local initialURL = 'data:text/html;charset=utf-8,' .. entryHTML:gsub('.', function(c) return string.format('%%%02X', c:byte()) end)
-    entry = widget(menu, {anchors={Minimum={X=1,Y=0},Maximum={X=1,Y=0}},margin={Left=-225,Top=35,Right=200,Bottom=55}}, 220, initialURL)
+    entry = widget(menu, {anchors={Minimum={X=1,Y=0},Maximum={X=1,Y=0}},margin={Left=-365,Top=35,Right=335,Bottom=66}}, 220, initialURL)
     entryReady, entryDeadline, entryLastLoad = false, os.time() + 30, os.time()
     log('Independent main-menu entry attached after original age-screen dismissal.')
 end
@@ -127,7 +127,7 @@ local function openPanel()
     browser = widget(owner, {anchors={Minimum={X=0,Y=0},Maximum={X=1,Y=1}},margin={Left=95,Top=105,Right=25,Bottom=25}}, 210, page)
     browser:LoadURL(page, '', false)
     panelDeadline, panelLastLoad = os.time() + 30, os.time()
-    entry:ExecuteJavascript('document.querySelector("button").textContent="Close fanservice"')
+    entry:ExecuteJavascript('document.querySelector("button").textContent="Back"')
     lastRequest = 0
     log('Independent fanservice panel opened; original Import controls unchanged.')
 end

@@ -5,6 +5,51 @@
  const epoch=transport.epoch;
  if(globalThis.FanserviceNativeControls?.epoch===epoch)return;
  globalThis.FanserviceNativeControls?.revoke();
+ if(document.head&&document.documentElement?.classList){
+  document.documentElement.classList.add('fanservice-game');
+  if(!document.querySelector('#fanservice-game-style')){
+   const style=document.createElement('style');style.id='fanservice-game-style';
+   style.textContent=`
+html.fanservice-game{color-scheme:dark;--panel:#090909;--accent:#fff;background:#000}
+.fanservice-game body{background:#050505;color:#fff;font:17px Rajdhani,Arial,sans-serif;padding-bottom:76px;border:2px solid #fff;min-height:100vh}
+.fanservice-game header{background:#000;padding:20px 26px 15px;border-bottom:0;gap:12px;justify-content:flex-start}.fanservice-game header>div{margin-right:auto}
+.fanservice-game header strong,.fanservice-game h1,.fanservice-game h2,.fanservice-game h3{font-family:Orbitron,'Arial Black',Arial,sans-serif;font-weight:900;text-transform:uppercase;letter-spacing:.035em;color:#fff}
+.fanservice-game header strong{font-size:30px}.fanservice-game header span,.fanservice-game #connection,.fanservice-game #shopkeeper{display:none}
+.fanservice-game button{background:#000!important;background-image:none!important;color:#fff!important;border:1px solid #ddd;border-radius:0;box-shadow:none;filter:none;font:800 13px Orbitron,'Arial Black',Arial,sans-serif;letter-spacing:.035em;text-transform:uppercase;min-height:39px;padding:10px 17px;transition:background .12s,color .12s}
+.fanservice-game button:hover,.fanservice-game button[aria-selected=true]{background:#fff!important;color:#000!important;filter:none;border-color:#fff}
+.fanservice-game button:disabled{opacity:.4}.fanservice-game button:focus-visible,.fanservice-game input:focus-visible,.fanservice-game select:focus-visible,.fanservice-game summary:focus-visible{outline:2px solid #59cfff;outline-offset:3px}
+.fanservice-game nav{padding:0 26px 15px;gap:0;border-bottom:1px solid #666}.fanservice-game nav button{border:0;border-bottom:3px solid transparent;background:transparent;color:#aaa;padding:13px 24px}
+.fanservice-game nav button[aria-selected=true]{color:#fff!important;background:transparent!important;border-bottom-color:#fff;outline:0}.fanservice-game nav button:hover{color:#fff!important;background:#222!important}.fanservice-game #tab-library::before,.fanservice-game #unlocks::before{display:none}
+.fanservice-game main{padding:16px 26px 28px}.fanservice-game #status{margin:12px 26px;color:#ddd;min-height:0}.fanservice-game #status:empty{display:none}
+.fanservice-game input,.fanservice-game select,.fanservice-game textarea{background:#111;color:#fff;border:1px solid #777;border-radius:0;font:17px Rajdhani,Arial,sans-serif;padding:10px 12px}
+.fanservice-game input[type=checkbox]{accent-color:#fff}.fanservice-game label{color:#ddd;font-weight:600}.fanservice-game small{color:#aaa}
+.fanservice-game input::file-selector-button{background:#000;color:#fff;border:1px solid #ddd;border-radius:0;font:700 11px Orbitron,Arial,sans-serif;text-transform:uppercase;padding:8px 12px;margin-right:12px;cursor:pointer}
+.fanservice-game h2{font-size:21px;margin:0 0 15px}.fanservice-game h3{font-size:16px}
+.fanservice-game #archive-controls{margin:18px 26px 0;padding:16px 18px;border:1px solid #666;display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end}
+.fanservice-game #archive-controls h2{grid-column:1/-1;font-size:16px;margin:0}.fanservice-game #archive-controls>p{display:none}.fanservice-game #archive-controls label{margin:0}
+.fanservice-game details{background:#000;border:1px solid #777;border-radius:0;padding:15px 18px;margin:0 0 20px}.fanservice-game summary{font:800 14px Orbitron,'Arial Black',Arial,sans-serif;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;padding:3px 0}
+.fanservice-game details[open]>summary{border-bottom:1px solid #555;padding-bottom:14px;margin-bottom:12px}.fanservice-game details p{color:#bbb;line-height:1.45}
+.fanservice-game details label{margin:12px 0}.fanservice-game details button{margin:3px 5px 3px 0}
+.fanservice-game .grid{gap:14px;grid-template-columns:repeat(auto-fill,minmax(175px,1fr))}.fanservice-game .tile{background:#080808;border:1px solid #777;border-radius:0;padding:8px}.fanservice-game .tile:has(input:checked){border-color:#fff;outline:1px solid #fff}.fanservice-game .tile img,.fanservice-game .tile video{background:#000;height:150px}.fanservice-game .tile button{font-size:10px;width:100%}
+.fanservice-game #local-controls{border:1px solid #555;border-radius:0;background:#090909;margin:15px 0;padding:14px}.fanservice-game .toolbar{gap:10px}
+.fanservice-game footer{background:#000;border-top:1px solid #fff;padding:12px 26px;min-height:66px}.fanservice-game footer span{font-weight:600;color:#bbb}
+.fanservice-game dialog{background:#000;border:2px solid #fff;border-radius:0;padding:24px;color:#fff;box-shadow:0 16px 60px #000c}.fanservice-game dialog::backdrop{background:#000c}.fanservice-game .pack{border-bottom:1px solid #666;padding:18px 0}
+@media(max-width:750px){.fanservice-game header strong{font-size:22px}.fanservice-game header,.fanservice-game main,.fanservice-game footer{padding-left:16px;padding-right:16px}.fanservice-game #archive-controls{margin-left:16px;margin-right:16px;grid-template-columns:1fr}.fanservice-game nav{padding-left:16px;padding-right:16px}.fanservice-game button{font-size:11px;padding:10px 12px}}
+@media(prefers-reduced-motion:reduce){.fanservice-game button{transition:none}}
+`;
+   document.head.append(style);
+  }
+  const heading=document.querySelector('header strong');if(heading)heading.textContent='Fanservice';
+  for(const [selector,label]of [['#tab-library','Library'],['#tab-organization','Collections'],['#connection-setup','Server'],['#unlocks','Pack drafts'],['#archive-controls h2','Import pack'],['#unlocks-dialog h2','Pack drafts'],['#save-pack','Save pack'],['#local-import','Add selected files']]){const element=document.querySelector(selector);if(element)element.textContent=label;}
+  for(const [selector,label]of [['#local-controls','Add local media'],['#archive-controls','Import pack archive']]){
+   const section=document.querySelector(selector);
+   if(section&&!section.parentElement?.hasAttribute('data-native-drawer')){
+    const drawer=document.createElement('details'),caption=document.createElement('summary');
+    drawer.setAttribute('data-native-drawer','');caption.textContent=label;drawer.append(caption,section);library.append(drawer);
+   }
+  }
+  const localLabel=document.querySelector('#local-controls label');if(localLabel?.firstChild?.nodeType===3)localLabel.firstChild.textContent='Images and videos from this PC';
+ }
  const panel=document.createElement('details'),title=document.createElement('summary'),message=document.createElement('p'),packs=document.createElement('div'),controls=document.createElement('div');
  title.textContent='Game music, saved packs and sync';panel.append(title,message,controls,packs);library.prepend(panel);
  let current=null,closed=false,connectionForExport=null,monitor;
