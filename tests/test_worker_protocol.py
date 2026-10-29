@@ -1,6 +1,7 @@
 """Contract checks for the JSON Lines inference worker protocol."""
 
 import json
+import importlib.util
 import os
 from pathlib import Path
 import subprocess
@@ -13,6 +14,16 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class WorkerProtocolTests(unittest.TestCase):
+    def test_action_confidence_rejects_nonfinite_model_values(self):
+        path = ROOT / "workers" / "action_worker.py"
+        spec = importlib.util.spec_from_file_location("action_worker_contract", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        score = module.score_for_label
+        self.assertEqual(score({float("inf"): "doggy"}, "doggy"), 0.0)
+        self.assertEqual(score({float("nan"): "doggy"}, "doggy"), 0.0)
+        self.assertEqual(score({0.72: "doggy"}, "doggy"), 0.72)
+
     def test_nudenet_version_and_batch_contract(self):
         with tempfile.TemporaryDirectory() as directory:
             fake = Path(directory) / "nudenet.py"

@@ -13,6 +13,7 @@ review while NudeNet continues independently.
 """
 import argparse
 import json
+import math
 import subprocess
 import sys
 import tempfile
@@ -76,9 +77,12 @@ def score_for_label(prediction, label):
         if str(raw_label).strip().lower() != label.lower():
             continue
         try:
-            best = max(best, float(raw_score))
-        except (TypeError, ValueError):
+            score = float(raw_score)
+        except (TypeError, ValueError, OverflowError):
             pass
+        else:
+            if math.isfinite(score):
+                best = max(best, score)
     return max(0.0, min(1.0, best))
 
 
