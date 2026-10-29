@@ -1,0 +1,11 @@
+{
+  "source_log": "E:/fanservice-mod-lab/v005-music-export/native-media-20261029.log",
+  "build": "v0051-hotfix-public-a8f46896",
+  "lines": [
+    "[2026.10.29-17.03.25:001][  0]LogTemp: [BeatmapLibrary] Loaded: 'synthetic-tone.m4a' by  | 24 beats | Difficulty: 2.0 (Easy) | Audio: OK",
+    "[2026.10.29-17.03.26:140][  0]LogTemp: Scanning for .chpack in: E:/fanservice-mod-lab/game/CockHero/packs → found 1",
+    "[2026.10.29-17.03.27:155][  0]LogTemp: [CHPack] Extraction SUCCESS: E:/fanservice-mod-lab/game/CockHero/Extracted/fanservice-native-panel-one-08dd7e8b-4794-41b1-9c80-14444299411e"
+  ],
+  "cache_integrity_verified": true,
+  "original_unlocks_and_playback": "pending"
+}
