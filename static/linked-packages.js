@@ -13,7 +13,7 @@
   const status = byId('linked-package-status');
   const path = byId('linked-package-path');
   const progress = byId('linked-package-progress');
-  let generation = 0, timer = null, job = null, pending = false, request = null;
+  let generation = 0, statusRequest = 0, timer = null, job = null, pending = false, request = null;
   const busy = () => Boolean(job && ['running', 'cancelling'].includes(job.phase));
   function render() {
     start.disabled = pending || busy();
@@ -45,12 +45,13 @@
   async function refresh() {
     if (modal.hidden || pending) return;
     const current = generation;
+    const latestRequest = ++statusRequest;
     try {
       const latest = await send();
-      if (current !== generation) return;
+      if (current !== generation || latestRequest !== statusRequest) return;
       job = latest; render(); schedule();
     } catch (error) {
-      if (current !== generation || error.name === 'AbortError') return;
+      if (current !== generation || latestRequest !== statusRequest || error.name === 'AbortError') return;
       status.textContent = `Status unavailable: ${error.message}. Reopen to retry.`;
       schedule();
     }
@@ -58,6 +59,7 @@
   async function mutate(method) {
     if (pending || (method === 'DELETE' && !busy())) return;
     const current = generation;
+    ++statusRequest;
     pending = true; render();
     try {
       const latest = await send(method, method === 'DELETE' ? job.id : null);
@@ -70,11 +72,11 @@
     }
   }
   open.addEventListener('click', () => {
-    generation++; request?.abort(); request = new AbortController(); pending = false;
+    generation++; ++statusRequest; request?.abort(); request = new AbortController(); pending = false;
     modal.hidden = false; render(); close.focus(); refresh();
   });
   function dismiss() {
-    generation++; request?.abort(); clearTimeout(timer); pending = false;
+    generation++; ++statusRequest; request?.abort(); clearTimeout(timer); pending = false;
     modal.hidden = true; open.focus();
   }
   close.addEventListener('click', dismiss);

@@ -69,6 +69,21 @@ test('late status cannot overwrite a reopened dialog and local paths are inserte
   assert.equal(h.document.activeElement, h.node('close'));
 });
 
+test('a status poll started before staging cannot replace the new job', async () => {
+  const h = harness();
+  let resolvePoll;
+  h.setResponder((url, options) => options.method === 'POST'
+    ? Promise.resolve({ok: true, json: async () => ({job: {id: 'new', phase: 'running'}})})
+    : new Promise(resolve => {resolvePoll = resolve;}));
+  await h.click('open');
+  await h.click('start');
+  resolvePoll({ok: true, json: async () => ({job: null})});
+  await h.flush();
+  assert.match(h.node('status').textContent, /Staging library/);
+  assert.equal(h.node('start').disabled, true);
+  assert.equal(h.node('cancel').hidden, false);
+});
+
 test('remote browsers do not expose same-computer staging or request local paths', async () => {
   const h = harness('100.64.0.2');
   assert.equal(h.node('open').hidden, true);
