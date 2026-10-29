@@ -1,7 +1,8 @@
 # fanservice v0.05 music and media bridge
 
 This bridge uses the original v0.05.1 Hotfix Public Playlist and Unlocks menus.
-It is a transport checkpoint; the embedded fanservice menu is not complete.
+It is a transport checkpoint. A separate [independent main-menu component](V005-RUNTIME-QUICKSTART.md)
+now passes entry, Server panel and neutral music-delivery acceptance.
 It preserves the game's Import access check.
 
 ## Media packs

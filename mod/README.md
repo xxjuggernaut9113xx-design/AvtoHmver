@@ -3,6 +3,12 @@
 The Windows product now targets a mod of the original Cockhero game. The
 reconstruction remains reference evidence. No original game files are bundled.
 
+Latest v0.05 checkpoint: the [independent in-game menu](V005-RUNTIME-QUICKSTART.md)
+opens the configured Server, reads the native profile and delivers music into
+the original Playlist folder. The separate installer preserves the existing
+loader and game saves. Full-mod certification and panel snapshot/sync acceptance
+remain open; the earlier development-target notes below are historical.
+
 Current development target: the user selected the supplied **v0.04 Exclusive**
 installation. Its isolated unmodified startup passed and its hashes are recorded
 as `v004-exclusive-c645757d`. Normal Import, native pack discovery, free unlock,

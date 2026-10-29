@@ -38,10 +38,8 @@
     "wallet_before_and_after": 62
   },
   "pending": [
-    "new delivery discovered after original-library refresh/restart",
     "profile-switch acceptance",
     "snapshot/sync acceptance through this panel",
-    "dedicated runtime installer lifecycle",
     "full supported-build certification"
   ]
 }

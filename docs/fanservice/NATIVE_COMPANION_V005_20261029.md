@@ -50,16 +50,21 @@ the original menu and advanced the companion generation from 3 to 4.
 The original Playlist manager remained accessible. Returning through its Back
 control restored the entry, and the configured Server panel opened again.
 
-The adapter is staged only in the isolated lab. There is no public v0.05 runtime
-installer yet. Do not treat this source as a certified full-mod installation.
+The [v0.05 runtime installer and launchers](../../mod/V005-RUNTIME-QUICKSTART.md)
+now install this component against an existing pinned loader. Actual isolated
+install, helper readiness, game heartbeat, upgrade, remove and reinstall pass.
+Removal retains protocol bytes and a disabled manifest; reinstall restores the
+code without discarding that data. Seven loader/settings/save files remained
+byte-identical. The restarted native library discovered all 14 beatmaps after
+the panel's new delivery. See [installer evidence](evidence/native-v005-runtime-installer-20261029.json).
+This remains an experimental component, not full-mod certification.
 
 ## Validation and remaining work
 
-83 native/MCP tests and 21 v0.04 installer tests passed on this continuation.
+83 native/MCP tests, 24 v0.05 installer tests and 21 v0.04 installer tests passed.
 These include the Lua menu-guard cases, v0.05 control tests, cross-build
 identity separation, music publication and stale-context cancellation.
 
-Remaining: snapshot/sync acceptance through the panel, original Playlist
-refresh from a panel delivery, profile switching, and a hash-owned v0.05 installer
-with rollback/uninstall acceptance. Full supported-build certification remains
+Remaining: snapshot/sync acceptance through the panel, profile switching and
+broader original-session regression. Full supported-build certification remains
 open. Broader mobile/provider and full-session parity gates are unchanged.

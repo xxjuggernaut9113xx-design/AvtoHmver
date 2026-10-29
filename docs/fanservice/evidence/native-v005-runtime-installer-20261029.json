@@ -1,0 +1,32 @@
+{
+  "date": "2026-10-29",
+  "build_id": "v0051-hotfix-public-a8f46896",
+  "component": "FanserviceV005",
+  "scope": "isolated exact-build game with existing pinned loader",
+  "retained_evidence": "E:/fanservice-mod-lab/v005-ui-20261029/installer-lifecycle-result.json",
+  "passed": {
+    "existing_loader_and_game_identity_verified": true,
+    "review_without_mutation": true,
+    "actual_install": true,
+    "installed_launcher_helper_ready": true,
+    "installed_runtime_profile_heartbeat": true,
+    "installed_runtime_entry_rendered_after_user_dismissal": true,
+    "original_startup_discovers_new_music": true,
+    "token_scoped_normal_helper_stop": true,
+    "upgrade_with_protocol_state": true,
+    "remove_owned_code_and_enable_marker": true,
+    "disabled_manifest_retains_protocol_bytes": true,
+    "reinstall_with_protocol_state": true,
+    "protected_files_unchanged": true
+  },
+  "original_library": {
+    "valid_beatmaps_before_ui_delivery": 13,
+    "valid_beatmaps_after_restart": 14,
+    "log": "E:/fanservice-mod-lab/v005-ui-20261029/game-installed-runtime.log"
+  },
+  "protected_files_compared": 7,
+  "protocol_sha256": "53aa85c77669e1768df7ad53333c5f70960fa0bde3f647692ebc2eafe93efe80",
+  "automated_tests": {"v005_installer": 24, "v004_installer": 21, "native_and_mcp": 83},
+  "final_state": "component reinstalled; game and helper stopped; protocol data retained",
+  "full_supported_build_certification": false
+}
