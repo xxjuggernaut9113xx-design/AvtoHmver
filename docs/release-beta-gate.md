@@ -1,4 +1,4 @@
-# Curator 0.4 beta gate
+# AvtoHmver 0.4 beta gate
 
 The following parity records must have current evidence before a beta tag is
 published. Record results in the linked evidence files and change status only

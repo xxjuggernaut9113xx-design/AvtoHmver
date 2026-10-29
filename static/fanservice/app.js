@@ -52,7 +52,9 @@ async function browse(more = false) {
   if (!more) $('grid').replaceChildren();
   for (const item of data.items) {
     items.set(item.id,item);
-    const tile = node('article',undefined,'tile'); const img = node('img'); img.src = new URL(item.thumbnail,FanserviceStore.server()); img.loading = 'lazy'; img.alt = ''; tile.append(img);
+    const tile = node('article',undefined,'tile'); const img = node('img'); img.src = new URL(item.thumbnail,FanserviceStore.server()); img.loading = 'lazy'; img.alt = '';
+    img.onerror = () => { img.onerror = null; img.src = 'assets/thumbnail-unavailable.svg'; img.alt = 'Preview unavailable'; };
+    tile.append(img);
     const label = node('label'); const check = node('input'); check.type = 'checkbox'; check.checked = selected.has(item.id); check.setAttribute('aria-label',`Select ${item.name}`);
     check.onchange = () => { check.checked ? selected.add(item.id) : selected.delete(item.id); selectionCount(); };
     label.append(check,document.createTextNode(item.name)); tile.append(label,node('small',`${item.type} · rating ${item.rating || 0}`),node('small',item.tags.join(', ')));

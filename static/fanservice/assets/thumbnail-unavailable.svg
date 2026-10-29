@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="180" height="150" viewBox="0 0 180 150" role="img" aria-label="Preview unavailable">
+  <rect width="180" height="150" rx="8" fill="#101722"/>
+  <rect x="31" y="29" width="118" height="73" rx="5" fill="none" stroke="#8ea1b5" stroke-width="4"/>
+  <path d="m40 91 24-23 17 16 23-29 36 36" fill="none" stroke="#8ea1b5" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M38 111h104" stroke="#b0e4c0" stroke-width="3" stroke-linecap="round"/>
+  <text x="90" y="132" text-anchor="middle" fill="#bdc9d6" font-family="sans-serif" font-size="12">Preview unavailable</text>
+</svg>
