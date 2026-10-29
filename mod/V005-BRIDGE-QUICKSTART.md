@@ -55,8 +55,13 @@ after delivery because its recording and beatmap are stored locally.
 
 ## Validation boundary
 
-Original native selection, neutral WAV playback, three beats, song completion
-and Victory summary passed. Server AAC download/conversion and native library
-discovery passed. The new media archive was discovered, extracted and verified.
-Combined media/music playback and restart/uninstall regression still need their
-native acceptance checks. Do not treat this bundle as full mod certification.
+Original Unlocks purchase and enable/disable passed. Server AAC delivery and WAV
+conversion reached the original Playlist, completed 24 beats and showed Victory.
+The enabled test image was visible; explicit media-cycle events activated the
+native video player. Ownership and enablement survived a process restart.
+Owned-cache uninstall preserved all three original save files byte for byte,
+and the game initialized normally afterward with zero remaining test packs.
+The temporary Server was stopped during native playback.
+
+Embedded v0.05 UI/companion integration, live HTTP media streaming and broader
+session controls remain unfinished. Do not treat this bundle as full mod certification.

@@ -1,0 +1,46 @@
+{
+  "source_log": "E:/fanservice-mod-lab/v005-music-export/native-media-20261029.log",
+  "build": "v0051-hotfix-public-a8f46896",
+  "observations": {
+    "original_unlocks_purchase": "20 to 19 UP",
+    "original_disable_enable": true,
+    "original_playlist_source": "confirmed Server AAC converted to native PCM WAV",
+    "image_visible": true,
+    "repeat_victory_highest_combo": 24,
+    "repeat_victory_total_strokes": 24,
+    "cycle_event_beats": [
+      9,
+      17
+    ],
+    "native_video_promotion_logged": true,
+    "video_visible_screenshot": false
+  },
+  "lines": [
+    "[2026.10.29-17.13.06:932][ 96]LogTemp: [MusicModeManager] Beatmap loaded: 'synthetic-tone.m4a' by fanservice | 24 beats, 2 events | Duration: 12.0s | BPM: 120",
+    "[2026.10.29-17.13.09:183][ 96]LogTemp: [MusicModeManager] WAV loaded: 44100 Hz, 2 ch, 12.0s, volume 1.995x",
+    "[2026.10.29-17.13.10:964][987]LogTemp: Warning: [MusicModeManager] Clock anchored by first playback callback. Audio at 0.000s",
+    "[2026.10.29-17.13.10:966][987]LogTemp: [MusicModeManager] Media category switch -> 'slow'",
+    "[2026.10.29-17.13.23:037][823]LogTemp: [MusicModeManager] Song complete. Duration: 12.0s",
+    "[2026.10.29-17.13.23:037][823]LogTemp: [MusicModeManager] Stopping playback at audio time: 12.000s",
+    "[2026.10.29-17.14.40:737][583]LogTemp: [MusicModeManager] Beatmap loaded: 'synthetic-tone.m4a' by fanservice | 24 beats, 2 events | Duration: 12.0s | BPM: 120",
+    "[2026.10.29-17.14.40:749][583]LogTemp: [MusicModeManager] WAV loaded: 44100 Hz, 2 ch, 12.0s, volume 1.995x",
+    "[2026.10.29-17.14.42:587][878]LogTemp: Warning: [MusicModeManager] Clock anchored by first playback callback. Audio at 0.000s",
+    "[2026.10.29-17.14.42:589][878]LogTemp: [MusicModeManager] Media category switch -> 'slow'",
+    "[2026.10.29-17.14.54:620][769]LogTemp: [MusicModeManager] Song complete. Duration: 12.0s",
+    "[2026.10.29-17.14.54:620][769]LogTemp: [MusicModeManager] Stopping playback at audio time: 12.001s",
+    "[2026.10.29-17.19.06:734][816]LogTemp: [MusicModeManager] Beatmap loaded: 'synthetic-tone.m4a' by fanservice | 24 beats, 4 events | Duration: 12.0s | BPM: 120",
+    "[2026.10.29-17.19.06:738][816]LogTemp: [MusicModeManager] WAV loaded: 44100 Hz, 2 ch, 12.0s, volume 1.995x",
+    "[2026.10.29-17.19.08:636][931]LogTemp: Warning: [MusicModeManager] Clock anchored by first playback callback. Audio at 0.000s",
+    "[2026.10.29-17.19.08:651][931]LogTemp: [MusicModeManager] Media category switch -> 'slow'",
+    "[2026.10.29-17.19.12:652][171]LogTemp: [MusicModeManager] Cycle media: beat=9 category='slow'",
+    "[2026.10.29-17.19.12:652][171]LogMediaPlaybackController: Warning: [MPC:StartNativeStreamedPlayback:PreparedFirstFrameTextureUsed] file='1_ass_boobs_cum_fast_medium_slow_succubus.mp4' size=64x64 firstFrame=1.700s",
+    "[2026.10.29-17.19.12:652][171]LogTemp: Warning: 🎬 OnBeat:NativeWarmPromotion: Native streamed playback active for 1_ass_boobs_cum_fast_medium_slow_succubus.mp4 (warm=Y firstFrame=1.700s frameIdx=17 preroll=0)",
+    "[2026.10.29-17.19.12:652][171]LogMediaPlaybackController: Warning: [MPC:OnBeat:NativeWarmPromotion] configuredStart=1.534s actualFirstFrame=1.700s file='1_ass_boobs_cum_fast_medium_slow_succubus.mp4'",
+    "[2026.10.29-17.19.12:652][171]LogTemp: Warning: ⏱️ [StreamedTiming:StartSingle] ctx=OnBeat:NativeWarmPromotion file=1_ass_boobs_cum_fast_medium_slow_succubus.mp4 fastSwap=N warm=Y presentedWarm=Y reset=0.0ms acquire=0.0ms finalize=0.0ms present=0.0ms total=0.1ms",
+    "[2026.10.29-17.19.12:652][171]LogTemp: Warning: ⏱️ [StreamedTiming:OnBeatStreamed] beat=9 slot=0 route=OnBeat:NativeWarmPromotion committed=Y exactMiss=N preloaded=Y started=Y total=0.1ms file=1_ass_boobs_cum_fast_medium_slow_succubus.mp4",
+    "[2026.10.29-17.19.16:653][411]LogTemp: [MusicModeManager] Cycle media: beat=17 category='slow'",
+    "[2026.10.29-17.19.20:639][650]LogTemp: [MusicModeManager] Song complete. Duration: 12.0s",
+    "[2026.10.29-17.19.20:639][650]LogTemp: [MusicModeManager] Stopping playback at audio time: 12.005s"
+  ],
+  "scope": "local delivered original-session playback; not live Server streaming or full mod certification"
+}

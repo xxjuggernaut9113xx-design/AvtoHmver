@@ -1,5 +1,7 @@
 # Original v0.05 music-session integration
 
+Latest acceptance: [October 29 combined media/music lifecycle](NATIVE_MEDIA_V005_20261029.md) records real Server conversion/delivery reaching a 24-beat original Playlist run, native video promotion through cycle events, original Unlocks purchase/toggles, process-restart persistence and owned-cache uninstall. This document retains the preceding implementation checkpoints.
+
 ## Server delivery implemented
 
 `mod/native/music-delivery.mjs` fetches the selected track's confirmed `/api/fanservice/v1/music/{id}/manifest` and original recording from one configured Server origin. It verifies the original SHA1 before conversion, converts unsupported source audio to native-compatible 44.1 kHz stereo PCM16 WAV with an explicitly selected FFmpeg executable, validates the resulting WAV and duration, and re-fetches the confirmed manifest before publishing. A changed recording or confirmation, failed conversion, oversized response or existing output folder is rejected. Original and converted recording identities remain distinct in the result.

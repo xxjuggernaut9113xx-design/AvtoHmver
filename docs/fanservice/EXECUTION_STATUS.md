@@ -1,6 +1,6 @@
 # Consolidated plan execution — 2026-10-22
 
-Music target update: [original v0.05 Music session](NATIVE_MUSIC_V005_20261027.md). Original-format WAV export, native library discovery, original Playlist selection, three-beat playback, song end and Victory summary passed in the isolated v0.05 build. Automatic Server delivery, fanservice media selection and broader session controls remain open.
+Current native checkpoint: [v0.05 media and music acceptance](NATIVE_MEDIA_V005_20261029.md). Confirmed Server music delivery/conversion, original Unlocks purchase and toggles, enabled media filtering, image display, native video promotion, 24-beat Playlist completion, restart ownership/enablement and owned-cache uninstall pass. Embedded v0.05 menu/companion integration, live HTTP streaming, broader session controls and full supported-build acceptance remain open.
 
 Current continuation: [native seek/reconnect acceptance](NATIVE_RECONCILE_20261027.md). Owned native audio-clock, seek, reconnect and backward replay pass; original-session callback/timer adoption and reward settlement remain open. Older counts and blocker descriptions below are historical.
 

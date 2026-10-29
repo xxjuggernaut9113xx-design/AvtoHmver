@@ -76,10 +76,19 @@
       "loader_startup": true,
       "reflected_import_pack_and_webview_classes": true,
       "lite_open_and_return_from_original_import": false,
-      "synthetic_pack_in_native_unlocks": false,
-      "native_purchase_and_restart": false,
+      "synthetic_pack_in_native_unlocks": true,
+      "native_purchase_and_restart": true,
       "streaming_playback": false,
-      "original_game_regression_and_uninstall": false
+      "original_game_regression_and_uninstall": false,
+      "original_unlocks_enable_disable": true,
+      "delivered_music_original_playlist": true,
+      "native_video_promotion": true,
+      "owned_cache_uninstall_saves_unchanged": true
+    },
+    "transport_checkpoint": {
+      "checked_at": "2026-10-29",
+      "scope": "exact-build local pack/music transport only; embedded mod is not certified",
+      "evidence": "docs/fanservice/NATIVE_MEDIA_V005_20261029.md"
     },
     "blockers": [
       "Native Import click opens the developer access page in this public build.",

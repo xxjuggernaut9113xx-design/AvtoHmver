@@ -1,0 +1,19 @@
+{
+  "source_log": "E:/fanservice-mod-lab/v005-music-export/native-media-20261029.log",
+  "build": "v0051-hotfix-public-a8f46896",
+  "ui": {
+    "balance_before": 20,
+    "balance_after": 19,
+    "price": 1,
+    "disabled_then_reenabled": true
+  },
+  "lines": [
+    "[2026.10.29-17.09.49:782][179]LogTemp: Warning: [CHStore] AddUnlockPoints: Added -1, Now: 19",
+    "[2026.10.29-17.10.10:185][119]LogTemp: Warning: [CHStore] SetPackEnabled: Disabled pack: fanservice-native-panel-one-08dd7e8b-4794-41b1-9c80-14444299411e",
+    "[2026.10.29-17.10.15:746][616]LogTemp: Warning: [CHStore] SetPackEnabled: Enabled pack: fanservice-native-panel-one-08dd7e8b-4794-41b1-9c80-14444299411e",
+    "[2026.10.29-17.11.56:680][ 96]LogTemp: [CHPack] Registered media: E:/fanservice-mod-lab/game/CockHero/Extracted/fanservice-native-panel-one-08dd7e8b-4794-41b1-9c80-14444299411e/media/0_ass_boobs_cum_fast_medium_slow_succubus.png",
+    "[2026.10.29-17.11.56:680][ 96]LogTemp: [CHPack] Registered media: E:/fanservice-mod-lab/game/CockHero/Extracted/fanservice-native-panel-one-08dd7e8b-4794-41b1-9c80-14444299411e/media/1_ass_boobs_cum_fast_medium_slow_succubus.mp4",
+    "[2026.10.29-17.12.23:554][ 96]LogTemp: Warning: [CHPack Filter] ✅ Filtering complete: processed 2 entries"
+  ],
+  "combined_playback": "pending native WebView initialization"
+}
