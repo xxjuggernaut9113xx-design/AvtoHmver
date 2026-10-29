@@ -38,7 +38,7 @@ completion. The service-layer column records current extraction direction.
 | [M-01](evidence/M-01.md) | Discover | ✓ | Scoped | ✓ | Shared | Partial | Live provider availability and manual checks |
 | [M-02](evidence/M-02.md) | Organization/sources | ✓ | Scoped | ✓ | Shared | Partial | Source edit manual checks |
 | [M-03](evidence/M-03.md) | Activity | ✓ | Scoped | ✓ | Shared | Partial | Populated activity checks |
-| [M-04](evidence/M-04.md) | Import/export | ✓ | Scoped | ✓ | Shared | Partial | Original-game Unlock/playback and remaining transfer manual checks |
+| [M-04](evidence/M-04.md) | Import/export | ✓ | Scoped | ✓ | Shared | Partial | Remaining transfer and media-type manual checks |
 | [S-01](evidence/S-01.md) | General | ✓ | Scoped | ✓ | Mixed | Partial | Remaining settings checks |
 | [S-02](evidence/S-02.md) | Media/Storage | ✓ | Scoped | ✓ | Mixed | Partial | Manual storage control acceptance |
 | [S-03](evidence/S-03.md) | Appearance/Playback/Automation | ✓ | Scoped | ✓ | Mixed | Partial | Advanced controls deferred |
