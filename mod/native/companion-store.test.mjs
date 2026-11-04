@@ -26,6 +26,13 @@ test('portable sanitation cannot apply wallet, ownership, progression, local fil
  assert.deepEqual(sanitizeDefinitions([input]),[{...pack(),selection:{ids:[1],rules:[{source_id:1}]}}]);
  for(const bad of [[pack(),pack()], [{...pack(),selection:{ids:[],rules:[],local_ids:['only-local']}}], [{...pack(),id:'../../escape'}]])assert.throws(()=>sanitizeDefinitions(bad));
 });
+test('explicit all-library live selection persists but unsupported-only rules cannot broaden selection',async t=>{
+ const definition={...pack(),selection:{ids:[],rules:[{}]}};
+ assert.deepEqual(sanitizeDefinitions([definition]),[definition]);
+ for(const rule of [{unknown:'value'},{path:'C:/private'},{enabled:true}])assert.throws(()=>sanitizeDefinitions([{...definition,selection:{ids:[],rules:[rule]}}]),/no supported fields/);
+ const {store,options}=await fixture(t);await store.saveDefinitions([definition],{expectedRevision:0});
+ assert.deepEqual((await(await CompanionStore.open(options)).read()).packs,[definition]);
+});
 test('v005 bindings separate profiles and reject copied v004 metadata without changing it',async t=>{
  const {store,options}=await fixture(t);
  const next=await CompanionStore.open({...options,buildId:'v0051-hotfix-public-a8f46896'});

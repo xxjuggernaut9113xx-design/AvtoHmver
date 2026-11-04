@@ -132,7 +132,7 @@ $process = Start-Process -FilePath $node -ArgumentList $arguments -WorkingDirect
 $readyPath=Join-Path $runtime '.fanservice-companion.ready'
 $lockPath=Join-Path $runtime '.fanservice-companion.host.lock'
 $ready=$false
-for ($attempt=0;$attempt -lt 150;$attempt++) {
+for ($attempt=0;$attempt -lt 1200;$attempt++) {
     $process.Refresh()
     if ($process.HasExited) { throw "Native companion exited before readiness (exit $($process.ExitCode)). Inspect $errLog. No game was started." }
     if ((Test-Path -LiteralPath $readyPath -PathType Leaf) -and (Test-Path -LiteralPath $lockPath -PathType Leaf)) {

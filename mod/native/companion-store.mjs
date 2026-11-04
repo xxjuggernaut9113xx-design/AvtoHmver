@@ -30,7 +30,7 @@ export function sanitizeDefinitions(packs){
    const clean={};
    for(const key of ['source_id','group_id','rating_min','rating_max','human_rating_min','human_rating_max'])if(rule[key]!==undefined){if(!integer(rule[key],key.endsWith('_id')?1:0))throw Error('Invalid numeric live rule.');clean[key]=rule[key];}
    for(const key of ['search','tags','media_type','sort'])if(rule[key]!==undefined){if(typeof rule[key]!=='string'||rule[key].length>2000||/[\x00-\x1f]/.test(rule[key]))throw Error('Invalid text live rule.');clean[key]=rule[key];}
-   if(!Object.keys(clean).length)throw Error('A live rule has no supported fields.');
+   if(!Object.keys(clean).length&&Object.keys(rule).length)throw Error('A live rule has no supported fields.');
    return clean;
   });
   const clean={id:pack.id,name:pack.name.trim(),description:pack.description,library_id:pack.library_id,unlock_cost:pack.unlock_cost,selection:{ids:[...new Set(selection.ids)],rules}};

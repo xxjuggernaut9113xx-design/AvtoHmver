@@ -33,6 +33,29 @@ local owner, entry, browser, entryToken, lastClick, lastRequest
 local entryHTML, entryReady, entryDeadline, entryLastLoad, panelDeadline, panelLastLoad
 local lastFailure, lastGate
 local failedMenu
+local menuList
+local function placeEntry(inPanel)
+    assert(valid(entry) and valid(owner), 'Fanservice menu entry is unavailable.')
+    entry:RemoveFromParent()
+    if inPanel then
+        local slot = owner.WidgetTree.RootWidget:AddChildToCanvas(entry)
+        assert(valid(slot), 'Original menu root is not a supported canvas.')
+        slot:SetAnchors({Minimum={X=1,Y=0},Maximum={X=1,Y=0}})
+        slot:SetOffsets({Left=-365,Top=35,Right=335,Bottom=66})
+        slot:SetZOrder(220)
+    else
+        assert(valid(menuList), 'Original main-menu list is unavailable.')
+        local slot = menuList:AddChildToVerticalBox(entry)
+        assert(valid(slot), 'Original main-menu list rejected the entry.')
+        slot:SetSize({SizeRule=1,Value=1})
+        slot:SetPadding({Left=0,Top=0,Right=0,Bottom=0})
+        slot:SetHorizontalAlignment(0)
+        slot:SetVerticalAlignment(0)
+    end
+    lastClick = 0
+    entryReady, entryDeadline, entryLastLoad = false, os.time() + 30, os.time()
+    entry:LoadURL(text(entry.urlInitial), '', false)
+end
 local profileChanged = false
 local broker = Companion.new({directory=directory, quote=quote})
 
@@ -48,13 +71,13 @@ local function closePanel(reason)
         browser:RemoveFromParent()
     end
     browser, lastRequest, panelDeadline, panelLastLoad = nil, 0, nil, nil
-    if valid(entry) then entry:ExecuteJavascript('document.querySelector("button").textContent="Fanservice"') end
+    if valid(entry) and valid(owner) and valid(menuList) then placeEntry(false) end
     renew()
 end
 local function detach(reason)
     closePanel(reason)
     if valid(entry) then entry:RemoveFromParent() end
-    entry, owner, entryToken, lastClick = nil, nil, nil, 0
+    entry, owner, entryToken, lastClick, menuList = nil, nil, nil, 0, nil
     entryHTML, entryReady, entryDeadline, entryLastLoad = nil, nil, nil, nil
 end
 local function context()
@@ -114,12 +137,15 @@ local function widget(menu, offsets, z, initialURL)
 end
 local function attach(menu)
     owner, lastClick = menu, 0
+    menuList = menu.StartGameButton:GetParent()
+    assert(valid(menuList) and menuList:GetClass():GetFullName() == 'Class /Script/UMG.VerticalBox', 'Original main-menu list is not a supported vertical box.')
     entryToken = epoch .. '-' .. tostring(menu:GetAddress())
-    entryHTML = '<!doctype html><title>FANSERVICE_ENTRY_READY:' .. entryToken .. '</title><meta name="viewport" content="width=device-width"><style>*{box-sizing:border-box}body{margin:0;background:#000;color:#fff}button{width:100%;height:66px;background:#000;color:#fff;border:1px solid #fff;border-radius:0;font:900 27px "Arial Black",Arial,sans-serif;letter-spacing:2px;text-transform:uppercase;cursor:pointer}button:hover{background:#fff;color:#000}button:focus-visible{outline:3px solid #59cfff;outline-offset:-4px}</style><button>Fanservice</button><script>let n=0;document.querySelector("button").onclick=()=>{document.title="FANSERVICE_ENTRY:' .. entryToken .. ':"+(++n)};</script>'
+    entryHTML = '<!doctype html><title>FANSERVICE_ENTRY_READY:' .. entryToken .. '</title><meta name="viewport" content="width=device-width"><style>*{box-sizing:border-box}html,body{width:100%;height:100%;overflow:hidden}body{margin:0;background:#000;color:#fff}button{width:100%;height:100%;background:#000;color:#fff;border:0;border-radius:0;font:900 36px "Arial Black",Arial,sans-serif;letter-spacing:2px;text-transform:uppercase;cursor:pointer}button:hover{background:#fff;color:#000}button:focus-visible{outline:3px solid #59cfff;outline-offset:-4px}</style><button>Fanservice</button><script>let n=0;document.querySelector("button").onclick=()=>{document.title="FANSERVICE_ENTRY:' .. entryToken .. ':"+(++n)};</script>'
     local initialURL = 'data:text/html;charset=utf-8,' .. entryHTML:gsub('.', function(c) return string.format('%%%02X', c:byte()) end)
     entry = widget(menu, {anchors={Minimum={X=1,Y=0},Maximum={X=1,Y=0}},margin={Left=-365,Top=35,Right=335,Bottom=66}}, 220, initialURL)
+    placeEntry(false)
     entryReady, entryDeadline, entryLastLoad = false, os.time() + 30, os.time()
-    log('Independent main-menu entry attached after original age-screen dismissal.')
+    log('Fanservice entry joined the original main-menu list after age-screen dismissal.')
 end
 local function openPanel()
     assert(owner and Guard.evaluate(owner), 'Original main menu is no longer available.')
@@ -127,7 +153,7 @@ local function openPanel()
     browser = widget(owner, {anchors={Minimum={X=0,Y=0},Maximum={X=1,Y=1}},margin={Left=95,Top=105,Right=25,Bottom=25}}, 210, page)
     browser:LoadURL(page, '', false)
     panelDeadline, panelLastLoad = os.time() + 30, os.time()
-    entry:ExecuteJavascript('document.querySelector("button").textContent="Back"')
+    placeEntry(true)
     lastRequest = 0
     log('Independent fanservice panel opened; original Import controls unchanged.')
 end
@@ -135,7 +161,9 @@ local function pollEntry()
     local title = text(entry:GetTitle())
     if not entryReady then
         if title == 'FANSERVICE_ENTRY_READY:' .. entryToken then
-            entryReady = true; log('Independent entry document handshake verified.')
+            entryReady = true
+            entry:ExecuteJavascript('document.querySelector("button").textContent="' .. (browser and 'Back' or 'Fanservice') .. '"')
+            log('Independent entry document handshake verified.')
         else
             assert(os.time() <= entryDeadline, 'Native entry document did not become ready.')
             if os.time() - entryLastLoad >= 3 then
