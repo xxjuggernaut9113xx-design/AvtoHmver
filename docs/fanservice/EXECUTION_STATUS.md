@@ -1,5 +1,7 @@
 # Consolidated plan execution — 2026-10-22
 
+2026-11-05 accepted direction is recorded in [the mobile gameplay plan](MOBILE_GAMEPLAY_PLAN_20261105.md), [combined release decision](../adr/0005-combined-fanservice-release-gate.md) and [combined acceptance ledger](../parity/STATUS.md). Gameplay is included across Windows game mod, Web app and Android app. Newest usable game versions take priority. Older dated scope and blocker notes below are historical.
+
 Latest continuation: [native menu placement and companion corrections](NATIVE_MENU_CONTINUATION_20261104.md) is installed in the isolated v0.05 game. Automated menu lifecycle, Server/mobile/sync and music delivery checks pass. Actual-game visual acceptance remains pending while the user is away. The full plan is not complete.
 
 Latest presentation revision: [game-only native-style UI](NATIVE_UI_STYLE_20261029.md) adds monochrome framed menus, flat controls and compact import drawers. Browser previews and 83 native/MCP checks pass. After the user installed and opened the update, actual-game library/dialog rendering, keyboard selection, local drawer and Back/reopen checks passed at 1920 × 1080.

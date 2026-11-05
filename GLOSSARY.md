@@ -13,7 +13,7 @@ Evidence that an included parity area works in its intended editions and require
 _Avoid_: Implemented code, passing unit tests
 
 **Release gate**:
-The complete set of parity acceptance results required before a version is tagged and published.
+The complete set of acceptance results required for the combined AvtoHmver and Fanservice release before a version is tagged and published.
 _Avoid_: Beta checklist
 
 **Pinned checkpoint**:
@@ -42,3 +42,19 @@ _Avoid_: Production library, bundled training data
 **RGB P-HAR**:
 The official P-HAR video classifier using its RGB model without the optional pose and audio models.
 _Avoid_: Image position classifier
+
+**Web app**
+The Fanservice experience used in a web browser or installed from the website on a phone or computer.
+_Avoid_ — Viewer+ when referring to browser use.
+
+**Android app**
+The installable Fanservice phone app for Android, with its own saved media, snapshots and game profile.
+_Avoid_ — Viewer+ in the combined release plan.
+
+**Windows game mod**
+The Fanservice integration used inside the original Cock Hero game on Windows.
+_Avoid_ — Viewer when the intended meaning is the game integration.
+
+**Holding hand**
+The hand selected as holding the phone during gameplay, used to place item buttons on the opposite side.
+_Avoid_ — Handedness when it could mean the hand pressing buttons.

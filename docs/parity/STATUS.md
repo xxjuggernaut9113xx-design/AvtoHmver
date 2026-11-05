@@ -2,12 +2,14 @@
 
 Current release scope (2026-10-01): Linux desktop acceptance is skipped at the user's request. Slideshow, Cock Hero player mode, and VR are excluded. Portable .chpack compatibility remains required. Version 0.4.0 is not released while the remaining acceptance gates are open.
 
-This table is the only status ledger. Detailed dated observations are linked from each ID. The [permission matrix](../permissions.md) defines role authority.
+This document is the combined release status ledger. Detailed dated observations are linked from each ID. The [permission matrix](../permissions.md) defines role authority.
 
 2026-10-26 scope update: the new tactical theme requirement is skipped at the
 user's request. New installs use System; saved theme choices remain intact,
 including the already available optional Tactical palette. Branding, motion,
 reduced-motion support, and the remaining parity work stay in scope.
+
+2026-11-05 scope update. The user chose one combined AvtoHmver and Fanservice release checklist. Windows game mod, Web app and Android app gameplay are included. This supersedes the earlier Cock Hero player-mode exclusion for those experiences. Original-game reconstruction remains reference material. Game support prioritizes the newest usable version, with investigation and a recorded blocker before fallback. User-facing mobile behavior is defined in [the accepted mobile plan](../fanservice/MOBILE_GAMEPLAY_PLAN_20261105.md).
 
 H, V, and S denote intended Host, Viewer, and Server applicability (`✓`),
 limited applicability (`Scoped`), or exclusion (`—`). They do not claim
@@ -53,3 +55,15 @@ completion. The service-layer column records current extraction direction.
 | [V-01](evidence/V-01.md) | Evidence ledger | ✓ | Scoped | ✓ | Mixed | Partial | Viewer and installer evidence |
 | [V-02](evidence/V-02.md) | Final gates | ✓ | Scoped | ✓ | Mixed | Partial | CI and installer gates |
 
+
+## Fanservice combined release gates
+
+These gates join the included parity areas above. Each requires acceptance in its applicable editions.
+
+- [ ] Windows game mod lifecycle and gameplay, including the relocated main-menu entry, original Unlocks controls, live pack registration, frozen membership and preserved saves. Current component evidence is in [the native checkpoint](../fanservice/NATIVE_MENU_CONTINUATION_20261104.md).
+- [ ] Original-game Server media and music behavior, including live streaming, playback-clock events, pause/resume, completion and progression across the required session matrix.
+- [ ] Pack definitions, explicit offline snapshots and reviewed synchronization across applicable editions, including actual-game upload, review, apply and owned snapshot playback.
+- [ ] Web app and Android app original-gameplay fidelity, with build-bound recovered rules, fixtures and complete-session acceptance.
+- [ ] Mobile form-factor behavior, including both orientations, holding-hand item placement, real return edges with rollback/replay, hold-to-Finish, seek restrictions, wakefulness and three-mode vibration. See [the mobile plan](../fanservice/MOBILE_GAMEPLAY_PLAN_20261105.md).
+- [ ] Physical iPhone and Android acceptance for the applicable mobile workflows, including interruption, offline media and provider/storage failures.
+- [ ] Current Server, Windows game mod, combined Host, Web app and Android deliverables, with reproducible builds, checksums and installed upgrade/removal acceptance.
