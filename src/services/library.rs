@@ -214,9 +214,24 @@ pub async fn list(state: &AppState, q: MediaQuery) -> Result<MediaPage, LibraryE
     if let Some(search) = q.search.as_deref().filter(|s| !s.trim().is_empty()) {
         // Literal substring matching avoids interpreting user-entered SQL
         // wildcard characters. Apply before keyset pagination.
-        params.push(search.trim().to_lowercase().into());
+        let needle = search.trim().to_lowercase();
+        let inherited_groups: Vec<_> = group_effective_tags
+            .iter()
+            .filter(|(_, tags)| tags.iter().any(|tag| tag.to_lowercase().contains(&needle)))
+            .map(|(id, _)| *id)
+            .collect();
+        params.push(needle.into());
         let n = params.len();
-        extra.push_str(&format!(" AND (instr(lower(m.filename),?{n})>0 OR instr(lower(s.name),?{n})>0 OR EXISTS(SELECT 1 FROM source_metadata sm WHERE sm.media_id=m.id AND instr(lower(sm.creator),?{n})>0))"));
+        params.push(json!(inherited_groups).to_string().into());
+        let g = params.len();
+        extra.push_str(&format!(
+            " AND (instr(lower(m.filename),?{n})>0
+              OR instr(lower(s.name),?{n})>0
+              OR instr(lower(COALESCE(NULLIF(m.origin_url,''),s.url)),?{n})>0
+              OR EXISTS(SELECT 1 FROM source_metadata sm WHERE sm.media_id=m.id AND instr(lower(sm.creator),?{n})>0)
+              OR EXISTS(SELECT 1 FROM media_tags mt JOIN tags t ON t.id=mt.tag_id WHERE mt.media_id=m.id AND instr(lower(t.name),?{n})>0)
+              OR s.group_id IN (SELECT value FROM json_each(?{g})))"
+        ));
     }
     if let Some(creator) = q.creator.as_deref().filter(|s| !s.trim().is_empty()) {
         params.push(creator.trim().to_lowercase().into());
@@ -596,6 +611,45 @@ mod tests {
             page.media.iter().map(|item| item.id).collect::<Vec<_>>(),
             vec![2, 1]
         );
+    }
+
+    #[tokio::test]
+    async fn search_matches_direct_and_inherited_tags_before_paging() {
+        let root = tempfile::tempdir().unwrap();
+        let state = crate::test_support::state(root.path());
+        crate::test_support::source(&state);
+        state
+            .pool
+            .get()
+            .unwrap()
+            .execute_batch(
+                "INSERT INTO groups(id,name,added_at) VALUES(1,'Parent','2026');
+             INSERT INTO groups(id,name,parent_id,added_at) VALUES(2,'Child',1,'2026');
+             INSERT INTO sources(id,url,name,slug,added_at,group_id)
+             VALUES(2,'https://parity.example.test','Other','other','2026',2);
+             WITH RECURSIVE noise(id) AS (SELECT 1 UNION ALL SELECT id+1 FROM noise WHERE id<150)
+             INSERT INTO media(id,source_id,filepath,filename,type,added_at)
+             SELECT id,1,'noise-'||id,'noise.jpg','image','2026' FROM noise;
+             INSERT INTO media(id,source_id,filepath,filename,type,added_at)
+             VALUES(151,1,'direct','direct.jpg','image','2026'),
+                   (152,2,'inherited','inherited.jpg','image','2026');
+             INSERT INTO tags(id,name,added_at) VALUES(1,'Parity % tag','2026');
+             INSERT INTO media_tags(media_id,tag_id) VALUES(151,1);
+             INSERT INTO group_tags(group_id,tag_id) VALUES(1,1);",
+            )
+            .unwrap();
+        let (status, first) = http_list(&state, "/api/media?search=%25%20tag&limit=1").await;
+        assert_eq!(status, 200);
+        assert_eq!(first["media"][0]["id"], 151);
+        let cursor = first["next_cursor"].as_str().unwrap();
+        let (_, second) = http_list(
+            &state,
+            &format!("/api/media?search=%25%20tag&limit=1&cursor={cursor}"),
+        )
+        .await;
+        assert_eq!(second["media"][0]["id"], 152);
+        let (_, by_host) = http_list(&state, "/api/media?search=parity.example.test").await;
+        assert_eq!(by_host["media"][0]["id"], 152);
     }
 
     #[tokio::test]

@@ -9,7 +9,7 @@ function browser(api) {
   const start = source.indexOf('let viewRequestSeq = 0;');
   const end = source.indexOf('// Setting a <video>', start);
   const nodes = new Map();
-  const state = {view:{type:'all'},typeFilter:'all',sortOrder:'default',maxRatingFilter:'',PAGE_SIZE:150,currentItems:[],page:0};
+  const state = {view:{type:'all'},typeFilter:'all',searchQuery:'',sortOrder:'default',maxRatingFilter:'',PAGE_SIZE:150,currentItems:[],page:0};
   const context = vm.createContext({state,api,URLSearchParams,Set,ss:{active:false},toast:()=>{},buildTile:item=>item,
     document:{createDocumentFragment:()=>({items:[],appendChild(item){this.items.push(item);}})},
     el:selector=>{
@@ -20,19 +20,21 @@ function browser(api) {
   return {context,state,nodes,run:code=>vm.runInContext(code,context)};
 }
 
-test('browse fetches only one initial page and concurrent scrolls append the next page once',async()=>{
+test('browse carries search across pages and concurrent scrolls append the next page once',async()=>{
   const calls=[];
   const app=browser(async url=>{
     calls.push(url);
     if(url.includes('cursor=')) {await new Promise(r=>setTimeout(r,5));return {media:Array.from({length:40},(_,i)=>({id:i+151})),has_more:false,next_cursor:null};}
     return {media:Array.from({length:150},(_,i)=>({id:i+1})),has_more:true,next_cursor:'cursor-one'};
   });
+  app.state.searchQuery='  parity tag  ';
   await app.run('loadView()');
   assert.equal(calls.length,1);assert.equal(app.state.currentItems.length,150);
   await Promise.all([app.run('renderNextPage()'),app.run('renderNextPage()')]);
   assert.equal(calls.length,2);assert.equal(app.nodes.get('#grid').items.length,190);
   assert.equal(new Set(app.nodes.get('#grid').items.map(i=>i.id)).size,190);
   assert.match(calls[1],/cursor=cursor-one/);
+  for (const call of calls) assert.equal(new URL(call,'http://localhost').searchParams.get('search'),'parity tag');
 });
 
 test('a response from an old view cannot overwrite a newer view',async()=>{

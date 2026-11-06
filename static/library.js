@@ -25,7 +25,6 @@ const explorer = {
   nav: 'all',
   selected: new Set(),
   selectionAnchor: null,
-  searchQuery: '',
   searchTimer: null,
   panelRequest: 0,
   searchResults: [],
@@ -397,26 +396,11 @@ function explorerBuildTile(item, index) {
 
 buildTile = explorerBuildTile;
 
-function localMediaMatch(item, query) {
-  const needle = query.trim().toLowerCase();
-  if (!needle) return true;
-  return [item.filename, sourceLabel(item), sourceHost(item), ...(item.tags || []), ...(item.inherited_tags || [])]
-    .filter(Boolean)
-    .some((value) => String(value).toLowerCase().includes(needle));
-}
-
 async function explorerLoadView() {
   if (explorer.active !== 'media') return renderExplorerPanel(explorer.active);
   setExplorerVisible(true);
   const result = await explorerLegacy.loadView();
   void refreshExplorerSizeBackfill();
-  if (explorer.searchQuery.trim()) {
-    state.currentItems = state.currentItems.filter((item) => localMediaMatch(item, explorer.searchQuery));
-    state.renderedCount = 0;
-    explorerEl('#grid').replaceChildren();
-    toggleEmptyState(state.currentItems.length === 0);
-    await renderNextPage(true);
-  }
   updateBulkUI();
   return result;
 }
@@ -452,7 +436,8 @@ function mediaNavigation(section) {
   state.view = { type: 'all' }; state.ratingStatus = ''; state.tagFilter = ''; state.maxRatingFilter = '';
   state.typeFilter = ({ all: 'all', images: 'image', clips: 'clip', videos: 'video' })[section] || 'all';
   if (section === 'recent') state.sortOrder = 'date_desc';
-  explorer.searchQuery = '';
+  clearTimeout(explorer.searchTimer);
+  state.searchQuery = '';
   const search = explorerEl('#explorer-library-search'); if (search) search.value = '';
   explorerAll('.explorer-type-filter').forEach((button) => button.classList.toggle('active', button.dataset.type === state.typeFilter));
   const sort = explorerEl('#explorer-sort'); if (sort) sort.value = state.sortOrder || 'default';
@@ -1418,7 +1403,7 @@ function installExplorerUi() {
   explorerEl('#explorer-max-rating').addEventListener('change', (event) => { state.maxRatingFilter = event.target.value; explorerLoadView(); });
   explorerEl('#explorer-rating-status').addEventListener('change', (event) => { state.ratingStatus = event.target.value; explorerLoadView(); });
   explorerAll('[data-library-layout]', layoutControls).forEach((button) => button.addEventListener('click', () => setExplorerLayout(button.dataset.libraryLayout)));
-  explorerEl('#explorer-library-search').addEventListener('input', (event) => { clearTimeout(explorer.searchTimer); explorer.searchTimer = setTimeout(() => { explorer.searchQuery = event.target.value; explorerLoadView(); }, 180); });
+  explorerEl('#explorer-library-search').addEventListener('input', (event) => { clearTimeout(explorer.searchTimer); explorer.searchTimer = setTimeout(() => { state.searchQuery = event.target.value; explorerLoadView(); }, 180); });
   explorerEl('#explorer-select-all').addEventListener('change', selectAllVisible);
   explorerAll('[data-sort]', columns).forEach((button) => button.addEventListener('click', () => { const sort = explorerEl('#explorer-sort'); sort.value = button.dataset.sort; sort.dispatchEvent(new Event('change')); }));
   explorerEl('#explorer-bulk-bar').addEventListener('click', (event) => { const button = event.target.closest('[data-bulk]'); if (button) handleBulkAction(button.dataset.bulk); });
