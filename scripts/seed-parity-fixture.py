@@ -29,6 +29,11 @@ def main():
         raise SystemExit("Start the acceptance launcher and provide FFmpeg first")
     if (root / "seeded.json").is_file():
         raise SystemExit("This fixture was already seeded; preserving its manual test state")
+    origin = f"http://127.0.0.1:{ready['port']}"
+    with urllib.request.urlopen(origin + "/api/system/info", timeout=10) as response:
+        system = json.load(response)
+    if system["edition"] != ready["edition"] or system["edition"] not in ("host", "server"):
+        raise SystemExit("Start the matching Host or Server acceptance launcher first")
     connection = sqlite3.connect(database, timeout=30)
     if connection.execute("SELECT COUNT(*) FROM media").fetchone()[0] or connection.execute("SELECT COUNT(*) FROM sources").fetchone()[0]:
         raise SystemExit("Refusing to overwrite an occupied fixture library")
@@ -84,7 +89,6 @@ def main():
     connection.execute("UPDATE media SET auto_rating=3,manual_review_required=1,rating_source='auto' WHERE id IN (1,2)")
     connection.commit()
 
-    origin = f"http://127.0.0.1:{ready['port']}"
     urllib.request.urlopen(origin + "/api/music/tracks", timeout=10).close()
     music = data / "music"
     music.mkdir(exist_ok=True)
@@ -114,6 +118,10 @@ def main():
     with urllib.request.urlopen(request, timeout=30) as response, package.open("wb") as output:
         shutil.copyfileobj(response, output)
     report = {"images": 110, "video_ids": videos, "virtual_clip_id": virtual_clip, "broken_id": broken_id, "track_id": 1, "playlist": playlist, "tags": tags, "package": str(package.relative_to(root)), "origin": origin}
+    report["permission_roles"] = {
+        "local_owner": system["edition"],
+        "viewer": system["viewer_permissions"],
+    }
     (root / "seeded.json").write_text(json.dumps(report, indent=2))
     print(json.dumps(report))
 

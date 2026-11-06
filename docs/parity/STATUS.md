@@ -4,6 +4,8 @@ Current release scope (2026-10-01): Linux desktop acceptance is skipped at the u
 
 This document is the combined release status ledger. Detailed dated observations are linked from each ID. The [permission matrix](../permissions.md) defines role authority.
 
+Use the [shared acceptance fixture](FIXTURE.md) for generated library data and cross-edition reproduction steps.
+
 2026-10-26 scope update: the new tactical theme requirement is skipped at the
 user's request. New installs use System; saved theme choices remain intact,
 including the already available optional Tactical palette. Branding, motion,
