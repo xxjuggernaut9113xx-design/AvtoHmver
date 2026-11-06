@@ -1382,34 +1382,18 @@ impl Client {
             "permit-once" => {
                 response(routes::storage::permit_one_sync(State(state), peer, Path(id)).await)
             }
-            "cleanup-source" => {
-                let keep: Option<i64> = state
-                    .pool
-                    .get()
-                    .map_err(|error| error.to_string())?
-                    .query_row(
-                        "SELECT retention_keep_newest FROM sources WHERE id=?1",
-                        [id],
-                        |row| row.get(0),
-                    )
-                    .map_err(|error| error.to_string())?;
-                let keep = keep
-                    .ok_or("Set a source retention rule in Organization before applying cleanup")?;
-                let keep =
-                    u32::try_from(keep).map_err(|_| "The source retention rule is invalid")?;
-                response(
-                    routes::storage::cleanup_source(
-                        State(state),
-                        peer,
-                        Path(id),
-                        Json(routes::storage::CleanupSourceBody {
-                            confirmation,
-                            keep_newest: Some(keep),
-                        }),
-                    )
-                    .await,
+            "cleanup-source" => response(
+                routes::storage::cleanup_source(
+                    State(state),
+                    peer,
+                    Path(id),
+                    Json(routes::storage::CleanupSourceBody {
+                        confirmation,
+                        keep_newest: None,
+                    }),
                 )
-            }
+                .await,
+            ),
             "clear-thumbnails" => response(
                 routes::storage::clear_thumbnails(
                     State(state),

@@ -1224,10 +1224,11 @@ function renderStorageDashboard(snapshot) {
     status.textContent = source.at_or_over_limit ? 'At quota - increase it, remove old media, or permit one sync.' : (source.status || '');
     const retention = document.createElement('label'); retention.className = 'mono small'; retention.textContent = 'keep newest ';
     const input = document.createElement('input'); input.type = 'number'; input.min = '0'; input.max = '1000000'; input.step = '1'; input.value = source.retention_keep_newest || '';
+    input.readOnly = !local;
     input.placeholder = 'Never'; retention.append(input);
     const actions = document.createElement('div'); actions.className = 'settings-source-usage-actions';
-    actions.append(settingsActionButton('Save retention', () => saveSourceRetention(source.id, input)));
     if (local) {
+      actions.append(settingsActionButton('Save retention', () => saveSourceRetention(source.id, input)));
       actions.append(settingsActionButton('Increase limit', () => {
         el('#settings-max-source-storage-preset').value = 'custom';
         el('#settings-max-source-storage-custom').value = String(Math.max(Number(source.used_bytes || 0) + 1073741824, Number(appSettings.max_source_storage_bytes || 0)));
@@ -1237,13 +1238,15 @@ function renderStorageDashboard(snapshot) {
         try { const result = await api(`/api/storage/sources/${source.id}/permit-once`, { method: 'POST' }); toast(result.message || 'One sync permitted.'); void loadStorageDashboard(); }
         catch (error) { toast(`Could not permit sync: ${error.message}`, true); }
       }));
-      actions.append(settingsActionButton('Remove old media', async () => {
-        const confirmation = prompt('Type DELETE OLD MEDIA to remove unprotected originals for this source:');
+      const cleanup = settingsActionButton('Remove old media', async () => {
+        const confirmation = prompt(`Type DELETE OLD MEDIA to apply this source’s saved rule and keep its newest ${source.retention_keep_newest} items:`);
         if (confirmation !== 'DELETE OLD MEDIA') { toast('Confirmation did not match.', true); return; }
-        const keepNewest = Math.max(0, Math.floor(Number(input.value) || 0));
-        try { const result = await api(`/api/storage/sources/${source.id}/cleanup`, { method: 'POST', body: JSON.stringify({ confirmation, keep_newest: keepNewest }) }); toast(`Removed ${result.removed_items || 0} item(s); unavailable placeholders remain.`); void loadStorageDashboard(); }
+        try { const result = await api(`/api/storage/sources/${source.id}/cleanup`, { method: 'POST', body: JSON.stringify({ confirmation }) }); toast(`Removed ${result.removed_items || 0} item(s); unavailable placeholders remain.`); void loadStorageDashboard(); }
         catch (error) { toast(`Could not remove old media: ${error.message}`, true); }
-      }));
+      });
+      cleanup.disabled = !(source.retention_keep_newest > 0);
+      if (cleanup.disabled) cleanup.title = 'Save a retention rule before removing old media.';
+      actions.append(cleanup);
     }
     row.append(title, usage, status, retention, actions); list.append(row);
   });
@@ -1323,6 +1326,10 @@ async function openSettingsModal() {
   el('#settings-archive-retention-days').value = appSettings.archive_retention_days || '';
   renderStartupRegistration(appSettings.startup_registration);
   renderRestartNotices();
+  el('#settings-save').hidden = !local;
+  el('#settings-cancel').textContent = local ? 'Cancel' : 'Close';
+  document.querySelectorAll('#settings-modal .settings-tab-panels :is(input,select):not(#settings-storage-sort)')
+    .forEach((control) => { control.disabled = !local; });
   el('#settings-modal').hidden = false;
   setSettingsTab('general');
   void renderRemoteAccessStatus();

@@ -1159,7 +1159,7 @@ function renderAdminBackups(target, backups) {
     const restore = panelButton('Stage restore'); restore.addEventListener('click', async () => {
       const confirmation = prompt('Type RESTORE BACKUP to stage this restore:');
       if (confirmation !== 'RESTORE BACKUP') { toast('Confirmation did not match.', true); return; }
-      try { await api(`/api/admin/backups/${encodeURIComponent(backup.id)}/restore`, { method: 'POST', body: JSON.stringify({ confirmation }) }); toast('Restore staged; restart after the job succeeds.'); }
+      try { await api(`/api/admin/backups/${encodeURIComponent(backup.id)}/restore`, { method: 'POST', body: JSON.stringify({ confirmation }) }); toast('Restore queued. Restart after the job succeeds.'); }
       catch (error) { toast(`Could not stage restore: ${error.message}`, true); }
     });
     actions.append(download, validate, restore); row.append(title, meta, actions); target.append(row);
@@ -1167,6 +1167,12 @@ function renderAdminBackups(target, backups) {
 }
 
 function renderAdminPhar(target, phar) {
+  const statusKey = JSON.stringify(phar);
+  if (target.dataset.status === statusKey) return;
+  target.dataset.status = statusKey;
+  const previous = target.querySelector('select');
+  const draftBackend = previous && previous.value !== previous.dataset.savedBackend
+    ? previous.value : null;
   target.replaceChildren();
   const heading = document.createElement('h3'); heading.className = 'panel-subhead'; heading.textContent = 'P-HAR'; target.append(heading);
   const detail = document.createElement('p'); detail.className = 'muted';
@@ -1178,13 +1184,16 @@ function renderAdminPhar(target, phar) {
   if (!phar) return;
   const actions = document.createElement('div'); actions.className = 'explorer-card-actions';
   const backend = document.createElement('select'); backend.className = 'panel-button'; backend.setAttribute('aria-label', 'P-HAR native backend');
-  for (const value of ['auto', 'cuda', 'rocm']) { const option = document.createElement('option'); option.value = value; option.textContent = value === 'auto' ? 'Auto (CUDA first)' : value.toUpperCase(); option.selected = (phar.backend || 'auto') === value; backend.append(option); }
+  backend.dataset.savedBackend = phar.backend || 'auto';
+  for (const value of ['auto', 'cuda', 'rocm']) { const option = document.createElement('option'); option.value = value; option.textContent = value === 'auto' ? 'Auto (CUDA first)' : value.toUpperCase(); option.selected = (draftBackend || backend.dataset.savedBackend) === value; backend.append(option); }
   const refresh = () => { const panel = target.closest('.settings-local-admin'); if (panel) refreshAdminPanel(panel); };
-  const intent = panelButton(phar.requested ? 'Disable P-HAR' : 'Enable P-HAR setup');
-  intent.addEventListener('click', async () => {
-    try { await api('/api/admin/phar', { method: 'POST', body: JSON.stringify({ enabled: !phar.requested, backend: backend.value }) }); refresh(); }
+  const configure = async (enabled) => {
+    try { await api('/api/admin/phar', { method: 'POST', body: JSON.stringify({ enabled, backend: backend.value }) }); refresh(); }
     catch (error) { toast(`Could not update P-HAR: ${error.message}`, true); }
-  });
+  };
+  const saveBackend = panelButton('Apply backend'); saveBackend.addEventListener('click', () => configure(phar.requested));
+  const intent = panelButton(phar.requested ? 'Disable P-HAR' : 'Enable P-HAR setup');
+  intent.addEventListener('click', () => configure(!phar.requested));
   const install = panelButton('Install / resume'); install.disabled = !phar.requested;
   install.addEventListener('click', async () => {
     try { const result = await api('/api/admin/phar/install', { method: 'POST' }); toast(result.message || 'P-HAR setup evaluated.'); refresh(); }
@@ -1205,20 +1214,23 @@ function renderAdminPhar(target, phar) {
     try { const result = await api('/api/admin/phar/self-test', { method: 'POST' }); toast(result.message || 'P-HAR self-test finished.'); refresh(); }
     catch (error) { toast(`P-HAR self-test failed: ${error.message}`, true); }
   });
-  actions.append(backend, intent, install, cancel, repair, selfTest); target.append(actions);
+  actions.append(backend, saveBackend, intent, install, cancel, repair, selfTest); target.append(actions);
 }
 
 async function refreshAdminPanel(panel) {
   if (!window.isSettingsTabActive?.('local-admin') || document.hidden || !panel.isConnected) return;
-  try {
-    const [backups, jobs, phar] = await Promise.all([api('/api/admin/backups'), api('/api/admin/jobs'), api('/api/admin/phar')]);
-    renderAdminPhar(explorerEl('#admin-phar', panel), phar);
-    renderAdminBackups(explorerEl('#admin-backup-list', panel), backups.backups || []);
-    renderAdminJobs(explorerEl('#admin-job-list', panel), jobs.jobs || []);
-  } catch (error) {
-    const status = explorerEl('#admin-status', panel); if (status) status.textContent = `Admin unavailable: ${error.message}`;
-    stopAdminPolling();
-  }
+  const status = explorerEl('#admin-status', panel);
+  const [backups, jobs, phar] = await Promise.allSettled([
+    api('/api/admin/backups'), api('/api/admin/jobs'), api('/api/admin/phar'),
+  ]);
+  if (!window.isSettingsTabActive?.('local-admin') || status.isConnected === false) return;
+  if (backups.status === 'fulfilled') renderAdminBackups(explorerEl('#admin-backup-list', panel), backups.value.backups || []);
+  if (jobs.status === 'fulfilled') renderAdminJobs(explorerEl('#admin-job-list', panel), jobs.value.jobs || []);
+  if (phar.status === 'fulfilled') renderAdminPhar(explorerEl('#admin-phar', panel), phar.value);
+  status.textContent = [[backups, 'Backups'], [jobs, 'Maintenance jobs'], [phar, 'P-HAR']]
+    .filter(([result]) => result.status === 'rejected')
+    .map(([result, label]) => `${label} unavailable: ${result.reason.message}`)
+    .join(' · ');
 }
 
 function renderAdminPanel(panel) {

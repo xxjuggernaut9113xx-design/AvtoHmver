@@ -71,7 +71,7 @@ pub async fn dashboard(
     if state.shutdown.is_cancelled() {
         return Err(StorageError::ShuttingDown);
     }
-    let _lease = state
+    let lease = state
         .maintenance
         .try_acquire_background_worker()
         .ok_or(StorageError::Maintenance)?;
@@ -86,6 +86,7 @@ pub async fn dashboard(
     let thumbs_dir = state.thumbs_dir.clone();
     let sort = sort.unwrap_or_else(|| "usage_desc".into());
     let snapshot = tokio::task::spawn_blocking(move || {
+        let _lease = lease;
         crate::storage::dashboard_snapshot(
             &pool,
             &data_dir,
@@ -119,8 +120,10 @@ mod tests {
             }),
         )
         .await
+        .unwrap()
         .0;
         let mut direct = serde_json::to_value(direct).unwrap();
+        let http = serde_json::to_value(http).unwrap();
         assert!(direct["disk"]["free_bytes"].is_number());
         assert!(http["disk"]["free_bytes"].is_number());
         direct["disk"].as_object_mut().unwrap().remove("free_bytes");

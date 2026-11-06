@@ -8,6 +8,7 @@ use axum::{
     http::StatusCode,
     Json,
 };
+use rusqlite::OptionalExtension;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
@@ -50,14 +51,21 @@ pub struct StorageQuery {
 pub async fn dashboard(
     State(state): State<Arc<AppState>>,
     Query(query): Query<StorageQuery>,
-) -> Json<Value> {
-    Json(
-        match crate::services::storage::dashboard(&state, query.sort).await {
-            Ok(snapshot) => serde_json::to_value(snapshot)
-                .unwrap_or_else(|_| json!({"error":"Storage accounting did not complete."})),
-            Err(error) => json!({"error":error.message()}),
-        },
-    )
+) -> Result<Json<crate::services::storage::StorageDashboard>, (StatusCode, Json<Value>)> {
+    use crate::services::storage::StorageError;
+    crate::services::storage::dashboard(&state, query.sort)
+        .await
+        .map(Json)
+        .map_err(|error| {
+            let status = match error {
+                StorageError::Forbidden => StatusCode::FORBIDDEN,
+                StorageError::ShuttingDown | StorageError::Maintenance => {
+                    StatusCode::SERVICE_UNAVAILABLE
+                }
+                StorageError::AccountingFailed => StatusCode::INTERNAL_SERVER_ERROR,
+            };
+            (status, Json(json!({"error":error.message()})))
+        })
 }
 
 pub async fn permit_one_sync(
@@ -123,9 +131,7 @@ pub async fn cleanup_source(
             Json(json!({"error":"Pause this source before removing old media."})),
         ));
     }
-    let keep_newest = if let Some(value) = body.keep_newest {
-        value
-    } else {
+    let configured = {
         let conn = state.pool.get().map_err(|error| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -133,18 +139,32 @@ pub async fn cleanup_source(
             )
         })?;
         conn.query_row(
-            "SELECT COALESCE(retention_keep_newest,0) FROM sources WHERE id=?1",
+            "SELECT retention_keep_newest FROM sources WHERE id=?1",
             [id],
-            |row| row.get::<_, i64>(0),
+            |row| row.get::<_, Option<u32>>(0),
         )
-        .map_err(|_| {
+        .optional()
+        .map_err(|error| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error":error.to_string()})),
+            )
+        })?
+        .ok_or_else(|| {
             (
                 StatusCode::NOT_FOUND,
                 Json(json!({"error":"Source not found"})),
             )
         })?
-        .max(0) as u32
     };
+    let keep_newest = body
+        .keep_newest
+        .or(configured)
+        .filter(|value| (1..=1_000_000).contains(value))
+        .ok_or_else(|| (
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error":"Set a source retention rule to keep between 1 and 1,000,000 newest items before removing old media."})),
+        ))?;
     let worker_state = state.clone();
     let outcome = tokio::task::spawn_blocking(move || {
         let _lease = lease;
@@ -259,6 +279,89 @@ pub async fn cleanup_archives(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use axum::body::Body;
+    use axum::http::Request;
+    use tower::ServiceExt;
+
+    #[tokio::test]
+    async fn server_cleanup_requires_retention_and_preserves_originals_on_rejection() {
+        let root = tempfile::tempdir().unwrap();
+        let state = crate::test_support::state(root.path());
+        crate::test_support::source(&state);
+        let original = state.library_dir.join("test/original.mp4");
+        std::fs::write(&original, b"original").unwrap();
+        state
+            .pool
+            .get()
+            .unwrap()
+            .execute(
+                "INSERT INTO media(id,source_id,filepath,filename,type,added_at,downloaded)
+             VALUES(1,1,'test/original.mp4','original.mp4','video','2026',1)",
+                [],
+            )
+            .unwrap();
+        let mut server = (*state).clone();
+        server.edition = crate::edition::Edition::Server;
+        let app = crate::router(server);
+        for body in [
+            r#"{"confirmation":"DELETE OLD MEDIA"}"#,
+            r#"{"confirmation":"DELETE OLD MEDIA","keep_newest":0}"#,
+        ] {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::post("/api/storage/sources/1/cleanup")
+                        .header("content-type", "application/json")
+                        .body(Body::from(body))
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+            assert_eq!(std::fs::read(&original).unwrap(), b"original");
+        }
+        let newest = state.library_dir.join("test/newest.mp4");
+        std::fs::write(&newest, b"newest").unwrap();
+        state
+            .pool
+            .get()
+            .unwrap()
+            .execute_batch(
+                "UPDATE sources SET retention_keep_newest=1 WHERE id=1;
+             INSERT INTO media(id,source_id,filepath,filename,type,added_at,downloaded)
+             VALUES(2,1,'test/newest.mp4','newest.mp4','video','2026',1);",
+            )
+            .unwrap();
+        let response = app
+            .oneshot(
+                Request::post("/api/storage/sources/1/cleanup")
+                    .header("content-type", "application/json")
+                    .body(Body::from(r#"{"confirmation":"DELETE OLD MEDIA"}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        assert!(!original.exists());
+        assert_eq!(std::fs::read(newest).unwrap(), b"newest");
+    }
+
+    #[tokio::test]
+    async fn storage_dashboard_reports_unavailability_as_http_error() {
+        let root = tempfile::tempdir().unwrap();
+        let state = crate::test_support::state(root.path());
+        state.shutdown.cancel();
+        let response = crate::router((*state).clone())
+            .oneshot(Request::get("/api/storage").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+        let body = axum::body::to_bytes(response.into_body(), 1024)
+            .await
+            .unwrap();
+        let body: Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(body["error"], "AvtoHmver is shutting down");
+    }
 
     #[tokio::test]
     async fn cleanup_and_classifier_configuration_respect_maintenance_and_shutdown() {

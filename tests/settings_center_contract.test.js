@@ -54,6 +54,42 @@ test('settings runtime reconciles voices and admin visibility', () => {
   assert.doesNotMatch(library, /explorer-admin-nav|data-nav=["']admin["']/);
 });
 
+test('Admin keeps showing backup and restore progress during classifier unavailability', async () => {
+  const library = read('static/library.js');
+  const begin = library.indexOf('async function refreshAdminPanel(');
+  const end = library.indexOf('function renderAdminPanel(', begin);
+  const nodes = new Map(['#admin-status', '#admin-phar', '#admin-backup-list', '#admin-job-list']
+    .map(id => [id, { textContent: '' }]));
+  const seen = {};
+  let classifierAvailable = false;
+  const context = vm.createContext({
+    window: { isSettingsTabActive: tab => tab === 'local-admin' },
+    document: { hidden: false },
+    explorerEl: id => nodes.get(id),
+    api: async route => {
+      if (route.endsWith('backups')) return { backups: [{ id: 'safety.zip' }] };
+      if (route.endsWith('jobs')) return { jobs: [{ phase: 'succeeded', restart_required: true }] };
+      if (!classifierAvailable) throw new Error('A local maintenance job is active');
+      return { phase: 'ready' };
+    },
+    stopAdminPolling() { seen.stopped = true; },
+    renderAdminPhar(target, data) { seen.phar = data; },
+    renderAdminBackups(target, data) { seen.backups = data; },
+    renderAdminJobs(target, data) { seen.jobs = data; },
+  });
+  new vm.Script(library.slice(begin, end)).runInContext(context);
+  const panel = { isConnected: true };
+  await context.refreshAdminPanel(panel);
+  assert.equal(seen.backups[0].id, 'safety.zip');
+  assert.equal(seen.jobs[0].restart_required, true);
+  assert.match(nodes.get('#admin-status').textContent, /maintenance job is active/);
+  assert.equal(seen.stopped, undefined);
+  classifierAvailable = true;
+  await context.refreshAdminPanel(panel);
+  assert.equal(seen.phar.phase, 'ready');
+  assert.equal(nodes.get('#admin-status').textContent, '');
+});
+
 test('asynchronous browser voice discovery preserves the saved selection', async () => {
   const app = read('static/app.js');
   const begin = app.lastIndexOf('function populateTtsVoiceSelect');
