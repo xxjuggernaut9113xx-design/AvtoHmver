@@ -20,7 +20,7 @@ const origin=process.env.FANSERVICE_FIXTURE_ORIGIN||'http://127.0.0.1:42169';
     await page.evaluate(()=>{const p=JSON.parse(localStorage.getItem(profileKey));p.packs[0].name='Renamed during session';localStorage.setItem(profileKey,JSON.stringify(p));});
    }
    await page.evaluate(()=>{const o=run.roundObjective;if(o.objective===0)state.meter=1;else if(o.objective===1)state.seconds=o.baselineDuration+o.target;else if(o.objective===2)state.strokes=o.baselineStrokes+o.target;else if(o.objective===3)state.edges=o.baselineEdges+o.target;else if(o.objective===7)state.milkingCount=o.baselineMilking+o.target;else if(o.objective===8)state.succubi=o.baselineSuccubi+o.target;objectiveEvents(run.advance(0));render();});
-   if(await page.evaluate(()=>run.phase==='playing'))await page.getByRole('button',{name:'Finish / Enter',exact:true}).click();
+   if(await page.evaluate(()=>run.phase==='playing'))await page.getByRole('button',{name:'Hold to finish',exact:true}).press('Enter',{delay:1100});
    if(round<3){await page.getByRole('button',{name:'Continue Tower',exact:true}).waitFor();await page.getByRole('button',{name:'Inventory / loadout',exact:true}).click();await page.getByRole('heading',{name:'Inventory and loadout',exact:true}).waitFor();await page.getByRole('button',{name:'Close inventory',exact:true}).click();await page.getByRole('button',{name:'Continue Tower',exact:true}).click();}
   }
   await page.waitForFunction(()=>finished);const profile=await page.evaluate(()=>JSON.parse(localStorage.getItem(profileKey)));

@@ -2,7 +2,8 @@
 const $=id=>document.getElementById(id),store=FanserviceStore,rules=FanserviceRules,params=new URLSearchParams(location.search),library=params.get('library')||localStorage.getItem('fanservice-last-library')||'device:'+store.device;
 const profileKey='fanservice-profile-v1:'+library,checkpointKey='fanservice-session-v1:'+library,audio=$('audio');
 let sessionId=store.id(),profile,media=[],decks,remaining={},music,map,run,state,catalog,contract,cardRules,started=false,paused=false,finished=false,settling=false,lastBeat=0,lastFrame=0,checkpointAt=0,category='slow',breakUntil=0,speed=1,pinnedPacks=[],restoring=false;
-const clock={next:0,event:0,last:0},resources=[];
+const clock={next:0,event:0,last:0},resources=[],finishButton=$('finish');
+let finishHold;
 const mediaStatus=document.createElement('p');mediaStatus.id='media-status';mediaStatus.setAttribute('role','status');$('stage').after(mediaStatus);
 for(const id of ['image','video'])FanserviceMedia.observe($(id),text=>mediaStatus.textContent=text);
 function status(text){$('status').textContent=text;}
@@ -43,7 +44,7 @@ function makeRun(){
  const settings={...(profile.mobile_settings||{}),LastObjectiveIndex_Classic:Number(objectiveSelect.value),LootBarEnabled:lootChoice.checked};if(spec.saveKey)settings[spec.saveKey]=target;
  return new FanserviceRun.Run(catalog,{mode,rounds:Number(roundsInput.value),settings,difficulty:Number($('difficulty').value),cardRules,lootEnabled:lootChoice.checked,maxBreaks:catalog.music_upgrades[1]['Value_L'+Math.max(1,Math.min(5,profile.mobile_music_upgrades?.[1]||1))],seed:run?.config.seed??crypto.getRandomValues(new Int32Array(1))[0],hotbar:run?.inventory.hotbarItems||profile.mobile_loadout,modifiers:profile.progression?.enabled_modifiers||[]});
 }
-function installRun(value){run=value;state=run.state;decks=rules.mediaPools(media,FanserviceModifiers.options(state.modifiers));remaining={};}
+function installRun(value){cancelFinishHold();run=value;state=run.state;decks=rules.mediaPools(media,FanserviceModifiers.options(state.modifiers));remaining={};}
 function draw(pool=category,{prepare=true,force=false}={}){
  if(prepare&&!force&&started&&FanserviceEdge.active(run)){status('Finish the active edge stage before drawing another card.');$('pool').value=category;return false;}
  if(prepare&&!force&&started&&!music&&state.card===3&&FanserviceCards.remaining(run)>0){status('Finish the active encounter before drawing another card.');$('pool').value=category;return false;}
@@ -106,7 +107,8 @@ function render(){
  $('meter').value=Math.min(state.meter,1);$('stats').textContent=`${state.strokes} beats · combo ${state.combo} (${rules.comboTier(state.combo)}) · ${state.coins} coins · ${state.succuCoins} SuccuCoins · heat ${state.heat.toFixed(1)} · ${Math.floor(state.seconds)} seconds${run.config.lootEnabled?` · loot ${Math.floor(Math.max(0,state.lootBar)*100)}%`:''}`;
  const objective=run.roundObjective||run.objective.state,spec=FanserviceObjectives.specs.find(s=>s.objective===objective.objective);
  objectiveStatus.textContent=(run.tower?`Tower ${run.phase}. `:'')+(spec?`${spec.title}: ${objective.target}. `:'')+(run.objective.releaseDeadline===null?'':`Release window: ${Math.max(0,Math.ceil(run.objective.releaseDeadline-state.seconds))} seconds.`)+(state.seconds<breakUntil?` Break: ${Math.ceil(breakUntil-state.seconds)} seconds.`:'');
- $('finish').textContent=objective.objective===7?'Record tribute / Enter':'Finish / Enter';$('finish').disabled=!started||finished||paused||run.phase!=='playing'||(!run.player.isAllowedToCum&&state.meter<1);
+ finishButton.textContent=objective.objective===7?'Hold to record tribute':'Hold to finish';finishButton.disabled=!canFinish();
+ if(finishButton.disabled)cancelFinishHold();
  $('draw').disabled=$('tap').disabled=!started||finished||paused||run.phase!=='playing'||FanserviceEdge.active(run);renderEdge();
 }
 function objectiveEvents(events){
@@ -150,7 +152,7 @@ async function mutateProfile(fn){
  return navigator.locks?.request?navigator.locks.request('fanservice-profile:'+profileKey,write):write();
 }
 async function end(won){
- if(finished||settling)return;settling=true;window.FanserviceVoice?.stop();audio.pause();$('video').pause();
+ if(finished||settling)return;cancelFinishHold();settling=true;window.FanserviceVoice?.stop();audio.pause();$('video').pause();
  if(!started){status('Session canceled; no rewards were granted.');settling=false;return;}
  state.won=won;state.finished=true;
  try{
@@ -201,15 +203,64 @@ $('start').onclick=async()=>{
   $('pause').disabled=false;draw(category,{prepare:!run.resumed});renderTower();render();checkpoint(true);status('Playing locally with the session selection frozen.');if(run.phase==='complete')await end(!!state.won);
  }catch(error){status(error.message);}
 };
-$('pause').onclick=()=>{if(!started||finished)return;paused=!paused;if(paused){window.FanserviceVoice?.stop();audio.pause();$('video').pause();checkpoint(true);}else{lastFrame=performance.now();if(music)audio.play().catch(error=>status(error.message));if(!$('video').hidden)$('video').play().catch(error=>status(error.message));}$('pause').textContent=paused?'Resume':'Pause';render();};
+$('pause').onclick=()=>{if(!started||finished)return;paused=!paused;if(paused){cancelFinishHold();window.FanserviceVoice?.stop();audio.pause();$('video').pause();checkpoint(true);}else{lastFrame=performance.now();if(music)audio.play().catch(error=>status(error.message));if(!$('video').hidden)$('video').play().catch(error=>status(error.message));}$('pause').textContent=paused?'Resume':'Pause';render();};
 function tap(){if(started&&!paused&&!finished&&!music&&run.phase==='playing')draw();}
 $('tap').onclick=tap;$('draw').onclick=()=>draw();$('pool').onchange=()=>draw($('pool').value);
-$('finish').onclick=()=>{if($('finish').disabled)return;if(state.meter>=1&&!run.player.isAllowedToCum)objectiveEvents(run.advance(0));objectiveEvents(run.climax());};$('end').onclick=()=>end(false);
-document.addEventListener('keydown',e=>{if(e.code==='Space'&&!['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName)){e.preventDefault();tap();}else if(e.code==='Enter'&&!$('finish').disabled)$('finish').click();else if(e.code==='KeyE'&&!e.repeat&&!['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName)){e.preventDefault();triggerEdge();}else if(e.code==='KeyG'&&!e.repeat&&!paused&&!finished&&!['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName)){e.preventDefault();edgeAction(run.continueEdgeRest());}});
+function canFinish(){
+ return started&&!paused&&!finished&&!settling&&run.phase==='playing'&&(run.player.isAllowedToCum||state.meter>=1);
+}
+function cancelFinishHold(){
+ if(!finishHold)return;
+ clearTimeout(finishHold.timer);
+ finishHold=null;
+}
+function beginFinishHold(input){
+ if(finishHold||document.hidden||!canFinish())return;
+ const activeRun=run;
+ finishHold={input,timer:setTimeout(()=>{
+  cancelFinishHold();
+  if(document.hidden||run!==activeRun||!canFinish())return;
+  if(state.meter>=1&&!run.player.isAllowedToCum)objectiveEvents(run.advance(0));
+  objectiveEvents(run.climax());
+  render();
+ },1000)};
+}
+finishButton.addEventListener('pointerdown',e=>{
+ if(!e.isPrimary||e.button!==0||finishButton.disabled)return;
+ e.preventDefault();
+ finishButton.focus();
+ finishButton.setPointerCapture(e.pointerId);
+ beginFinishHold(e.pointerId);
+});
+for(const type of ['pointerup','pointercancel','lostpointercapture']){
+ finishButton.addEventListener(type,e=>{if(finishHold?.input===e.pointerId)cancelFinishHold();});
+}
+finishButton.addEventListener('contextmenu',e=>e.preventDefault());
+finishButton.addEventListener('blur',cancelFinishHold);
+window.addEventListener('blur',cancelFinishHold);
+$('end').onclick=()=>end(false);
+document.addEventListener('keydown',e=>{
+ if((e.code==='Enter'&&e.target===document.body)||(e.target===finishButton&&['Enter','Space'].includes(e.code))){
+  e.preventDefault();
+  if(!e.repeat)beginFinishHold(e.code);
+ }else if(e.code==='Space'&&!['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName)){
+  e.preventDefault();tap();
+ }else if(e.code==='KeyE'&&!e.repeat&&!['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName)){
+  e.preventDefault();triggerEdge();
+ }else if(e.code==='KeyG'&&!e.repeat&&!paused&&!finished&&!['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName)){
+  e.preventDefault();edgeAction(run.continueEdgeRest());
+ }
+});
+document.addEventListener('keyup',e=>{if(finishHold?.input===e.code)cancelFinishHold();});
+if(navigator.mediaSession){
+ for(const action of ['seekbackward','seekforward','seekto']){
+  try{navigator.mediaSession.setActionHandler(action,()=>{});}catch{/* This browser does not implement the action. */}
+ }
+}
 audio.addEventListener('waiting',()=>status('Buffering: rhythm clock is held at the actual playback position.'));audio.addEventListener('playing',()=>status('Playing from the client audio clock.'));audio.addEventListener('ended',()=>{if(state)state.BestMusicModeWinRounds=1;void end(true);});audio.addEventListener('error',()=>status('Soundtrack access failed. Reconnect or use an explicitly saved snapshot.'));
 audio.addEventListener('seeked',()=>{if(map&&state){rules.seek(map,audio.currentTime,clock,timelineCallbacks());checkpoint(true);render();}});
-document.addEventListener('visibilitychange',()=>{if(document.hidden&&started&&!paused&&!finished)$('pause').click();});
-window.addEventListener('pagehide',()=>checkpoint(true));
+document.addEventListener('visibilitychange',()=>{if(document.hidden){cancelFinishHold();if(started&&!paused&&!finished)$('pause').click();}});
+window.addEventListener('pagehide',()=>{cancelFinishHold();checkpoint(true);});
 async function releasePins(){await Promise.all(pinnedPacks.map(packId=>store.releaseSession(sessionId+':'+packId)));pinnedPacks=[];}
 async function restoreMedia(item){
  if(item.storage_key){const saved=await store.get('files',item.storage_key);if(!saved?.blob)throw Error('Active-session media was removed or evicted.');const url=URL.createObjectURL(saved.blob);resources.push(url);return {...item,url};}
@@ -239,6 +290,6 @@ async function restoreMedia(item){
  }
  if(saved)$('difficulty').value=String(run.config.difficulty??1);
  const missing=['slow','medium','fast','succubus','cum'].filter(pool=>!decks[pool].length);if(missing.length)throw Error('Enabled packs lack required gameplay pools: '+missing.join(', ')+'. Enable complementary packs or organize their tags in full fanservice.');
- if(music){store.validateMusic(music,{libraryId:library,playable:true});map=music.beatmap;audio.src=music.url||new URL(music.stream_url,store.server());audio.hidden=false;if(saved)audio.addEventListener('loadedmetadata',()=>{audio.currentTime=saved.position;},{once:true});}
+ if(music){store.validateMusic(music,{libraryId:library,playable:true});map=music.beatmap;audio.src=music.url||new URL(music.stream_url,store.server());if(saved)audio.addEventListener('loadedmetadata',()=>{audio.currentTime=saved.position;},{once:true});}
  draw(category,{prepare:!saved});renderTower();render();$('start').disabled=false;status(saved?'Unfinished session ready. Tap Start to resume.':'Ready. Tap Start to enable local playback and audio.');requestAnimationFrame(tick);
 })().catch(async error=>{status(error.message);$('start').disabled=true;if(!started&&!restoring)await releasePins().catch(()=>{});if(restoring)settingsPanel.append(action('Discard unfinished session',async()=>{if(!confirm('Discard this unfinished session without granting rewards? Saved library media and pack ownership are retained.'))return;await releasePins();localStorage.removeItem(checkpointKey);location.reload();}));});

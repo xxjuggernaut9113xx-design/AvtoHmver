@@ -622,6 +622,9 @@ pub fn router(state: AppState) -> axum::Router {
                 .layer(axum::middleware::from_fn_with_state(
                     Arc::new(state.clone()),
                     routes::library::reconcile_not_found,
+                ))
+                .layer(axum::middleware::from_fn(
+                    routes::library::protect_served_files,
                 )),
         );
     if state.edition == edition::Edition::Server {

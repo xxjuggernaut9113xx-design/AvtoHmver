@@ -265,6 +265,23 @@ mod tests {
             std::fs::write(state.library_dir.join(format!("sample{id}.png")), &bytes).unwrap();
             state.pool.get().unwrap().execute("INSERT INTO media(id,source_id,filepath,filename,type,added_at,downloaded,human_rating) VALUES(?1,1,?2,?2,'image','2026',1,2)", rusqlite::params![id,format!("sample{id}.png")]).unwrap();
         }
+        std::fs::write(
+            state.library_dir.join("active.html"),
+            r#"<script>
+                parent.postMessage('library-script-executed', '*');
+                fetch('/api/media/1/rating', {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: '{"rating":5}'
+                });
+            </script>"#,
+        )
+        .unwrap();
+        std::fs::write(
+            state.library_dir.join("active.js"),
+            "window.libraryScriptExecuted = true;",
+        )
+        .unwrap();
         // Explicit metadata covers every gameplay pool without original media.
         let conn = state.pool.get().unwrap();
         for tag in ["slow", "medium", "fast", "succubus", "cum", "ass", "boobs"] {

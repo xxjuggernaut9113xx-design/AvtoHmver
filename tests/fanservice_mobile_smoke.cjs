@@ -4,7 +4,15 @@ const origin=process.env.FANSERVICE_FIXTURE_ORIGIN||'http://127.0.0.1:42169',out
 let browser;
 (async()=>{
  browser=await chromium.launch({headless:true,...(process.env.FANSERVICE_BROWSER_EXECUTABLE?{executablePath:process.env.FANSERVICE_BROWSER_EXECUTABLE}:{})});
- const context=await browser.newContext({viewport:{width:390,height:844}}),page=await context.newPage(),errors=[],writes=[];page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>{if(['POST','PUT','PATCH','DELETE'].includes(r.method()))writes.push(r.url());});
+ const context=await browser.newContext({viewport:{width:390,height:844},hasTouch:true}),page=await context.newPage(),errors=[],writes=[];page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>{if(['POST','PUT','PATCH','DELETE'].includes(r.method()))writes.push(r.url());});
+ await page.addInitScript(()=>{
+  const session=navigator.mediaSession,register=session.setActionHandler.bind(session);
+  window.mediaActions=new Map();
+  session.setActionHandler=(action,handler)=>{
+   register(action,handler);
+   window.mediaActions.set(action,handler);
+  };
+ });
  await page.goto(origin+'/fanservice/');await page.getByRole('checkbox',{name:'Select sample1.png'}).waitFor();assert.equal(await page.locator('nav button').count(),2);
  await page.locator('.tile img').first().evaluate(img=>{img.loading='eager';img.src='/missing-thumbnail-acceptance';});
  await page.waitForFunction(()=>document.querySelector('.tile img')?.alt==='Preview unavailable');
@@ -12,25 +20,43 @@ let browser;
  await page.locator('#local-files').setInputFiles({name:'private-synthetic-phone.png',mimeType:'image/png',buffer:fs.readFileSync(path.join(__dirname,'../static/fanservice/assets/button_rectangle_flat.png'))});await page.getByRole('button',{name:'Add selected phone files'}).click();await page.getByRole('checkbox',{name:'Select local private-synthetic-phone.png'}).waitFor();
  await page.getByRole('button',{name:'Create Pack',exact:true}).click();await page.locator('#pack-name').fill('Phone-only fixture');await page.getByRole('button',{name:'Save to Unlocks'}).click();await page.getByRole('button',{name:'Enable',exact:true}).click();await page.getByRole('button',{name:'Disable',exact:true}).waitFor();assert.deepEqual(writes,[],'Phone import/pack creation must not upload media or write the Server library');
  await page.getByRole('button',{name:'Play enabled packs'}).click();await page.getByRole('button',{name:'Start',exact:true}).click();await page.waitForFunction(()=>state.strokes>0);await page.getByRole('button',{name:'Pause',exact:true}).click();const paused=await page.evaluate(()=>state.strokes);await page.waitForTimeout(700);assert.equal(await page.evaluate(()=>state.strokes),paused);await page.getByRole('button',{name:'Resume',exact:true}).click();
- await page.evaluate(()=>{state.meter=1;render();});await page.getByRole('button',{name:'Finish / Enter'}).click();await page.waitForFunction(()=>document.querySelector('#summary').textContent.includes('Rewards saved once'));
+ await page.evaluate(()=>{state.meter=1;render();});const finishButton=page.locator('#finish');
+ await finishButton.tap();
+ await page.waitForTimeout(1100);
+ assert.doesNotMatch(await page.locator('#summary').innerText(),/Rewards saved once/);
+ const cdp=await context.newCDPSession(page);
+ await finishButton.scrollIntoViewIfNeeded();
+ const box=await finishButton.boundingBox(),touchPoints=[{x:box.x+box.width/2,y:box.y+box.height/2}];
+ await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints});
+ await cdp.send('Input.dispatchTouchEvent',{type:'touchCancel',touchPoints:[]});
+ await page.waitForTimeout(1100);
+ assert.doesNotMatch(await page.locator('#summary').innerText(),/Rewards saved once/);
+ await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints});await page.waitForFunction(()=>document.querySelector('#summary').textContent.includes('Rewards saved once'));
+ await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
  const first=await page.evaluate(()=>JSON.parse(localStorage.getItem(profileKey)));assert.equal(first.progression.sessions,1);await page.reload();await page.locator('#start').waitFor();assert.equal(await page.evaluate(()=>profile.progression.sessions),1);
  await page.goto(origin+'/fanservice/');await page.getByRole('checkbox',{name:'Select sample1.png'}).check();await page.getByRole('button',{name:'Create Pack',exact:true}).click();await page.locator('#pack-name').fill('Offline Server fixture');await page.getByRole('button',{name:'Save to Unlocks'}).click();const row=page.locator('.pack').filter({has:page.getByRole('heading',{name:'Offline Server fixture · Custom'})});await row.getByRole('button',{name:'Enable',exact:true}).click();await page.locator('#soundtrack').selectOption('1');
  await page.locator('.pack').filter({has:page.getByRole('heading',{name:'Offline Server fixture · Custom'})}).getByRole('button',{name:'Download snapshot',exact:true}).click();await page.waitForFunction(()=>document.querySelector('#status')?.textContent.startsWith('Snapshot saved'),{timeout:30000});await page.evaluate(()=>navigator.serviceWorker.ready);await page.screenshot({path:path.join(output,'mobile-unlocks-snapshot.png'),fullPage:true});
  await context.setOffline(true);await page.locator('.pack').filter({has:page.getByRole('heading',{name:'Offline Server fixture · Custom'})}).getByRole('button',{name:'Play saved snapshot'}).click();await page.getByRole('button',{name:'Start',exact:true}).waitFor();await page.evaluate(()=>audio.muted=true);await page.getByRole('button',{name:'Start',exact:true}).click();await page.waitForFunction(()=>state.strokes>0);
- await page.getByRole('button',{name:'Pause',exact:true}).click();const pausedAudio=await page.evaluate(()=>audio.currentTime);await page.waitForTimeout(500);assert.ok(Math.abs(await page.evaluate(()=>audio.currentTime)-pausedAudio)<.05);await page.evaluate(()=>audio.currentTime=5);await page.waitForFunction(()=>!audio.seeking);await page.getByRole('button',{name:'Resume',exact:true}).click();await page.waitForFunction(()=>audio.currentTime>5.3);assert.ok(await page.evaluate(()=>state.strokes)<8,'A seek must not award skipped beats');
  await page.getByRole('button',{name:'Pause',exact:true}).click();
- const delivered=await page.evaluate(()=>({strokes:state.strokes,coins:state.coins,floor:clock.beatFloor}));
- await page.evaluate(()=>audio.currentTime=.5);await page.waitForFunction(()=>!audio.seeking&&clock.last<1);
- await page.getByRole('button',{name:'Resume',exact:true}).click();await page.waitForFunction(()=>audio.currentTime>1.3);
- await page.getByRole('button',{name:'Pause',exact:true}).click();
- assert.equal(await page.evaluate(()=>state.strokes),delivered.strokes,'Replaying heard beats must not repeat stroke or coin rewards');
- assert.equal(await page.evaluate(()=>state.coins),delivered.coins);assert.ok(await page.evaluate(()=>clock.beatFloor)>=delivered.floor);
- await page.evaluate(()=>checkpoint(true));await page.reload();await page.getByText('Unfinished session ready. Tap Start to resume.').waitFor();
- assert.equal(await page.evaluate(()=>state.strokes),delivered.strokes);assert.ok(await page.evaluate(()=>clock.beatFloor)>=delivered.floor);
- await page.getByRole('button',{name:'Start',exact:true}).click();await page.evaluate(()=>audio.currentTime=5.5);await page.waitForFunction(()=>!audio.seeking&&audio.currentTime>5.5);
+ const pausedAudio=await page.evaluate(()=>audio.currentTime);
+ assert.equal(await page.locator('#audio').getAttribute('controls'),null);
+ assert.equal(await page.locator('#audio').isHidden(),true);
+ assert.equal(await page.locator('#video').getAttribute('controls'),null);
+ await page.evaluate(()=>{
+  for(const action of ['seekbackward','seekforward','seekto']){
+   window.mediaActions.get(action)({action,seekOffset:5,seekTime:8});
+  }
+ });
+ await page.waitForTimeout(500);
+ assert.ok(Math.abs(await page.evaluate(()=>audio.currentTime)-pausedAudio)<.05,'Media seek actions must leave the paused timeline in place');
+ const delivered=await page.evaluate(()=>state.strokes);
+ await page.reload();await page.getByText('Unfinished session ready. Tap Start to resume.').waitFor();
+ assert.equal(await page.evaluate(()=>state.strokes),delivered);
+ await page.getByRole('button',{name:'Start',exact:true}).click();
+ await page.waitForFunction(time=>audio.currentTime>time,pausedAudio);
  await page.waitForFunction(()=>document.querySelector('#summary')?.textContent.includes('Rewards saved once'),null,{timeout:20000});assert.match(await page.locator('#summary').innerText(),/Rewards saved once/);const final=await page.evaluate(()=>JSON.parse(localStorage.getItem(profileKey)));assert.equal(final.progression.sessions,2);await page.screenshot({path:path.join(output,'mobile-offline-rhythm-complete.png'),fullPage:true});
  const savedId=new URL(page.url()).searchParams.get('snapshot');await page.evaluate(async id=>{const snapshot=await store.get('snapshots',id);await store.remove('files',snapshot.media[0].storage_key);},savedId);await page.reload();await page.waitForFunction(()=>document.querySelector('#status')?.textContent.includes('unavailable'));assert.equal(await page.locator('#start').isDisabled(),true);
  assert.deepEqual(errors,[]);await context.setOffline(false);
  const other=await browser.newContext({viewport:{width:390,height:844}}),otherPage=await other.newPage();await otherPage.goto(origin+'/fanservice/');await otherPage.getByRole('checkbox',{name:'Select sample1.png'}).waitFor();const keyName=await otherPage.evaluate(()=>key());await otherPage.evaluate(({keyName,final})=>localStorage.setItem(keyName,JSON.stringify(final)),{keyName,final});await otherPage.reload();await otherPage.getByRole('button',{name:'Unlocks',exact:true}).click();await otherPage.getByRole('button',{name:'Play enabled packs'}).click();await otherPage.waitForFunction(()=>document.querySelector('#status')?.textContent.includes('unavailable device-local'));assert.equal(await otherPage.locator('#start').isDisabled(),true);
- console.log('Mobile smoke passed: local privacy, controlled session/rewards/reload, explicit music snapshot, offline play/forward and backward seek without duplicate rewards, checkpointed delivery ledger, natural completion, missing storage and cross-device unavailability. Physical iPhone/Android device behavior remains unverified.');
+ console.log('Mobile smoke passed: local privacy, controlled session/rewards/reload, explicit music snapshot, offline play with seeking disabled, checkpointed playback, natural completion, missing storage and cross-device unavailability. Physical iPhone/Android device behavior remains unverified.');
 })().catch(e=>{console.error(e);process.exitCode=1;}).finally(async()=>{if(browser)await browser.close();});
