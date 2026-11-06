@@ -178,11 +178,7 @@ enum Update {
     Recovery(Result<RecoverySnapshot, String>),
     Navigation(Result<Vec<NavigationItem>, String>),
     Image(u64, u8, String, Result<NativeImage, String>),
-    Page(
-        u64,
-        Result<MediaPage, String>,
-        HashMap<i64, std::path::PathBuf>,
-    ),
+    Page(u64, Result<MediaPage, String>, HashMap<i64, Vec<u8>>),
     Manage(Result<ManageSnapshot, String>),
     DiagnosticLog(Result<String, String>),
     DiscoveryThumbnail {
@@ -260,8 +256,6 @@ struct ViewState {
     queue: Vec<MediaItem>,
     /// Queue repeats from the top after the last item when enabled.
     queue_repeat: bool,
-    /// Cached thumbnail paths per media id, generated on the worker thread.
-    thumbs: HashMap<i64, std::path::PathBuf>,
     /// Decoded Slint images, so a page re-render never re-decodes JPEGs.
     thumb_images: HashMap<i64, slint::Image>,
     query: LibraryQuery,
@@ -4342,19 +4336,13 @@ fn run_ui_inner(
                 if let Some(result) =
                     run_until_shutdown(&handle, &mut work_stop, worker_client.library(*query))
                 {
-                    // Thumbnails are generated on the worker thread so the UI
-                    // thread only decodes cached JPEGs. Bounded per page.
                     let thumbs = match &result {
-                        Ok(page) => page
-                            .media
-                            .iter()
-                            .take(60)
-                            .filter_map(|item| {
-                                worker_client
-                                    .thumbnail_path(item)
-                                    .map(|path| (item.id, path))
-                            })
-                            .collect(),
+                        Ok(page) => run_until_shutdown(
+                            &handle,
+                            &mut work_stop,
+                            worker_client.grid_thumbnails(&page.media),
+                        )
+                        .unwrap_or_default(),
                         Err(_) => HashMap::new(),
                     };
                     let _ = updates.send(Update::Page(request, result, thumbs));
@@ -7485,44 +7473,14 @@ fn run_ui_inner(
                             Ok(page) => {
                                 let mut state = v.borrow_mut();
                                 state.items = page.media;
-                                state.thumbs = thumbs;
-                                // Decode once per page on the UI thread; every
-                                // later render() reuses the decoded images.
-                                let live: std::collections::HashSet<i64> =
-                                    state.thumbs.keys().copied().collect();
-                                state.thumb_images.retain(|id, _| live.contains(id));
-                                let pending: Vec<(i64, std::path::PathBuf)> = state
-                                    .thumbs
-                                    .iter()
-                                    .map(|(id, path)| (*id, path.clone()))
+                                state.thumb_images = thumbs
+                                    .into_iter()
+                                    .filter_map(|(id, bytes)| {
+                                        slint::Image::load_from_data(&bytes, Some("jpeg"))
+                                            .ok()
+                                            .map(|image| (id, image))
+                                    })
                                     .collect();
-                                for (id, path) in pending {
-                                    state.thumb_images.remove(&id);
-                                    if let Ok(bytes) = std::fs::read(&path) {
-                                    if let Ok(image) = slint::Image::load_from_data(&bytes, Some("jpeg")) {
-                                        state.thumb_images.insert(id, image);
-                                    }
-                                    }
-                                }
-                                // Keep the decoded-image cache bounded across
-                                // many page turns: evict arbitrary
-                                // off-page entries past the budget instead of
-                                // nuking the whole cache and re-decoding the
-                                // current page.
-                                const THUMB_CACHE_BUDGET: usize = 500;
-                                if state.thumb_images.len() > THUMB_CACHE_BUDGET {
-                                    let excess = state.thumb_images.len() - THUMB_CACHE_BUDGET;
-                                    let evict: Vec<i64> = state
-                                        .thumb_images
-                                        .keys()
-                                        .filter(|id| !live.contains(id))
-                                        .take(excess)
-                                        .copied()
-                                        .collect();
-                                    for id in evict {
-                                        state.thumb_images.remove(&id);
-                                    }
-                                }
                                 let refreshed_selection = state.items.iter()
                                     .filter(|item| state.selected.contains_key(&item.id))
                                     .cloned()

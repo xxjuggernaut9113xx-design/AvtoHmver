@@ -383,6 +383,16 @@ impl RemoteClient {
         url: reqwest::Url,
         body: Option<Value>,
     ) -> Result<Vec<u8>, String> {
+        self.bytes_with_limit(method, url, body, 32).await
+    }
+
+    async fn bytes_with_limit(
+        &self,
+        method: reqwest::Method,
+        url: reqwest::Url,
+        body: Option<Value>,
+        max_mib: usize,
+    ) -> Result<Vec<u8>, String> {
         let retry_read = method == reqwest::Method::GET && self.instance_id.is_some();
         let mut response = {
             let mut attempt = 0;
@@ -422,17 +432,17 @@ impl RemoteClient {
         if !response.status().is_success() {
             return Err(format!("Host returned {}", response.status()));
         }
-        const MAX_BYTES: usize = 32 * 1024 * 1024;
+        let max_bytes = max_mib * 1024 * 1024;
         if response
             .content_length()
-            .is_some_and(|n| n > MAX_BYTES as u64)
+            .is_some_and(|n| n > max_bytes as u64)
         {
-            return Err("Response exceeds 32 MiB limit".into());
+            return Err(format!("Response exceeds {max_mib} MiB limit"));
         }
         let mut bytes = Vec::new();
         while let Some(chunk) = response.chunk().await.map_err(|e| e.to_string())? {
-            if bytes.len() + chunk.len() > MAX_BYTES {
-                return Err("Response exceeds 32 MiB limit".into());
+            if bytes.len() + chunk.len() > max_bytes {
+                return Err(format!("Response exceeds {max_mib} MiB limit"));
             }
             bytes.extend_from_slice(&chunk);
         }
@@ -1442,6 +1452,53 @@ impl Client {
             text.push_str(" (Repair is available in Local Admin)");
         }
         Ok(text)
+    }
+
+    /// Load the Host's cached previews for a grid page, with bounded parallel
+    /// requests. An omitted entry gives the grid its labeled fallback.
+    pub async fn grid_thumbnails(
+        &self,
+        items: &[MediaItem],
+    ) -> std::collections::HashMap<i64, Vec<u8>> {
+        use futures::{stream, StreamExt};
+        stream::iter(items.iter().filter(|item| {
+            matches!(item.kind.as_str(), "image" | "video" | "clip") && item.downloaded != Some(0)
+        }))
+        .map(|item| async move {
+            let bytes = match self {
+                Self::Local(client) => {
+                    if client.state.shutdown.is_cancelled() {
+                        return None;
+                    }
+                    let lease = client.state.maintenance.try_acquire_background_worker()?;
+                    let source = client.media_path(item.id).ok()?;
+                    crate::thumb_worker::get_or_create_thumb_admitted(
+                        item.id,
+                        source,
+                        client.state.thumbs_dir.clone(),
+                        client.state.ffmpeg_bin.clone(),
+                        Some(lease),
+                    )
+                    .await
+                    .ok()?
+                }
+                Self::Remote(client) => {
+                    if !client.permissions.library_read {
+                        return None;
+                    }
+                    let url = client.url(&format!("/api/thumb/{}", item.id)).ok()?;
+                    client
+                        .bytes_with_limit(reqwest::Method::GET, url, None, 2)
+                        .await
+                        .ok()?
+                }
+            };
+            Some((item.id, bytes))
+        })
+        .buffer_unordered(8)
+        .filter_map(std::future::ready)
+        .collect()
+        .await
     }
 
     /// Best-effort cached thumbnail for a library item. Generates the
@@ -2716,6 +2773,50 @@ mod tests {
             "library-a".into(),
         )
         .unwrap()
+    }
+
+    #[tokio::test]
+    async fn native_grid_previews_follow_host_source_changes() {
+        let root = tempfile::tempdir().unwrap();
+        let state = crate::test_support::state(root.path());
+        crate::test_support::source(&state);
+        let original = state.library_dir.join("photo.png");
+        image::RgbImage::from_pixel(8, 8, image::Rgb([255, 0, 0]))
+            .save(&original)
+            .unwrap();
+        state
+            .pool
+            .get()
+            .unwrap()
+            .execute(
+                "INSERT INTO media(id,source_id,filepath,filename,type,added_at,downloaded)
+             VALUES(1,1,'photo.png','photo.png','image','2026',1)",
+                [],
+            )
+            .unwrap();
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let router = crate::router((*state).clone());
+        let server = tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+        let remote = probe_client();
+        *remote.origin.write().unwrap() = format!("http://{address}/").parse().unwrap();
+        let viewer = Client::Remote(remote);
+        let items = viewer.library(LibraryQuery::default()).await.unwrap().media;
+        let first = viewer.grid_thumbnails(&items).await.remove(&1).unwrap();
+        assert!(image::load_from_memory(&first).is_ok());
+        assert_eq!(viewer.grid_thumbnails(&items).await.get(&1), Some(&first));
+
+        image::RgbImage::from_pixel(12, 12, image::Rgb([0, 0, 255]))
+            .save(&original)
+            .unwrap();
+        let changed = viewer.grid_thumbnails(&items).await.remove(&1).unwrap();
+        assert_ne!(first, changed);
+
+        std::fs::write(&original, b"broken image").unwrap();
+        assert!(viewer.grid_thumbnails(&items).await.is_empty());
+        std::fs::remove_file(original).unwrap();
+        assert!(viewer.grid_thumbnails(&items).await.is_empty());
+        server.abort();
     }
 
     #[tokio::test]
