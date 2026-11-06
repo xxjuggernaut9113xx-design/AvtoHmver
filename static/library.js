@@ -883,7 +883,7 @@ function updateDiscoverStatus(message = '') {
 async function runUnifiedSearch() {
   const panel = explorerEl('#explorer-panel'); const query = explorerEl('#discover-query')?.value.trim() || ''; if (!query) return;
   const generation = ++explorer.searchGeneration;
-  explorer.searchObserver?.disconnect(); explorer.searchCursor = null; explorer.searchPending = true;
+  explorer.searchObserver?.disconnect(); explorer.searchObserver = null; explorer.searchCursor = null; explorer.searchPending = true;
   const providers = explorerAll('#discover-providers input[type="checkbox"]:checked').map(input => input.value);
   const resultType = explorerEl('#discover-result-type')?.value || ''; const sort = explorerEl('#discover-sort')?.value || 'relevance';
   const status = explorerEl('#discover-status'); if (status) status.textContent = 'Searching providers...';
@@ -910,7 +910,15 @@ async function loadMoreDiscovery() {
     explorer.searchCursor = data.next_cursor || null;
     explorer.searchErrors = data.provider_errors || [];
     renderSearchResults(panel, start); updateDiscoverStatus();
-  } catch (error) { if (generation === explorer.searchGeneration) updateDiscoverStatus(`Load failed: ${error.message}. Retry loading below.`); }
+  } catch (error) {
+    if (generation === explorer.searchGeneration && !panel.hidden && explorer.nav === 'search') {
+      explorer.searchObserver?.disconnect();
+      explorer.searchObserver = null;
+      const more = explorerEl('#discover-load-more', panel);
+      if (more) more.textContent = 'Retry loading';
+      updateDiscoverStatus(`Load failed: ${error.message}. Retry loading below.`);
+    }
+  }
   finally { if (generation === explorer.searchGeneration) explorer.searchPending = false; }
 }
 
@@ -943,8 +951,11 @@ function renderSearchResults(panel, start = 0) {
   if (explorer.searchCursor) {
     const more = panelButton('Load more'); more.id = 'discover-load-more'; more.addEventListener('click', loadMoreDiscovery); panel.append(more);
     explorer.searchObserver?.disconnect();
-    explorer.searchObserver = new IntersectionObserver(entries => { if (entries.some(entry => entry.isIntersecting)) loadMoreDiscovery(); }, { root: panel, rootMargin: '400px' });
-    explorer.searchObserver.observe(more);
+    const observer = new IntersectionObserver(entries => {
+      if (explorer.searchObserver === observer && entries.some(entry => entry.isIntersecting)) loadMoreDiscovery();
+    }, { root: panel, rootMargin: '400px' });
+    explorer.searchObserver = observer;
+    observer.observe(more);
   } else explorer.searchObserver?.disconnect();
   updateSearchSelection();
 }

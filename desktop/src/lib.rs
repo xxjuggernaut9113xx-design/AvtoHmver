@@ -7791,7 +7791,12 @@ fn run_ui_inner(
                         Err(error) => {
                             w.set_discovery_load_error(true);
                             w.set_discovery_searching(false);
-                            w.set_discovery_status(error.into())
+                            let message = if append {
+                                format!("{} | Load failed: {error}", discovery_totals(&v.borrow().discovery_results))
+                            } else {
+                                error
+                            };
+                            w.set_discovery_status(message.into());
                         }
                         }
                     }

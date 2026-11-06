@@ -696,7 +696,7 @@ export component AvtoHmverNativeWindow inherits Window {
                                 }
                                 VerticalBox { Text { text: result.title; color: root.theme-text; } Text { text: result.detail; color: root.theme-muted; wrap: word-wrap; } }
                             }
-                            if root.discovery-has-more: Button { text: "Load more"; enabled: !root.discovery-searching; clicked => { root.discover-more(); } }
+                            if root.discovery-has-more: Button { text: root.discovery-load-error ? "Retry loading" : "Load more"; enabled: !root.discovery-searching; clicked => { root.discover-more(); } }
                             Rectangle { vertical-stretch: 1; }
                         }
                     }

@@ -19,7 +19,12 @@ function browser(api) {
     explorerEl: (selector, root = panel) => root.find(selector.slice(1)), explorerAll: () => [],
     panelButton: text => { const node = new Node('button'); node.textContent = text; return node; },
     formatBytes: value => `${value} B`, formatDate: value => value,
-    IntersectionObserver: class { constructor(callback) { this.callback = callback; } observe() {} disconnect() {} },
+    IntersectionObserver: class {
+      constructor(callback) { this.callback = callback; }
+      observe(target) { this.target = target; }
+      disconnect() { this.target = null; }
+      enter() { if (this.target) return this.callback([{ isIntersecting: true }]); }
+    },
   });
   const source = fs.readFileSync('static/library.js', 'utf8');
   vm.runInContext(source.slice(source.indexOf('function normalizeSearchResult('), source.indexOf('function previewSearchResult(')), context);
@@ -46,6 +51,34 @@ test('Discover appends once, keeps selected rows and scroll, and reports known a
   assert.match(app.panel.find('discover-status').textContent, /2 known files/);
   assert.match(app.panel.find('discover-status').textContent, /1024 B known/);
   assert.match(app.panel.find('discover-status').textContent, /Unknown for 1 results/);
+});
+
+test('near-end provider failure preserves the list and retries the same cursor on demand', async () => {
+  const calls = [];
+  const app = browser(async url => {
+    calls.push(url);
+    if (calls.length === 1) return { results: [{ title: 'First', item_count: 2, total_bytes: 1024 }], next_cursor: 'snapshot:1' };
+    if (calls.length === 2) throw new Error('Provider rate limit');
+    return { results: [{ title: 'Second' }], next_cursor: null };
+  });
+  await app.run('runUnifiedSearch()');
+  const first = app.panel.find('discover-results').children[0];
+  first.children[0].checked = true; first.children[0].events.change();
+  app.panel.scrollTop = 777;
+  const observer = app.run('explorer.searchObserver');
+  observer.enter();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.match(app.panel.find('discover-status').textContent, /2 known files.*Provider rate limit/);
+  observer.callback([{ isIntersecting: true }]);
+  assert.equal(calls.length, 2);
+  const retry = app.panel.find('discover-load-more');
+  assert.equal(retry.textContent, 'Retry loading');
+  await retry.events.click();
+  assert.equal(calls[2], calls[1]);
+  assert.equal(app.panel.find('discover-results').children[0], first);
+  assert.equal(app.panel.scrollTop, 777);
+  assert.equal(app.explorer.searchSelected.has(0), true);
+  assert.match(app.panel.find('discover-status').textContent, /2 loaded results.*Unknown for 1 results/);
 });
 
 test('a late Discover page cannot paint another workspace', async () => {
