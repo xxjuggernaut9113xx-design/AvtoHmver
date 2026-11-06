@@ -1,5 +1,7 @@
 # fanservice — full plan, annotated
 
+The full-plan interview continuation is captured in [the combined product spec draft](COMBINED_PRODUCT_SPEC_20261105.md) and [accepted Windows workflow decisions](../adr/0007-windows-entry-points-and-media-fallback.md). The Windows disconnect fallback now uses a saved snapshot, then original media including a default original pack when disabled, and returns to Fanservice after reconnect. Older contradictory fallback text below is superseded for this scenario.
+
 2026-11-05 accepted direction is recorded in [the mobile gameplay plan](MOBILE_GAMEPLAY_PLAN_20261105.md), [combined release decision](../adr/0005-combined-fanservice-release-gate.md) and [combined acceptance ledger](../parity/STATUS.md). Gameplay is included across Windows game mod, Web app and Android app. Newest usable game versions take priority. Older dated scope and blocker notes below are historical.
 
 Latest v0.05 continuation: [independent in-game entry and companion](NATIVE_COMPANION_V005_20261029.md). The separate button opens the configured Server, reads the native profile and delivers neutral music into the original Playlist folder. Close/reopen and installed helper startup pass. The dedicated installer passes actual upgrade/remove/reinstall while retaining protocol data and protected loader/settings/saves. The original Import entitlement and Unlocks controls are preserved. Panel snapshot/sync acceptance and full certification remain open; older compatibility blockers below are historical.
