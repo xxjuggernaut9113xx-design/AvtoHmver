@@ -18,6 +18,62 @@ for(const [id,title] of [[0,'Classic'],[1,'Tower'],[2,'Soundtrack']]){const opti
 for(const [index,spec] of FanserviceObjectives.specs.entries()){const option=element('option',spec.title);option.value=index;objectiveSelect.append(option);}objectiveSelect.id='objective';
 targetInput.id='objective-target';targetInput.type='number';roundsInput.id='tower-rounds';roundsInput.type='number';roundsInput.min=1;roundsInput.max=1000;roundsInput.value=3;
 const modeLabel=element('label','Mode');modeLabel.append(modeSelect);objectiveLabel.append('Objective',objectiveSelect,'Target',targetInput);roundsLabel.append('Tower rounds',roundsInput);settingsPanel.append(modeLabel,objectiveLabel,roundsLabel,lootLabel);
+const wakeChoice=element('input'),wakeLabel=element('label','Keep screen awake during play'),wakeStatus=element('p');
+const wakePreference='fanservice-keep-awake';
+wakeChoice.type='checkbox';wakeChoice.checked=localStorage.getItem(wakePreference)!=='off';wakeLabel.prepend(wakeChoice);
+wakeStatus.setAttribute('role','status');
+$('controls').after(wakeLabel,wakeStatus);
+let wakeWanted=false,wakePending=false,wakeHandle=null,pageHidden=false;
+function wakeMessage(text){if(wakeStatus.textContent!==text)wakeStatus.textContent=text;}
+async function requestScreenWake(){
+ if(!wakeWanted||wakePending||wakeHandle)return;
+ const cap=window.Capacitor;
+ const native=cap?.isNativePlatform?.()&&cap.isPluginAvailable?.('ScreenWake')?cap.Plugins.ScreenWake:null;
+ if(!native&&!navigator.wakeLock){wakeMessage('Screen wakefulness is unavailable on this device.');return;}
+ wakePending=true;
+ try{
+  let handle;
+  if(native){
+   await native.setEnabled({enabled:true});
+   handle={release:()=>native.setEnabled({enabled:false})};
+  }else{
+   handle=await navigator.wakeLock.request('screen');
+   handle.addEventListener('release',()=>{
+    if(wakeHandle===handle){wakeHandle=null;wakeMessage('The device released screen wakefulness.');}
+   });
+  }
+  if(!wakeWanted){
+   await handle.release();
+   if(wakeWanted)queueMicrotask(requestScreenWake);
+   return;
+  }
+  if(handle.released){wakeMessage('The device released screen wakefulness.');return;}
+  wakeHandle=handle;
+  wakeMessage('Screen wakefulness is active.');
+ }catch{
+  if(wakeWanted)wakeMessage('Screen wakefulness could not be enabled.');
+ }finally{
+  wakePending=false;
+ }
+}
+function updateScreenWake(){
+ const wanted=wakeChoice.checked&&started&&!paused&&!finished&&!settling&&!document.hidden&&!pageHidden&&run.phase==='playing';
+ if(!wanted){
+  const handle=wakeHandle;
+  wakeHandle=null;
+  if(handle)void handle.release().catch(()=>{if(!wakeWanted)wakeMessage('The screen wakefulness release could not be confirmed.');});
+  wakeMessage(wakeChoice.checked?'Screen wakefulness applies during active play.':'Screen wakefulness is off.');
+ }else if(!wakeWanted){
+  wakeWanted=true;
+  void requestScreenWake();
+ }
+ wakeWanted=wanted;
+}
+wakeChoice.onchange=()=>{
+ localStorage.setItem(wakePreference,wakeChoice.checked?'on':'off');
+ updateScreenWake();
+};
+updateScreenWake();
 const towerPanel=element('section'),objectiveStatus=element('p');towerPanel.id='tower-draft';objectiveStatus.id='objective-status';objectiveStatus.setAttribute('role','status');
 const inventoryDialog=element('dialog'),inventoryBody=element('div'),inventoryTitle=element('h2','Inventory and loadout');inventoryDialog.id='inventory-dialog';inventoryDialog.append(inventoryTitle,inventoryBody,action('Close inventory',()=>inventoryDialog.close()));
 const challengeDialog=element('dialog'),challengeBody=element('div');challengeDialog.id='challenge-dialog';challengeDialog.append(element('h2','Challenges and modifiers'),challengeBody,action('Close challenges',()=>challengeDialog.close()));
@@ -100,9 +156,10 @@ function renderTower(){
    run.select(index);decks=rules.mediaPools(media,FanserviceModifiers.options(state.modifiers));remaining={};draw();checkpoint(true);renderTower();render();
   }));towerPanel.append(row);
  }
- if(['shop','round-complete'].includes(run.phase))towerPanel.append(element('p',run.phase==='shop'?'Round complete. Shop available.':'Round complete.'),action('Continue Tower',()=>{run.continue();checkpoint(true);renderTower();}));
+ if(['shop','round-complete'].includes(run.phase))towerPanel.append(element('p',run.phase==='shop'?'Round complete. Shop available.':'Round complete.'),action('Continue Tower',()=>{run.continue();checkpoint(true);renderTower();updateScreenWake();}));
 }
 function render(){
+ updateScreenWake();
  if(!state)return;
  $('meter').value=Math.min(state.meter,1);$('stats').textContent=`${state.strokes} beats · combo ${state.combo} (${rules.comboTier(state.combo)}) · ${state.coins} coins · ${state.succuCoins} SuccuCoins · heat ${state.heat.toFixed(1)} · ${Math.floor(state.seconds)} seconds${run.config.lootEnabled?` · loot ${Math.floor(Math.max(0,state.lootBar)*100)}%`:''}`;
  const objective=run.roundObjective||run.objective.state,spec=FanserviceObjectives.specs.find(s=>s.objective===objective.objective);
@@ -122,6 +179,7 @@ function objectiveEvents(events){
  if(events.some(e=>e.type==='objective-reset'))status('Release window closed. Objective reset.');
  if(events.some(e=>['round-complete','round-failed'].includes(e.type))||run.phase!=='playing')renderTower();
  if(run.phase==='complete'&&!settling&&!finished)void end(!!state.won);
+ updateScreenWake();
 }
 function tick(now){
  const delta=lastFrame?Math.max((now-lastFrame)/1000,0):0;lastFrame=now;
@@ -152,7 +210,7 @@ async function mutateProfile(fn){
  return navigator.locks?.request?navigator.locks.request('fanservice-profile:'+profileKey,write):write();
 }
 async function end(won){
- if(finished||settling)return;cancelFinishHold();settling=true;window.FanserviceVoice?.stop();audio.pause();$('video').pause();
+ if(finished||settling)return;cancelFinishHold();settling=true;updateScreenWake();window.FanserviceVoice?.stop();audio.pause();$('video').pause();
  if(!started){status('Session canceled; no rewards were granted.');settling=false;return;}
  state.won=won;state.finished=true;
  try{
@@ -161,7 +219,7 @@ async function end(won){
   $('summary').textContent=`${won?'Session completed':'Session ended'}\n${profile.progression.last_settlement.xp} XP · ${state.coins} coins · ${profile.progression.last_settlement.unlock_points} UP\nLevel ${profile.progression.level} · ${profile.progression.xp} XP toward next level\nRewards saved once. Pack ownership was retained.`;
   status('Session saved. Return to the library to resolve live pack contents again.');for(const id of ['start','pause','tap','draw','finish','end'])$(id).disabled=true;renderTower();
  }catch(error){state.finished=false;status('Rewards could not be saved: '+error.message);checkpoint(true);}
- finally{settling=false;}
+ finally{settling=false;updateScreenWake();}
 }
 function itemContext(){const levels=profile.mobile_music_upgrades||[1,1,1],value=type=>catalog.music_upgrades[type]['Value_L'+Math.max(1,Math.min(5,levels[type]||1))];return {mode:run.config.mode,manager:true,maxBreaks:value(1),breakDuration:value(0),minimumBeatInterval:0,biggerPockets:run.ownedModifiers.includes(13),allOrNothing:state.modifiers.includes('All or Nothing')};}
 function readItemState(){return {...state,_baseline:{...state},cumMeter:state.meter,cardType:state.card,strokeCount:state.cardFlow?.remaining??state.strokes,beatInterval:state.cardFlow?.interval??[.7,.5,.35][Number($('difficulty').value)]/speed,beatsRemaining:music?map.beats.length-clock.next:state.cardFlow?.remaining??1,canUseItems:state.canUseItems!==false&&FanserviceModifiers.options(state.modifiers).canUseItems&&!state.breakSectionDisabled&&state.seconds>=breakUntil};}
@@ -259,8 +317,9 @@ if(navigator.mediaSession){
 }
 audio.addEventListener('waiting',()=>status('Buffering: rhythm clock is held at the actual playback position.'));audio.addEventListener('playing',()=>status('Playing from the client audio clock.'));audio.addEventListener('ended',()=>{if(state)state.BestMusicModeWinRounds=1;void end(true);});audio.addEventListener('error',()=>status('Soundtrack access failed. Reconnect or use an explicitly saved snapshot.'));
 audio.addEventListener('seeked',()=>{if(map&&state){rules.seek(map,audio.currentTime,clock,timelineCallbacks());checkpoint(true);render();}});
-document.addEventListener('visibilitychange',()=>{if(document.hidden){cancelFinishHold();if(started&&!paused&&!finished)$('pause').click();}});
-window.addEventListener('pagehide',()=>{cancelFinishHold();checkpoint(true);});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){cancelFinishHold();if(started&&!paused&&!finished)$('pause').click();}updateScreenWake();});
+window.addEventListener('pagehide',()=>{pageHidden=true;cancelFinishHold();updateScreenWake();checkpoint(true);});
+window.addEventListener('pageshow',()=>{pageHidden=false;updateScreenWake();});
 async function releasePins(){await Promise.all(pinnedPacks.map(packId=>store.releaseSession(sessionId+':'+packId)));pinnedPacks=[];}
 async function restoreMedia(item){
  if(item.storage_key){const saved=await store.get('files',item.storage_key);if(!saved?.blob)throw Error('Active-session media was removed or evicted.');const url=URL.createObjectURL(saved.blob);resources.push(url);return {...item,url};}
