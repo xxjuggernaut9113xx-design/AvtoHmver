@@ -68,6 +68,18 @@ def main():
     broken.write_bytes(b"deliberately invalid preview fixture")
     cursor = connection.execute("INSERT INTO media(source_id,filepath,filename,type,added_at,downloaded,rating,file_size_bytes,nsfw_state) VALUES(1,'fixture-001/broken.mp4','Preview failure fixture','video','2026-10-26',1,2,?,'done')", (broken.stat().st_size,))
     broken_id = cursor.lastrowid
+    tags = {
+        "Parity portrait": (1, 2, videos[0]),
+        "Parity playback": (videos[0], videos[1], virtual_clip),
+    }
+    for name, media_ids in tags.items():
+        tag_id = connection.execute(
+            "INSERT INTO tags(name,added_at) VALUES(?,'2026-10-26')", (name,)
+        ).lastrowid
+        connection.executemany(
+            "INSERT INTO media_tags(media_id,tag_id) VALUES(?,?)",
+            [(media_id, tag_id) for media_id in media_ids],
+        )
     connection.execute("UPDATE sources SET item_count=(SELECT COUNT(*) FROM media WHERE source_id=sources.id)")
     connection.execute("UPDATE media SET auto_rating=3,manual_review_required=1,rating_source='auto' WHERE id IN (1,2)")
     connection.commit()
@@ -93,7 +105,15 @@ def main():
     request = urllib.request.Request(origin + "/api/goon/playlists", data=json.dumps({"name": "Parity local music", "provider": "local", "source_url": None, "tracks": [1]}).encode(), headers={"Content-Type": "application/json"})
     with urllib.request.urlopen(request, timeout=10) as response:
         playlist = json.load(response)
-    report = {"images": 110, "video_ids": videos, "virtual_clip_id": virtual_clip, "broken_id": broken_id, "track_id": 1, "playlist": playlist, "origin": origin}
+    package = assets / "parity-sample.chpack"
+    request = urllib.request.Request(
+        origin + "/api/export/chpack",
+        data=json.dumps({"source_id": 2, "name": "Parity sample"}).encode(),
+        headers={"Content-Type": "application/json"},
+    )
+    with urllib.request.urlopen(request, timeout=30) as response, package.open("wb") as output:
+        shutil.copyfileobj(response, output)
+    report = {"images": 110, "video_ids": videos, "virtual_clip_id": virtual_clip, "broken_id": broken_id, "track_id": 1, "playlist": playlist, "tags": tags, "package": str(package.relative_to(root)), "origin": origin}
     (root / "seeded.json").write_text(json.dumps(report, indent=2))
     print(json.dumps(report))
 
