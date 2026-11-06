@@ -17,7 +17,9 @@ async function exportPack(pack){
   if(!manifest.media.length)throw Error('The selection is empty.');
   let blob;
   if(manifest.media.some(m=>m.local)){
-   blob=await FanserviceChpack.create(pack,manifest.media,{signal:task.signal,origin:FanserviceStore.server(),progress:text=>exportProgress.textContent=text});
+   const preview=pack.preview_local_id ? await importedPackPreview(pack) : null;
+   if(pack.preview_local_id&&!preview)throw Error('The imported cover is unavailable. Edit the pack to choose another cover.');
+   blob=await FanserviceChpack.create(pack,manifest.media,{signal:task.signal,origin:FanserviceStore.server(),preview,progress:text=>exportProgress.textContent=text});
   }else{
    exportProgress.textContent=`Staging ${manifest.media.length} selected items on the Server…`;
    const response=await fetch(new URL('/api/fanservice/v1/export/chpack',FanserviceStore.server()),{method:'POST',signal:task.signal,credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({library_id:pack.library_id,ids:manifest.media.map(m=>m.id),name:pack.name,author:pack.author||'fanservice',description:pack.description||'',unlock_cost:pack.unlock_cost||0,cover_id:pack.cover_id||null})});
@@ -39,7 +41,7 @@ async function exportPack(pack){
  finally{exportCancel.disabled=false;if(exportTask===task)exportTask=null;}
 }
 $('export-selection').onclick=()=>{
- const pack={name:$('pack-name').value.trim(),description:$('pack-description').value,unlock_cost:$('access').value==='priced'?Number($('price').value):0,cover_id:Number($('cover').value)||null,library_id:libraryId,device_id:FanserviceStore.device,selection:$('pack-dialog')._selection};
+ const pack={name:$('pack-name').value.trim(),author:editing?.author,description:$('pack-description').value,unlock_cost:$('access').value==='priced'?Number($('price').value):0,cover_id:selectedPackCover(),preview_local_id:selectedPackPreview(),library_id:libraryId,device_id:FanserviceStore.device,selection:$('pack-dialog')._selection};
  if(!pack.name||!Number.isInteger(pack.unlock_cost)||pack.unlock_cost<0||($('access').value==='priced'&&pack.unlock_cost===0)){$('pack-error').textContent='Enter a name and a valid positive whole-number price for a locked pack.';return;}
  exportPack(pack).catch(error=>status(error.message));
 };

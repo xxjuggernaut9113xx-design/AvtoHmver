@@ -104,8 +104,9 @@ async function openCreate(pack) {
   $('price-label').hidden = $('access').value !== 'priced';
   $('review').textContent = `${manifest.media.length} available items now · live rules refresh before new sessions.`;
   $('cover').replaceChildren(new Option('Generated cover',''));
-  for (const m of manifest.media.filter(m=>m.type==='image' && !m.local)) $('cover').add(new Option(m.name,String(m.id)));
-  $('cover').value = pack?.cover_id || '';
+  if (pack?.preview_local_id) $('cover').add(new Option('Imported cover','imported'));
+  for (const m of manifest.media.filter(m=>m.type==='image')) $('cover').add(new Option(m.name,String(m.id)));
+  $('cover').value = pack?.cover_id || (pack?.preview_local_id ? 'imported' : '');
   $('pack-dialog')._selection = JSON.parse(JSON.stringify(selection)); $('pack-dialog').showModal();
   reviewSelection();
 }
@@ -136,11 +137,24 @@ async function showUnlocks() {
   $('packs').replaceChildren(); if (!$('unlocks-dialog').open) $('unlocks-dialog').showModal();
   for (const pack of profile.packs) {
     const row = node('article',undefined,'pack');
-    const cover=node('img');cover.src=pack.cover_id ? new URL(`/api/thumb/${pack.cover_id}`,FanserviceStore.server()) : 'assets/pack-cover.svg';cover.alt='';cover.width=72;cover.height=72;cover.onerror=()=>{cover.onerror=null;cover.src='assets/pack-cover.svg';};
+    const cover=node('img');cover.src=Number.isSafeInteger(pack.cover_id) ? new URL(`/api/thumb/${pack.cover_id}`,FanserviceStore.server()) : 'assets/pack-cover.svg';cover.alt='';cover.width=72;cover.height=72;cover.onerror=()=>{cover.onerror=null;cover.src='assets/pack-cover.svg';};
     row.append(cover,node('h3',pack.name+' · Custom'),node('p',pack.description));
     const availability = node('p','Resolving live selection…'); row.append(availability); const actions = node('div',undefined,'toolbar'); row.append(actions); $('packs').append(row);
     let manifest;
-    try { manifest = await resolve(pack); manifests[pack.id] = manifest; availability.textContent = native ? `${manifest.media.length} available · ${pack.unlock_cost} native UP · Draft` : `${manifest.media.length} available · ${pack.owned ? 'Owned' : `${pack.unlock_cost} UP`} · ${pack.enabled ? 'Enabled' : 'Disabled'}`; }
+    try {
+      manifest = await resolve(pack); manifests[pack.id] = manifest;
+      const localCover = manifest.media.find(item=>item.local && item.type==='image' && item.id===pack.cover_id);
+      if (localCover) cover.src=localCover.url;
+      else if (pack.preview_local_id) {
+        const preview=await importedPackPreview(pack);
+        if (preview) {
+          const url=URL.createObjectURL(preview);
+          for (const event of ['load','error']) cover.addEventListener(event,()=>URL.revokeObjectURL(url),{once:true});
+          cover.src=url;
+        }
+      }
+      availability.textContent = native ? `${manifest.media.length} available · ${pack.unlock_cost} native UP · Draft` : `${manifest.media.length} available · ${pack.owned ? 'Owned' : `${pack.unlock_cost} UP`} · ${pack.enabled ? 'Enabled' : 'Disabled'}`;
+    }
     catch (error) { availability.textContent = 'Unavailable: '+error.message; }
     actions.append(button('Export .chpack',()=>exportPack(pack)));
     if (!native) {
@@ -164,10 +178,22 @@ $('access').onchange = ()=>$('price-label').hidden = $('access').value!=='priced
 $('unlocks').onclick = ()=>showUnlocks().catch(e=>status(e.message));
 for (const b of document.querySelectorAll('[data-close]')) b.onclick=()=>{const d=$(b.dataset.close);d.close();if(d.id==='preview-dialog')$('preview').replaceChildren();};
 $('preview-dialog').addEventListener('close',()=>$('preview').replaceChildren());
+function selectedPackCover() {
+  const cover=$('cover').value;
+  return cover.startsWith('local:') ? cover : Number(cover)||null;
+}
+function selectedPackPreview() {
+  return $('cover').value==='imported' ? editing?.preview_local_id : undefined;
+}
+async function importedPackPreview(pack) {
+  if (pack.device_id!==FanserviceStore.device || !pack.selection.local_ids?.includes(pack.preview_local_id)) return null;
+  const record=await FanserviceStore.get('files',pack.preview_local_id);
+  return record?.archivePreview ?? null;
+}
 $('pack-form').onsubmit = async e => {
   e.preventDefault(); $('save-pack').disabled=true;
   try {
-    const pack={id:editing?.id || 'custom:'+newId(),name:$('pack-name').value.trim(),description:$('pack-description').value,cover_id:Number($('cover').value)||null,
+    const pack={id:editing?.id || 'custom:'+newId(),name:$('pack-name').value.trim(),description:$('pack-description').value,cover_id:selectedPackCover(),preview_local_id:selectedPackPreview(),
       unlock_cost:$('access').value==='priced' ? Number($('price').value) : 0,library_id:libraryId,server_url:FanserviceStore.server(),device_id:FanserviceStore.device,selection:$('pack-dialog')._selection};
     if ($('access').value==='priced' && pack.unlock_cost<=0) throw Error('Enter a positive whole-number UP price.');
     const manifest=await resolve(pack);

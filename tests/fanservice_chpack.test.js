@@ -19,9 +19,18 @@ test('missing media, foreign URLs, invalid names and cancelled operations never 
  await assert.rejects(chpack.create(pack,[{...media[0],file:'bad.exe'}],{origin}),/Unsupported/);
 });
 test('ZIP checksum matches the published CRC-32 check value',()=>assert.equal(chpack.crc32(new TextEncoder().encode('123456789')),0xcbf43926));
+test('a standalone cover round trips independently of playable media',async()=>{
+ const preview=new File([new Uint8Array([9,8,7])],'preview.png',{type:'image/png'});
+ const blob=await chpack.create({...pack,cover_id:null},media,{origin,preview,fetchMedia:async()=>new Response(new Uint8Array([1,2,3]))});
+ const imported=await chpack.unpack(blob);
+ assert.equal(imported.coverIndex,-1);
+ assert.equal(imported.files.length,2);
+ assert.equal(imported.preview.name,'preview.png');
+ assert.deepEqual([...new Uint8Array(await imported.preview.arrayBuffer())],[9,8,7]);
+});
 test('saved pack import round trips mixed media and rejects corrupt or conflicting ZIP data',async()=>{
  const blob=await chpack.create(pack,media,{origin,fetchMedia:async()=>new Response(new Uint8Array([1,2,3]))});
- const imported=await chpack.unpack(blob);assert.equal(imported.manifest.name,pack.name);assert.equal(imported.manifest.unlock_cost,9);assert.equal(imported.files.length,2);assert.deepEqual([...new Uint8Array(await imported.files[1].arrayBuffer())],[1,2,3]);
+ const imported=await chpack.unpack(blob);assert.equal(imported.manifest.name,pack.name);assert.equal(imported.manifest.unlock_cost,9);assert.equal(imported.coverIndex,0);assert.equal(imported.files.length,2);assert.deepEqual([...new Uint8Array(await imported.files[1].arrayBuffer())],[1,2,3]);
  const bytes=new Uint8Array(await blob.arrayBuffer());const bad=bytes.slice();bad[30+new DataView(bytes.buffer).getUint16(26,true)]^=1;await assert.rejects(chpack.unpack(new Blob([bad])),/integrity/);
  const conflicting=bytes.slice();conflicting[30]^=1;await assert.rejects(chpack.unpack(new Blob([conflicting])),/Conflicting/);
  await assert.rejects(chpack.unpack(new Blob([bytes.subarray(0,20)])),/ZIP/);

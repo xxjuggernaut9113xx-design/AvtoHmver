@@ -1,7 +1,47 @@
 'use strict';
 const store=FanserviceStore;
 const archiveInput=$('archive-file'),archiveButton=$('archive-import');
-archiveButton.onclick=async()=>{let added=[];archiveButton.disabled=true;try{await profileReady;profileLocked=true;if(bridge())throw Error('Use the original game pack importer.');const file=archiveInput.files[0];if(!file)throw Error('Choose a saved pack from Files.');status('Checking pack integrity…');const {manifest,files}=await FanserviceChpack.unpack(file);const candidate={id:'custom:'+newId(),name:manifest.name,description:manifest.description,unlock_cost:manifest.unlock_cost,library_id:libraryId,device_id:store.device,selection:{ids:[],rules:[],local_ids:['validation']}};model.validate(candidate);if(profile.packs.length>=128)throw Error('A profile can contain at most 128 custom packs.');added=await store.importFiles(files);for(const record of added){record.tags=record.name.replace(/\.[^.]+$/,'').split('_').slice(1).filter(Boolean);await store.put('files',record.id,record);}candidate.selection.local_ids=added.map(record=>record.id);await commit({action:'create',pack:candidate,manifest:{library_id:libraryId,media:added.map(record=>({id:'local:'+record.id}))}});added=[];archiveInput.value='';await renderLocalMedia();await showUnlocks();status('Pack imported with local media. Enable it in Unlocks.');}catch(error){for(const record of added)await store.remove('files',record.id).catch(()=>{});status('Pack import failed: '+error.message);}finally{archiveButton.disabled=false;}};
+archiveButton.onclick=async()=>{
+ let added=[];
+ archiveButton.disabled=true;
+ try {
+  await profileReady;
+  profileLocked=true;
+  if(bridge())throw Error('Use the original game pack importer.');
+  const file=archiveInput.files[0];
+  if(!file)throw Error('Choose a saved pack from Files.');
+  status('Checking pack integrity…');
+  const {manifest,files,coverIndex,preview}=await FanserviceChpack.unpack(file);
+  const candidate={
+   id:'custom:'+newId(),name:manifest.name,description:manifest.description,
+   author:typeof manifest.author==='string'?manifest.author:undefined,
+   unlock_cost:manifest.unlock_cost,library_id:libraryId,device_id:store.device,
+   selection:{ids:[],rules:[],local_ids:['validation']},
+  };
+  model.validate(candidate);
+  if(profile.packs.length>=128)throw Error('A profile can contain at most 128 custom packs.');
+  added=await store.importFiles(files);
+  if(preview){
+   added[0].archivePreview=preview;
+   candidate.preview_local_id=added[0].id;
+  }
+  for(const record of added){
+   record.tags=record.name.replace(/\.[^.]+$/,'').split('_').slice(1).filter(Boolean);
+   await store.put('files',record.id,record);
+  }
+  candidate.selection.local_ids=added.map(record=>record.id);
+  if(coverIndex>=0)candidate.cover_id='local:'+added[coverIndex].id;
+  await commit({action:'create',pack:candidate,manifest:{library_id:libraryId,media:added.map(record=>({id:'local:'+record.id}))}});
+  added=[];
+  archiveInput.value='';
+  await renderLocalMedia();
+  await showUnlocks();
+  status('Pack imported with local media. Enable it in Unlocks.');
+ }catch(error){
+  for(const record of added)await store.remove('files',record.id).catch(()=>{});
+  status('Pack import failed: '+error.message);
+ }finally{archiveButton.disabled=false;}
+};
 $('preview-dialog').addEventListener('close',()=>{for(const media of $('preview').querySelectorAll('video,audio'))media.pause();$('preview').replaceChildren();});
 const localPoolChoices=node('details');localPoolChoices.append(node('summary','Gameplay pools for selected phone files'),node('p','Reuse these files in the checked gameplay pools. This choice stays on this device and does not edit the Server library.'));
 for(const pool of ['slow','medium','fast','succubus','cum','ass','boobs']){const label=node('label'),input=node('input');input.type='checkbox';input.name='local-pool';input.value=pool;input.checked=true;label.append(input,document.createTextNode(pool));localPoolChoices.append(label);}$('local-controls').append(localPoolChoices);

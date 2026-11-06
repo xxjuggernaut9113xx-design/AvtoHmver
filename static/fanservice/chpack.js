@@ -2,13 +2,18 @@
 (function(root){
  'use strict';
  const encoder=new TextEncoder(),limit=512*1024*1024;
+ const imageTypes={png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',gif:'image/gif',bmp:'image/bmp',webp:'image/webp'};
+ function previewType(name){
+  const ext=typeof name==='string'&&name.match(/^preview\.([a-zA-Z0-9]+)$/)?.[1].toLowerCase();
+  return Object.hasOwn(imageTypes,ext)?imageTypes[ext]:undefined;
+ }
  const crcTable=Uint32Array.from({length:256},(_,n)=>{for(let i=0;i<8;i++)n=(n&1)?0xedb88320^(n>>>1):n>>>1;return n>>>0;});
  function crc32(bytes){let crc=0xffffffff;for(const byte of bytes)crc=crcTable[(crc^byte)&255]^(crc>>>8);return (crc^0xffffffff)>>>0;}
  function header(size,values){const bytes=new Uint8Array(size),view=new DataView(bytes.buffer);for(const [offset,value,width] of values)width===2?view.setUint16(offset,value,true):view.setUint32(offset,value,true);return bytes;}
  function leaf(text){return String(text).replace(/[\x00-\x1f\x7f/\\:<>"|?*]/g,'-').replace(/^[ .]+|[ .]+$/g,'');}
  function filename(index,item){const ext=String(item.file||item.name||'').match(/\.([a-z0-9]+)$/i)?.[1]?.toLowerCase();if(!ext||!['png','jpg','jpeg','bmp','gif','webp','mp4','mov','webm'].includes(ext))throw Error('Unsupported media filename: '+(item.name||item.file));const tags=[...new Set((item.tags||[]).map(leaf).filter(Boolean))].sort();const result=[index,...tags].join('_')+'.'+ext;if(encoder.encode(result).length>240)throw Error('Media tags exceed the portable filename limit.');return result;}
  async function read(response,signal,onBytes){if(!response.ok)throw Error('Selected media download failed ('+response.status+').');const reader=response.body?.getReader();if(!reader){const bytes=new Uint8Array(await response.arrayBuffer());signal?.throwIfAborted();onBytes(bytes.length);return bytes;}const parts=[];let length=0;try{for(;;){signal?.throwIfAborted();const {done,value}=await reader.read();if(done)break;onBytes(value.length);length+=value.length;parts.push(value);}}finally{await reader.cancel().catch(()=>{});}const bytes=new Uint8Array(length);let at=0;for(const part of parts){bytes.set(part,at);at+=part.length;}return bytes;}
- async function create(pack,media,{signal,progress=()=>{},fetchMedia=fetch,origin=location.origin}={}){
+ async function create(pack,media,{signal,progress=()=>{},fetchMedia=fetch,origin=location.origin,preview:standalone}={}){
   if(!media.length||media.length>10000)throw Error('Export requires 1–10000 available media items.');
   if(!pack.name?.trim()||pack.name.length>120||!Number.isInteger(pack.unlock_cost||0)||pack.unlock_cost<0||pack.unlock_cost>2147483647)throw Error('Enter a pack name and a valid whole-number UP price.');
   const files=[],entries=[];let total=0;
@@ -22,6 +27,12 @@
   }
   let preview;const coverIndex=media.findIndex(m=>String(m.id)===String(pack.cover_id));
   if(coverIndex>=0){if(media[coverIndex].type!=='image')throw Error('Cover must be an image.');preview='preview.'+entries[coverIndex].file.split('.').pop();files.push({name:preview,bytes:files[coverIndex].bytes});}
+  else if(standalone){
+   if(!previewType(standalone.name)||!standalone.size||standalone.size>256*1024*1024)throw Error('Invalid standalone cover.');
+   onBytes(standalone.size);
+   preview=standalone.name;
+   files.push({name:preview,bytes:new Uint8Array(await standalone.arrayBuffer())});
+  }
   const manifest={version:'0.02a',name:pack.name.trim(),author:pack.author||'fanservice',description:pack.description||'',...(preview?{preview}:{}),unlock_cost:pack.unlock_cost||0,required_challenge:'',patreon_exclusive:false,image_count:entries.filter(e=>e.type==='image').length,video_count:entries.filter(e=>e.type==='video').length,total_media:entries.length,media:entries,social_links:{onlyfans:'',fansly:'',twitter:'',linktree:'',manyvids:'',redgifs:'',discord:'',patreon:'',subscribestar:'',kofi:''}};
   files.push({name:'manifest.json',bytes:encoder.encode(JSON.stringify(manifest,null,2))});return zip(files,signal);
  }
@@ -62,7 +73,14 @@
   const manifest=JSON.parse(decoder.decode(entries.get('manifest.json')));
   if(typeof manifest.name!=='string'||!manifest.name.trim()||manifest.name.length>120||typeof manifest.description!=='string'||manifest.description.length>2000||!Array.isArray(manifest.media)||!manifest.media.length||manifest.media.length>500||!Number.isSafeInteger(manifest.unlock_cost)||manifest.unlock_cost<0||manifest.unlock_cost>2147483647)throw Error('Unsupported pack manifest or more than 500 media items.');
   const seen=new Set(),files=manifest.media.map(item=>{if(typeof item.file!=='string'||item.file.includes('/')||item.file.includes('\\')||seen.has(item.file))throw Error('Invalid media entry.');seen.add(item.file);const data=entries.get('media/'+item.file),ext=item.file.split('.').pop().toLowerCase(),mime={png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',gif:'image/gif',bmp:'image/bmp',webp:'image/webp',mp4:'video/mp4',mov:'video/quicktime',webm:'video/webm'}[ext];if(!data||!mime||!mime.startsWith(item.type+'/'))throw Error('Missing or unsupported pack media.');return new File([data],item.file,{type:mime});});
-  return {manifest,files};
+  const mime=previewType(manifest.preview);
+  const preview=mime?entries.get(manifest.preview):null;
+  const coverIndex=preview?.length?manifest.media.findIndex(item=>{
+   if(item.type!=='image')return false;
+   const data=entries.get('media/'+item.file);
+   return data.length===preview.length&&data.every((byte,index)=>byte===preview[index]);
+  }):-1;
+  return {manifest,files,coverIndex,preview:coverIndex<0&&preview?.length?new File([preview],manifest.preview,{type:mime}):null};
  }
  root.FanserviceChpack={create,filename,crc32,limit,unpack};
  if(typeof module!=='undefined')module.exports=root.FanserviceChpack;

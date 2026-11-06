@@ -43,6 +43,8 @@
         const edit = copy(operation.pack); validate(edit);
         if (edit.library_id !== pack.library_id) throw Error('Create a new pack for a different library.');
         Object.assign(pack, { name: edit.name.trim(), description: edit.description, selection: edit.selection, cover_id: edit.cover_id, unlock_cost: edit.unlock_cost, device_id:edit.device_id });
+        if (edit.preview_local_id) pack.preview_local_id=edit.preview_local_id;
+        else delete pack.preview_local_id;
       } else if (operation.action === 'delete') {
         next.packs = next.packs.filter(p => p.id !== operation.id);
       } else throw Error('Unknown profile operation.');
