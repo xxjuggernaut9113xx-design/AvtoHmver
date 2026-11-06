@@ -15,6 +15,27 @@ main {
   padding-right: max(12px, var(--safe-right));
 }
 #gameplay { display: grid; gap: 8px; margin-top: 8px; }
+#gameplay-stage {
+  display: flex;
+  gap: 6px;
+}
+#gameplay-stage[data-holding-hand="right"] { flex-direction: row-reverse; }
+#gameplay-stage #stage { flex: 1; min-width: 0; }
+#item-controls {
+  flex: 0 0 clamp(72px, 25%, 112px);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 0;
+  overflow: auto;
+}
+#item-controls button {
+  min-height: 44px;
+  padding: 4px;
+  font-size: 15px;
+  line-height: 1;
+  overflow-wrap: anywhere;
+}
 #stage {
   position: relative;
   height: 55dvh;
@@ -72,4 +93,5 @@ main {
   #beat { width: 18px; height: 18px; }
   #controls { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
   #controls button { min-height: 34px; font-size: 16px; }
+  #item-controls button { min-height: 32px; }
 }

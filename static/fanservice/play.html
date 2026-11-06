@@ -1,7 +1,10 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#151c27"><title>fanservice Viewer+</title><script src="media.js"></script><link rel="manifest" href="manifest.webmanifest"><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="kenney.css"><link rel="stylesheet" href="presentation.css"><link rel="stylesheet" href="play.css"></head><body>
 <header><strong>fanservice Viewer+</strong><a href="index.html">Library import</a><span id="source"></span></header><main>
   <section id="gameplay" aria-label="Gameplay">
-    <div id="stage"><img id="image" alt="Selected pack media"><video id="video" playsinline muted loop hidden></video></div>
+    <div id="gameplay-stage">
+      <div id="stage"><img id="image" alt="Selected pack media"><video id="video" playsinline muted loop hidden></video></div>
+      <div id="item-controls" role="group" aria-label="Equipped items" hidden></div>
+    </div>
     <div id="beats"><span id="center"></span><span id="beat"></span></div>
     <div id="controls"><button id="start">Start</button><button id="pause" disabled>Pause</button><button id="tap" disabled>Draw / Space</button><button id="draw" disabled>Next media</button><button id="finish" aria-keyshortcuts="Enter Space" disabled>Hold to finish</button><button id="end">End session</button></div>
   </section>

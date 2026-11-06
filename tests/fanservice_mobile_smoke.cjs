@@ -24,6 +24,13 @@ async function checkGameplayLayout(page,{landscape,insets=false}){
   assert.ok(geometry.button.every(button=>button.height>=44),'Portrait controls meet the touch-target size');
  }
 }
+async function checkItemSide(page,side){
+ const item=await page.getByRole('button',{name:/Use Spray Bottle/}).boundingBox();
+ const media=await page.locator('#stage').boundingBox();
+ assert.ok(item&&media);
+ assert.ok(side==='left'?item.x+item.width<=media.x:item.x>=media.x+media.width);
+ assert.ok(item.x>=0&&item.x+item.width<=page.viewportSize().width);
+}
 let browser;
 (async()=>{
  browser=await chromium.launch({headless:true,...(process.env.FANSERVICE_BROWSER_EXECUTABLE?{executablePath:process.env.FANSERVICE_BROWSER_EXECUTABLE}:{})});
@@ -91,6 +98,17 @@ let browser;
  assert.deepEqual(await vibrationMode.locator('option').allTextContents(),['Off','Before next event','Every beat']);
  assert.equal(await vibrationMode.inputValue(),'event');
  await vibrationMode.selectOption('beat');
+ const holdingHand=page.getByRole('combobox',{name:'Holding hand'});
+ assert.deepEqual(await holdingHand.locator('option').allTextContents(),['Left hand','Right hand']);
+ await holdingHand.selectOption('left');
+ await page.getByRole('button',{name:'Inventory / loadout',exact:true}).click();
+ await page.getByRole('button',{name:'Equip DecreaseHeat',exact:true}).click();
+ await page.getByRole('button',{name:'Close inventory',exact:true}).click();
+ const item=page.getByRole('button',{name:/Use Spray Bottle/});
+ assert.equal(await item.isDisabled(),true);
+ await checkItemSide(page,'right');
+ await holdingHand.selectOption('right');
+ await checkItemSide(page,'left');
  await checkGameplayLayout(page,{landscape:false});
  const details=page.getByText('Detailed statistics',{exact:true});
  assert.equal(await page.locator('#stats').isHidden(),true);
@@ -100,8 +118,17 @@ let browser;
  await page.setViewportSize({width:568,height:320});
  await page.evaluate(()=>scrollTo(0,0));
  await checkGameplayLayout(page,{landscape:true});
+ await checkItemSide(page,'left');
+ await holdingHand.selectOption('left');
+ await checkItemSide(page,'right');
+ await page.evaluate(()=>{state.heat=40;run.inventory.grant(1,1,{});render();});
+ const charges=await page.evaluate(()=>run.inventory.state(1).charges);
+ await item.tap();
+ await page.waitForFunction(previous=>run.inventory.state(1).charges===previous-1,charges);
+ assert.ok(await page.evaluate(()=>state.heat)<30,'Item use reached the Decrease Heat gameplay action');
  assert.deepEqual(await page.evaluate(()=>({id:sessionId,media})),{id:game.id,media:game.media});
  assert.ok(await page.evaluate(()=>state.seconds)>=game.seconds);await page.getByRole('button',{name:'Pause',exact:true}).click();const paused=await page.evaluate(()=>state.strokes);
+ assert.equal(await item.isDisabled(),true);
  const pausedRun=await page.evaluate(()=>({id:sessionId,seconds:state.seconds}));
  await page.setViewportSize({width:320,height:568});
  await checkGameplayLayout(page,{landscape:false});
@@ -132,6 +159,8 @@ let browser;
  await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints});await page.waitForFunction(()=>document.querySelector('#summary').textContent.includes('Rewards saved once'));
  await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
  const first=await page.evaluate(()=>JSON.parse(localStorage.getItem(profileKey)));assert.equal(first.progression.sessions,1);await page.reload();await page.locator('#start').waitFor();assert.equal(await page.evaluate(()=>profile.progression.sessions),1);assert.equal(await wakeChoice.isChecked(),false);await wakeChoice.check();
+ assert.equal(await holdingHand.inputValue(),'left');
+ await checkItemSide(page,'right');
  assert.equal(await vibrationMode.inputValue(),'off');await vibrationMode.selectOption('event');
  await page.goto(origin+'/fanservice/');await page.getByRole('checkbox',{name:'Select sample1.png'}).check();await page.getByRole('button',{name:'Create Pack',exact:true}).click();await page.locator('#pack-name').fill('Offline Server fixture');await page.getByRole('button',{name:'Save to Unlocks'}).click();const row=page.locator('.pack').filter({has:page.getByRole('heading',{name:'Offline Server fixture · Custom'})});await row.getByRole('button',{name:'Enable',exact:true}).click();await page.locator('#soundtrack').selectOption('1');
  await page.locator('.pack').filter({has:page.getByRole('heading',{name:'Offline Server fixture · Custom'})}).getByRole('button',{name:'Download snapshot',exact:true}).click();await page.waitForFunction(()=>document.querySelector('#status')?.textContent.startsWith('Snapshot saved'),{timeout:30000});await page.evaluate(()=>navigator.serviceWorker.ready);await page.screenshot({path:path.join(output,'mobile-unlocks-snapshot.png'),fullPage:true});

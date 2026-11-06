@@ -135,6 +135,51 @@ const towerPanel=element('section'),objectiveStatus=element('p');towerPanel.id='
 const inventoryDialog=element('dialog'),inventoryBody=element('div'),inventoryTitle=element('h2','Inventory and loadout');inventoryDialog.id='inventory-dialog';inventoryDialog.append(inventoryTitle,inventoryBody,action('Close inventory',()=>inventoryDialog.close()));
 const challengeDialog=element('dialog'),challengeBody=element('div');challengeDialog.id='challenge-dialog';challengeDialog.append(element('h2','Challenges and modifiers'),challengeBody,action('Close challenges',()=>challengeDialog.close()));
 document.body.append(inventoryDialog,challengeDialog);$('status').after(settingsPanel,towerPanel,objectiveStatus);$('controls').append(action('Inventory / loadout',()=>{renderInventory();inventoryDialog.showModal();}),action('Challenges / modifiers',()=>{renderChallenges();challengeDialog.showModal();}));
+const holdingHand=element('select'),holdingLabel=element('label','Holding hand');
+const holdingPreference='fanservice-holding-hand',itemControls=$('item-controls');
+for(const [value,label] of [['left','Left hand'],['right','Right hand']]){
+ const option=element('option',label);
+ option.value=value;
+ holdingHand.append(option);
+}
+holdingHand.value=localStorage.getItem(holdingPreference)==='left'?'left':'right';
+holdingLabel.append(holdingHand);
+vibrationStatus.after(holdingLabel);
+function applyHoldingHand(){
+ $('gameplay-stage').dataset.holdingHand=holdingHand.value;
+}
+holdingHand.onchange=()=>{
+ localStorage.setItem(holdingPreference,holdingHand.value);
+ applyHoldingHand();
+};
+applyHoldingHand();
+const itemButtons=Array.from({length:5},(_,slot)=>{
+ const button=action('',()=>{useItem(run.inventory.hotbarItems[slot]);render();});
+ button.hidden=true;
+ itemControls.append(button);
+ return button;
+});
+function canAttemptItem(owned){
+ return started&&!paused&&!finished&&!settling&&run.phase==='playing'&&owned?.unlocked&&owned.charges>0;
+}
+function renderItemControls(){
+ let equipped=false;
+ const inventory=run.inventory;
+ for(const [slot,button] of itemButtons.entries()){
+  const type=inventory.hotbarItems[slot],item=inventory.state(type);
+  const row=item?.unlocked&&inventory.catalog.find(entry=>entry.type===type);
+  button.hidden=!row;
+  if(!row)continue;
+  equipped=true;
+  button.disabled=!canAttemptItem(item);
+  const text=row.title+' · '+item.charges;
+  if(button.textContent!==text){
+   button.textContent=text;
+   button.setAttribute('aria-label','Use '+row.title+' · '+item.charges+' charges');
+  }
+ }
+ itemControls.hidden=!equipped;
+}
 const edgePanel=element('section'),edgeButton=action('Edge / E',()=>triggerEdge());edgePanel.id='edge-panel';edgePanel.setAttribute('aria-live','polite');objectiveStatus.after(edgePanel);$('controls').append(edgeButton);
 let edgeView='';
 function triggerEdge(){if(!started||paused||finished||!FanserviceEdge.allowed(run))return;objectiveEvents(run.edge());checkpoint(true);render();}
@@ -219,6 +264,7 @@ function renderTower(){
 function render(){
  updateScreenWake();
  if(!state)return;
+ renderItemControls();
  $('meter').value=Math.min(state.meter,1);$('stats').textContent=`${state.strokes} beats · combo ${state.combo} (${rules.comboTier(state.combo)}) · ${state.coins} coins · ${state.succuCoins} SuccuCoins · heat ${state.heat.toFixed(1)} · ${Math.floor(state.seconds)} seconds${run.config.lootEnabled?` · loot ${Math.floor(Math.max(0,state.lootBar)*100)}%`:''}`;
  const objective=run.roundObjective||run.objective.state,spec=FanserviceObjectives.specs.find(s=>s.objective===objective.objective);
  objectiveStatus.textContent=(run.tower?`Tower ${run.phase}. `:'')+(spec?`${spec.title}: ${objective.target}. `:'')+(run.objective.releaseDeadline===null?'':`Release window: ${Math.max(0,Math.ceil(run.objective.releaseDeadline-state.seconds))} seconds.`)+(state.seconds<breakUntil?` Break: ${Math.ceil(breakUntil-state.seconds)} seconds.`:'');
@@ -285,7 +331,7 @@ async function end(won){
   await mutateProfile(current=>{const next=FanserviceProgression.settleSession(FanserviceProgression.startSession(current,contract),state,sessionId,contract);next.mobile_settings={...next.mobile_settings,...run.config.settings};next.mobile_loadout=[...run.inventory.hotbarItems];return next;});
   finished=true;await releasePins();localStorage.removeItem(checkpointKey);
   $('summary').textContent=`${won?'Session completed':'Session ended'}\n${profile.progression.last_settlement.xp} XP · ${state.coins} coins · ${profile.progression.last_settlement.unlock_points} UP\nLevel ${profile.progression.level} · ${profile.progression.xp} XP toward next level\nRewards saved once. Pack ownership was retained.`;
-  status('Session saved. Return to the library to resolve live pack contents again.');for(const id of ['start','pause','tap','draw','finish','end'])$(id).disabled=true;renderTower();
+  renderItemControls();status('Session saved. Return to the library to resolve live pack contents again.');for(const id of ['start','pause','tap','draw','finish','end'])$(id).disabled=true;renderTower();
  }catch(error){state.finished=false;status('Rewards could not be saved: '+error.message);checkpoint(true);}
  finally{settling=false;updateScreenWake();}
 }
@@ -302,13 +348,24 @@ function itemDependencies(){return {context:itemContext(),random:run.random,hook
  spawnSuccubus:()=>FanserviceModifiers.options(state.modifiers).canSpawnSuccubi&&draw('succubus'),
  escape:()=>{if(music)return false;return draw(category,{force:true});}
  }};}
+function useItem(type){
+ if(!started||paused||finished||settling||run.phase!=='playing')throw Error('Start an active round before using items.');
+ if(!run.inventory.hotbarItems.includes(type))throw Error('Equip this item first.');
+ const value=readItemState(),result=FanserviceItems.use(run.inventory,type,value,itemDependencies());
+ if(!result.ok)throw Error(result.reason);
+ writeItemState(value);
+ if(result.consumed)FanserviceEconomy.itemUsed(run,type,run.inventory.catalog.find(row=>row.type===type).classification);
+ checkpoint(true);
+}
 function renderInventory(storeEvent=false){
+ renderItemControls();
  inventoryBody.replaceChildren();const shop=run.phase==='shop'||storeEvent;inventoryBody.append(element('p',`${state.coins} session coins. ${shop?'Shop open.':'Equip items before play; purchases require an active shop.'}`));
  for(const row of run.inventory.catalog){const owned=run.inventory.state(row.type);if(!owned?.unlocked)continue;const box=element('article'),index=Math.max(0,Math.min(4,owned.level-1));box.append(element('p',`${row.source['Level'+owned.level+'TooltipTitle']} · level ${owned.level} · ${owned.charges} charges`));
   const slot=element('select');slot.setAttribute('aria-label','Slot for '+row.id);for(let i=0;i<5;i++){const option=element('option','Slot '+(i+1));option.value=i;slot.append(option);}box.append(slot,action('Equip '+row.id,()=>{if(started&&run.phase!=='shop')throw Error('Change the loadout before play or in a Tower shop.');const result=FanserviceItems.equip(run.inventory,row.type,Number(slot.value));if(!result.ok)throw Error(result.reason);checkpoint(true);renderInventory(storeEvent);}));
   const buy=action(`Buy ${row.id} · ${row.purchaseCosts[index]}`,()=>{const result=FanserviceItems.purchase(run.inventory,row.type,state,itemContext());if(!result.ok)throw Error(result.reason);state.MoneySpent=(state.MoneySpent||0)+result.cost;checkpoint(true);renderInventory(storeEvent);});buy.disabled=!shop;box.append(buy);
   const upgrade=action(`Upgrade ${row.id} · ${row.upgradeCosts[index]}`,()=>{const result=FanserviceItems.upgrade(run.inventory,row.type,state);if(!result.ok)throw Error(result.reason);state.MoneySpent=(state.MoneySpent||0)+result.cost;checkpoint(true);renderInventory(storeEvent);});upgrade.disabled=!shop||!row.upgradeable||owned.level>=5;box.append(upgrade);
-  const use=action('Use '+row.id,()=>{if(!started||paused||finished||run.phase!=='playing')throw Error('Start an active round before using items.');if(!run.inventory.hotbarItems.includes(row.type))throw Error('Equip this item first.');const value=readItemState(),result=FanserviceItems.use(run.inventory,row.type,value,itemDependencies());if(!result.ok)throw Error(result.reason);writeItemState(value);if(result.consumed)FanserviceEconomy.itemUsed(run,row.type,row.classification);checkpoint(true);renderInventory(storeEvent);render();});use.disabled=!owned.charges||!started||paused||finished;box.append(use);inventoryBody.append(box);
+  const use=action('Use '+row.id,()=>{useItem(row.type);renderInventory(storeEvent);render();});
+  use.disabled=!canAttemptItem(owned)||!run.inventory.hotbarItems.includes(row.type);box.append(use);inventoryBody.append(box);
  }
  inventoryBody.append(element('p','Loadout: '+run.inventory.hotbarItems.map(type=>run.inventory.catalog.find(r=>r.type===type)?.id||'Empty').join(' · ')));
  if(shop){inventoryBody.append(element('h3',`Succu shop · ${state.succuCoins} SuccuCoins`));for(const row of FanserviceEconomy.catalog.filter(row=>FanserviceEconomy.shopIds.includes(row.id))){const owned=FanserviceEconomy.has(run,row.id),box=element('article');box.append(element('strong',row.title),element('p',row.description));const buy=action(owned?'Owned '+row.title:`Buy ${row.title} · ${row.cost} SuccuCoins`,()=>{const result=FanserviceEconomy.purchase(run,row.id);if(!result.ok)throw Error(result.reason);checkpoint(true);renderInventory(storeEvent);render();});buy.disabled=owned||state.succuCoins<row.cost;box.append(buy);inventoryBody.append(box);}}
