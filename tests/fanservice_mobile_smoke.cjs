@@ -7,6 +7,14 @@ let browser;
  const context=await browser.newContext({viewport:{width:390,height:844},hasTouch:true}),page=await context.newPage(),errors=[],writes=[];page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>{if(['POST','PUT','PATCH','DELETE'].includes(r.method()))writes.push(r.url());});
  await page.addInitScript(()=>{
   window.wakeEvents=[];
+  window.voiceEvents=[];
+  for(const method of ['start','stop']){
+   const original=AudioBufferSourceNode.prototype[method];
+   AudioBufferSourceNode.prototype[method]=function(...args){
+    window.voiceEvents.push(method);
+    return original.apply(this,args);
+   };
+  }
   window.vibrationEvents=[];
   Object.defineProperty(navigator,'vibrate',{configurable:true,value:duration=>{
    window.vibrationEvents.push({duration,position:document.querySelector('#audio')?.currentTime});
@@ -32,6 +40,24 @@ let browser;
   };
  });
  await page.goto(origin+'/fanservice/');await page.getByRole('checkbox',{name:'Select sample1.png'}).waitFor();assert.equal(await page.locator('nav button').count(),2);
+ await page.getByRole('button',{name:'Connection',exact:true}).click();
+ await page.getByText('Local voice pack',{exact:true}).click();
+ const manifest={version:1,lines:{
+  Fanservice_Test:{file:'voice.wav',caption:'Offline voice fixture'},
+  Missing_Test:{file:'missing.wav',caption:'Offline caption without recording'}
+ }};
+ const wav=Buffer.alloc(44+8000*2*5);
+ wav.write('RIFF');wav.writeUInt32LE(wav.length-8,4);wav.write('WAVEfmt ',8);
+ wav.writeUInt32LE(16,16);wav.writeUInt16LE(1,20);wav.writeUInt16LE(1,22);
+ wav.writeUInt32LE(8000,24);wav.writeUInt32LE(16000,28);wav.writeUInt16LE(2,32);
+ wav.writeUInt16LE(16,34);wav.write('data',36);wav.writeUInt32LE(wav.length-44,40);
+ await page.getByLabel('Voice manifest and recordings').setInputFiles([
+  {name:'manifest.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(manifest))},
+  {name:'voice.wav',mimeType:'audio/wav',buffer:wav}
+ ]);
+ await page.getByRole('button',{name:'Import local voice pack',exact:true}).click();
+ await page.getByText('Imported 1 recordings.',{exact:false}).waitFor();
+ await page.getByRole('button',{name:'Cancel',exact:true}).click();
  await page.locator('.tile img').first().evaluate(img=>{img.loading='eager';img.src='/missing-thumbnail-acceptance';});
  await page.waitForFunction(()=>document.querySelector('.tile img')?.alt==='Preview unavailable');
  assert.match(await page.locator('.tile img').first().getAttribute('src'),/thumbnail-unavailable\.svg$/);
@@ -95,6 +121,14 @@ let browser;
  await page.evaluate(()=>{window.rejectWake=false;});
  await page.getByRole('button',{name:'Resume',exact:true}).click();
  await page.getByText('Screen wakefulness is active.').waitFor();
+ await page.getByText('Offline voice fixture',{exact:true}).waitFor();
+ await page.waitForFunction(()=>window.voiceEvents.includes('start'));
+ await page.getByRole('button',{name:'Pause',exact:true}).click();
+ assert.deepEqual(await page.evaluate(()=>window.voiceEvents),['start','stop']);
+ await page.getByRole('button',{name:'Resume',exact:true}).click();
+ await page.getByText('Offline caption without recording',{exact:true}).waitFor();
+ assert.equal(await page.locator('#voice-status').innerText(),'Voice recording unavailable: Missing_Test');
+ assert.deepEqual(await page.evaluate(()=>window.voiceEvents),['start','stop']);
  await page.waitForFunction(()=>document.querySelector('#summary')?.textContent.includes('Rewards saved once'),null,{timeout:20000});assert.match(await page.locator('#summary').innerText(),/Rewards saved once/);const final=await page.evaluate(()=>JSON.parse(localStorage.getItem(profileKey)));assert.equal(final.progression.sessions,2);await page.waitForFunction(()=>window.wakeEvents.at(-1)==='release');await page.screenshot({path:path.join(output,'mobile-offline-rhythm-complete.png'),fullPage:true});
  const warnings=await page.evaluate(()=>window.vibrationEvents.filter(event=>event.duration===100));
  assert.equal(warnings.length,1);

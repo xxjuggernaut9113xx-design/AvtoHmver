@@ -13,13 +13,38 @@
  async function importPack(files){
   const all=[...files],json=all.filter(file=>/\.json$/i.test(file.name));if(json.length!==1||json[0].size>256*1024)throw Error('Select one manifest JSON and its WAV files');const manifest=JSON.parse(await json[0].text());if(manifest.version!==1||(!manifest.lines&&!manifest.packs))throw Error('Unsupported voice-pack manifest');
   const audio=[];let total=0;for(const file of all.filter(file=>file!==json[0])){total+=file.size;if(!/\.wav$/i.test(file.name)||file.size>8*1024*1024||total>256*1024*1024||audio.length>=1000)throw Error('Use WAV recordings up to 8 MiB each and 256 MiB per pack');pcm(await file.arrayBuffer());if(audio.some(([name])=>name===file.name))throw Error('Recording filenames must be unique');audio.push([file.name,file]);}
-  const next={manifest,audio};try{await record(next);}catch(error){throw Error(error.name==='QuotaExceededError'?'Storage is full; the previous voice pack was retained':error.message);}active=next;return audio.length;
+  const next={manifest,audio};try{await record(next);}catch(error){throw Error(error.name==='QuotaExceededError'?'Storage is full; the previous voice pack was retained':error.message);}stop();active=next;return audio.length;
  }
  function stop(){generation++;if(source){try{source.stop();}catch{}source=null;}}
  async function unlock(){context??=new (root.AudioContext||root.webkitAudioContext)();await context.resume();}
- async function say(id,caption){stop();const token=generation;await ready;if(token!==generation)return false;const definition=active?.manifest.packs?.[settings.pack]||active?.manifest,line=definition?.lines?.[id],selected=line?.pronouns?.[settings.pronoun]||line;
-  caption(typeof selected?.caption==='string'?selected.caption.slice(0,1000):selected?id:`Voice recording unavailable: ${id}`);const file=active?.audio.find(([name])=>name===selected?.file)?.[1];if(!file){if(selected)caption(`Voice recording unavailable: ${id}`);return false;}
-  try{await unlock();const buffer=await context.decodeAudioData(await file.arrayBuffer());if(token!==generation)return false;source=context.createBufferSource();source.buffer=buffer;const gain=context.createGain();gain.gain.value=Math.max(0,Math.min(1,Number(settings.volume)||0));source.connect(gain).connect(context.destination);source.start();return true;}catch(error){if(token===generation)caption(`Voice recording unavailable: ${id} (${error.message})`);return false;}
+ async function say(id,caption,report=()=>{}){
+  stop();
+  const token=generation;
+  await ready;
+  if(token!==generation)return false;
+  const manifest=active?.manifest,definition=manifest?.packs?.[settings.pack]||manifest;
+  const line=definition?.lines?.[id],selected=line?.pronouns?.[settings.pronoun]||line;
+  const text=selected?.caption;
+  caption(typeof text==='string'?text.slice(0,1000):String(id));
+  report('');
+  const file=active?.audio.find(([name])=>name===selected?.file)?.[1];
+  if(!file){report('Voice recording unavailable: '+id);return false;}
+  try{
+   await unlock();
+   const buffer=await context.decodeAudioData(await file.arrayBuffer());
+   if(token!==generation)return false;
+   const node=context.createBufferSource(),gain=context.createGain();
+   node.buffer=buffer;
+   gain.gain.value=Math.max(0,Math.min(1,Number(settings.volume)||0));
+   node.connect(gain).connect(context.destination);
+   node.onended=()=>{if(source===node)source=null;};
+   node.start();
+   source=node;
+   return true;
+  }catch{
+   if(token===generation)report('Voice recording could not play: '+id);
+   return false;
+  }
  }
  function save(){localStorage.setItem('fanservice-voice-settings-v1',JSON.stringify(settings));}
  root.FanserviceVoice={importPack,unlock,say,stop,pcm};

@@ -40,7 +40,8 @@ On mobile web/PWA and Android, open **Connection → Local voice pack**, select 
 manifest and its WAV files together, then choose **Import local voice pack**.
 Recordings stay in the device's IndexedDB storage. Choose a voice variant,
 pronouns and volume in the same controls. Invalid imports preserve the previous
-pack; missing recordings show a caption instead of silently substituting audio.
+pack. In gameplay, an authored caption stays visible when its recording is
+missing, alongside a separate recording status.
 Browser eviction can remove these local files; retain your original pack.
 
 Use the reconstruction's dialogue IDs rather than renaming events. User-provided
