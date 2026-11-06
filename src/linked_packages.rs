@@ -456,13 +456,25 @@ mod tests {
         let root = tempfile::tempdir().unwrap();
         let source = root.path().join("source.png");
         fs::write(&source, vec![42u8; 512 * 1024]).unwrap();
+        let portable = build_chpack_cancellable(
+            "Independent portable copy".into(),
+            "AvtoHmver".into(),
+            String::new(),
+            0,
+            vec![row("source.png")],
+            root.path(),
+            &|| false,
+        )
+        .unwrap();
+        let portable_before = fs::read(portable.path()).unwrap();
         let checks = std::cell::Cell::new(0);
         let result = build(root.path(), vec![row("source.png")], || {
             checks.set(checks.get() + 1);
             checks.get() >= 5
         });
         assert!(result.unwrap_err().to_string().contains("cancelled"));
-        assert_eq!(fs::metadata(&source).unwrap().len(), 512 * 1024);
+        assert_eq!(fs::read(&source).unwrap(), vec![42u8; 512 * 1024]);
+        assert_eq!(fs::read(portable.path()).unwrap(), portable_before);
         assert_eq!(
             fs::read_dir(stage_root(root.path()).unwrap())
                 .unwrap()
@@ -545,8 +557,12 @@ mod tests {
             fs::read(root.path().join("source.png")).unwrap(),
             b"changed bytes"
         );
-        assert!(build(root.path(), vec![row("missing.png")], || false).is_err());
         assert!(build(root.path(), vec![row("source.png")], || true).is_err());
+        let package = build(root.path(), vec![row("source.png")], || false).unwrap();
+        fs::remove_file(root.path().join("source.png")).unwrap();
+        assert_eq!(invalidate_changed(root.path()).unwrap(), 1);
+        assert!(!package.exists());
+        assert!(build(root.path(), vec![row("missing.png")], || false).is_err());
         assert_eq!(
             fs::read_dir(stage_root(root.path()).unwrap())
                 .unwrap()

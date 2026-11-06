@@ -84,6 +84,20 @@ test('a status poll started before staging cannot replace the new job', async ()
   assert.equal(h.node('cancel').hidden, false);
 });
 
+test('an open completed package loses its displayed path when the source changes', async () => {
+  const h = harness();
+  h.setJob({id: 'current', phase: 'complete', path: 'C:/library/package.chpack'});
+  await h.click('open');
+  assert.equal(h.node('path').hidden, false);
+  h.setJob({id: 'current', phase: 'invalidated', path: null});
+  const poll = [...h.timers.values()][0];
+  assert.equal(typeof poll, 'function');
+  await poll();
+  assert.match(h.node('status').textContent, /no longer available/);
+  assert.equal(h.node('path').hidden, true);
+  assert.equal(h.timers.size, 0);
+});
+
 test('remote browsers do not expose same-computer staging or request local paths', async () => {
   const h = harness('100.64.0.2');
   assert.equal(h.node('open').hidden, true);

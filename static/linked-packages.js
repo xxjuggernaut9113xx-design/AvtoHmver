@@ -40,7 +40,9 @@
   }
   function schedule() {
     clearTimeout(timer);
-    if (!modal.hidden && !document.hidden && busy()) timer = setTimeout(refresh, 750);
+    if (modal.hidden || document.hidden) return;
+    if (busy()) timer = setTimeout(refresh, 750);
+    else if (job?.phase === 'complete') timer = setTimeout(refresh, 2000);
   }
   async function refresh() {
     if (modal.hidden || pending) return;
