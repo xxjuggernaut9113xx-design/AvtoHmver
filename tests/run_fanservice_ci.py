@@ -58,6 +58,7 @@ with (output / 'fixture.log').open('w', encoding='utf-8') as log:
                        bpm=120, offset=0, confirmed=True,
                        beats=[dict(time=i * .5, type='stroke') for i in range(24)],
                        events=[dict(time=0, type='media_change', value='slow'),
+                               dict(time=6, type='edge', value='start'),
                                dict(time=10, type='cum_event', value='start')])
         request = urllib.request.Request(origin + '/api/fanservice/v1/music/1/beatmap',
                   data=json.dumps(beatmap).encode(), method='PUT',

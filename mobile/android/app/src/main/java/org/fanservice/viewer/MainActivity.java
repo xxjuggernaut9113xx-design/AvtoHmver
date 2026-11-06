@@ -8,6 +8,7 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(ArchiveSavePlugin.class);
         registerPlugin(ScreenWakePlugin.class);
+        registerPlugin(GameplayVibrationPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }
