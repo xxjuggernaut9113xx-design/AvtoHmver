@@ -173,6 +173,7 @@ const state = {
   collapsedGroups: new Set(),
   view: { type: 'all' },   // {type:'all'} | {type:'creator', id} | {type:'group', id, name}
   currentItems: [],
+  searchQuery: '',
   typeFilter: 'all',       // 'all' | 'image' | 'clip' | 'video' — applied client-side in loadView(), see mediaMatchesTypeFilter
   sortOrder: 'default',    // one of _MEDIA_SORT_ORDERS' keys server-side
   tagFilter: '',           // tag name, or '' for no filter
@@ -260,7 +261,6 @@ async function loadAppSettings() {
   } catch (e) {
     // Not fatal — falls back to the in-memory defaults above.
   }
-  appSettings.theme = normalizeTheme(appSettings.theme);
   applyTheme(appSettings.theme);
 
   // Seed both the live slideshow state (used directly by the portrait
@@ -1296,7 +1296,7 @@ async function openSettingsModal() {
   el('#settings-max-clip-length').value = appSettings.max_clip_length_secs || 60;
   el('#settings-library-layout').value = appSettings.library_layout || 'grid';
   el('#settings-ffmpeg-bin').value = appSettings.ffmpeg_bin || 'ffmpeg';
-  el('#settings-theme').value = appSettings.theme || 'system';
+  el('#settings-theme').value = normalizeTheme(appSettings.theme || 'system');
   el('#settings-default-speed').value = appSettings.default_slideshow_speed;
   el('#settings-default-loop').checked = !!appSettings.default_slideshow_loop;
   el('#settings-default-shuffle').checked = !!appSettings.default_slideshow_shuffle;
@@ -1343,6 +1343,8 @@ async function saveSettings() {
   const externalToolsLocal = appSettings.external_tool_settings_local_only !== true;
   const local = localSettingsAvailable();
   const host = local && appSettings.host_integration_settings_available === true;
+  const savedTheme = appSettings.theme || 'system';
+  const selectedTheme = el('#settings-theme').value;
   const body = {
     max_concurrent: maxConcurrent,
     max_clip_length_secs: Math.max(5, Math.min(3600, parseInt(el('#settings-max-clip-length').value, 10) || 60)),
@@ -1355,7 +1357,7 @@ async function saveSettings() {
     automatic_cleanup_low_disk_bytes: optionalWholeNumber(el('#settings-automatic-cleanup-low-disk')),
     archive_retention_days: optionalWholeNumber(el('#settings-archive-retention-days')),
     library_layout: el('#settings-library-layout').value,
-    theme: el('#settings-theme').value,
+    theme: selectedTheme === normalizeTheme(savedTheme) ? savedTheme : selectedTheme,
     default_slideshow_speed: parseInt(el('#settings-default-speed').value, 10),
     default_slideshow_loop: el('#settings-default-loop').checked,
     default_slideshow_shuffle: el('#settings-default-shuffle').checked,
@@ -1781,6 +1783,7 @@ async function loadView() {
   if (state.sortOrder && state.sortOrder !== 'default') params.set('sort', state.sortOrder);
   if (gridShuffleSeed != null) { params.set('sort','shuffle'); params.set('shuffle_seed',gridShuffleSeed); }
   if (state.tagFilter) params.set('tag',state.tagFilter);
+  if (state.searchQuery.trim()) params.set('search', state.searchQuery.trim());
   if (state.sizeFilter === 'under-10mb') params.set('max_size', String(10 * 1024 * 1024 - 1));
   else if (state.sizeFilter === '10mb-100mb') { params.set('min_size', String(10 * 1024 * 1024)); params.set('max_size', String(100 * 1024 * 1024 - 1)); }
   else if (state.sizeFilter === '100mb-1gb') { params.set('min_size', String(100 * 1024 * 1024)); params.set('max_size', String(1024 * 1024 * 1024 - 1)); }

@@ -7,6 +7,15 @@ const vm = require('node:vm');
 const root = path.join(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 
+test('the browser shell and setup wizard display AvtoHmver identity', () => {
+  const shell = read('static/index.html');
+  const setup = read('static/oobe.html');
+  assert.match(shell, /<title>AvtoHmver Server<\/title>/);
+  assert.match(shell, /<h1>AvtoHmver\s+<small>/);
+  assert.match(setup, /<title>Set up AvtoHmver<\/title>/);
+  assert.match(setup, /id="oobe-title">Set up AvtoHmver<\/h1>/);
+});
+
 test('the browser fallback boots Explorer after the legacy media engine', () => {
   const html = read('static/index.html');
   const app = read('static/app.js');
