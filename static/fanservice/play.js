@@ -4,7 +4,7 @@ const profileKey='fanservice-profile-v1:'+library,checkpointKey='fanservice-sess
 let sessionId=store.id(),profile,media=[],decks,remaining={},music,map,soundtrackWarnings,run,state,catalog,contract,cardRules,started=false,paused=false,finished=false,settling=false,lastBeat=0,lastFrame=0,checkpointAt=0,category='slow',breakUntil=0,speed=1,pinnedPacks=[],restoring=false;
 const clock={next:0,event:0,last:0},resources=[],finishButton=$('finish');
 let finishHold;
-const mediaStatus=document.createElement('p');mediaStatus.id='media-status';mediaStatus.setAttribute('role','status');$('stage').after(mediaStatus);
+const mediaStatus=document.createElement('p');mediaStatus.id='media-status';mediaStatus.setAttribute('role','status');$('voice-status').after(mediaStatus);
 for(const id of ['image','video'])FanserviceMedia.observe($(id),text=>mediaStatus.textContent=text);
 function status(text){$('status').textContent=text;}
 const element=(tag,text)=>{const node=document.createElement(tag);if(text!==undefined)node.textContent=text;return node;};
@@ -22,7 +22,7 @@ const wakeChoice=element('input'),wakeLabel=element('label','Keep screen awake d
 const wakePreference='fanservice-keep-awake';
 wakeChoice.type='checkbox';wakeChoice.checked=localStorage.getItem(wakePreference)!=='off';wakeLabel.prepend(wakeChoice);
 wakeStatus.setAttribute('role','status');
-$('controls').after(wakeLabel,wakeStatus);
+$('session-statistics').after(wakeLabel,wakeStatus);
 let wakeWanted=false,wakePending=false,wakeHandle=null,pageHidden=false;
 function wakeMessage(text){if(wakeStatus.textContent!==text)wakeStatus.textContent=text;}
 async function requestScreenWake(){
@@ -134,7 +134,7 @@ function vibrationDeadlines(){
 const towerPanel=element('section'),objectiveStatus=element('p');towerPanel.id='tower-draft';objectiveStatus.id='objective-status';objectiveStatus.setAttribute('role','status');
 const inventoryDialog=element('dialog'),inventoryBody=element('div'),inventoryTitle=element('h2','Inventory and loadout');inventoryDialog.id='inventory-dialog';inventoryDialog.append(inventoryTitle,inventoryBody,action('Close inventory',()=>inventoryDialog.close()));
 const challengeDialog=element('dialog'),challengeBody=element('div');challengeDialog.id='challenge-dialog';challengeDialog.append(element('h2','Challenges and modifiers'),challengeBody,action('Close challenges',()=>challengeDialog.close()));
-document.body.append(inventoryDialog,challengeDialog);$('controls').before(settingsPanel,towerPanel,objectiveStatus);$('controls').append(action('Inventory / loadout',()=>{renderInventory();inventoryDialog.showModal();}),action('Challenges / modifiers',()=>{renderChallenges();challengeDialog.showModal();}));
+document.body.append(inventoryDialog,challengeDialog);$('status').after(settingsPanel,towerPanel,objectiveStatus);$('controls').append(action('Inventory / loadout',()=>{renderInventory();inventoryDialog.showModal();}),action('Challenges / modifiers',()=>{renderChallenges();challengeDialog.showModal();}));
 const edgePanel=element('section'),edgeButton=action('Edge / E',()=>triggerEdge());edgePanel.id='edge-panel';edgePanel.setAttribute('aria-live','polite');objectiveStatus.after(edgePanel);$('controls').append(edgeButton);
 let edgeView='';
 function triggerEdge(){if(!started||paused||finished||!FanserviceEdge.allowed(run))return;objectiveEvents(run.edge());checkpoint(true);render();}

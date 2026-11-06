@@ -1,6 +1,29 @@
 const {chromium}=require(process.env.FANSERVICE_PLAYWRIGHT_MODULE||'./browser/node_modules/playwright');
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const origin=process.env.FANSERVICE_FIXTURE_ORIGIN||'http://127.0.0.1:42169',output=process.env.FANSERVICE_SMOKE_OUTPUT||path.join(require('node:os').tmpdir(),'fanservice-mobile-smoke');fs.mkdirSync(output,{recursive:true});
+async function checkGameplayLayout(page,{landscape,insets=false}){
+ const geometry=await page.evaluate(()=>{
+  const box=id=>document.getElementById(id).getBoundingClientRect().toJSON();
+  const button=[...document.querySelectorAll('#controls button')].map(node=>node.getBoundingClientRect().toJSON());
+  return {stage:box('stage'),beats:box('beats'),controls:box('controls'),button,
+   fit:getComputedStyle(document.querySelector('#stage img')).objectFit,
+   viewport:{width:innerWidth,height:innerHeight,document:document.documentElement.scrollWidth}};
+ });
+ assert.equal(geometry.fit,'contain');
+ assert.ok(geometry.stage.bottom<=geometry.beats.top&&geometry.beats.bottom<=geometry.controls.top);
+ assert.ok(geometry.viewport.document<=geometry.viewport.width,'No horizontal clipping');
+ assert.ok(geometry.button.every(button=>button.left>=0&&button.right<=geometry.viewport.width));
+ if(landscape){
+  if(!insets)assert.ok(geometry.stage.height>geometry.viewport.height/2,'Media takes most of the landscape viewport');
+  if(insets){
+   assert.ok(geometry.button.every(button=>button.left>=32&&button.right<=geometry.viewport.width-32));
+   assert.ok(geometry.controls.bottom<=geometry.viewport.height-12);
+  }
+  assert.ok(geometry.controls.bottom<=geometry.viewport.height,'Compact controls fit below landscape media');
+ }else{
+  assert.ok(geometry.button.every(button=>button.height>=44),'Portrait controls meet the touch-target size');
+ }
+}
 let browser;
 (async()=>{
  browser=await chromium.launch({headless:true,...(process.env.FANSERVICE_BROWSER_EXECUTABLE?{executablePath:process.env.FANSERVICE_BROWSER_EXECUTABLE}:{})});
@@ -68,7 +91,22 @@ let browser;
  assert.deepEqual(await vibrationMode.locator('option').allTextContents(),['Off','Before next event','Every beat']);
  assert.equal(await vibrationMode.inputValue(),'event');
  await vibrationMode.selectOption('beat');
- await page.getByRole('button',{name:'Start',exact:true}).click();await page.waitForFunction(()=>state.strokes>0);await page.getByRole('button',{name:'Pause',exact:true}).click();const paused=await page.evaluate(()=>state.strokes);
+ await checkGameplayLayout(page,{landscape:false});
+ const details=page.getByText('Detailed statistics',{exact:true});
+ assert.equal(await page.locator('#stats').isHidden(),true);
+ await details.click();assert.equal(await page.locator('#stats').isVisible(),true);await details.click();
+ await page.getByRole('button',{name:'Start',exact:true}).click();await page.waitForFunction(()=>state.strokes>0);
+ const game=await page.evaluate(()=>({id:sessionId,media,seconds:state.seconds}));
+ await page.setViewportSize({width:568,height:320});
+ await page.evaluate(()=>scrollTo(0,0));
+ await checkGameplayLayout(page,{landscape:true});
+ assert.deepEqual(await page.evaluate(()=>({id:sessionId,media})),{id:game.id,media:game.media});
+ assert.ok(await page.evaluate(()=>state.seconds)>=game.seconds);await page.getByRole('button',{name:'Pause',exact:true}).click();const paused=await page.evaluate(()=>state.strokes);
+ const pausedRun=await page.evaluate(()=>({id:sessionId,seconds:state.seconds}));
+ await page.setViewportSize({width:320,height:568});
+ await checkGameplayLayout(page,{landscape:false});
+ assert.deepEqual(await page.evaluate(()=>({id:sessionId,seconds:state.seconds})),pausedRun);
+ await page.setViewportSize({width:390,height:844});
  const beatVibrations=await page.evaluate(()=>window.vibrationEvents.map(event=>event.duration));
  assert.equal(beatVibrations.at(-1),0);
  assert.equal(beatVibrations.filter(duration=>duration===25).length,paused);await page.waitForTimeout(700);assert.equal(await page.evaluate(()=>state.strokes),paused);await page.getByRole('button',{name:'Resume',exact:true}).click();
@@ -100,6 +138,13 @@ let browser;
  await context.setOffline(true);await page.locator('.pack').filter({has:page.getByRole('heading',{name:'Offline Server fixture · Custom'})}).getByRole('button',{name:'Play saved snapshot'}).click();await page.getByRole('button',{name:'Start',exact:true}).waitFor();await page.evaluate(()=>audio.muted=true);await page.getByRole('button',{name:'Start',exact:true}).click();await page.waitForFunction(()=>state.strokes>0);
  await page.getByRole('button',{name:'Pause',exact:true}).click();
  const pausedAudio=await page.evaluate(()=>audio.currentTime);
+ await page.setViewportSize({width:844,height:390});
+ await page.evaluate(()=>scrollTo(0,0));
+ await checkGameplayLayout(page,{landscape:true});
+ const insetStyle=await page.addStyleTag({content:':root{--safe-top:10px;--safe-bottom:12px;--safe-left:32px;--safe-right:32px}'});
+ await checkGameplayLayout(page,{landscape:true,insets:true});
+ await insetStyle.evaluate(node=>node.remove());
+ await page.setViewportSize({width:390,height:844});
  assert.equal(await page.locator('#audio').getAttribute('controls'),null);
  assert.equal(await page.locator('#audio').isHidden(),true);
  assert.equal(await page.locator('#video').getAttribute('controls'),null);
@@ -123,6 +168,11 @@ let browser;
  await page.getByText('Screen wakefulness is active.').waitFor();
  await page.getByText('Offline voice fixture',{exact:true}).waitFor();
  await page.waitForFunction(()=>window.voiceEvents.includes('start'));
+ const playingSoundtrack=await page.evaluate(()=>({id:sessionId,position:audio.currentTime}));
+ await page.setViewportSize({width:844,height:390});
+ assert.equal(await page.evaluate(()=>sessionId),playingSoundtrack.id);
+ await page.waitForFunction(time=>audio.currentTime>time,playingSoundtrack.position);
+ await page.setViewportSize({width:390,height:844});
  await page.getByRole('button',{name:'Pause',exact:true}).click();
  assert.deepEqual(await page.evaluate(()=>window.voiceEvents),['start','stop']);
  await page.getByRole('button',{name:'Resume',exact:true}).click();
