@@ -2183,7 +2183,9 @@ mod tests {
             "{:?}",
             first.provider_errors
         );
-        assert_eq!(first.results.len(), 100);
+        // Redgifs can return fewer usable rows than its requested `count`:
+        // parse_redgifs intentionally drops malformed or unsafe watch IDs.
+        assert!(!first.results.is_empty() && first.results.len() <= 100);
         let cursor = first
             .next_cursor
             .expect("search has additional provider pages");
@@ -2356,12 +2358,18 @@ mod tests {
     #[tokio::test]
     #[ignore = "requires live public provider index endpoints"]
     async fn live_other_discover_providers_continue_past_the_first_page() {
+        // Permit one provider at a time so a rate limit from one public
+        // index does not prevent checking the others in the same run.
+        let selected = std::env::var("AVTOHMVER_LIVE_PROVIDER").ok();
         for (provider, query) in [
             ("erome", "cosplay"),
             ("balbums", "cosplay"),
             ("kemono", "a"),
             ("coomer", "a"),
         ] {
+            if selected.as_deref().is_some_and(|selected| selected != provider) {
+                continue;
+            }
             let (first, more) = search_provider_page(provider, query, 1, None)
                 .await
                 .unwrap_or_else(|error| panic!("{provider}: {error}"));
