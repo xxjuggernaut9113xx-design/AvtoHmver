@@ -10,9 +10,9 @@
  const snapshotKeys=saved=>[...(saved?.media||[]),saved?.music].filter(Boolean).map(item=>item.storage_key);
  function sessionKey(sessionId){if(typeof sessionId!=='string'||!sessionId.length||sessionId.length>512)throw Error('A valid session pin token is required.');return pinPrefix+sessionId;}
  async function snapshotTransaction(change){const d=await db;return new Promise((resolve,reject)=>{
-  const tx=d.transaction(['files','snapshots'],'readwrite'),files=tx.objectStore('files'),snapshots=tx.objectStore('snapshots'),allFiles=files.getAll(),allKeys=files.getAllKeys(),allSnapshots=snapshots.getAll();let result,deleted=[];
-  let ready=0;const loaded=()=>{if(++ready!==3)return;try{result=change({files,snapshots,records:allFiles.result,fileMap:new Map(allKeys.result.map((key,index)=>[key,allFiles.result[index]])),current:allSnapshots.result,deleted});}catch(e){reject(e);tx.abort();}};
-  allFiles.onsuccess=loaded;allKeys.onsuccess=loaded;allSnapshots.onsuccess=loaded;tx.oncomplete=()=>{for(const key of deleted)if(urls.has(key)){URL.revokeObjectURL(urls.get(key));urls.delete(key);}resolve(result);};tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||Error('Snapshot transaction aborted'));
+  const tx=d.transaction(['files','snapshots'],'readwrite'),files=tx.objectStore('files'),snapshots=tx.objectStore('snapshots'),allFiles=files.getAll(),allKeys=files.getAllKeys(),allSnapshots=snapshots.getAll(),allSnapshotKeys=snapshots.getAllKeys();let result,deleted=[];
+  let ready=0;const loaded=()=>{if(++ready!==4)return;try{result=change({files,snapshots,records:allFiles.result,fileMap:new Map(allKeys.result.map((key,index)=>[key,allFiles.result[index]])),current:allSnapshots.result,legacySnapshots:new Map(allSnapshotKeys.result.flatMap((key,index)=>typeof key==='string'?[[key,allSnapshots.result[index]]]:[])),deleted});}catch(e){reject(e);tx.abort();}};
+  allFiles.onsuccess=loaded;allKeys.onsuccess=loaded;allSnapshots.onsuccess=loaded;allSnapshotKeys.onsuccess=loaded;tx.oncomplete=()=>{for(const key of deleted)if(urls.has(key)){URL.revokeObjectURL(urls.get(key));urls.delete(key);}resolve(result);};tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||Error('Snapshot transaction aborted'));
  });}
  function collectRetired(ctx){const protectedKeys=new Set(ctx.current.flatMap(snapshotKeys));for(const record of ctx.records)if(record?.kind==='fanservice-session-pin')for(const key of snapshotKeys(record.snapshot))protectedKeys.add(key);
   for(const record of ctx.records)if(record?.kind==='fanservice-retired-snapshot'){
@@ -57,25 +57,133 @@
   if(playable&&map.events.some(event=>event.type==='speed_change'))throw Error('This soundtrack uses unsupported speed_change semantics. Confirm explicit beat times without that control before playback. The saved map was retained.');
   return value;
  }
- async function download(pack,manifest,origin,music){
+ const snapshotKey=(libraryId,packId)=>[libraryId,packId];
+ const matchesSnapshot=(saved,libraryId,packId)=>saved.library_id===libraryId&&saved.pack_id===packId;
+ async function savedSnapshot(libraryId,packId){
+  const current=await get('snapshots',snapshotKey(libraryId,packId));
+  if(current)return current;
+  const legacy=await get('snapshots',packId);
+  return legacy&&matchesSnapshot(legacy,libraryId,packId)?legacy:undefined;
+ }
+ function retireSnapshot(ctx,saved){
+  ctx.current=ctx.current.filter(item=>item.id!==saved.id);
+  const retired={kind:'fanservice-retired-snapshot',snapshot:saved};
+  ctx.files.put(retired,retiredPrefix+saved.id);
+  ctx.records.push(retired);
+ }
+ async function download(pack,manifest,origin,music,assertCurrent=()=>{}){
   if(manifest.library_id!==undefined&&manifest.library_id!==pack.library_id||music?.library_id!==undefined&&music.library_id!==pack.library_id)throw Error('Snapshot belongs to a different library. The previous snapshot was retained.');
   if(music)validateMusic(music,{libraryId:pack.library_id});
   if(navigator.storage?.persist)await navigator.storage.persist();const keys=[];const snapshot={id:id(),pack_id:pack.id,library_id:pack.library_id,saved_at:new Date().toISOString(),device_id:device,media:[],music:null};
   try{for(const item of manifest.media){const key=snapshot.id+':'+keys.length;const blob=await downloadBlob(new URL(item.url,origin));await put('files',key,{blob,local:false});keys.push(key);snapshot.media.push({...item,url:undefined,storage_key:key});}
    if(music){const key=snapshot.id+':music';const blob=await downloadBlob(new URL(music.stream_url,origin));await put('files',key,{blob,local:false});keys.push(key);snapshot.music={...music,storage_key:key};}
-   await snapshotTransaction(ctx=>{const previous=ctx.current.find(item=>item.pack_id===pack.id);ctx.snapshots.put(snapshot,pack.id);ctx.current=ctx.current.filter(item=>item.pack_id!==pack.id);ctx.current.push(snapshot);
-    if(previous){const retired={kind:'fanservice-retired-snapshot',snapshot:previous};ctx.files.put(retired,retiredPrefix+previous.id);ctx.records.push(retired);}collectRetired(ctx);
+   await snapshotTransaction(ctx=>{
+    assertCurrent();
+    const previous=ctx.current.find(item=>matchesSnapshot(item,pack.library_id,pack.id));
+    const legacy=ctx.legacySnapshots.get(pack.id);
+    if(legacy&&matchesSnapshot(legacy,pack.library_id,pack.id))ctx.snapshots.delete(pack.id);
+    if(previous)retireSnapshot(ctx,previous);
+    ctx.snapshots.put(snapshot,snapshotKey(pack.library_id,pack.id));
+    ctx.current.push(snapshot);
+    collectRetired(ctx);
    });
    return snapshot;
   }catch(e){for(const key of keys)await remove('files',key).catch(()=>{});throw Error(e.name==='QuotaExceededError'?'Storage is full. The previous offline snapshot was retained.':e.message);}
  }
  async function hydrateSnapshot(saved){if(!saved)throw Error('No downloaded snapshot exists on this device.');const result={...saved,media:[]};for(const item of saved.media){const file=await get('files',item.storage_key);if(!file?.blob)throw Error('Downloaded media is unavailable; it may have been removed or evicted. Download the snapshot again.');result.media.push({...item,url:blobURL(item.storage_key,file.blob)});}if(saved.music){validateMusic(saved.music,{libraryId:saved.library_id});const file=await get('files',saved.music.storage_key);if(!file?.blob)throw Error('Downloaded music is unavailable or evicted.');result.music={...saved.music,url:blobURL(saved.music.storage_key,file.blob)};}return result;}
- async function snapshot(packId,sessionId){if(sessionId===undefined)return hydrateSnapshot(await get('snapshots',packId));const pin=await get('files',sessionKey(sessionId));if(pin?.kind!=='fanservice-session-pin'||pin.snapshot.pack_id!==packId)throw Error('The saved session snapshot pin is unavailable.');return hydrateSnapshot(pin.snapshot);}
- async function pinSnapshot(packId,sessionId){const key=sessionKey(sessionId);const saved=await snapshotTransaction(ctx=>{const existing=ctx.records.find(record=>record?.kind==='fanservice-session-pin'&&record.sessionId===sessionId);if(existing){if(existing.snapshot.pack_id!==packId)throw Error('Session pin belongs to a different pack.');return existing.snapshot;}
-   const saved=ctx.current.find(item=>item.pack_id===packId);if(!saved)throw Error('No downloaded snapshot exists on this device.');ctx.files.put({kind:'fanservice-session-pin',sessionId,snapshot:saved},key);return saved;
+ async function snapshot(libraryId,packId,sessionId){if(sessionId===undefined)return hydrateSnapshot(await savedSnapshot(libraryId,packId));const pin=await get('files',sessionKey(sessionId));if(pin?.kind!=='fanservice-session-pin'||!matchesSnapshot(pin.snapshot,libraryId,packId))throw Error('The saved session snapshot pin is unavailable.');return hydrateSnapshot(pin.snapshot);}
+ async function pinSnapshot(libraryId,packId,sessionId){const key=sessionKey(sessionId);const saved=await snapshotTransaction(ctx=>{const existing=ctx.records.find(record=>record?.kind==='fanservice-session-pin'&&record.sessionId===sessionId);if(existing){if(!matchesSnapshot(existing.snapshot,libraryId,packId))throw Error('Session pin belongs to a different pack.');return existing.snapshot;}
+   const saved=ctx.current.find(item=>matchesSnapshot(item,libraryId,packId));if(!saved)throw Error('No downloaded snapshot exists on this device.');ctx.files.put({kind:'fanservice-session-pin',sessionId,snapshot:saved},key);return saved;
   });return hydrateSnapshot(saved);}
  async function releaseSession(sessionId){const key=sessionKey(sessionId);return snapshotTransaction(ctx=>{ctx.files.delete(key);ctx.records=ctx.records.filter(record=>!(record?.kind==='fanservice-session-pin'&&record.sessionId===sessionId));collectRetired(ctx);});}
- async function deleteSnapshot(packId){return snapshotTransaction(ctx=>{const saved=ctx.current.find(item=>item.pack_id===packId);if(!saved)return;ctx.snapshots.delete(packId);ctx.current=ctx.current.filter(item=>item.pack_id!==packId);const retired={kind:'fanservice-retired-snapshot',snapshot:saved};ctx.files.put(retired,retiredPrefix+saved.id);ctx.records.push(retired);collectRetired(ctx);});}
- function server(){return localStorage.getItem('fanservice-server-origin')||location.origin;}
- root.FanserviceStore={device,id,validateMusic,get,put,remove,localFiles,importFiles,resolveLocal,download,snapshot,pinSnapshot,releaseSession,deleteSnapshot,server};
+ async function deleteSnapshot(libraryId,packId){
+  return snapshotTransaction(ctx=>{
+   const saved=ctx.current.find(item=>matchesSnapshot(item,libraryId,packId));
+   if(!saved)return;
+   ctx.snapshots.delete(snapshotKey(libraryId,packId));
+   const legacy=ctx.legacySnapshots.get(packId);
+   if(legacy&&matchesSnapshot(legacy,libraryId,packId))ctx.snapshots.delete(packId);
+   retireSnapshot(ctx,saved);
+   collectRetired(ctx);
+  });
+ }
+ const connectionsKey='fanservice-servers-v1',legacyOriginKey='fanservice-server-origin',connectionHandoffKey='fanservice_servers';
+ function origin(value){
+  const url=new URL(value);
+  if(!['http:','https:'].includes(url.protocol)||url.username||url.password||url.search||url.hash||url.pathname!=='/')throw Error('Enter a Server HTTP(S) origin without credentials or a path.');
+  return url.origin;
+ }
+ function connections(){
+  const page=new URL(location.href),handoff=page.searchParams.get(connectionHandoffKey);
+  let saved;
+  try{
+   saved=JSON.parse(localStorage.getItem(connectionsKey));
+  }catch{}
+  if(handoff!==null){
+   let incoming=[];
+   try{
+    const parsed=JSON.parse(handoff);
+    if(!Array.isArray(parsed)||parsed.length>32||handoff.length>16384)throw Error('Invalid Server connection handoff');
+    incoming=[...new Set(parsed.map(origin))];
+   }catch{}
+   const servers=saved?.servers&&typeof saved.servers==='object'?saved.servers:{};
+   for(const value of incoming)if(!Object.hasOwn(servers,value))servers[value]=null;
+   if(!Object.hasOwn(servers,location.origin))servers[location.origin]=null;
+   const active=location.origin;
+   localStorage.setItem(connectionsKey,JSON.stringify({active,servers}));
+   page.searchParams.delete(connectionHandoffKey);
+   history.replaceState(history.state,'',page.href);
+   return {active,servers};
+  }
+  if(saved?.servers&&typeof saved.servers==='object'){
+   try{
+    const active=origin(saved.active);
+    if(active!==location.origin){
+     const url=new URL('/fanservice/',active);
+     url.searchParams.set(connectionHandoffKey,JSON.stringify([...new Set([...Object.keys(saved.servers).map(origin),active])]));
+     location.replace(url.href);
+    }
+    return {...saved,active};
+   }catch{}
+  }
+  const active=localStorage.getItem(legacyOriginKey)||location.origin;
+  const servers={};
+  const selected=origin(active);
+  servers[selected]=selected===location.origin?localStorage.getItem('fanservice-last-library'):null;
+  if(selected!==location.origin)servers[location.origin]=localStorage.getItem('fanservice-last-library');
+  if(selected!==location.origin){
+   const url=new URL('/fanservice/',selected);
+   url.searchParams.set(connectionHandoffKey,JSON.stringify(Object.keys(servers)));
+   location.replace(url.href);
+  }
+  return {active:selected,servers};
+ }
+ const serverOrigin=connections().active||location.origin;
+ function server(){return serverOrigin;}
+ function savedServers(){
+  const {servers}=connections();
+  return [location.origin,...Object.keys(servers).filter(value=>value!==location.origin)];
+ }
+ function selectServer(value){
+  const active=origin(value),{servers}=connections();
+  if(!Object.hasOwn(servers,active))servers[active]=null;
+  localStorage.setItem(connectionsKey,JSON.stringify({active,servers}));
+  const url=new URL('/fanservice/',active);
+  url.searchParams.set(connectionHandoffKey,JSON.stringify([...new Set([...Object.keys(servers),active])]));
+  return url.href;
+ }
+ let pageActive=true;
+ addEventListener('pagehide',()=>{pageActive=false;});
+ addEventListener('pageshow',()=>{pageActive=true;});
+ function assertServer(){
+  if(!pageActive||location.origin!==serverOrigin||connections().active!==serverOrigin)throw Error('Server connection changed. Reopen the current library to continue.');
+ }
+ function savedLibrary(){return connections().servers[serverOrigin]||null;}
+ function rememberLibrary(library){
+  assertServer();
+  const saved=connections();
+  saved.servers[serverOrigin]=library;
+  localStorage.setItem(connectionsKey,JSON.stringify(saved));
+ }
+ root.FanserviceStore={device,id,validateMusic,get,put,remove,localFiles,importFiles,resolveLocal,download,savedSnapshot,snapshot,pinSnapshot,releaseSession,deleteSnapshot,server,savedServers,selectServer,assertServer,savedLibrary,rememberLibrary};
 })(globalThis);

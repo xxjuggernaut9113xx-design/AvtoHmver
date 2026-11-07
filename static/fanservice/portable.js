@@ -56,8 +56,21 @@ async function renderLocalMedia(){
  }
 }
 $('local-import').onclick=async()=>{try{const pools=[...document.querySelectorAll('input[name="local-pool"]:checked')].map(input=>input.value);if(!pools.length)throw Error('Choose at least one gameplay pool for these phone files');const added=await store.importFiles($('local-files').files,pools);for(const f of added)selectedLocal.add(f.id);$('local-files').value='';selectionCount();await renderLocalMedia();status('Selected media and its gameplay-pool choices are saved only on this device.');}catch(e){status(e.message);}};
-$('connection-setup').onclick=()=>{$('server-origin').value=store.server();$('connection-dialog').showModal();};
-$('connect-server').onclick=()=>{try{const url=new URL($('server-origin').value);if(!['http:','https:'].includes(url.protocol)||url.username||url.password||url.search||url.hash)throw Error('Enter a Server HTTP(S) origin without credentials.');localStorage.setItem('fanservice-server-origin',url.origin);location.reload();}catch(e){status(e.message);}};
+$('connection-setup').onclick=()=>{
+ const list=$('saved-servers');
+ list.replaceChildren(...store.savedServers().map(origin=>new Option(origin===location.origin?'Local Host · '+origin:origin,origin)));
+ list.value=store.server();
+ $('server-origin').value=store.server();
+ $('connection-status').textContent='';
+ $('connection-dialog').showModal();
+};
+function openServer(value){
+ try{
+  location.assign(store.selectServer(value));
+ }catch(error){$('connection-status').textContent=error.message;}
+}
+$('connect-server').onclick=()=>openServer($('server-origin').value);
+$('select-server').onclick=()=>openServer($('saved-servers').value);
 async function refreshMusic(){const selectedTrack=$('soundtrack').value;const data=await api('/api/music/tracks');$('soundtrack').replaceChildren(new Option('Classic · no soundtrack','0'),...data.tracks.map(t=>new Option(t.title,String(t.id))));$('soundtrack').value=selectedTrack||'0';}
 $('refresh-music').onclick=()=>refreshMusic().catch(e=>status(e.message));
 $('play-session').onclick=async()=>{try{if(globalThis.FanserviceNativeTransport)throw Error('Use Back and start playback from the original game menu.');if(!profile.packs.some(p=>p.owned&&p.enabled))throw Error('Enable an available pack first.');const track=Number($('soundtrack').value);if(bridge()){if(!track)throw Error('Close import and choose Classic from the game menu, or select a soundtrack here.');const result=JSON.parse(await bridge().dispatch(JSON.stringify({action:'play_music',server_url:store.server(),track_id:track})));if(result.error)throw Error(result.error);status('Preparing soundtrack session…');}else location.href=`play.html?library=${encodeURIComponent(libraryId)}&track=${track}`;}catch(e){status(e.message);}};
@@ -78,5 +91,5 @@ showUnlocks=async()=>{await baseUnlocks();if(globalThis.FanserviceNativeTranspor
  actions.append(button('Download snapshot',async()=>{await send({action:'snapshot_download',id:pack.id,track_id:Number($('soundtrack').value)});}),button(pack.use_offline?'Use live Server contents':'Use saved snapshot',async()=>{await send({action:'snapshot_mode',id:pack.id,offline:!pack.use_offline});await showUnlocks();}),button('Download status',async()=>{await loadProfile();status(profile.snapshot_status||'No download is running.');}));
  if(pack.snapshot?.music)actions.append(button('Play saved soundtrack',async()=>{await send({action:'play_snapshot',id:pack.id});}));actions.append(button('Delete saved snapshot',async()=>{await send({action:'snapshot_delete',id:pack.id});await showUnlocks();}));
  if(pack.snapshot)row.append(node('small',`Saved snapshot ${pack.snapshot.saved_at} · ${pack.use_offline?'selected for playback':'live Server contents selected'}`));
- }else if(!bridge()&&pack.owned){actions.append(button('Download snapshot',async()=>{status('Downloading explicit offline snapshot…');const manifest=await resolve(pack),track=Number($('soundtrack').value),music=track?await api(`/api/fanservice/v1/music/${track}/manifest`):null;const saved=await store.download(pack,manifest,store.server(),music);status(`Snapshot saved ${saved.saved_at}. Refresh only by downloading again.`);}),button('Play saved snapshot',()=>{location.href=`play.html?library=${encodeURIComponent(libraryId)}&snapshot=${encodeURIComponent(pack.id)}`;}),button('Delete saved snapshot',async()=>{await store.deleteSnapshot(pack.id);status('Downloaded snapshot removed; library media and ownership retained.');}));}}};
+ }else if(!bridge()&&pack.owned){actions.append(button('Download snapshot',async()=>{status('Downloading explicit offline snapshot…');const manifest=await resolve(pack),track=Number($('soundtrack').value),music=track?await api(`/api/fanservice/v1/music/${track}/manifest`):null;const saved=await store.download(pack,manifest,store.server(),music,store.assertServer);status(`Snapshot saved ${saved.saved_at}. Refresh only by downloading again.`);}),button('Play saved snapshot',()=>{location.href=`play.html?library=${encodeURIComponent(libraryId)}&snapshot=${encodeURIComponent(pack.id)}`;}),button('Delete saved snapshot',async()=>{await store.deleteSnapshot(pack.library_id,pack.id);status('Downloaded snapshot removed; library media and ownership retained.');}));}}};
 if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});

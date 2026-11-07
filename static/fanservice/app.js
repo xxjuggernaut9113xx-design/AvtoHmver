@@ -12,13 +12,17 @@ function node(tag, text, cls) { const n = document.createElement(tag); if (text 
 function button(text, action) { const b = node('button', text); b.type = 'button'; b.onclick = () => Promise.resolve().then(action).catch(e => status(e.message)); return b; }
 function key() { return 'fanservice-profile-v1:' + libraryId; }
 async function api(path, params) {
+  FanserviceStore.assertServer();
   const url = new URL(path, FanserviceStore.server());
   for (const [k,v] of Object.entries(params || {})) if (v !== null && v !== undefined) url.searchParams.set(k, typeof v === 'object' ? JSON.stringify(v) : v);
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),10000);
   try {
     const response=await fetch(url,{credentials:'same-origin',signal:controller.signal});
     if (!response.ok) { let message = `Server returned ${response.status}`; try { message = (await response.json()).error || message; } catch(error) { if(controller.signal.aborted)throw error; } throw Error(message); }
-    return await response.json();
+    const data=await response.json();
+    FanserviceStore.assertServer();
+    if(path!=='/api/fanservice/v1/capabilities'&&data.library_id!==undefined&&data.library_id!==libraryId)throw Error('The Server library identity changed. Reopen the library to continue.');
+    return data;
   } catch(error) { if(controller.signal.aborted)throw Error('Server request timed out. Saved phone files remain available.');throw error; }
   finally { clearTimeout(timer); }
 }
@@ -48,6 +52,7 @@ function currentQuery() { return {...query, search:$('search').value.trim() || u
 async function browse(more = false) {
   const token = ++generation; status('Loading library…');
   const data = await api('/api/fanservice/v1/library', {query:currentQuery(),cursor:more ? pageCursor : null});
+  FanserviceStore.assertServer();
   if (token !== generation) return;
   if (!more) $('grid').replaceChildren();
   for (const item of data.items) {
@@ -83,11 +88,13 @@ async function organization() {
 }
 function tab(name) { for (const t of ['library','organization']) { $(t).hidden = t !== name; $('tab-'+t).setAttribute('aria-selected',String(t === name)); } }
 async function resolve(pack) {
+  FanserviceStore.assertServer();
   if (pack.library_id !== libraryId) throw Error('This pack belongs to another library.');
   if(bridge()&&pack.use_offline&&pack.snapshot)return pack.snapshot;
   if((pack.selection.ids.length||pack.selection.rules.length)&&!await serverReady)throw Error('Server unavailable for this library. Local phone files remain on this device.');
   const manifest=pack.selection.ids.length || pack.selection.rules.length ? await api('/api/fanservice/v1/resolve',{selection:{ids:pack.selection.ids,rules:pack.selection.rules}}) : {library_id:libraryId,media:[]};
   const local=await FanserviceStore.resolveLocal(pack.selection,pack.device_id);
+  FanserviceStore.assertServer();
   return {...manifest,media:[...manifest.media,...local.media],local_unavailable:local.unavailable};
 }
 async function openCreate(pack) {
@@ -201,6 +208,28 @@ $('pack-form').onsubmit = async e => {
     $('pack-dialog').close();status(globalThis.FanserviceNativeTransport ? 'Pack draft saved. Export and install it for the original Unlocks menu.' : 'Custom pack saved to Unlocks.');await showUnlocks();
   } catch(error) {status(error.message);$('pack-error').textContent=error.message;} finally {$('save-pack').disabled=false;}
 };
-const profileReady=(async()=>{if(document.readyState!=='complete')await new Promise(resolve=>window.addEventListener('load',resolve,{once:true}));libraryId=localStorage.getItem('fanservice-last-library')||'device:'+FanserviceStore.device;await loadProfile();await renderLocalMedia();$('connection').textContent='Saved phone media · library '+libraryId;})();
+const profileReady=(async()=>{if(document.readyState!=='complete')await new Promise(resolve=>window.addEventListener('load',resolve,{once:true}));libraryId=FanserviceStore.savedLibrary()||'device:'+FanserviceStore.device;await loadProfile();await renderLocalMedia();$('connection').textContent='Saved phone media · library '+libraryId;})();
 profileReady.catch(error=>status(error.message));
-const serverReady=profileReady.then(async()=>{try{const caps=await api('/api/fanservice/v1/capabilities');if(typeof caps.library_id!=='string'||!caps.library_id)throw Error('Server returned an invalid library identity.');if(caps.library_id!==libraryId){if(profileLocked){status('Connected to a different library. Reload to switch libraries; saved phone media and the current profile were retained.');return false;}libraryId=caps.library_id;localStorage.setItem('fanservice-last-library',libraryId);await loadProfile();}$('connection').textContent=location.host+' · library '+libraryId;await browse();return true;}catch(error){status('Server unavailable: '+error.message+'. Local files and explicitly downloaded snapshots remain available.');return false;}},()=>false);
+const serverReady=profileReady.then(async()=>{
+ try{
+  const caps=await api('/api/fanservice/v1/capabilities');
+  if(typeof caps.library_id!=='string'||!caps.library_id)throw Error('Server returned an invalid library identity.');
+  const previous=FanserviceStore.savedLibrary(),changed=previous&&previous!==caps.library_id;
+  if(caps.library_id!==libraryId){
+   if(profileLocked){
+    status('Connected to a different library. Reopen to switch libraries. The current profile was retained.');
+    return false;
+   }
+   libraryId=caps.library_id;
+   await loadProfile();
+  }
+  FanserviceStore.rememberLibrary(libraryId);
+  $('connection').textContent=new URL(FanserviceStore.server()).host+' · library '+libraryId;
+  await browse();
+  if(changed)status('The Server library identity changed. The selected library was loaded and the previous profile was retained.');
+  return true;
+ }catch(error){
+  status('Server unavailable: '+error.message+'. Local files and explicitly downloaded snapshots remain available.');
+  return false;
+ }
+},()=>false);

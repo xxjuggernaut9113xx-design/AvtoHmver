@@ -1,5 +1,5 @@
 'use strict';
-const $=id=>document.getElementById(id),store=FanserviceStore,rules=FanserviceRules,params=new URLSearchParams(location.search),library=params.get('library')||localStorage.getItem('fanservice-last-library')||'device:'+store.device;
+const $=id=>document.getElementById(id),store=FanserviceStore,rules=FanserviceRules,params=new URLSearchParams(location.search),library=params.get('library')||store.savedLibrary()||'device:'+store.device;
 const profileKey='fanservice-profile-v1:'+library,checkpointKey='fanservice-session-v1:'+library,audio=$('audio');
 let sessionId=store.id(),profile,media=[],decks,remaining={},music,map,soundtrackWarnings,run,state,catalog,contract,cardRules,started=false,paused=false,finished=false,settling=false,lastBeat=0,lastFrame=0,checkpointAt=0,category='slow',breakUntil=0,speed=1,pinnedPacks=[],restoring=false;
 const clock={next:0,event:0,last:0},resources=[],finishButton=$('finish');
@@ -9,7 +9,7 @@ for(const id of ['image','video'])FanserviceMedia.observe($(id),text=>mediaStatu
 function status(text){$('status').textContent=text;}
 const element=(tag,text)=>{const node=document.createElement(tag);if(text!==undefined)node.textContent=text;return node;};
 function action(text,fn){const button=element('button',text);button.type='button';button.onclick=()=>Promise.resolve().then(fn).catch(error=>status(error.message));return button;}
-async function api(path){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),10000);try{const response=await fetch(new URL(path,store.server()),{credentials:'same-origin',signal:controller.signal});const value=await response.json();if(!response.ok)throw Error(value.error||`Server ${response.status}`);return value;}catch(error){if(controller.signal.aborted)throw Error('Server request timed out. Saved phone files and snapshots remain available.');throw error;}finally{clearTimeout(timer);}}
+async function api(path){store.assertServer();const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),10000);try{const response=await fetch(new URL(path,store.server()),{credentials:'same-origin',signal:controller.signal});const value=await response.json();store.assertServer();if(value.library_id!==undefined&&value.library_id!==library)throw Error('The Server library identity changed. Return to the library before starting another session.');if(!response.ok)throw Error(value.error||`Server ${response.status}`);return value;}catch(error){if(controller.signal.aborted)throw Error('Server request timed out. Saved phone files and snapshots remain available.');throw error;}finally{clearTimeout(timer);}}
 async function readJSON(path){const response=await fetch(path);if(!response.ok)throw Error('Gameplay specification unavailable: '+path);return response.json();}
 const settingsPanel=element('section'),modeSelect=element('select'),objectiveSelect=element('select'),targetInput=element('input'),roundsInput=element('input'),objectiveLabel=element('label'),roundsLabel=element('label');
 const lootChoice=element('input'),lootLabel=element('label','Enable loot bar');lootChoice.type='checkbox';lootChoice.id='loot-enabled';lootLabel.prepend(lootChoice);
@@ -452,6 +452,7 @@ async function restoreMedia(item){
  return item;
 }
 (async()=>{
+ if(store.savedLibrary()&&library!==store.savedLibrary())throw Error('This session belongs to a different library. Return to the selected Server library.');
  profile=JSON.parse(localStorage.getItem(profileKey)||'null');if(!profile)throw Error('No game profile on this device. Create and enable a pack first.');
  lootChoice.checked=!!profile.mobile_settings?.LootBarEnabled;
  [catalog,contract,cardRules]=await Promise.all([readJSON('data/modes.json'),readJSON('data/native-contract.json'),readJSON('data/card-rules.json')]);
@@ -464,7 +465,7 @@ async function restoreMedia(item){
   const manifests={},enabled=profile.packs.filter(pack=>pack.owned&&pack.enabled);
   if(params.has('snapshot')){
    const selected=enabled.find(pack=>pack.id===params.get('snapshot'));if(!selected)throw Error('Enable this owned snapshot pack before playing it.');let savedAt;
-   for(const pack of enabled){if(pack.id===selected.id||pack.selection.ids.length||pack.selection.rules.length){const snapshot=await store.pinSnapshot(pack.id,sessionId+':'+pack.id);pinnedPacks.push(pack.id);if(snapshot.library_id!==pack.library_id)throw Error(`Pack ${pack.name}: saved snapshot belongs to another library.`);manifests[pack.id]={library_id:snapshot.library_id,media:snapshot.media};if(pack.id===selected.id){music=snapshot.music;savedAt=snapshot.saved_at;}}else{const local=await store.resolveLocal(pack.selection,pack.device_id);if(local.unavailable)throw Error(`Pack ${pack.name} has ${local.unavailable} unavailable device-local members.`);manifests[pack.id]={library_id:pack.library_id,media:local.media};}}
+   for(const pack of enabled){if(pack.id===selected.id||pack.selection.ids.length||pack.selection.rules.length){const snapshot=await store.pinSnapshot(library,pack.id,sessionId+':'+pack.id);pinnedPacks.push(pack.id);if(snapshot.library_id!==pack.library_id)throw Error(`Pack ${pack.name}: saved snapshot belongs to another library.`);manifests[pack.id]={library_id:snapshot.library_id,media:snapshot.media};if(pack.id===selected.id){music=snapshot.music;savedAt=snapshot.saved_at;}}else{const local=await store.resolveLocal(pack.selection,pack.device_id);if(local.unavailable)throw Error(`Pack ${pack.name} has ${local.unavailable} unavailable device-local members.`);manifests[pack.id]={library_id:pack.library_id,media:local.media};}}
    $('source').textContent=`Saved snapshots · ${enabled.length} enabled packs · ${savedAt}`;
   }else{
    for(const pack of enabled){const manifest=pack.selection.ids.length||pack.selection.rules.length?await api('/api/fanservice/v1/resolve?selection='+encodeURIComponent(JSON.stringify({ids:pack.selection.ids,rules:pack.selection.rules}))):{library_id:pack.library_id,media:[]};const local=await store.resolveLocal(pack.selection,pack.device_id);if(local.unavailable)throw Error(`Pack ${pack.name} has ${local.unavailable} unavailable device-local members.`);manifest.media=manifest.media.map(item=>({...item,url:new URL(item.url,store.server()).href}));manifest.media.push(...local.media);manifests[pack.id]=manifest;}
