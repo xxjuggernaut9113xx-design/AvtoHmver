@@ -63,6 +63,17 @@ test('immutable generations survive restart and active pins retain exact old byt
  const reopened=await CompanionStore.open(options);assert.equal((await reopened.pinSnapshot('custom:first','session-one')).generation,first.generation);assert.equal((await reopened.currentSnapshot('custom:first')).generation,second.generation);
  await reopened.releaseSession('session-one');await assert.rejects(fs.stat(first.media[0].path),{code:'ENOENT'});assert.equal(await fs.readFile(second.media[0].path,'utf8'),'updated');
 });
+test('reviewed remote definition removal preserves device-local snapshots until explicit deletion',async t=>{
+ const {store}=await prepared(t),saved=await download(store),file=saved.media[0].path;const result=await store.saveDefinitions([],{expectedRevision:2,preserveSnapshots:true});
+ assert.deepEqual(result.packs,[]);assert.equal((await store.currentSnapshot('custom:first')).generation,saved.generation);assert.equal(await fs.readFile(file,'utf8'),'synthetic');
+ await store.saveDefinitions([pack('custom:other')],{expectedRevision:3});assert.equal((await store.currentSnapshot('custom:first')).generation,saved.generation);assert.equal(await fs.readFile(file,'utf8'),'synthetic');
+ await store.deleteSnapshot('custom:first');await assert.rejects(store.currentSnapshot('custom:first'),/No downloaded/);await assert.rejects(fs.stat(file),{code:'ENOENT'});
+});
+
+test('local definition removal still retires its associated snapshot',async t=>{
+ const {store}=await prepared(t),saved=await download(store);await store.saveDefinitions([],{expectedRevision:2});
+ await assert.rejects(store.currentSnapshot('custom:first'),/No downloaded/);await assert.rejects(fs.stat(saved.media[0].path),{code:'ENOENT'});
+});
 test('failed, interrupted, empty, oversized and cross-library replacements retain the old snapshot',async t=>{
  const {store}=await prepared(t,{itemBytes:32,totalBytes:48});const original=await download(store);
  const cases=[{fetch:async()=>new Response('',{status:503})},{fetch:async()=>response('')},{fetch:async()=>response('x'.repeat(33))},{fetch:async()=>new Response('short',{headers:{'content-length':'20'}})},{fetch:async()=>{throw Error('network interruption');}},{manifest:{...manifest(),library_id:'foreign'}}];

@@ -82,6 +82,13 @@ test('large portable definitions use bounded ordered frames without purchase or 
  assert.deepEqual(f.calls.find(call=>call.action==='definitionscommit').payload,{upload_token:'upload-token'});
  assert.equal(f.calls.some(call=>['purchase','enable'].includes(call.action)),false);
 });
+test('retained snapshots for removed definitions remain visible and can be explicitly deleted',async()=>{
+ const state=profile();state.packs=[];state.snapshots['custom:removed']={generation:'retained'};
+ const f=setup({state,handler:(action,payload,current)=>{if(action==='companionread')return current;if(action==='snapshotdelete')delete current.snapshots[payload.pack_id];return {};}});
+ await f.button('Refresh saved game profile').onclick();assert.ok(descendants(f.root).some(element=>element.textContent.includes('Saved offline copy kept')));
+ await f.button('Delete saved copy').onclick();assert.deepEqual(f.calls.find(call=>call.action==='snapshotdelete').payload,{pack_id:'custom:removed'});
+ assert.equal(descendants(f.root).some(element=>element.textContent==='Delete saved copy'),false);
+});
 test('game panel reviews per-pack choices and binds apply to both reviewed revisions',async()=>{
  const remote={id:'custom:neutral',name:'Remote Neutral',description:'',library_id:'lib',unlock_cost:5,selection:{ids:[1],rules:[]}};
  const f=setup({state:{...profile(),packs:[]},handler:(action,_,state)=>action==='companionread'?state:action==='syncpreview'?{preview_token:'preview-token',local_revision:7,remote_revision:9,local_packs:[],packs:[remote]}:{sync_revision:9}});

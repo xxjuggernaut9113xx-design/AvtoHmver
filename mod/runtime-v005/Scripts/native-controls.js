@@ -104,6 +104,7 @@ html.fanservice-game{color-scheme:dark;--panel:#090909;--accent:#fff;background:
    }
    packs.append(row);
   }
+  const known=new Set(current.packs.map(pack=>pack.id));for(const id of Object.keys(current.snapshots))if(!known.has(id)){const row=document.createElement('article');row.append(text('strong','Saved offline copy kept for a pack removed by profile sync'),text('p',id));button('Delete saved copy',async()=>{await request('snapshotdelete',{pack_id:id});await refresh();},row);packs.append(row);}
   for(const id of Object.keys(current.pins))button('Release stopped session '+id,async()=>{if(!confirm('Release the saved files held for this stopped session? Keep them if the session is still running.'))return;ensure();await request('sessionrelease',{session_id:id});await refresh();},packs);
  }
  button('Refresh saved game profile',refresh);

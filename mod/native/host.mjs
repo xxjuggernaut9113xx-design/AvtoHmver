@@ -158,7 +158,7 @@ export class NativeCompanionHost {
    const changed=new Set();for(const id of ids){const before=local.get(id),after=remote.get(id);if(before&&after&&JSON.stringify(before)===JSON.stringify(after))continue;changed.add(id);const choice=choices[id],allowed=before&&after?['local','remote']:before?['local','remove']:['remote','skip'];if(!allowed.includes(choice))throw Error(`Choose a version for ${before?.name||after?.name||id}.`);}
    if(Object.keys(choices).some(id=>!changed.has(id)))throw Error('The reviewed choices do not match this preview. Download and review again.');
    const packs=[];for(const id of ids){const before=local.get(id),after=remote.get(id);if(!changed.has(id)){packs.push(before);continue;}const choice=choices[id];if(choice==='local')packs.push(before);else if(choice==='remote')packs.push(after);}
-   const merged=sanitizeDefinitions(packs),result=await store.saveDefinitions(merged,{expectedRevision:current.revision,assertCurrent});await assertCurrent();await this.saveConnection(store,{...connection,revision:preview.remoteRevision});this.previews.delete(payload.preview_token);return {revision:result.revision,sync_revision:preview.remoteRevision,packs:result.packs,native_progression_unchanged:true};
+   const merged=sanitizeDefinitions(packs),result=await store.saveDefinitions(merged,{expectedRevision:current.revision,assertCurrent,preserveSnapshots:true});await assertCurrent();await this.saveConnection(store,{...connection,revision:preview.remoteRevision});this.previews.delete(payload.preview_token);return {revision:result.revision,sync_revision:preview.remoteRevision,packs:result.packs,native_progression_unchanged:true};
   }
   throw Error('Unsupported native synchronization action.');
  }

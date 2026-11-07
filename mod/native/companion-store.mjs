@@ -105,8 +105,8 @@ export class CompanionStore {
  async _write(state){await atomicJSON(this.directory,'profile.json',state,this.limits.metadataBytes);}
  async read(){return this._locked(async()=>clone(await this._read()));}
  _revision(state,expected){if(!integer(expected)||state.revision!==expected)throw new RevisionConflict();if(state.revision===Number.MAX_SAFE_INTEGER)throw Error('Companion revision exhausted.');}
- async saveDefinitions(packs,{expectedRevision,assertCurrent=()=>{}}={}){
-  const clean=sanitizeDefinitions(packs);return this._locked(async()=>{const state=await this._read();this._revision(state,expectedRevision);await assertCurrent();const keep=new Set(clean.map(pack=>pack.id));for(const [id,ref]of Object.entries(state.snapshots))if(!keep.has(id)){state.retired.push(ref);delete state.snapshots[id];}state.packs=clean;state.revision++;await this._write(state);await this._collect(state);return clone(state);});
+ async saveDefinitions(packs,{expectedRevision,assertCurrent=()=>{},preserveSnapshots=false}={}){
+  const clean=sanitizeDefinitions(packs);return this._locked(async()=>{const state=await this._read();this._revision(state,expectedRevision);await assertCurrent();if(!preserveSnapshots){const keep=new Set(clean.map(pack=>pack.id)),previous=new Set(state.packs.map(pack=>pack.id));for(const [id,ref]of Object.entries(state.snapshots))if(previous.has(id)&&!keep.has(id)){state.retired.push(ref);delete state.snapshots[id];}}state.packs=clean;state.revision++;await this._write(state);await this._collect(state);return clone(state);});
  }
  async _download(file,url,{fetch,signal,total,assertCurrent,onCreated}){
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),this.limits.timeoutMs),combined=signal?AbortSignal.any([signal,controller.signal]):controller.signal;let handle;

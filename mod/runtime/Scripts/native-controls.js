@@ -51,6 +51,7 @@
    }
    packs.append(row);
   }
+  const known=new Set(current.packs.map(pack=>pack.id));for(const id of Object.keys(current.snapshots))if(!known.has(id)){const row=document.createElement('article');row.append(text('strong','Saved offline copy kept for a pack removed by profile sync'),text('p',id));button('Delete saved snapshot',async()=>{await transport.request('snapshotdelete',{pack_id:id});await refresh();},row);packs.append(row);}
   for(const id of Object.keys(current.pins))button('Release stopped session '+id,async()=>{if(!confirm('Release this stopped session snapshot pin? Keep it if its soundtrack is still playing.'))return;await transport.request('sessionrelease',{session_id:id});await refresh();},packs);
  }
  button('Read native companion profile',refresh);

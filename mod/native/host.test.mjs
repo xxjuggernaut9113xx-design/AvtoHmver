@@ -99,12 +99,14 @@ test('per-pack sync apply honors choices, checks the reviewed remote revision, a
  let remoteRevision=7;const remote={...pack,name:'Remote name'},remoteOnly={...pack,id:'custom:remote',name:'Remote only'};
  const f=await fixture(t,async()=>json({revision:remoteRevision,profile:{version:1,unlock_points:999,packs:[remote,remoteOnly]}}));
  await f.call('definitions',{expected_revision:0,packs:[{...pack,name:'Local name'},{...pack,id:'custom:local',name:'Local only'}]});
+ const context=await f.host.context(),store=await f.host.store(context);const localSnapshot=await store.downloadSnapshot('custom:local',{manifest:{library_id:'library-one',media:[{id:1,type:'image',file:'saved.png',tags:['slow'],url:'/api/media/1'}]},origin:'http://127.0.0.1:42169',fetch:async()=>new Response('device snapshot',{headers:{'content-length':'15'}}),expectedRevision:1});
  await f.call('syncconfigure',{id:'fixture',key:'a'.repeat(64),revision:0});const preview=await f.call('syncpreview');
  assert.equal(preview.local_packs.length,2);assert.equal(preview.packs.length,2);
- remoteRevision=8;await assert.rejects(f.call('syncapply',{preview_token:preview.preview_token,expected_revision:1,choices:{'custom:test':'local','custom:local':'remove','custom:remote':'remote'}}),/Remote profile changed after review/);
+ remoteRevision=8;await assert.rejects(f.call('syncapply',{preview_token:preview.preview_token,expected_revision:2,choices:{'custom:test':'local','custom:local':'remove','custom:remote':'remote'}}),/Remote profile changed after review/);
  assert.deepEqual((await f.call('companionread')).packs.map(item=>item.name),['Local name','Local only']);
- const latest=await f.call('syncpreview');await f.call('syncapply',{preview_token:latest.preview_token,expected_revision:1,choices:{'custom:test':'local','custom:local':'remove','custom:remote':'remote'}});
- const applied=await f.call('companionread');assert.deepEqual(applied.packs.map(item=>[item.id,item.name]),[['custom:test','Local name'],['custom:remote','Remote only']]);assert.equal(applied.sync.revision,8);
+ const latest=await f.call('syncpreview');await f.call('syncapply',{preview_token:latest.preview_token,expected_revision:2,choices:{'custom:test':'local','custom:local':'remove','custom:remote':'remote'}});
+ const applied=await f.call('companionread');assert.deepEqual(applied.packs.map(item=>[item.id,item.name]),[['custom:test','Local name'],['custom:remote','Remote only']]);assert.equal(applied.sync.revision,8);assert.equal(applied.snapshots['custom:local'].generation,localSnapshot.generation);assert.equal(await fs.readFile(localSnapshot.media[0].path,'utf8'),'device snapshot');
+ await f.call('definitions',{expected_revision:applied.revision,packs:applied.packs});const afterDraftSave=await f.call('companionread');assert.equal(afterDraftSave.snapshots['custom:local'].generation,localSnapshot.generation);assert.equal(await fs.readFile(localSnapshot.media[0].path,'utf8'),'device snapshot');
 });
 test('profile changes while HTTP is pending discard remote sync data',async t=>{
  let release;const f=await fixture(t,()=>new Promise(resolve=>release=resolve));await f.call('syncconfigure',{id:'fixture',key:'a'.repeat(64),revision:0});const pending=f.call('syncpreview');while(!release)await new Promise(resolve=>setTimeout(resolve,1));f.state.slot='AnotherSave';await f.pulse();release(json({revision:1,profile:{version:1,packs:[pack]}}));await assert.rejects(pending,/stale work/);assert.deepEqual((await f.call('companionread')).packs,[]);
