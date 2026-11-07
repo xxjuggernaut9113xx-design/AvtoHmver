@@ -43,6 +43,36 @@ for read-only identification. Without `--inspect`, unsupported installations
 exit with code 2. The checker never starts the game, injects code, installs files,
 opens saves, or modifies entitlement state.
 
+## Native game entry point
+
+The native Windows Host executable also provides a separate game launcher:
+`AvtoHmver.exe --game-launcher`. This opens the Slint game window without opening
+a Host library or starting its Server, so Host can be installed before a game is
+available. Choose **Add game…** and explicitly select the Windows game folder
+containing `CockHero/Binaries/Win64/CockHero.exe`. **Recheck games** identifies
+configured installations from the exact executable and content hashes. Checks
+run in the background while the window displays progress.
+
+The launcher and `python mod/configured_installs.py` share
+`%LOCALAPPDATA%/Fanservice/configured-games.json`. Adding an existing folder
+moves it to the newest configured position. The launcher offers the newest
+configured compatible installation, retains incompatible newer folders, and
+records observed hashes and blockers in `configured-games.checks.json` beside
+the registry. Select any retained game to review its blockers; recheck after a
+supported update to return to that version. Forget selected game removes its
+configured path only; game files, saves, and investigation history are retained.
+`FANSERVICE_CONFIGURED_GAMES` overrides the registry location for portable use
+or disposable acceptance fixtures.
+
+**No compatible game or older fallback is currently offered**, because the
+checked-in authority still contains no supported builds. Launch remains disabled
+for recognized testing builds and unknown builds. A launch rechecks the exact
+files immediately before execution. This native entry point does not certify
+or install the experimental mod: the separately documented v0.04/v0.05 runtime
+installers retain their ownership and preservation gates. Complete mod setup,
+update/removal, and an actual supported older-game launch remain open acceptance
+work for issue #55.
+
 The v0.04 native UP purchase and ownership-after-restart checks passed. Automatic
 embedded Lite and native catalog query/enablement also passed. Live membership, streaming, music,
 profile synchronization and complete regression/uninstall acceptance remain.

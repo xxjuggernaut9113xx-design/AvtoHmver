@@ -1,6 +1,10 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // The game entry point must also work before a Host library or game exists.
+    if std::env::args().any(|arg| arg == "--game-launcher") {
+        return avtohmver_desktop::game_launcher::run();
+    }
     if std::env::args().any(|arg| arg == "--version" || arg == "-V") {
         println!("AvtoHmver Host {}", env!("CARGO_PKG_VERSION"));
         return Ok(());

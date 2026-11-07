@@ -619,6 +619,7 @@ dependencies = [
  "dunce",
  "libloading",
  "rfd",
+ "ring",
  "rusqlite",
  "serde",
  "serde_json",

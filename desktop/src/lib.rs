@@ -1,6 +1,7 @@
 mod bindings;
 mod clips;
 pub mod datadir;
+pub mod game_launcher;
 pub mod mpv_embed;
 mod music;
 mod playback_setup;
