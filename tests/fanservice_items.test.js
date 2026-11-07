@@ -6,6 +6,22 @@ const random={range:(a)=>a};
 function charged(type,level=1){const inventory=items.prepare(modes,0,random);Object.assign(inventory.state(type),{charges:1,level});return inventory;}
 test('source rows and chooser lifecycle preserve empty hotbar',()=>{const classic=items.prepare(modes,0,random);assert.deepEqual(classic.ownedItems.map(s=>s.type),[1,3,4,5,6,7,9,11,12,13,10]);assert.deepEqual(classic.hotbarItems,[8,8,8,8,8]);const tower=items.prepare(modes,1,random);assert.deepEqual(tower.ownedItems.map(s=>s.type),[1,5]);assert.deepEqual(tower.hotbarItems,classic.hotbarItems);const music=items.prepare(modes,2,random);assert.deepEqual(music.hotbarItems,[4,8,8,8,8]);assert.equal(music.ownedItems.length,1);});
 test('source prices and shield multi-grants preserve native overfill',()=>{const inv=charged(6,2),wallet={coins:500};inv.state(6).charges=14;assert.deepEqual(items.purchase(inv,6,wallet),{ok:true,cost:125,amount:4});assert.equal(inv.state(6).charges,18);assert.equal(wallet.coins,375);assert.equal(items.purchase(inv,6,wallet).ok,false);assert.equal(items.upgrade(inv,7,wallet).ok,false);});
+test('item purchases and upgrades charge only after a successful state change',()=>{
+ const inv=items.prepare(modes,0,random),wallet={coins:200};
+ assert.deepEqual(items.upgrade(inv,1,wallet),{ok:true,cost:100});
+ assert.equal(inv.state(1).level,2);assert.equal(wallet.coins,100);
+ wallet.coins=99;assert.equal(items.upgrade(inv,1,wallet).ok,false);
+ assert.equal(inv.state(1).level,2);assert.equal(wallet.coins,99);
+ inv.state(1).charges=3;assert.equal(items.purchase(inv,1,wallet).ok,false);
+ assert.equal(wallet.coins,99);assert.equal(inv.state(1).charges,3);
+});
+test('loadout equip moves an item between valid slots without duplicates',()=>{
+ const inv=items.prepare(modes,0,random);
+ assert.equal(items.equip(inv,1,0).ok,true);assert.equal(items.equip(inv,3,1).ok,true);
+ assert.equal(items.equip(inv,1,1).ok,true);
+ assert.deepEqual(inv.hotbarItems,[0,1,8,8,8]);
+ assert.equal(items.equip(inv,1,5).ok,false);assert.deepEqual(inv.hotbarItems,[0,1,8,8,8]);
+});
 test('missing hooks and cooldowns never consume',()=>{const inv=charged(3),state={beatInterval:.5};assert.equal(items.use(inv,3,state).ok,false);assert.equal(inv.state(3).charges,1);assert.equal(items.use(inv,3,state,{hooks:{speed:()=>true}}).ok,true);assert.equal(state.beatInterval,1);inv.state(3).charges=1;assert.equal(items.use(inv,3,state,{hooks:{speed:()=>true}}).ok,false);assert.equal(inv.state(3).charges,1);});
 test('runtime break durations differ from table tooltip durations',()=>{const inv=charged(4,5);let duration;assert.equal(items.use(inv,4,{combo:20},{hooks:{beginBreak:n=>{duration=n;}}}).ok,true);assert.equal(duration,50);assert.equal(modes.items.find(r=>r.ItemType.endsWith('::Break')).Level5TooltipTitle,'25 Sec Break');});
 test('loot rush exact deadline expires once and removes additive bonus',()=>{const inv=charged(11,5),state={lootBarMultiplier:1};assert.equal(items.use(inv,11,state).ok,true);assert.equal(state.lootBarMultiplier,2.5);assert.deepEqual(items.tick(inv,state,49),[]);assert.deepEqual(items.tick(inv,state,-1),[]);assert.deepEqual(items.tick(inv,state,1),['LootRushExpired']);assert.equal(state.lootBarMultiplier,1);assert.deepEqual(items.tick(inv,state,1),[]);});

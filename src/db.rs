@@ -63,9 +63,8 @@ fn default_library_layout() -> String {
     "grid".into()
 }
 fn default_search_providers() -> Vec<String> {
-    // Search is intentionally opt-in per provider. The only current remote
-    // free-text adapter is Balbums; the other registry entries are exposed
-    // honestly as direct-URL-only until they gain a real adapter.
+    // Search is intentionally opt-in per provider. Only providers with
+    // implemented normalized text-search adapters appear here by default.
     vec!["local".into(), "balbums".into()]
 }
 fn default_goon_persona() -> String {

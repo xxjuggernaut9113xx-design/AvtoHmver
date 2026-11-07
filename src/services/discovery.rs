@@ -120,9 +120,10 @@ fn descriptor(
 /// version, but they remain visible and their capability status is explicit.
 fn curated_providers() -> Vec<ProviderDescriptor> {
     let page = &["page", "download"];
-    // Only providers with a verified query adapter advertise search.
+    // Templates and legacy catalog entries are broad, but only providers
+    // with a concrete normalized adapter may claim text search here.
     let searchable = &["page", "download", "direct_url"];
-    vec![
+    let mut providers = vec![
         descriptor(
             "local",
             "AvtoHmver library",
@@ -530,7 +531,22 @@ fn curated_providers() -> Vec<ProviderDescriptor> {
             &["creator", "playlist"],
             Some("https://soundcloud.com/search?q={QUERY}"),
         ),
-    ]
+    ];
+    for provider in &mut providers {
+        if !matches!(
+            provider.id.as_str(),
+            "balbums" | "kemono" | "coomer" | "erome" | "redgifs"
+        ) {
+            provider
+                .capabilities
+                .retain(|capability| capability != "search");
+            if provider.id != "local" {
+                provider.availability = "direct_url_only".into();
+                provider.search_template = None;
+            }
+        }
+    }
+    providers
 }
 
 fn generated_provider_templates(extractors: &str) -> Vec<ProviderDescriptor> {
@@ -2123,9 +2139,11 @@ mod tests {
             Some("https://cdn.erome.com/cover.jpg")
         );
         assert_eq!(results[1].source_url, "https://www.erome.com/a/Other456");
-        assert!(results
-            .iter()
-            .all(|result| result.item_count.is_none() && result.total_bytes.is_none()));
+        assert!(
+            results
+                .iter()
+                .all(|result| result.item_count.is_none() && result.total_bytes.is_none())
+        );
     }
 
     #[tokio::test]
@@ -2136,10 +2154,10 @@ mod tests {
                 .await
                 .unwrap();
             assert!(!results.is_empty(), "{provider} returned no results");
-            assert!(results
-                .iter()
-                .all(|result| result.provider == provider
-                    && is_verified_page_url(&result.source_url)));
+            assert!(
+                results.iter().all(|result| result.provider == provider
+                    && is_verified_page_url(&result.source_url))
+            );
         }
     }
 
@@ -2177,10 +2195,11 @@ mod tests {
         let next = search(&state, next_query.clone()).await.unwrap();
         assert!(!next.results.is_empty());
         let seen: HashSet<_> = first.results.iter().map(|row| &row.source_url).collect();
-        assert!(next
-            .results
-            .iter()
-            .all(|row| !seen.contains(&row.source_url)));
+        assert!(
+            next.results
+                .iter()
+                .all(|row| !seen.contains(&row.source_url))
+        );
         assert_eq!(search(&state, next_query).await.unwrap(), next);
     }
 
@@ -2314,9 +2333,11 @@ mod tests {
         );
         assert!(reserve_provider_call(&mut deadline, now).is_err());
         deadline = now + Duration::from_secs(60);
-        assert!(reserve_provider_call(&mut deadline, now)
-            .unwrap_err()
-            .contains("retry in"));
+        assert!(
+            reserve_provider_call(&mut deadline, now)
+                .unwrap_err()
+                .contains("retry in")
+        );
         assert_eq!(deadline, now + Duration::from_secs(60));
         assert_eq!(
             reserve_provider_call(&mut deadline, now + Duration::from_secs(61)).unwrap(),
@@ -2590,6 +2611,29 @@ mod tests {
                     .iter()
                     .any(|capability| capability == "search")
         }));
+        let searchable = registry
+            .providers
+            .iter()
+            .filter(|provider| {
+                provider
+                    .capabilities
+                    .iter()
+                    .any(|capability| capability == "search")
+            })
+            .map(|provider| provider.id.as_str())
+            .collect::<HashSet<_>>();
+        assert_eq!(
+            searchable,
+            HashSet::from(["balbums", "kemono", "coomer", "erome", "redgifs"])
+        );
+        assert!(registry.providers.iter().any(|provider| {
+            provider.id == "deviantart"
+                && provider.availability == "direct_url_only"
+                && !provider
+                    .capabilities
+                    .iter()
+                    .any(|capability| capability == "search")
+        }));
     }
 
     #[test]
@@ -2733,9 +2777,11 @@ mod tests {
                 .count(),
             1
         );
-        assert!(merged
-            .iter()
-            .any(|provider| provider.id == "newsite" && provider.generated));
+        assert!(
+            merged
+                .iter()
+                .any(|provider| provider.id == "newsite" && provider.generated)
+        );
     }
 
     #[test]
@@ -2813,24 +2859,28 @@ mod tests {
         assert!(last.next_cursor.is_none());
         let other = tempfile::tempdir().unwrap();
         let other = crate::test_support::state(other.path());
-        assert!(search(
-            &other,
-            SearchQuery {
-                cursor: Some(cursor.clone()),
-                ..Default::default()
-            }
-        )
-        .await
-        .is_err());
+        assert!(
+            search(
+                &other,
+                SearchQuery {
+                    cursor: Some(cursor.clone()),
+                    ..Default::default()
+                }
+            )
+            .await
+            .is_err()
+        );
         state.discovery_pages.lock().unwrap().ttl = Duration::ZERO;
-        assert!(search(
-            &state,
-            SearchQuery {
-                cursor: Some(cursor),
-                ..Default::default()
-            }
-        )
-        .await
-        .is_err());
+        assert!(
+            search(
+                &state,
+                SearchQuery {
+                    cursor: Some(cursor),
+                    ..Default::default()
+                }
+            )
+            .await
+            .is_err()
+        );
     }
 }

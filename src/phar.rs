@@ -141,7 +141,7 @@ pub fn pinned_manifest() -> PharManifest {
         CheckpointManifest { id: "p-har-audio", source_url: "https://github.com/rlleshi/phar/releases/download/v1.0.0/audio.pth", bytes: Some(85_800_759), sha256: None, license: "P-HAR v1.0.0 publisher terms; SHA-256 not published" },
         CheckpointManifest { id: "p-har-posec3d", source_url: "https://github.com/rlleshi/phar/releases/download/v1.0.0/posec3d.pth", bytes: Some(16_168_879), sha256: None, license: "P-HAR v1.0.0 publisher terms; SHA-256 not published" },
         CheckpointManifest { id: "p-har-timesformer", source_url: "https://github.com/rlleshi/phar/releases/download/v1.0.0/timeSformer.pth", bytes: Some(970_440_477), sha256: None, license: "P-HAR v1.0.0 publisher terms; SHA-256 not published" },
-        CheckpointManifest { id: "openmmlab-human-detector", source_url: "http://download.openmmlab.com/mmdetection/v2.0/faster_rcnn/faster_rcnn_r50_fpn_2x_coco/faster_rcnn_r50_fpn_2x_coco_bbox_mAP-0.384_20200504_210434-a5d8aa15.pth", bytes: None, sha256: None, license: "OpenMMLab publisher terms; SHA-256 not published" },
+        CheckpointManifest { id: "openmmlab-human-detector", source_url: "https://download.openmmlab.com/mmdetection/v2.0/faster_rcnn/faster_rcnn_r50_fpn_2x_coco/faster_rcnn_r50_fpn_2x_coco_bbox_mAP-0.384_20200504_210434-a5d8aa15.pth", bytes: None, sha256: None, license: "OpenMMLab publisher terms; SHA-256 not published" },
         CheckpointManifest { id: "openmmlab-pose", source_url: "https://download.openmmlab.com/mmpose/top_down/hrnet/hrnet_w32_coco_256x192-c78dce93_20200708.pth", bytes: None, sha256: None, license: "OpenMMLab publisher terms; SHA-256 not published" },
     ] }
 }
@@ -627,6 +627,14 @@ mod tests {
     #[test]
     fn legacy_wsl_maps_to_auto() {
         assert_eq!(PharBackend::parse(Some("wsl2")), PharBackend::Auto);
+    }
+    #[test]
+    fn pinned_checkpoint_sources_require_https() {
+        let manifest = pinned_manifest();
+        assert!(manifest
+            .checkpoints
+            .iter()
+            .all(|checkpoint| checkpoint.source_url.starts_with("https://")));
     }
     #[test]
     fn saved_wsl_intent_migrates_to_auto_and_requires_repair() {
