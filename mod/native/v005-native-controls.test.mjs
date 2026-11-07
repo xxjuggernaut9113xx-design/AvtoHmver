@@ -6,7 +6,7 @@ import {createECDH,webcrypto} from 'node:crypto';
 
 const source=readFileSync(new URL('../runtime-v005/Scripts/native-controls.js',import.meta.url),'utf8');
 class Element {
- constructor(tag){this.tag=tag;this.children=[];this.parent=null;this.textContent='';this.value='';this.files=[];this.disabled=false;}
+ constructor(tag){this.tag=tag;this.children=[];this.parent=null;this.textContent='';this.value='';this.files=[];this.disabled=false;this.dataset={};}
  append(...children){for(const child of children){child.parent=this;this.children.push(child);}}
  prepend(child){child.parent=this;this.children.unshift(child);}
  replaceChildren(...children){for(const child of this.children)child.parent=null;this.children=[];this.append(...children);}
@@ -82,12 +82,13 @@ test('large portable definitions use bounded ordered frames without purchase or 
  assert.deepEqual(f.calls.find(call=>call.action==='definitionscommit').payload,{upload_token:'upload-token'});
  assert.equal(f.calls.some(call=>['purchase','enable'].includes(call.action)),false);
 });
-test('downloaded definitions require review and bind apply to the preview revision',async()=>{
- for(const approve of [false,true]){
-  const f=setup({confirm:approve,handler:(action,_,state)=>action==='companionread'?state:action==='syncpreview'?{preview_token:'preview-token',local_revision:7,remote_revision:9,packs:[{}]}:{}});
-  await f.button('Review downloaded pack drafts').onclick();const apply=f.calls.find(call=>call.action==='syncapply');
-  if(approve)assert.deepEqual(apply.payload,{preview_token:'preview-token',expected_revision:7});else assert.equal(apply,undefined);
- }
+test('game panel reviews per-pack choices and binds apply to both reviewed revisions',async()=>{
+ const remote={id:'custom:neutral',name:'Remote Neutral',description:'',library_id:'lib',unlock_cost:5,selection:{ids:[1],rules:[]}};
+ const f=setup({state:{...profile(),packs:[]},handler:(action,_,state)=>action==='companionread'?state:action==='syncpreview'?{preview_token:'preview-token',local_revision:7,remote_revision:9,local_packs:[],packs:[remote]}:{sync_revision:9}});
+ await f.button('Review downloaded pack drafts').onclick();const select=descendants(f.root).find(element=>element.tag==='select'&&element.dataset.packId==='custom:neutral');assert.ok(select);assert.equal(select.value,'');
+ await f.button('Apply reviewed choices').onclick();assert.equal(f.calls.some(call=>call.action==='syncapply'),false);assert.match(f.message(),/Choose a version for every pack difference/);
+ select.value='remote';await f.button('Apply reviewed choices').onclick();
+ assert.deepEqual(f.calls.find(call=>call.action==='syncapply').payload,{preview_token:'preview-token',expected_revision:7,choices:{'custom:neutral':'remote'}});
 });
 test('sync controls send a sealed payload and clear exported secrets on revocation',async()=>{
  const exchange=createECDH('prime256v1');exchange.generateKeys();

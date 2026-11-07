@@ -52,7 +52,7 @@ html.fanservice-game{color-scheme:dark;--panel:#090909;--accent:#fff;background:
  }
  const panel=document.createElement('details'),title=document.createElement('summary'),message=document.createElement('p'),packs=document.createElement('div'),controls=document.createElement('div');
  title.textContent='Game music, saved packs and sync';panel.append(title,message,controls,packs);library.prepend(panel);
- let current=null,closed=false,connectionForExport=null,monitor;
+ let current=null,closed=false,connectionForExport=null,monitor,reviewPanel=null;
  const privateFields=new Set();
  const active=()=>!closed&&globalThis.FanserviceNativeTransport===transport&&transport.epoch===epoch;
  function revoke(){if(closed)return;closed=true;clearInterval(monitor);connectionForExport=null;current=null;for(const field of privateFields)field.value='';panel.replaceChildren();panel.remove();globalThis.removeEventListener('pagehide',revoke);}
@@ -61,6 +61,20 @@ html.fanservice-game{color-scheme:dark;--panel:#090909;--accent:#fff;background:
  function show(value){if(active())message.textContent=String(value);else revoke();}
  const text=(tag,value)=>{const element=document.createElement(tag);element.textContent=value;return element;};
  function button(label,fn,parent=controls){const element=text('button',label);element.type='button';element.onclick=async()=>{if(!active()){revoke();return;}element.disabled=true;try{await fn();}catch(error){show(error.message);}finally{element.disabled=false;}};parent.append(element);return element;}
+ function renderReview(preview){
+  reviewPanel?.remove();reviewPanel=document.createElement('section');reviewPanel.setAttribute('aria-label','Per-pack synchronization review');
+  reviewPanel.append(text('h3',`Review remote revision ${preview.remote_revision}`));
+  const local=new Map((preview.local_packs||[]).map(pack=>[pack.id,pack])),remote=new Map(preview.packs.map(pack=>[pack.id,pack])),ids=[...new Set([...local.keys(),...remote.keys()])].sort(),rows=[];
+  for(const id of ids){const before=local.get(id),after=remote.get(id);if(before&&after&&JSON.stringify(before)===JSON.stringify(after))continue;
+   const row=document.createElement('article'),title=text('h3',before?.name||after?.name||id),summary=text('p',before&&after?'Both devices changed this pack. Choose the version to keep.':before?'This pack exists only on this game profile.':'This pack exists only in the downloaded profile.');
+   const describe=pack=>pack?`${pack.name} · ${pack.selection.ids.length} fixed IDs · ${pack.selection.rules.length} live rules · ${pack.unlock_cost} UP`:'Pack absent';row.append(title,summary,text('p','This game: '+describe(before)),text('p','Downloaded: '+describe(after)));
+   const label=text('label','Keep for this game'),select=document.createElement('select');select.dataset.packId=id;const option=(name,value)=>{const item=text('option',name);item.value=value;select.append(item);};option('Choose a version…','');if(before)option('This game version','local');if(after)option('Downloaded version','remote');if(before&&!after)option('Remove this pack','remove');if(after&&!before)option('Skip this pack','skip');label.append(select);row.append(label);reviewPanel.append(row);rows.push(select);
+  }
+  if(!rows.length)reviewPanel.append(text('p','The profiles have no pack differences.'));
+  button('Cancel review',async()=>{reviewPanel?.remove();reviewPanel=null;show('Review cancelled. No definitions changed.');},reviewPanel);
+  button('Apply reviewed choices',async()=>{const choices={};for(const select of rows){if(!select.value)throw Error('Choose a version for every pack difference before applying.');choices[select.dataset.packId]=select.value;}ensure();const result=await request('syncapply',{preview_token:preview.preview_token,expected_revision:preview.local_revision,choices});reviewPanel?.remove();reviewPanel=null;await refresh();show(`Reviewed choices applied from remote revision ${result.sync_revision}. Game purchases and progress stayed unchanged.`);},reviewPanel);
+  controls.append(reviewPanel);
+ }
  function input(label,type='text'){const row=text('label',label),field=document.createElement('input');field.type=type;row.append(field);controls.append(row);return field;}
  const track=input('Server soundtrack ID','number');track.min='1';track.step='1';track.value='1';
  const syncId=input('Sync connection ID'),syncKey=input('Sync key','password');syncKey.autocomplete='off';privateFields.add(syncKey);
@@ -133,8 +147,7 @@ html.fanservice-game{color-scheme:dark;--panel:#090909;--accent:#fff;background:
  });
  button('Upload pack drafts',async()=>{if(!current)await refresh();const result=await request('syncupload',{expected_revision:current.revision});await refresh();show('Pack drafts uploaded at revision '+result.revision+'.');});
  button('Review downloaded pack drafts',async()=>{
-  const preview=await request('syncpreview');if(!confirm(`Replace saved pack drafts with revision ${preview.remote_revision} (${preview.packs.length} packs)? Game purchases and progress stay unchanged.`))return;
-  ensure();await request('syncapply',{preview_token:preview.preview_token,expected_revision:preview.local_revision});await refresh();show('Reviewed pack drafts applied.');
+  const preview=await request('syncpreview');renderReview(preview);show(`${preview.packs.length} downloaded definition(s). Compare each changed pack and choose a version before applying.`);
  });
  globalThis.FanserviceNativeControls={epoch,revoke};
  monitor=setInterval(()=>{if(!active())revoke();},500);globalThis.addEventListener('pagehide',revoke);

@@ -5,10 +5,21 @@
  globalThis.FanserviceNativeControls?.revoke();
  const panel=document.createElement('details'),title=document.createElement('summary'),message=document.createElement('p'),packs=document.createElement('div'),controls=document.createElement('div');
  title.textContent='Native music, offline storage and sync';panel.append(title,message,controls,packs);library.prepend(panel);
- let current=null,session=null,timer=null,closed=false,connectionForExport=null;
+ let current=null,session=null,timer=null,closed=false,connectionForExport=null,reviewPanel=null;
  const text=(tag,value)=>{const element=document.createElement(tag);element.textContent=value;return element;};
  function show(value){message.textContent=value;}
  function button(label,fn,parent=controls){const element=text('button',label);element.type='button';element.onclick=async()=>{element.disabled=true;try{await fn();}catch(error){show(error.message);}finally{element.disabled=false;}};parent.append(element);return element;}
+ function renderReview(preview){
+  reviewPanel?.remove();reviewPanel=document.createElement('section');reviewPanel.setAttribute('aria-label','Per-pack synchronization review');reviewPanel.append(text('h3',`Review remote revision ${preview.remote_revision}`));
+  const local=new Map((preview.local_packs||[]).map(pack=>[pack.id,pack])),remote=new Map(preview.packs.map(pack=>[pack.id,pack])),ids=[...new Set([...local.keys(),...remote.keys()])].sort(),rows=[];
+  for(const id of ids){const before=local.get(id),after=remote.get(id);if(before&&after&&JSON.stringify(before)===JSON.stringify(after))continue;
+   const row=document.createElement('article');row.append(text('h3',before?.name||after?.name||id),text('p',before&&after?'Both devices changed this pack. Choose the version to keep.':before?'This pack exists only on this profile.':'This pack exists only in the downloaded profile.'));
+   const label=text('label','Keep for this profile'),select=document.createElement('select');select.dataset.packId=id;const option=(caption,value)=>{const item=text('option',caption);item.value=value;select.append(item);};option('Choose a version…','');if(before)option('This profile version','local');if(after)option('Downloaded version','remote');if(before&&!after)option('Remove this pack','remove');if(after&&!before)option('Skip this pack','skip');label.append(select);row.append(label);reviewPanel.append(row);rows.push(select);
+  }
+  if(!rows.length)reviewPanel.append(text('p','The profiles have no pack differences.'));
+  button('Cancel review',async()=>{reviewPanel?.remove();reviewPanel=null;show('Review cancelled. No definitions changed.');},reviewPanel);
+  button('Apply reviewed choices',async()=>{const choices={};for(const select of rows){if(!select.value)throw Error('Choose a version for every pack difference before applying.');choices[select.dataset.packId]=select.value;}const result=await transport.request('syncapply',{preview_token:preview.preview_token,expected_revision:preview.local_revision,choices});reviewPanel?.remove();reviewPanel=null;await refresh();show(`Reviewed choices applied from remote revision ${result.sync_revision}. Native progression stayed unchanged.`);},reviewPanel);controls.append(reviewPanel);
+ }
  function input(label,type='text'){const row=text('label',label),field=document.createElement('input');field.type=type;row.append(field);controls.append(row);return field;}
  const track=input('Server soundtrack ID','number');track.min='1';track.step='1';track.value='1';
  const seek=input('Seek position in seconds','number');seek.min='0';seek.step='0.1';seek.value='0';
@@ -63,6 +74,6 @@
  importFile.onchange=async()=>{try{const file=importFile.files[0];if(!file||file.size>10000)throw Error('Choose a small sync connection JSON file.');const connection=JSON.parse(await file.text());await configure({id:connection.id,key:connection.key,revision:connection.revision??0});connectionForExport=connection;syncId.value=connection.id;syncKey.value='';importFile.value='';await refresh();show('Companion connection imported. No definitions or native progression were replaced.');}catch(error){show(error.message);}};
  button('Configure companion sync',async()=>{const connection={id:syncId.value.trim(),key:syncKey.value.trim(),revision:0};await configure(connection);connectionForExport=connection;syncKey.value='';await refresh();show('Companion sync configured. Definitions sync separately from native UP, ownership and progression.');});
  button('Upload companion definitions',async()=>{if(!current)await refresh();const result=await transport.request('syncupload',{expected_revision:current.revision});show('Definitions uploaded at remote revision '+result.revision+'. Native progression was unchanged.');await refresh();});
- button('Review downloaded definitions',async()=>{const preview=await transport.request('syncpreview');if(!confirm(`Replace companion definitions with remote revision ${preview.remote_revision} (${preview.packs.length} packs)? Native saves, UP and ownership remain unchanged.`))return;await transport.request('syncapply',{preview_token:preview.preview_token,expected_revision:preview.local_revision});await refresh();show('Reviewed definitions applied. Native progression was unchanged.');});
+ button('Review downloaded definitions',async()=>{const preview=await transport.request('syncpreview');renderReview(preview);show(`${preview.packs.length} downloaded definition(s). Compare each changed pack and choose a version before applying.`);});
  globalThis.FanserviceNativeControls={epoch:transport.epoch,revoke(){closed=true;clearTimeout(timer);connectionForExport=null;syncKey.value='';panel.replaceChildren();panel.remove();}};
 })();

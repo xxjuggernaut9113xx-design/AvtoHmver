@@ -91,9 +91,20 @@ test('sync upload has neutral wire wallet and never exports native ownership',as
  let body;const f=await fixture(t,async(url,options)=>{body=JSON.parse(options.body);return json({revision:1});});await f.call('definitions',{expected_revision:0,packs:[pack]});await f.call('syncconfigure',{id:'native-fixture',key:'a'.repeat(64),revision:0});await f.call('syncupload',{expected_revision:1});assert.deepEqual(body.profile,{version:1,kind:'fanservice-native-companion',unlock_points:0,packs:[pack]});assert.equal((await f.call('companionread')).sync.revision,1);
 });
 test('remote sync requires preview and optimistic apply, ignores remote wallet and preserves conflicts',async t=>{
- const f=await fixture(t,async()=>json({revision:7,profile:{version:1,unlock_points:999,progression:{level:999},packs:[{...pack,owned:true,enabled:true}]}}));await f.call('syncconfigure',{id:'fixture',key:'a'.repeat(64),revision:0});const preview=await f.call('syncpreview');assert.equal((await f.call('companionread')).packs.length,0);assert.deepEqual(preview.packs,[pack]);
+ const f=await fixture(t,async()=>json({revision:7,profile:{version:1,unlock_points:999,progression:{level:999},packs:[{...pack,owned:true,enabled:true}]}}));await f.call('syncconfigure',{id:'fixture',key:'a'.repeat(64),revision:0});const preview=await f.call('syncpreview');assert.equal((await f.call('companionread')).packs.length,0);assert.deepEqual(preview.packs,[pack]);assert.deepEqual(preview.local_packs,[]);
  await f.call('definitions',{expected_revision:0,packs:[]});await assert.rejects(f.call('syncapply',{preview_token:preview.preview_token,expected_revision:0}),/stale/);assert.equal((await f.call('companionread')).packs.length,0);
- const latest=await f.call('syncpreview');await f.call('syncapply',{preview_token:latest.preview_token,expected_revision:1});const saved=await f.call('companionread');assert.deepEqual(saved.packs,[pack]);assert.equal(saved.progression,undefined);assert.equal(saved.sync.revision,7);
+ const latest=await f.call('syncpreview');await f.call('syncapply',{preview_token:latest.preview_token,expected_revision:1,choices:{'custom:test':'remote'}});const saved=await f.call('companionread');assert.deepEqual(saved.packs,[pack]);assert.equal(saved.progression,undefined);assert.equal(saved.sync.revision,7);
+});
+test('per-pack sync apply honors choices, checks the reviewed remote revision, and leaves definitions on stale review',async t=>{
+ let remoteRevision=7;const remote={...pack,name:'Remote name'},remoteOnly={...pack,id:'custom:remote',name:'Remote only'};
+ const f=await fixture(t,async()=>json({revision:remoteRevision,profile:{version:1,unlock_points:999,packs:[remote,remoteOnly]}}));
+ await f.call('definitions',{expected_revision:0,packs:[{...pack,name:'Local name'},{...pack,id:'custom:local',name:'Local only'}]});
+ await f.call('syncconfigure',{id:'fixture',key:'a'.repeat(64),revision:0});const preview=await f.call('syncpreview');
+ assert.equal(preview.local_packs.length,2);assert.equal(preview.packs.length,2);
+ remoteRevision=8;await assert.rejects(f.call('syncapply',{preview_token:preview.preview_token,expected_revision:1,choices:{'custom:test':'local','custom:local':'remove','custom:remote':'remote'}}),/Remote profile changed after review/);
+ assert.deepEqual((await f.call('companionread')).packs.map(item=>item.name),['Local name','Local only']);
+ const latest=await f.call('syncpreview');await f.call('syncapply',{preview_token:latest.preview_token,expected_revision:1,choices:{'custom:test':'local','custom:local':'remove','custom:remote':'remote'}});
+ const applied=await f.call('companionread');assert.deepEqual(applied.packs.map(item=>[item.id,item.name]),[['custom:test','Local name'],['custom:remote','Remote only']]);assert.equal(applied.sync.revision,8);
 });
 test('profile changes while HTTP is pending discard remote sync data',async t=>{
  let release;const f=await fixture(t,()=>new Promise(resolve=>release=resolve));await f.call('syncconfigure',{id:'fixture',key:'a'.repeat(64),revision:0});const pending=f.call('syncpreview');while(!release)await new Promise(resolve=>setTimeout(resolve,1));f.state.slot='AnotherSave';await f.pulse();release(json({revision:1,profile:{version:1,packs:[pack]}}));await assert.rejects(pending,/stale work/);assert.deepEqual((await f.call('companionread')).packs,[]);
