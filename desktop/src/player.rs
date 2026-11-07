@@ -7,9 +7,9 @@
 use crate::mpv_embed::{MpvInstance, PlayerEvent};
 use std::{
     sync::{
+        Arc,
         atomic::{AtomicBool, Ordering},
         mpsc::{self, Receiver, SyncSender, TryRecvError, TrySendError},
-        Arc,
     },
     thread::{self, JoinHandle},
     time::{Duration, Instant},
@@ -478,7 +478,7 @@ fn player_worker(
     let mut render_ready = false;
     let mut was_suspended = false;
     let mut restore_volume = 100.0;
-    let mut restore_paused = false;
+    let mut manually_paused = false;
     loop {
         match commands.recv_timeout(Duration::from_millis(16)) {
             Ok(WorkerCommand {
@@ -488,6 +488,7 @@ fn player_worker(
             | Err(mpsc::RecvTimeoutError::Disconnected) => break,
             Ok(command) => {
                 generation = command.generation;
+                update_manual_pause(&mut manually_paused, &command.command);
                 if matches!(
                     &command.command,
                     PlayerCommand::Load { .. } | PlayerCommand::Stop
@@ -510,14 +511,13 @@ fn player_worker(
                     .ok()
                     .and_then(|value| value.parse().ok())
                     .unwrap_or(100.0);
-                restore_paused = instance.property("pause").is_ok_and(|value| value == "yes");
             }
             let _ = instance.set_property("pause", "yes");
             let _ = instance.set_property("mute", "yes");
         } else if was_suspended {
             let _ = instance.set_property("volume", &restore_volume.to_string());
             let _ = instance.set_property("mute", "no");
-            let _ = instance.set_property("pause", if restore_paused { "yes" } else { "no" });
+            let _ = instance.set_property("pause", if manually_paused { "yes" } else { "no" });
         }
         was_suspended = hidden;
         while let Some(event) = instance.next_event() {
@@ -591,6 +591,16 @@ fn player_worker(
     }
 }
 
+fn update_manual_pause(manually_paused: &mut bool, command: &PlayerCommand) {
+    match command {
+        PlayerCommand::SetPaused(paused) => *manually_paused = *paused,
+        // NativePlayer resets its visible pause state on Load, so a new item
+        // (and a stopped player) must not inherit the old item's pause state.
+        PlayerCommand::Load { .. } | PlayerCommand::Stop => *manually_paused = false,
+        _ => {}
+    }
+}
+
 fn apply_worker_command(
     instance: &mut MpvInstance,
     command: PlayerCommand,
@@ -641,6 +651,27 @@ fn apply_worker_command(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn new_load_does_not_inherit_the_previous_manual_pause() {
+        let mut manually_paused = false;
+        update_manual_pause(&mut manually_paused, &PlayerCommand::SetPaused(true));
+        update_manual_pause(
+            &mut manually_paused,
+            &PlayerCommand::Load {
+                source: "next.mp4".into(),
+                volume: 100.0,
+                speed: 1.0,
+                looping: false,
+            },
+        );
+        assert!(!manually_paused);
+
+        update_manual_pause(&mut manually_paused, &PlayerCommand::SetPaused(true));
+        update_manual_pause(&mut manually_paused, &PlayerCommand::Stop);
+        assert!(!manually_paused);
+    }
+
     #[test]
     fn stopping_before_video_worker_starts_is_not_a_playback_error() {
         let mut player = NativePlayer::default();
@@ -812,8 +843,8 @@ mod tests {
         }
     }
     use std::sync::{
-        atomic::{AtomicUsize, Ordering},
         Arc,
+        atomic::{AtomicUsize, Ordering},
     };
 
     static LIBMPV_ENV: Mutex<()> = Mutex::new(());
@@ -975,11 +1006,13 @@ mod tests {
         let frame_dimensions = dimensions.clone();
         player.set_frame_callback(Box::new(move |pixels, width, height| {
             assert_eq!(pixels.len(), width as usize * height as usize * 4);
-            assert!(pixels
-                .iter()
-                .skip(3)
-                .step_by(4)
-                .all(|alpha| *alpha == u8::MAX));
+            assert!(
+                pixels
+                    .iter()
+                    .skip(3)
+                    .step_by(4)
+                    .all(|alpha| *alpha == u8::MAX)
+            );
             frame_dimensions.store((width as usize) << 16 | height as usize, Ordering::SeqCst);
             received_frame.fetch_add(1, Ordering::SeqCst);
         }));
