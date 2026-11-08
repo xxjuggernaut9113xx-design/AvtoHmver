@@ -1,0 +1,828 @@
+{
+  "authority": "Retained original newer-20261017 extracted Blueprint bytecode; not reconstructed C++",
+  "repository": "https://github.com/xxjuggernaut9113xx-design/reJOIce",
+  "commit": "1a18e9a8ccd97fbfb0cc785f6f3d2e025ad86cff",
+  "records": [
+    {
+      "filename": "StoreWidget-ExecuteUbergraph_StoreWidget.json",
+      "retained_sha256": "064973ad94ee49df1fe6f545088914c348f111bd30002b6be60e3f1a9a01ca66",
+      "function": "ExecuteUbergraph_StoreWidget",
+      "statements": [
+        {
+          "index": 162,
+          "statement": {
+            "op": "EX_Context",
+            "ObjectExpression": {
+              "op": "EX_InstanceVariable",
+              "Variable": {
+                "field": "As BP CHGame Instance",
+                "owner": "StoreWidget_C"
+              }
+            },
+            "Offset": 32,
+            "PropertyType": 0,
+            "RValuePointer": {
+              "field": "",
+              "owner": "null"
+            },
+            "ContextExpression": {
+              "op": "EX_LocalVirtualFunction",
+              "VirtualFunctionName": "Can Afford Coins?",
+              "Parameters": [
+                {
+                  "op": "EX_LocalVariable",
+                  "Variable": {
+                    "field": "CallFunc_GetUpgradeCostForLevel_ReturnValue_2",
+                    "owner": "ExecuteUbergraph_StoreWidget"
+                  }
+                },
+                {
+                  "op": "EX_LocalVariable",
+                  "Variable": {
+                    "field": "CallFunc_Can_Afford_Coins__CanAfford_",
+                    "owner": "ExecuteUbergraph_StoreWidget"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "index": 163,
+          "statement": {
+            "op": "EX_JumpIfNot",
+            "CodeOffset": 6181,
+            "BooleanExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_Can_Afford_Coins__CanAfford_",
+                "owner": "ExecuteUbergraph_StoreWidget"
+              }
+            }
+          }
+        },
+        {
+          "index": 164,
+          "statement": {
+            "op": "EX_Context",
+            "ObjectExpression": {
+              "op": "EX_InstanceVariable",
+              "Variable": {
+                "field": "As BP CHGame Instance",
+                "owner": "StoreWidget_C"
+              }
+            },
+            "Offset": 32,
+            "PropertyType": 0,
+            "RValuePointer": {
+              "field": "",
+              "owner": "null"
+            },
+            "ContextExpression": {
+              "op": "EX_LocalVirtualFunction",
+              "VirtualFunctionName": "UpgradeItem",
+              "Parameters": [
+                {
+                  "op": "EX_LocalVariable",
+                  "Variable": {
+                    "field": "K2Node_CustomEvent_ItemType_1",
+                    "owner": "ExecuteUbergraph_StoreWidget"
+                  }
+                },
+                {
+                  "op": "EX_LocalVariable",
+                  "Variable": {
+                    "field": "CallFunc_UpgradeItem_Success_",
+                    "owner": "ExecuteUbergraph_StoreWidget"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "index": 165,
+          "statement": {
+            "op": "EX_JumpIfNot",
+            "CodeOffset": 6181,
+            "BooleanExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_UpgradeItem_Success_",
+                "owner": "ExecuteUbergraph_StoreWidget"
+              }
+            }
+          }
+        },
+        {
+          "index": 166,
+          "statement": {
+            "op": "EX_Let",
+            "Value": {
+              "field": "CallFunc_GetUpgradeCostForLevel_ReturnValue_2",
+              "owner": "ExecuteUbergraph_StoreWidget"
+            },
+            "Variable": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_GetUpgradeCostForLevel_ReturnValue_2",
+                "owner": "ExecuteUbergraph_StoreWidget"
+              }
+            },
+            "Expression": {
+              "op": "EX_Context",
+              "ObjectExpression": {
+                "op": "EX_Context",
+                "ObjectExpression": {
+                  "op": "EX_InstanceVariable",
+                  "Variable": {
+                    "field": "As BP CHGame Instance",
+                    "owner": "StoreWidget_C"
+                  }
+                },
+                "Offset": 9,
+                "PropertyType": 0,
+                "RValuePointer": {
+                  "field": "RoundManager",
+                  "owner": "BP_CHGameInstance_C"
+                },
+                "ContextExpression": {
+                  "op": "EX_InstanceVariable",
+                  "Variable": {
+                    "field": "RoundManager",
+                    "owner": "BP_CHGameInstance_C"
+                  }
+                }
+              },
+              "Offset": 37,
+              "PropertyType": 0,
+              "RValuePointer": {
+                "field": "CallFunc_GetUpgradeCostForLevel_ReturnValue_2",
+                "owner": "ExecuteUbergraph_StoreWidget"
+              },
+              "ContextExpression": {
+                "op": "EX_FinalFunction",
+                "StackNode": "GetUpgradeCostForLevel",
+                "Parameters": [
+                  {
+                    "op": "EX_LocalVariable",
+                    "Variable": {
+                      "field": "K2Node_CustomEvent_ItemType_1",
+                      "owner": "ExecuteUbergraph_StoreWidget"
+                    }
+                  },
+                  {
+                    "op": "EX_StructMemberContext",
+                    "StructMemberExpression": {
+                      "field": "Level",
+                      "owner": "ItemState"
+                    },
+                    "StructExpression": {
+                      "op": "EX_LocalVariable",
+                      "Variable": {
+                        "field": "CallFunc_Get_Item_State_ItemState_1",
+                        "owner": "ExecuteUbergraph_StoreWidget"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "index": 167,
+          "statement": {
+            "op": "EX_Context",
+            "ObjectExpression": {
+              "op": "EX_InstanceVariable",
+              "Variable": {
+                "field": "As BP CHGame Instance",
+                "owner": "StoreWidget_C"
+              }
+            },
+            "Offset": 23,
+            "PropertyType": 0,
+            "RValuePointer": {
+              "field": "",
+              "owner": "null"
+            },
+            "ContextExpression": {
+              "op": "EX_LocalVirtualFunction",
+              "VirtualFunctionName": "SpendCoins",
+              "Parameters": [
+                {
+                  "op": "EX_LocalVariable",
+                  "Variable": {
+                    "field": "CallFunc_GetUpgradeCostForLevel_ReturnValue_2",
+                    "owner": "ExecuteUbergraph_StoreWidget"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "index": 179,
+          "statement": {
+            "op": "EX_Let",
+            "Value": {
+              "field": "CallFunc_GetPurchaseCostForLevel_ReturnValue_2",
+              "owner": "ExecuteUbergraph_StoreWidget"
+            },
+            "Variable": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_GetPurchaseCostForLevel_ReturnValue_2",
+                "owner": "ExecuteUbergraph_StoreWidget"
+              }
+            },
+            "Expression": {
+              "op": "EX_Context",
+              "ObjectExpression": {
+                "op": "EX_Context",
+                "ObjectExpression": {
+                  "op": "EX_InstanceVariable",
+                  "Variable": {
+                    "field": "As BP CHGame Instance",
+                    "owner": "StoreWidget_C"
+                  }
+                },
+                "Offset": 9,
+                "PropertyType": 0,
+                "RValuePointer": {
+                  "field": "RoundManager",
+                  "owner": "BP_CHGameInstance_C"
+                },
+                "ContextExpression": {
+                  "op": "EX_InstanceVariable",
+                  "Variable": {
+                    "field": "RoundManager",
+                    "owner": "BP_CHGameInstance_C"
+                  }
+                }
+              },
+              "Offset": 37,
+              "PropertyType": 0,
+              "RValuePointer": {
+                "field": "CallFunc_GetPurchaseCostForLevel_ReturnValue_2",
+                "owner": "ExecuteUbergraph_StoreWidget"
+              },
+              "ContextExpression": {
+                "op": "EX_FinalFunction",
+                "StackNode": "GetPurchaseCostForLevel",
+                "Parameters": [
+                  {
+                    "op": "EX_LocalVariable",
+                    "Variable": {
+                      "field": "K2Node_CustomEvent_ItemType",
+                      "owner": "ExecuteUbergraph_StoreWidget"
+                    }
+                  },
+                  {
+                    "op": "EX_StructMemberContext",
+                    "StructMemberExpression": {
+                      "field": "Level",
+                      "owner": "ItemState"
+                    },
+                    "StructExpression": {
+                      "op": "EX_LocalVariable",
+                      "Variable": {
+                        "field": "CallFunc_Get_Item_State_ItemState_2",
+                        "owner": "ExecuteUbergraph_StoreWidget"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "index": 180,
+          "statement": {
+            "op": "EX_Context",
+            "ObjectExpression": {
+              "op": "EX_InstanceVariable",
+              "Variable": {
+                "field": "As BP CHGame Instance",
+                "owner": "StoreWidget_C"
+              }
+            },
+            "Offset": 32,
+            "PropertyType": 0,
+            "RValuePointer": {
+              "field": "",
+              "owner": "null"
+            },
+            "ContextExpression": {
+              "op": "EX_LocalVirtualFunction",
+              "VirtualFunctionName": "Can Afford Coins?",
+              "Parameters": [
+                {
+                  "op": "EX_LocalVariable",
+                  "Variable": {
+                    "field": "CallFunc_GetPurchaseCostForLevel_ReturnValue_2",
+                    "owner": "ExecuteUbergraph_StoreWidget"
+                  }
+                },
+                {
+                  "op": "EX_LocalVariable",
+                  "Variable": {
+                    "field": "CallFunc_Can_Afford_Coins__CanAfford__1",
+                    "owner": "ExecuteUbergraph_StoreWidget"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "index": 181,
+          "statement": {
+            "op": "EX_JumpIfNot",
+            "CodeOffset": 7228,
+            "BooleanExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_Can_Afford_Coins__CanAfford__1",
+                "owner": "ExecuteUbergraph_StoreWidget"
+              }
+            }
+          }
+        },
+        {
+          "index": 182,
+          "statement": {
+            "op": "EX_Context",
+            "ObjectExpression": {
+              "op": "EX_InstanceVariable",
+              "Variable": {
+                "field": "As BP CHGame Instance",
+                "owner": "StoreWidget_C"
+              }
+            },
+            "Offset": 37,
+            "PropertyType": 0,
+            "RValuePointer": {
+              "field": "",
+              "owner": "null"
+            },
+            "ContextExpression": {
+              "op": "EX_LocalVirtualFunction",
+              "VirtualFunctionName": "GrantItem",
+              "Parameters": [
+                {
+                  "op": "EX_LocalVariable",
+                  "Variable": {
+                    "field": "K2Node_CustomEvent_ItemType",
+                    "owner": "ExecuteUbergraph_StoreWidget"
+                  }
+                },
+                {
+                  "op": "EX_IntConst",
+                  "Value": 1
+                },
+                {
+                  "op": "EX_LocalVariable",
+                  "Variable": {
+                    "field": "CallFunc_GrantItem_Success_",
+                    "owner": "ExecuteUbergraph_StoreWidget"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "index": 183,
+          "statement": {
+            "op": "EX_JumpIfNot",
+            "CodeOffset": 7228,
+            "BooleanExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_GrantItem_Success_",
+                "owner": "ExecuteUbergraph_StoreWidget"
+              }
+            }
+          }
+        },
+        {
+          "index": 184,
+          "statement": {
+            "op": "EX_Let",
+            "Value": {
+              "field": "CallFunc_GetPurchaseCostForLevel_ReturnValue_2",
+              "owner": "ExecuteUbergraph_StoreWidget"
+            },
+            "Variable": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_GetPurchaseCostForLevel_ReturnValue_2",
+                "owner": "ExecuteUbergraph_StoreWidget"
+              }
+            },
+            "Expression": {
+              "op": "EX_Context",
+              "ObjectExpression": {
+                "op": "EX_Context",
+                "ObjectExpression": {
+                  "op": "EX_InstanceVariable",
+                  "Variable": {
+                    "field": "As BP CHGame Instance",
+                    "owner": "StoreWidget_C"
+                  }
+                },
+                "Offset": 9,
+                "PropertyType": 0,
+                "RValuePointer": {
+                  "field": "RoundManager",
+                  "owner": "BP_CHGameInstance_C"
+                },
+                "ContextExpression": {
+                  "op": "EX_InstanceVariable",
+                  "Variable": {
+                    "field": "RoundManager",
+                    "owner": "BP_CHGameInstance_C"
+                  }
+                }
+              },
+              "Offset": 37,
+              "PropertyType": 0,
+              "RValuePointer": {
+                "field": "CallFunc_GetPurchaseCostForLevel_ReturnValue_2",
+                "owner": "ExecuteUbergraph_StoreWidget"
+              },
+              "ContextExpression": {
+                "op": "EX_FinalFunction",
+                "StackNode": "GetPurchaseCostForLevel",
+                "Parameters": [
+                  {
+                    "op": "EX_LocalVariable",
+                    "Variable": {
+                      "field": "K2Node_CustomEvent_ItemType",
+                      "owner": "ExecuteUbergraph_StoreWidget"
+                    }
+                  },
+                  {
+                    "op": "EX_StructMemberContext",
+                    "StructMemberExpression": {
+                      "field": "Level",
+                      "owner": "ItemState"
+                    },
+                    "StructExpression": {
+                      "op": "EX_LocalVariable",
+                      "Variable": {
+                        "field": "CallFunc_Get_Item_State_ItemState_2",
+                        "owner": "ExecuteUbergraph_StoreWidget"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "index": 185,
+          "statement": {
+            "op": "EX_Context",
+            "ObjectExpression": {
+              "op": "EX_InstanceVariable",
+              "Variable": {
+                "field": "As BP CHGame Instance",
+                "owner": "StoreWidget_C"
+              }
+            },
+            "Offset": 23,
+            "PropertyType": 0,
+            "RValuePointer": {
+              "field": "",
+              "owner": "null"
+            },
+            "ContextExpression": {
+              "op": "EX_LocalVirtualFunction",
+              "VirtualFunctionName": "SpendCoins",
+              "Parameters": [
+                {
+                  "op": "EX_LocalVariable",
+                  "Variable": {
+                    "field": "CallFunc_GetPurchaseCostForLevel_ReturnValue_2",
+                    "owner": "ExecuteUbergraph_StoreWidget"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "filename": "BP_CHGameInstance-GrantItem.json",
+      "retained_sha256": "c94e10432f069301cf53cfaea52271fdaa0f584cf1ce0b70d0832fcf53bf2ac9",
+      "function": "GrantItem",
+      "statements": [
+        {
+          "index": 8,
+          "statement": {
+            "op": "EX_LocalVirtualFunction",
+            "VirtualFunctionName": "GetMaxCharges",
+            "Parameters": [
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "ItemType",
+                  "owner": "GrantItem"
+                }
+              },
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "CallFunc_GetMaxCharges_MaxCount",
+                  "owner": "GrantItem"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "index": 10,
+          "statement": {
+            "op": "EX_LetBool",
+            "VariableExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_GreaterEqual_IntInt_ReturnValue",
+                "owner": "GrantItem"
+              }
+            },
+            "AssignmentExpression": {
+              "op": "EX_CallMath",
+              "StackNode": "GreaterEqual_IntInt",
+              "Parameters": [
+                {
+                  "op": "EX_StructMemberContext",
+                  "StructMemberExpression": {
+                    "field": "Charges",
+                    "owner": "ItemState"
+                  },
+                  "StructExpression": {
+                    "op": "EX_LocalVariable",
+                    "Variable": {
+                      "field": "CallFunc_Map_Find_Value",
+                      "owner": "GrantItem"
+                    }
+                  }
+                },
+                {
+                  "op": "EX_LocalVariable",
+                  "Variable": {
+                    "field": "CallFunc_GetMaxCharges_MaxCount",
+                    "owner": "GrantItem"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "index": 11,
+          "statement": {
+            "op": "EX_JumpIfNot",
+            "CodeOffset": 368,
+            "BooleanExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_GreaterEqual_IntInt_ReturnValue",
+                "owner": "GrantItem"
+              }
+            }
+          }
+        },
+        {
+          "index": 17,
+          "statement": {
+            "op": "EX_Let",
+            "Value": {
+              "field": "CallFunc_Add_IntInt_ReturnValue",
+              "owner": "GrantItem"
+            },
+            "Variable": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_Add_IntInt_ReturnValue",
+                "owner": "GrantItem"
+              }
+            },
+            "Expression": {
+              "op": "EX_CallMath",
+              "StackNode": "Add_IntInt",
+              "Parameters": [
+                {
+                  "op": "EX_StructMemberContext",
+                  "StructMemberExpression": {
+                    "field": "Charges",
+                    "owner": "ItemState"
+                  },
+                  "StructExpression": {
+                    "op": "EX_LocalVariable",
+                    "Variable": {
+                      "field": "CallFunc_Map_Find_Value",
+                      "owner": "GrantItem"
+                    }
+                  }
+                },
+                {
+                  "op": "EX_LocalVariable",
+                  "Variable": {
+                    "field": "Count",
+                    "owner": "GrantItem"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "index": 18,
+          "statement": {
+            "op": "EX_Let",
+            "Value": {
+              "field": "Charges",
+              "owner": "ItemState"
+            },
+            "Variable": {
+              "op": "EX_StructMemberContext",
+              "StructMemberExpression": {
+                "field": "Charges",
+                "owner": "ItemState"
+              },
+              "StructExpression": {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "CallFunc_Map_Find_Value",
+                  "owner": "GrantItem"
+                }
+              }
+            },
+            "Expression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_Add_IntInt_ReturnValue",
+                "owner": "GrantItem"
+              }
+            }
+          }
+        },
+        {
+          "index": 20,
+          "statement": {
+            "op": "EX_Context",
+            "ObjectExpression": {
+              "op": "EX_ObjectConst",
+              "Value": -5
+            },
+            "Offset": 37,
+            "PropertyType": 0,
+            "RValuePointer": {
+              "field": "",
+              "owner": "null"
+            },
+            "ContextExpression": {
+              "op": "EX_FinalFunction",
+              "StackNode": "Map_Add",
+              "Parameters": [
+                {
+                  "op": "EX_InstanceVariable",
+                  "Variable": {
+                    "field": "OwnedItems",
+                    "owner": "BP_CHGameInstance_C"
+                  }
+                },
+                {
+                  "op": "EX_LocalVariable",
+                  "Variable": {
+                    "field": "ItemType",
+                    "owner": "GrantItem"
+                  }
+                },
+                {
+                  "op": "EX_LocalVariable",
+                  "Variable": {
+                    "field": "K2Node_SetFieldsInStruct_StructOut",
+                    "owner": "GrantItem"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "filename": "BP_CHGameInstance-SpendCoins.json",
+      "retained_sha256": "4fc939f00e173e0fc2eeebf03fa4fe0e6b9422cdeab3f65698ae5f98a3b044fe",
+      "function": "SpendCoins",
+      "statements": [
+        {
+          "index": 0,
+          "statement": {
+            "op": "EX_Let",
+            "Value": {
+              "field": "CallFunc_Subtract_IntInt_ReturnValue",
+              "owner": "SpendCoins"
+            },
+            "Variable": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_Subtract_IntInt_ReturnValue",
+                "owner": "SpendCoins"
+              }
+            },
+            "Expression": {
+              "op": "EX_CallMath",
+              "StackNode": "Subtract_IntInt",
+              "Parameters": [
+                {
+                  "op": "EX_InstanceVariable",
+                  "Variable": {
+                    "field": "PlayerCoins",
+                    "owner": "BP_CHGameInstance_C"
+                  }
+                },
+                {
+                  "op": "EX_LocalVariable",
+                  "Variable": {
+                    "field": "Cost",
+                    "owner": "SpendCoins"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "index": 1,
+          "statement": {
+            "op": "EX_Let",
+            "Value": {
+              "field": "PlayerCoins",
+              "owner": "BP_CHGameInstance_C"
+            },
+            "Variable": {
+              "op": "EX_InstanceVariable",
+              "Variable": {
+                "field": "PlayerCoins",
+                "owner": "BP_CHGameInstance_C"
+              }
+            },
+            "Expression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_Subtract_IntInt_ReturnValue",
+                "owner": "SpendCoins"
+              }
+            }
+          }
+        },
+        {
+          "index": 2,
+          "statement": {
+            "op": "EX_Context",
+            "ObjectExpression": {
+              "op": "EX_InstanceVariable",
+              "Variable": {
+                "field": "ProgressionManager",
+                "owner": "BP_CHGameInstance_C"
+              }
+            },
+            "Offset": 21,
+            "PropertyType": 0,
+            "RValuePointer": {
+              "field": "",
+              "owner": "null"
+            },
+            "ContextExpression": {
+              "op": "EX_FinalFunction",
+              "StackNode": "UpdateMetric",
+              "Parameters": [
+                {
+                  "op": "EX_ByteConst",
+                  "Value": 16
+                },
+                {
+                  "op": "EX_LocalVariable",
+                  "Variable": {
+                    "field": "Cost",
+                    "owner": "SpendCoins"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

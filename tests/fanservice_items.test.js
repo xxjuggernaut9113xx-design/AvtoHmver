@@ -5,7 +5,16 @@ const modes=require('../static/fanservice/data/modes.json');
 const random={range:(a)=>a};
 function charged(type,level=1){const inventory=items.prepare(modes,0,random);Object.assign(inventory.state(type),{charges:1,level});return inventory;}
 test('source rows and chooser lifecycle preserve empty hotbar',()=>{const classic=items.prepare(modes,0,random);assert.deepEqual(classic.ownedItems.map(s=>s.type),[1,3,4,5,6,7,9,11,12,13,10]);assert.deepEqual(classic.hotbarItems,[8,8,8,8,8]);const tower=items.prepare(modes,1,random);assert.deepEqual(tower.ownedItems.map(s=>s.type),[1,5]);assert.deepEqual(tower.hotbarItems,classic.hotbarItems);const music=items.prepare(modes,2,random);assert.deepEqual(music.hotbarItems,[4,8,8,8,8]);assert.equal(music.ownedItems.length,1);});
-test('source prices and shield multi-grants preserve native overfill',()=>{const inv=charged(6,2),wallet={coins:500};inv.state(6).charges=14;assert.deepEqual(items.purchase(inv,6,wallet),{ok:true,cost:125,amount:4});assert.equal(inv.state(6).charges,18);assert.equal(wallet.coins,375);assert.equal(items.purchase(inv,6,wallet).ok,false);assert.equal(items.upgrade(inv,7,wallet).ok,false);});
+test('original StoreWidget buys one shield charge while direct grants preserve native overfill',()=>{
+ const evidence=require('./fixtures/fanservice/original-inventory-purchase.json');
+ const buy=evidence.records[0].statements.find(s=>s.index===182).statement.ContextExpression;
+ assert.equal(buy.VirtualFunctionName,'GrantItem');assert.deepEqual(buy.Parameters[1],{op:'EX_IntConst',Value:1});
+ const inv=charged(6,2),wallet={coins:500};inv.state(6).charges=14;
+ assert.deepEqual(items.purchase(inv,6,wallet),{ok:true,cost:125,amount:buy.Parameters[1].Value});
+ assert.equal(inv.state(6).charges,15);assert.equal(wallet.coins,375);
+ assert.equal(items.purchase(inv,6,wallet).ok,false);assert.equal(items.upgrade(inv,7,wallet).ok,false);
+ inv.state(6).charges=14;assert.equal(inv.grant(6,4),true);assert.equal(inv.state(6).charges,18);
+});
 test('item purchases and upgrades charge only after a successful state change',()=>{
  const inv=items.prepare(modes,0,random),wallet={coins:200};
  assert.deepEqual(items.upgrade(inv,1,wallet),{ok:true,cost:100});
