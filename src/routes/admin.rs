@@ -272,7 +272,7 @@ pub async fn phar_install(
     peer: super::OptionalConnectInfo,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     local_only(&state, &peer)?;
-    let status = classifier_control(&state, crate::services::classifier::Action::Evaluate)?;
+    let status = classifier_control(&state, crate::services::classifier::Action::Install)?;
     Ok(Json(json!({
         "accepted": true,
         "job_id": status.job_id,
