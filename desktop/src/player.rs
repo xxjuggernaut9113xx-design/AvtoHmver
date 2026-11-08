@@ -7,9 +7,9 @@
 use crate::mpv_embed::{MpvInstance, PlayerEvent};
 use std::{
     sync::{
-        Arc,
         atomic::{AtomicBool, Ordering},
         mpsc::{self, Receiver, SyncSender, TryRecvError, TrySendError},
+        Arc,
     },
     thread::{self, JoinHandle},
     time::{Duration, Instant},
@@ -479,6 +479,7 @@ fn player_worker(
     let mut was_suspended = false;
     let mut restore_volume = 100.0;
     let mut manually_paused = false;
+    let mut load_start = 0.0;
     loop {
         match commands.recv_timeout(Duration::from_millis(16)) {
             Ok(WorkerCommand {
@@ -488,6 +489,13 @@ fn player_worker(
             | Err(mpsc::RecvTimeoutError::Disconnected) => break,
             Ok(command) => {
                 generation = command.generation;
+                match &command.command {
+                    PlayerCommand::Load { .. } => {
+                        load_start = command.clip_range.map_or(0.0, |range| range.0);
+                    }
+                    PlayerCommand::Seek(position) if !render_ready => load_start = *position,
+                    _ => {}
+                }
                 update_manual_pause(&mut manually_paused, &command.command);
                 if matches!(
                     &command.command,
@@ -525,10 +533,25 @@ fn player_worker(
                 PlayerEvent::FileLoaded => {
                     render_ready = true;
                     let _ = statuses.try_send(WorkerEvent::FileLoaded(generation));
-                    if instance
+                    let audio_only = instance
                         .property("vid")
-                        .is_ok_and(|value| matches!(value.as_str(), "no" | "false" | "0"))
+                        .is_ok_and(|value| matches!(value.as_str(), "no" | "false" | "0"));
+                    if !audio_only
+                        && (hidden || manually_paused)
+                        && instance
+                            .property("seekable")
+                            .is_ok_and(|value| matches!(value.as_str(), "yes" | "true" | "1"))
                     {
+                        // A paused replacement can report file-loaded without
+                        // producing a render update. Prime its first frame
+                        // without advancing the shared playback clock.
+                        if let Err(error) =
+                            instance.command(&["seek", &load_start.to_string(), "absolute+exact"])
+                        {
+                            let _ = statuses.try_send(WorkerEvent::Error(generation, error));
+                        }
+                    }
+                    if audio_only {
                         let _ = statuses.try_send(WorkerEvent::AudioReady(generation));
                     }
                 }
@@ -843,11 +866,69 @@ mod tests {
         }
     }
     use std::sync::{
-        Arc,
         atomic::{AtomicUsize, Ordering},
+        Arc,
     };
 
     static LIBMPV_ENV: Mutex<()> = Mutex::new(());
+
+    #[test]
+    #[ignore = "requires CURATOR_LIBMPV_PATH and a disposable video longer than two seconds"]
+    fn replacing_media_while_shared_paused_renders_first_frame_and_resumes() {
+        let _environment = LIBMPV_ENV.lock().unwrap();
+        let source = avtohmver::config::env_var("CURATOR_LIVE_RENDERER_MEDIA").unwrap();
+        let mut player = NativePlayer::default();
+        player.set_frame_callback(Box::new(|_, _, _| {}));
+        let wait = |player: &mut NativePlayer, predicate: fn(&PlayerStatus) -> bool| {
+            let deadline = Instant::now() + Duration::from_secs(6);
+            loop {
+                player.drain_events();
+                let status = player.status();
+                assert!(!status.failed, "{status:?}");
+                if predicate(&status) {
+                    break;
+                }
+                assert!(Instant::now() < deadline, "{status:?}");
+                thread::sleep(Duration::from_millis(20));
+            }
+        };
+        let load = |player: &mut NativePlayer| {
+            player.apply(PlayerCommand::Load {
+                source: source.clone(),
+                volume: 0.0,
+                speed: 1.0,
+                looping: false,
+            });
+        };
+        load(&mut player);
+        wait(&mut player, |status| {
+            !status.loading && status.position_secs > 0.15
+        });
+        for range in [None, Some((0.5, 1.5))] {
+            player.apply(PlayerCommand::SetPaused(true));
+            wait(&mut player, |status| status.paused);
+            player.suspend(true);
+            player
+                .set_clip_range(range.map(|r| r.0), range.map(|r| r.1))
+                .unwrap();
+            load(&mut player);
+            wait(&mut player, |status| !status.loading && status.paused);
+            if range.is_some() {
+                assert_eq!(player.status().duration_secs, 1.0);
+            }
+            let position = player.status().position_secs;
+            assert!(position < 0.08, "{:?}", player.status());
+            thread::sleep(Duration::from_millis(400));
+            player.drain_events();
+            assert!((player.status().position_secs - position).abs() < 0.08);
+            assert!(!player.status().ended);
+            player.suspend(false);
+            wait(&mut player, |status| {
+                !status.paused && status.position_secs > 0.15
+            });
+        }
+        player.apply(PlayerCommand::Shutdown);
+    }
 
     #[test]
     fn idle_player_has_safe_defaults() {
@@ -863,6 +944,7 @@ mod tests {
         let mut player = NativePlayer::default();
         // This intentionally points nowhere, so the test proves status
         // validation without requiring a media runtime on the test host.
+        let original_libmpv = std::env::var_os("CURATOR_LIBMPV_PATH");
         std::env::set_var("CURATOR_LIBMPV_PATH", "not-a-real-libmpv-test");
         let status = player.apply(PlayerCommand::Load {
             source: "movie.mp4".into(),
@@ -875,7 +957,11 @@ mod tests {
             player.drain_events();
             thread::sleep(Duration::from_millis(10));
         }
-        std::env::remove_var("CURATOR_LIBMPV_PATH");
+        if let Some(path) = original_libmpv {
+            std::env::set_var("CURATOR_LIBMPV_PATH", path);
+        } else {
+            std::env::remove_var("CURATOR_LIBMPV_PATH");
+        }
         assert_eq!(status.volume, 100.0);
         assert_eq!(status.speed, 0.25);
         assert!(status.looping);
@@ -997,6 +1083,7 @@ mod tests {
     #[test]
     #[ignore = "requires CURATOR_LIBMPV_PATH and CURATOR_LIVE_RENDERER_MEDIA"]
     fn live_renderer_delivers_a_software_frame() {
+        let _environment = LIBMPV_ENV.lock().unwrap();
         let media = avtohmver::config::env_var("CURATOR_LIVE_RENDERER_MEDIA")
             .expect("set CURATOR_LIVE_RENDERER_MEDIA to a disposable video");
         let received = Arc::new(AtomicUsize::new(0));
@@ -1006,13 +1093,11 @@ mod tests {
         let frame_dimensions = dimensions.clone();
         player.set_frame_callback(Box::new(move |pixels, width, height| {
             assert_eq!(pixels.len(), width as usize * height as usize * 4);
-            assert!(
-                pixels
-                    .iter()
-                    .skip(3)
-                    .step_by(4)
-                    .all(|alpha| *alpha == u8::MAX)
-            );
+            assert!(pixels
+                .iter()
+                .skip(3)
+                .step_by(4)
+                .all(|alpha| *alpha == u8::MAX));
             frame_dimensions.store((width as usize) << 16 | height as usize, Ordering::SeqCst);
             received_frame.fetch_add(1, Ordering::SeqCst);
         }));
