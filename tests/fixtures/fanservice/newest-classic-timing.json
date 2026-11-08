@@ -1,0 +1,333 @@
+{
+  "build": "v0051-hotfix-public-a8f46896",
+  "exe_sha256": "a8f46896593d8724cefb9a232db5772df48ae5731da78cfacbec82e98d040c10",
+  "authority": "analyst-derived static arithmetic cases; not observed original execution",
+  "native_function": "0x14831c630",
+  "original_game_executed": false,
+  "cases": [
+    {
+      "pattern": [
+        1,
+        0.3,
+        2.5
+      ],
+      "interval": 0.37,
+      "count": 4,
+      "speed": 0.9,
+      "travel": 1.5,
+      "minimum": 0.14,
+      "queue": [
+        {
+          "AbsoluteFireTime": 0.0,
+          "TargetHitTime": 1.5,
+          "PatternIndex": 0,
+          "Interval": 0.4111111220018366,
+          "BeatNumber": 1,
+          "CustomMultiplier": 1.0
+        },
+        {
+          "AbsoluteFireTime": 0.41111112200183664,
+          "TargetHitTime": 1.9111111220018366,
+          "PatternIndex": 1,
+          "Interval": 0.14,
+          "BeatNumber": 2,
+          "CustomMultiplier": 0.30000001192092896
+        },
+        {
+          "AbsoluteFireTime": 0.5511111220018368,
+          "TargetHitTime": 2.0511111220018368,
+          "PatternIndex": 2,
+          "Interval": 1.0277778050045916,
+          "BeatNumber": 3,
+          "CustomMultiplier": 2.5
+        },
+        {
+          "AbsoluteFireTime": 1.5788889270064281,
+          "TargetHitTime": 3.078888927006428,
+          "PatternIndex": 0,
+          "Interval": 0.4111111220018366,
+          "BeatNumber": 4,
+          "CustomMultiplier": 1.0
+        }
+      ]
+    },
+    {
+      "pattern": [
+        -1,
+        0,
+        0.7
+      ],
+      "interval": 0.37,
+      "count": 4,
+      "speed": 0.9,
+      "travel": 1.5,
+      "minimum": 0.14,
+      "queue": [
+        {
+          "AbsoluteFireTime": 0.0,
+          "TargetHitTime": 1.5,
+          "PatternIndex": 0,
+          "Interval": 0.4111111220018366,
+          "BeatNumber": 1,
+          "CustomMultiplier": -1.0
+        },
+        {
+          "AbsoluteFireTime": 0.41111112200183664,
+          "TargetHitTime": 1.9111111220018366,
+          "PatternIndex": 1,
+          "Interval": 0.14,
+          "BeatNumber": 2,
+          "CustomMultiplier": 0.0
+        },
+        {
+          "AbsoluteFireTime": 0.5511111220018368,
+          "TargetHitTime": 2.0511111220018368,
+          "PatternIndex": 2,
+          "Interval": 0.28777778050045916,
+          "BeatNumber": 3,
+          "CustomMultiplier": 0.699999988079071
+        },
+        {
+          "AbsoluteFireTime": 0.8388889025022959,
+          "TargetHitTime": 2.338888902502296,
+          "PatternIndex": 0,
+          "Interval": 0.4111111220018366,
+          "BeatNumber": 4,
+          "CustomMultiplier": -1.0
+        },
+        {
+          "AbsoluteFireTime": 1.2500000245041325,
+          "TargetHitTime": 2.7500000245041325,
+          "PatternIndex": 1,
+          "Interval": 0.14,
+          "BeatNumber": 5,
+          "CustomMultiplier": 0.0
+        },
+        {
+          "AbsoluteFireTime": 1.3900000245041326,
+          "TargetHitTime": 2.8900000245041326,
+          "PatternIndex": 2,
+          "Interval": 0.28777778050045916,
+          "BeatNumber": 6,
+          "CustomMultiplier": 0.699999988079071
+        }
+      ]
+    },
+    {
+      "pattern": [
+        1,
+        0.3,
+        2.5
+      ],
+      "interval": 0.37,
+      "count": 4,
+      "speed": 1.1,
+      "travel": 1.5,
+      "minimum": 0.14,
+      "queue": [
+        {
+          "AbsoluteFireTime": 0.0,
+          "TargetHitTime": 1.5,
+          "PatternIndex": 0,
+          "Interval": 0.33636362907315104,
+          "BeatNumber": 1,
+          "CustomMultiplier": 1.0
+        },
+        {
+          "AbsoluteFireTime": 0.3363636290731511,
+          "TargetHitTime": 1.836363629073151,
+          "PatternIndex": 1,
+          "Interval": 0.14,
+          "BeatNumber": 2,
+          "CustomMultiplier": 0.30000001192092896
+        },
+        {
+          "AbsoluteFireTime": 0.476363629073151,
+          "TargetHitTime": 1.976363629073151,
+          "PatternIndex": 2,
+          "Interval": 0.8409090726828777,
+          "BeatNumber": 3,
+          "CustomMultiplier": 2.5
+        },
+        {
+          "AbsoluteFireTime": 1.3172727017560288,
+          "TargetHitTime": 2.817272701756029,
+          "PatternIndex": 0,
+          "Interval": 0.33636362907315104,
+          "BeatNumber": 4,
+          "CustomMultiplier": 1.0
+        }
+      ]
+    },
+    {
+      "pattern": [
+        -1,
+        0,
+        0.7
+      ],
+      "interval": 0.37,
+      "count": 4,
+      "speed": 1.1,
+      "travel": 1.5,
+      "minimum": 0.14,
+      "queue": [
+        {
+          "AbsoluteFireTime": 0.0,
+          "TargetHitTime": 1.5,
+          "PatternIndex": 0,
+          "Interval": 0.33636362907315104,
+          "BeatNumber": 1,
+          "CustomMultiplier": -1.0
+        },
+        {
+          "AbsoluteFireTime": 0.3363636290731511,
+          "TargetHitTime": 1.836363629073151,
+          "PatternIndex": 1,
+          "Interval": 0.14,
+          "BeatNumber": 2,
+          "CustomMultiplier": 0.0
+        },
+        {
+          "AbsoluteFireTime": 0.476363629073151,
+          "TargetHitTime": 1.976363629073151,
+          "PatternIndex": 2,
+          "Interval": 0.2354545363414388,
+          "BeatNumber": 3,
+          "CustomMultiplier": 0.699999988079071
+        },
+        {
+          "AbsoluteFireTime": 0.7118181654145896,
+          "TargetHitTime": 2.2118181654145896,
+          "PatternIndex": 0,
+          "Interval": 0.33636362907315104,
+          "BeatNumber": 4,
+          "CustomMultiplier": -1.0
+        },
+        {
+          "AbsoluteFireTime": 1.0481817944877405,
+          "TargetHitTime": 2.5481817944877405,
+          "PatternIndex": 1,
+          "Interval": 0.14,
+          "BeatNumber": 5,
+          "CustomMultiplier": 0.0
+        },
+        {
+          "AbsoluteFireTime": 1.1881817944877406,
+          "TargetHitTime": 2.6881817944877406,
+          "PatternIndex": 2,
+          "Interval": 0.2354545363414388,
+          "BeatNumber": 6,
+          "CustomMultiplier": 0.699999988079071
+        }
+      ]
+    },
+    {
+      "pattern": [
+        1,
+        0.3,
+        2.5
+      ],
+      "interval": 0.37,
+      "count": 4,
+      "speed": 0.1,
+      "travel": 1.5,
+      "minimum": 0.14,
+      "queue": [
+        {
+          "AbsoluteFireTime": 0.0,
+          "TargetHitTime": 1.5,
+          "PatternIndex": 0,
+          "Interval": 3.6999999448657044,
+          "BeatNumber": 1,
+          "CustomMultiplier": 1.0
+        },
+        {
+          "AbsoluteFireTime": 3.699999944865704,
+          "TargetHitTime": 5.199999944865704,
+          "PatternIndex": 1,
+          "Interval": 1.1100000275671478,
+          "BeatNumber": 2,
+          "CustomMultiplier": 0.30000001192092896
+        },
+        {
+          "AbsoluteFireTime": 4.809999972432852,
+          "TargetHitTime": 6.309999972432852,
+          "PatternIndex": 2,
+          "Interval": 9.24999986216426,
+          "BeatNumber": 3,
+          "CustomMultiplier": 2.5
+        },
+        {
+          "AbsoluteFireTime": 14.059999834597113,
+          "TargetHitTime": 15.559999834597113,
+          "PatternIndex": 0,
+          "Interval": 3.6999999448657044,
+          "BeatNumber": 4,
+          "CustomMultiplier": 1.0
+        }
+      ]
+    },
+    {
+      "pattern": [
+        -1,
+        0,
+        0.7
+      ],
+      "interval": 0.37,
+      "count": 4,
+      "speed": 0.1,
+      "travel": 1.5,
+      "minimum": 0.14,
+      "queue": [
+        {
+          "AbsoluteFireTime": 0.0,
+          "TargetHitTime": 1.5,
+          "PatternIndex": 0,
+          "Interval": 3.6999999448657044,
+          "BeatNumber": 1,
+          "CustomMultiplier": -1.0
+        },
+        {
+          "AbsoluteFireTime": 3.699999944865704,
+          "TargetHitTime": 5.199999944865704,
+          "PatternIndex": 1,
+          "Interval": 0.14,
+          "BeatNumber": 2,
+          "CustomMultiplier": 0.0
+        },
+        {
+          "AbsoluteFireTime": 3.8399999448657036,
+          "TargetHitTime": 5.339999944865704,
+          "PatternIndex": 2,
+          "Interval": 2.5899999172985564,
+          "BeatNumber": 3,
+          "CustomMultiplier": 0.699999988079071
+        },
+        {
+          "AbsoluteFireTime": 6.4299998621642604,
+          "TargetHitTime": 7.9299998621642604,
+          "PatternIndex": 0,
+          "Interval": 3.6999999448657044,
+          "BeatNumber": 4,
+          "CustomMultiplier": -1.0
+        },
+        {
+          "AbsoluteFireTime": 10.129999807029964,
+          "TargetHitTime": 11.629999807029964,
+          "PatternIndex": 1,
+          "Interval": 0.14,
+          "BeatNumber": 5,
+          "CustomMultiplier": 0.0
+        },
+        {
+          "AbsoluteFireTime": 10.269999807029965,
+          "TargetHitTime": 11.769999807029965,
+          "PatternIndex": 2,
+          "Interval": 2.5899999172985564,
+          "BeatNumber": 6,
+          "CustomMultiplier": 0.699999988079071
+        }
+      ]
+    }
+  ]
+}

@@ -2,6 +2,7 @@ const test=require('node:test'),assert=require('node:assert/strict');
 const Cards=require('../static/fanservice/cards'),{Run}=require('../static/fanservice/run'),Economy=require('../static/fanservice/economy');
 const modes=require('../static/fanservice/data/modes.json'),cardRules=require('../static/fanservice/data/card-rules.json');
 const timingTraces=require('./fixtures/fanservice/card-timing-traces.json'),queueTraces=require('./fixtures/fanservice/beat-queue-traces.json');
+const newestTiming=require('./fixtures/fanservice/newest-classic-timing.json');
 const session=config=>new Run(modes,{seed:137,cardRules,...config});
 const last=flow=>flow.queue.at(-1)?.TargetHitTime||0;
 
@@ -13,6 +14,28 @@ test('card timing matches all 128 retained numeric Blueprint fixtures',()=>{
 test('pattern construction matches every field in 186 retained native queue fixtures',()=>{
  assert.equal(queueTraces.fixtures.length,186);
  for(const row of queueTraces.fixtures){const actual=Cards.queue(row.multipliers,row.base_interval,row.stroke_count,row.speed,row.travel_time,row.minimum_interval);assert.equal(actual.length,row.queue.length);for(let i=0;i<actual.length;i++)for(const key of Object.keys(row.queue[i]))assert.ok(Math.abs(actual[i][key]-row.queue[i][key])<1e-10,`${row.bank}/${row.pattern_slot}/${i}/${key}`);}
+});
+
+test('newest-build static queue arithmetic preserves native float speed and pattern precision',()=>{
+ assert.equal(newestTiming.exe_sha256,'a8f46896593d8724cefb9a232db5772df48ae5731da78cfacbec82e98d040c10');
+ for(const row of newestTiming.cases)assert.deepEqual(Cards.queue(row.pattern,row.interval,row.count,row.speed,row.travel,row.minimum),row.queue);
+});
+
+test('newest-build future rebuild rounds item speed to the native float parameter',()=>{
+ const run=session(),flow=run.startCard('fast');run.advance(.1);const fired=flow.nextFire,prefix=structuredClone(flow.queue.slice(0,fired));
+ assert(run.modifyCard(.9));assert.equal(flow.speed,Math.fround(.9));assert.deepEqual(flow.queue.slice(0,fired),prefix);
+ let fire=run.state.seconds-flow.started+.1;
+ for(const entry of flow.queue.slice(fired)){
+  const interval=Math.max(Math.abs(Math.fround(flow.pattern[entry.PatternIndex]))*flow.interval*(1/Math.fround(.9)),flow.minimum);
+  assert.equal(entry.AbsoluteFireTime,fire);assert.equal(entry.TargetHitTime,fire+flow.travel);assert.equal(entry.Interval,interval);fire+=interval;
+ }
+});
+
+test('native float speed underflow and overflow cannot create an invalid queue',()=>{
+ for(const speed of [1e-50,1e50]){
+  assert.throws(()=>Cards.queue([1],.5,1,speed,1,.1));
+  const run=session(),flow=run.startCard('fast'),before=JSON.stringify(flow);assert.equal(run.modifyCard(speed),false);assert.equal(JSON.stringify(flow),before);
+ }
 });
 
 test('source pattern banks create bounded cards with travel time and exact stroke completion',()=>{

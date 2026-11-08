@@ -10,6 +10,7 @@
   return result;
  }
  function queue(pattern,interval,count,speed,travel,minimum){
+  speed=Math.fround(speed);
   if(!Array.isArray(pattern)||!pattern.length||pattern.some(n=>!Number.isFinite(n))||!pattern.some(n=>n>=0))throw Error('Card pattern requires a finite stroke interval.');
   if(!Number.isSafeInteger(count)||count<0||count>limit||![interval,speed,travel,minimum].every(Number.isFinite)||speed<=0||minimum<=0)throw Error('Card queue timing is invalid.');
   const result=[];let hit=travel,completed=0,index=0;
@@ -63,6 +64,7 @@
   return events;
  }
  function rebuild(run,speed,factor=1,maxFireTime=null){
+  speed=Math.fround(speed);
   const flow=current(run);if(!flow||flow.ended||flow.nextFire>=flow.queue.length||!Number.isFinite(speed)||speed<=0||!Number.isSafeInteger(factor)||factor<=0)return false;
   const future=(flow.queue.length-flow.nextFire)*factor;if(future>limit||flow.nextFire+future>limit)return false;
   const next=flow.queue.slice(0,flow.nextFire);let index=flow.queue[flow.nextFire]?.PatternIndex||0,fire=run.state.seconds-flow.started+.1;
@@ -85,6 +87,6 @@
  function delay(run,seconds){const flow=current(run);if(!flow||flow.ended||!Number.isFinite(seconds)||seconds<0)return false;flow.started+=seconds;return true;}
  function extendForEdge(run){const flow=current(run);return !!flow&&rebuild(run,flow.speed,999,run.state.seconds-flow.started+9);}
  function remaining(run){return Math.max(0,current(run)?.remaining??0);}
- const sourceLedger=['retained v0.04 CDO pattern banks and heat rows','SpawnCustomCardEvent numeric traces (128)','native BuildBeatQueue 0x1481d02a0 (186 queue traces)','RecoveredRules.cpp: CompleteBeatSequence','RecoveredSuccuEconomy.cpp: HandleMetric(SuccubiDefeated)'];
+ const sourceLedger=['retained v0.04 CDO pattern banks and heat rows','SpawnCustomCardEvent numeric traces (128)','native BuildBeatQueue 0x1481d02a0 (186 queue traces)','v0.05.1 a8f46896 BuildBeatQueue 0x14831c630 / RebuildQueueFromCurrentState 0x1483200e0 static arithmetic; newest CDO banks and original runtime delivery remain unverified','RecoveredRules.cpp: CompleteBeatSequence','RecoveredSuccuEconomy.cpp: HandleMetric(SuccubiDefeated)'];
  const api={timing,queue,start,advance,rebuild,delay,extendForEdge,remaining,sourceLedger};if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.FanserviceCards=api;
 })(globalThis);
