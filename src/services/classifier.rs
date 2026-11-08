@@ -70,53 +70,60 @@ pub fn control(state: &AppState, action: Action) -> Result<PharStatus, Error> {
             ));
         }
     }
-    let result =
-        match action {
-            Action::Status => Ok(phar::status(&state.data_dir, state.install_scope)),
-            Action::Install => {
-                phar::record_install_intent(&state.data_dir, state.install_scope, true, None)
-                    .and_then(|_| {
-                        phar::start_install_explicit_with_lease(
-                            &state.data_dir,
-                            state.install_scope,
-                            Some(lease),
-                        )
-                    })
+    let result = match action {
+        Action::Status => Ok(phar::status(&state.data_dir, state.install_scope)),
+        Action::Install => (if phar::status(&state.data_dir, state.install_scope).requested {
+            Ok(phar::status(&state.data_dir, state.install_scope))
+        } else {
+            phar::record_install_intent(&state.data_dir, state.install_scope, true, None)
+        })
+        .and_then(|_| {
+            phar::start_install_explicit_with_lease(
+                &state.data_dir,
+                state.install_scope,
+                Some(lease),
+            )
+        }),
+        Action::Evaluate => {
+            phar::start_install_with_lease(&state.data_dir, state.install_scope, Some(lease))
+        }
+        Action::Repair => {
+            phar::record_install_intent(&state.data_dir, state.install_scope, true, None).and_then(
+                |_| {
+                    phar::start_install_explicit_with_lease(
+                        &state.data_dir,
+                        state.install_scope,
+                        Some(lease),
+                    )
+                },
+            )
+        }
+        Action::SelfTest => {
+            // Self-test holds the setup file lock while actual inference
+            // runs. Allow Cancel to acquire the short control mutex.
+            drop(_serial);
+            phar::self_test(&state.data_dir, state.install_scope)
+        }
+        Action::Cancel => phar::cancel(&state.data_dir, state.install_scope),
+        Action::Configure { enabled, backend } => {
+            let status = phar::status(&state.data_dir, state.install_scope);
+            if matches!(
+                status.phase,
+                phar::PharPhase::Detecting
+                    | phar::PharPhase::ProvisioningRuntime
+                    | phar::PharPhase::FetchingSource
+                    | phar::PharPhase::InstallingDependencies
+                    | phar::PharPhase::DownloadingModels
+                    | phar::PharPhase::Verifying
+                    | phar::PharPhase::Probing
+            ) {
+                return Err(Error::Unavailable(
+                    "Cancel the running setup before changing classifier configuration",
+                ));
             }
-            Action::Evaluate => {
-                phar::start_install_with_lease(&state.data_dir, state.install_scope, Some(lease))
-            }
-            Action::Repair => {
-                phar::record_install_intent(&state.data_dir, state.install_scope, true, None)
-                    .and_then(|_| {
-                        phar::start_install_explicit_with_lease(
-                            &state.data_dir,
-                            state.install_scope,
-                            Some(lease),
-                        )
-                    })
-            }
-            Action::SelfTest => phar::self_test(&state.data_dir, state.install_scope),
-            Action::Cancel => phar::cancel(&state.data_dir, state.install_scope),
-            Action::Configure { enabled, backend } => {
-                let status = phar::status(&state.data_dir, state.install_scope);
-                if matches!(
-                    status.phase,
-                    phar::PharPhase::Detecting
-                        | phar::PharPhase::ProvisioningRuntime
-                        | phar::PharPhase::FetchingSource
-                        | phar::PharPhase::InstallingDependencies
-                        | phar::PharPhase::DownloadingModels
-                        | phar::PharPhase::Verifying
-                        | phar::PharPhase::Probing
-                ) {
-                    return Err(Error::Unavailable(
-                        "Cancel the running setup before changing classifier configuration",
-                    ));
-                }
-                phar::record_install_intent(&state.data_dir, state.install_scope, enabled, backend)
-            }
-        };
+            phar::record_install_intent(&state.data_dir, state.install_scope, enabled, backend)
+        }
+    };
     result.map_err(|error| Error::Failed(error.to_string()))
 }
 

@@ -14,6 +14,21 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class WorkerProtocolTests(unittest.TestCase):
+    def test_action_windows_preserve_seven_second_model_context_and_bound_work(self):
+        path = ROOT / "workers" / "action_worker.py"
+        spec = importlib.util.spec_from_file_location("action_worker_windows", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        self.assertEqual(module.temporal_segments(15, [(7, 15)]), [(7, 14), (14, 15)])
+        self.assertEqual(module.temporal_segments(15, [(0, 2), (1, 3)]), [(0, 7)])
+        with self.assertRaisesRegex(ValueError, "No requested windows"):
+            module.temporal_segments(15, [(20, 25)])
+        with self.assertRaisesRegex(ValueError, "smaller batches"):
+            module.temporal_segments(1000, [(0, 1000)])
+        for windows in ([[0, float("inf")]], [[-1, 1]], [[1, 1]], []):
+            with self.assertRaises(ValueError):
+                module.valid_windows({"windows": windows})
+
     def test_action_confidence_rejects_nonfinite_model_values(self):
         path = ROOT / "workers" / "action_worker.py"
         spec = importlib.util.spec_from_file_location("action_worker_contract", path)

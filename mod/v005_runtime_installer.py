@@ -39,8 +39,11 @@ RUNTIME_FILES = ('Scripts/main.lua', 'Scripts/menu_guard.lua', 'Scripts/native-c
 SHARED_FILES = ('Scripts/bridge.js', 'Scripts/companion.lua')
 NATIVE_FILES = ('host.mjs', 'companion-store.mjs', 'game-identity.mjs', 'music-delivery.mjs', 'music-pack.mjs')
 LOADER_FILES = ('dwmapi.dll', 'ue4ss/UE4SS.dll', 'ue4ss/LICENSE')
-OWNED = frozenset((*RUNTIME_FILES, *SHARED_FILES, *('Native/' + n for n in NATIVE_FILES),
+CEF_READY_FILE = 'Native/fanservice-cef-ready.dll'
+CEF_READY_SHA256 = '278ba5379ecc43c41fe3142d629a0ade0e1f447d5f2a102bf4f9f89fa7a04c86'
+LEGACY_OWNED = frozenset((*RUNTIME_FILES, *SHARED_FILES, *('Native/' + n for n in NATIVE_FILES),
                    'server-origin.txt', 'build-id.txt', 'enabled.txt'))
+OWNED = LEGACY_OWNED | {CEF_READY_FILE}
 
 
 def _hash(data):
@@ -168,7 +171,7 @@ def _record(component):
     files = record.get('files') if isinstance(record, dict) else None
     if (not isinstance(record, dict) or record.get('version') != 1 or record.get('build_id') != packs.TARGET
             or record.get('component') != COMPONENT or not isinstance(files, dict)
-            or (set(files) != OWNED if record.get('status', 'installed') == 'installed' else
+            or (set(files) not in (OWNED, LEGACY_OWNED) if record.get('status', 'installed') == 'installed' else
                 not (record.get('status') == 'disabled' and files == {})) or any(not isinstance(value, str) or not re.fullmatch('[0-9a-f]{64}', value)
                                          for value in files.values())):
         raise ValueError('Invalid runtime ownership manifest.')
@@ -185,7 +188,7 @@ def _record(component):
     return record
 
 
-def _payload(origin):
+def _payload(origin, cef_ready_dll):
     result = {}
     for source, names, prefix in ((SOURCE, RUNTIME_FILES, ''), (SHARED, SHARED_FILES, ''),
                                   (NATIVE_SOURCE, NATIVE_FILES, 'Native/')):
@@ -195,6 +198,16 @@ def _payload(origin):
             if not path.is_file() or not 0 < path.stat().st_size <= 1024 * 1024:
                 raise ValueError('Runtime source is missing or exceeds its size limit.')
             result[prefix + name] = path.read_bytes()
+    if cef_ready_dll is None:
+        raise ValueError('Install requires --cef-ready-dll with the pinned CEF readiness helper.')
+    helper = Path(cef_ready_dll).absolute()
+    _unlinked(helper)
+    if not helper.is_file() or not 0 < helper.stat().st_size <= 1024 * 1024:
+        raise ValueError('CEF readiness helper is missing or exceeds its size limit.')
+    helper_bytes = helper.read_bytes()
+    if _hash(helper_bytes) != CEF_READY_SHA256:
+        raise ValueError('CEF readiness helper SHA-256 does not match the pinned build.')
+    result[CEF_READY_FILE] = helper_bytes
     result['server-origin.txt'] = (validate_origin(origin) + '\n').encode()
     result['build-id.txt'] = (packs.TARGET + '\n').encode()
     result['enabled.txt'] = b''
@@ -261,11 +274,11 @@ def _lock(component):
         lock.unlink()
 
 
-def install(game_root, loader_archive, *, origin, apply=False):
+def install(game_root, loader_archive, *, origin, cef_ready_dll=None, apply=False):
     root, binary, component, registry = _directory(game_root)
     _loader(binary, loader_archive, registry)
     _record(component)
-    payload = _payload(origin)
+    payload = _payload(origin, cef_ready_dll)
     record = dict(version=1, component=COMPONENT, build_id=packs.TARGET, status='installed', full_mod_supported=False,
                   files={name: _hash(data) for name, data in payload.items()})
     if not apply:
@@ -316,13 +329,14 @@ def main():
     parser.add_argument('--game-root', type=Path, required=True)
     parser.add_argument('--loader-archive', type=Path, required=True)
     parser.add_argument('--server-origin')
+    parser.add_argument('--cef-ready-dll', type=Path, help='Pinned read-only exact-build CEF helper; required for install.')
     parser.add_argument('--apply', action='store_true', help='Apply the reviewed change; default only reviews.')
     args = parser.parse_args()
     try:
         if args.action == 'install':
             if args.server_origin is None:
                 parser.error('--server-origin is required for install')
-            result = install(args.game_root, args.loader_archive, origin=args.server_origin, apply=args.apply)
+            result = install(args.game_root, args.loader_archive, origin=args.server_origin, cef_ready_dll=args.cef_ready_dll, apply=args.apply)
         else:
             result = remove(args.game_root, args.loader_archive, apply=args.apply)
         print(json.dumps(result, indent=2))

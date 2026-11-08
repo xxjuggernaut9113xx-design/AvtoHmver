@@ -38,7 +38,12 @@ class RuntimeTests(unittest.TestCase):
         mock = patch.object(runtime.packs, '_require_closed')
         self.closed = mock.start()
         self.addCleanup(mock.stop)
-        self.kw = {'origin': 'https://example.test'}
+        self.cef_ready = self.root / 'fanservice-cef-ready.dll'
+        self.cef_ready.write_bytes(b'pinned CEF readiness fixture')
+        mock = patch.object(runtime, 'CEF_READY_SHA256', runtime.packs.digest(self.cef_ready))
+        mock.start()
+        self.addCleanup(mock.stop)
+        self.kw = {'origin': 'https://example.test', 'cef_ready_dll': self.cef_ready}
         for name, payload in [('ue4ss/UE4SS-settings.ini', b'user settings'), ('ue4ss/Mods/mods.txt', b'OtherMod : 1'),
                               ('ue4ss/Mods/OtherMod/Scripts/main.lua', b'user mod'), ('../../Saved/SaveGames/user.sav', b'user save')]:
             target = self.binary / name
@@ -54,6 +59,32 @@ class RuntimeTests(unittest.TestCase):
         self.assertFalse(self.component.exists())
         self.assertEqual(self.preserved, {p: p.read_bytes() for p in self.game.rglob('*') if p.is_file()})
         self.closed.assert_not_called()
+
+    def test_readiness_helper_required_and_pinned_before_writes(self):
+        for helper in (None, self.root / 'missing.dll'):
+            self.kw['cef_ready_dll'] = helper
+            with self.subTest(helper=helper), self.assertRaisesRegex(ValueError, 'CEF|cef-ready'):
+                self.install(apply=True)
+            self.assertFalse(self.component.exists())
+        self.kw['cef_ready_dll'] = self.cef_ready
+        self.cef_ready.write_bytes(b'changed helper')
+        with self.assertRaisesRegex(ValueError, 'SHA-256'):
+            self.install(apply=True)
+        self.assertFalse(self.component.exists())
+
+    def test_upgrade_legacy_owned_runtime_adds_helper_and_preserves_other_files(self):
+        record = self.install(apply=True)
+        helper = self.component / runtime.CEF_READY_FILE
+        helper.unlink()
+        del record['files'][runtime.CEF_READY_FILE]
+        (self.component / runtime.MANIFEST).write_text(json.dumps(record))
+        self.assertEqual(set(record['files']), runtime.LEGACY_OWNED)
+        upgraded = self.install(apply=True)
+        self.assertEqual(set(upgraded['files']), runtime.OWNED)
+        self.assertEqual(helper.read_bytes(), self.cef_ready.read_bytes())
+        self.assertTrue(runtime.remove(self.game, self.archive, apply=True)['removed'])
+        for path, content in self.preserved.items():
+            self.assertEqual(path.read_bytes(), content)
 
     def test_install_update_remove_preserves_loader_settings_saves_other_mods(self):
         self.assertTrue(self.install(apply=True)['applied'])

@@ -391,7 +391,7 @@ async fn encode(
     let library = match state.library_dir.canonicalize() {
         Ok(library) => library,
         Err(error) => {
-            return EncodeOutcome::Failed(format!("Library directory unavailable: {error}"))
+            return EncodeOutcome::Failed(format!("Library directory unavailable: {error}"));
         }
     };
     let original = match library.join(filepath).canonicalize() {
@@ -419,7 +419,7 @@ async fn encode(
     {
         Ok(staging) => staging,
         Err(error) => {
-            return EncodeOutcome::Failed(format!("Could not stage clip output: {error}"))
+            return EncodeOutcome::Failed(format!("Could not stage clip output: {error}"));
         }
     };
     let output_pattern = staging.path().join("clip-%04d.mp4");

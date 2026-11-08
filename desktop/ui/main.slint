@@ -1326,14 +1326,14 @@ export component AvtoHmverNativeWindow inherits Window {
                                 Text { vertical-stretch: 0; text: "Setup and backend actions apply immediately. Automatic-classification preferences need Save and a restart."; wrap: word-wrap; color: root.theme-muted; }
                                 HorizontalBox {
                                     vertical-stretch: 0;
-                                    ComboBox { model: ["auto", "cuda", "rocm"]; current-value <=> root.classifier-backend; }
+                                    ComboBox { model: ["auto", "cpu", "cuda", "rocm"]; current-value <=> root.classifier-backend; }
                                     Button { text: "Apply backend"; enabled: !root.busy; clicked => { root.classifier("backend:" + root.classifier-backend); } }
                                     Button { text: "Disable P-HAR next launch"; enabled: !root.busy; clicked => { root.classifier("disable"); } }
                                 }
-                                Text { vertical-stretch: 0; text: "Classification is opt-in. Installing downloads the P-HAR runtime and models in the background; progress shows below."; wrap: word-wrap; color: root.theme-muted; }
+                                Text { vertical-stretch: 0; text: "Classification is opt-in. Install first verifies the official RGB model; choose Install / set up inference again when assets are ready to install its private runtime and test real video. Auto tries GPU then measured CPU fallback. Restart after readiness to activate classification."; wrap: word-wrap; color: root.theme-muted; }
                                 HorizontalBox {
                                     vertical-stretch: 0;
-                                    Button { text: "Install P-HAR"; enabled: !root.busy; clicked => { root.classifier("install"); } }
+                                    Button { text: "Install / set up inference"; enabled: !root.busy; clicked => { root.classifier("install"); } }
                                     Button { text: "Evaluate / resume"; enabled: !root.busy; clicked => { root.classifier("evaluate"); } }
                                     Button { text: "Repair"; enabled: !root.busy; clicked => { root.classifier("repair"); } }
                                 }

@@ -521,7 +521,7 @@ async fn action_supervisor_loop(
             }
         });
         let ready_line =
-            tokio::time::timeout(std::time::Duration::from_secs(60), lines.next_line()).await;
+            tokio::time::timeout(std::time::Duration::from_secs(300), lines.next_line()).await;
         let started = ready_line
             .ok()
             .and_then(Result::ok)
@@ -552,7 +552,10 @@ async fn action_supervisor_loop(
                 continue;
             }
             match tokio::time::timeout(
-                std::time::Duration::from_secs(90),
+                // Measured CPU inference exceeds 90s for a 10s real video.
+                // The worker bounds each request to 64 model windows. Keep a
+                // finite 2h ceiling while allowing that measured CPU path.
+                std::time::Duration::from_secs(2 * 60 * 60),
                 run_action(&mut stdin, &mut lines, &job.path, &job.windows),
             )
             .await

@@ -2139,11 +2139,9 @@ mod tests {
             Some("https://cdn.erome.com/cover.jpg")
         );
         assert_eq!(results[1].source_url, "https://www.erome.com/a/Other456");
-        assert!(
-            results
-                .iter()
-                .all(|result| result.item_count.is_none() && result.total_bytes.is_none())
-        );
+        assert!(results
+            .iter()
+            .all(|result| result.item_count.is_none() && result.total_bytes.is_none()));
     }
 
     #[tokio::test]
@@ -2154,10 +2152,10 @@ mod tests {
                 .await
                 .unwrap();
             assert!(!results.is_empty(), "{provider} returned no results");
-            assert!(
-                results.iter().all(|result| result.provider == provider
-                    && is_verified_page_url(&result.source_url))
-            );
+            assert!(results
+                .iter()
+                .all(|result| result.provider == provider
+                    && is_verified_page_url(&result.source_url)));
         }
     }
 
@@ -2197,11 +2195,10 @@ mod tests {
         let next = search(&state, next_query.clone()).await.unwrap();
         assert!(!next.results.is_empty());
         let seen: HashSet<_> = first.results.iter().map(|row| &row.source_url).collect();
-        assert!(
-            next.results
-                .iter()
-                .all(|row| !seen.contains(&row.source_url))
-        );
+        assert!(next
+            .results
+            .iter()
+            .all(|row| !seen.contains(&row.source_url)));
         assert_eq!(search(&state, next_query).await.unwrap(), next);
     }
 
@@ -2335,11 +2332,9 @@ mod tests {
         );
         assert!(reserve_provider_call(&mut deadline, now).is_err());
         deadline = now + Duration::from_secs(60);
-        assert!(
-            reserve_provider_call(&mut deadline, now)
-                .unwrap_err()
-                .contains("retry in")
-        );
+        assert!(reserve_provider_call(&mut deadline, now)
+            .unwrap_err()
+            .contains("retry in"));
         assert_eq!(deadline, now + Duration::from_secs(60));
         assert_eq!(
             reserve_provider_call(&mut deadline, now + Duration::from_secs(61)).unwrap(),
@@ -2367,7 +2362,10 @@ mod tests {
             ("kemono", "a"),
             ("coomer", "a"),
         ] {
-            if selected.as_deref().is_some_and(|selected| selected != provider) {
+            if selected
+                .as_deref()
+                .is_some_and(|selected| selected != provider)
+            {
                 continue;
             }
             let (first, more) = search_provider_page(provider, query, 1, None)
@@ -2785,11 +2783,9 @@ mod tests {
                 .count(),
             1
         );
-        assert!(
-            merged
-                .iter()
-                .any(|provider| provider.id == "newsite" && provider.generated)
-        );
+        assert!(merged
+            .iter()
+            .any(|provider| provider.id == "newsite" && provider.generated));
     }
 
     #[test]
@@ -2867,28 +2863,24 @@ mod tests {
         assert!(last.next_cursor.is_none());
         let other = tempfile::tempdir().unwrap();
         let other = crate::test_support::state(other.path());
-        assert!(
-            search(
-                &other,
-                SearchQuery {
-                    cursor: Some(cursor.clone()),
-                    ..Default::default()
-                }
-            )
-            .await
-            .is_err()
-        );
+        assert!(search(
+            &other,
+            SearchQuery {
+                cursor: Some(cursor.clone()),
+                ..Default::default()
+            }
+        )
+        .await
+        .is_err());
         state.discovery_pages.lock().unwrap().ttl = Duration::ZERO;
-        assert!(
-            search(
-                &state,
-                SearchQuery {
-                    cursor: Some(cursor),
-                    ..Default::default()
-                }
-            )
-            .await
-            .is_err()
-        );
+        assert!(search(
+            &state,
+            SearchQuery {
+                cursor: Some(cursor),
+                ..Default::default()
+            }
+        )
+        .await
+        .is_err());
     }
 }

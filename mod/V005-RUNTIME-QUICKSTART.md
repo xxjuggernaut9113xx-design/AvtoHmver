@@ -7,7 +7,9 @@ in original Unlocks. The original Import entitlement check is preserved.
 
 Requires Python 3.11+, Node.js 22+, the exact
 `v0051-hotfix-public-a8f46896` game, and the existing pinned UE4SS development
-loader recorded in `mod/compatibility.json`. The installer verifies that loader
+loader recorded in `mod/compatibility.json`, and the pinned owned
+`fanservice-cef-ready.dll` described in `native/cef-ready/README.md`.
+The installer verifies that loader
 against its archive; it does not install or replace it. No game or loader
 binaries are bundled. AAC/MP3 conversion requires an explicit FFmpeg executable.
 
@@ -18,13 +20,16 @@ and Server origin to your installation. This concrete example uses the isolated
 lab paths; adjust those arguments for another installation.
 
 ```powershell
-python mod/v005_runtime_installer.py install --game-root E:/fanservice-mod-lab/game --loader-archive E:/fanservice-mod-lab/tools/UE4SS_v3.0.1-1181-g83330635.zip --server-origin http://127.0.0.1:42169
+python mod/v005_runtime_installer.py install --game-root E:/fanservice-mod-lab/game --loader-archive E:/fanservice-mod-lab/tools/UE4SS_v3.0.1-1181-g83330635.zip --cef-ready-dll E:/avtohmver-build/cef-ticket27/fanservice-cef-ready.dll --server-origin http://127.0.0.1:42169
 ```
 
 That command only reviews the target and file hashes. Add `--apply` to install.
 Remote Server origins require HTTPS; plain HTTP is accepted only on loopback.
 An existing unowned or modified component is preserved by refusing the change.
 Other mods, loader configuration and game saves remain unchanged.
+Missing or changed CEF helper bytes refuse installation before any write. An
+older owned component can be upgraded to add the helper. If the helper cannot
+load or verify at runtime, the Fanservice entry remains unavailable.
 
 In the installed `CockHero/Binaries/Win64/ue4ss/Mods/FanserviceV005` folder,
 run `Start-FanserviceNative.cmd`. It starts the profile-bound helper and game.

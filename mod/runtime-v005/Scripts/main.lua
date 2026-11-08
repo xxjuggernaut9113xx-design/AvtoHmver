@@ -27,6 +27,26 @@ local function quote(value)
 end
 local function boolean(value) return value and 'true' or 'false' end
 local function log(value) print('[FanserviceV005] ' .. value .. '\n') end
+local checkedCefReady, cefFailure
+FanserviceCefReady = nil
+local cefLoader, cefProblem = package.loadlib(directory .. '/Native/fanservice-cef-ready.dll', 'luaopen_fanservice_cef_ready')
+if cefLoader then
+    local ok, result = pcall(cefLoader)
+    if ok and type(FanserviceCefReady) == 'function' then checkedCefReady = FanserviceCefReady
+    else cefFailure = tostring(result or 'CEF readiness module did not register.') end
+else cefFailure = tostring(cefProblem) end
+local lastCefState
+local function cefReady()
+    local ready, state = false, cefFailure or 'unavailable'
+    if checkedCefReady then
+        local ok, value, nativeState = pcall(checkedCefReady)
+        if ok and type(value) == 'boolean' and type(nativeState) == 'string' then
+            ready, state = value, nativeState
+        else state = 'read failed: ' .. tostring(value) end
+    end
+    if state ~= lastCefState then log('CEF gate: ' .. state); lastCefState = state end
+    return ready and state == 'running'
+end
 local generation, epoch, signature = 0, nil, nil
 local base = tostring(os.time()) .. '-' .. tostring(math.random(1, 2147483647))
 local owner, entry, browser, entryToken, lastClick, lastRequest
@@ -118,6 +138,7 @@ local function catalog(store)
     return '{"unlock_points":' .. tostring(store:GetUnlockPoints()) .. ',"packs":[' .. table.concat(packs, ',') .. ']}'
 end
 local function widget(menu, offsets, z, initialURL)
+    assert(cefReady(), 'Native browser startup is not ready.')
     local factory = StaticFindObject('/Script/Engine.Default__GameplayStatics')
     local class = StaticFindObject('/Script/WebView.WebViewWidget')
     assert(valid(factory) and valid(class), 'Native browser factory is unavailable.')
@@ -222,7 +243,7 @@ LoopInGameThreadWithDelay(500, function()
         local allowed, reason = Guard.evaluate(menu)
         if reason ~= lastGate then log('Menu gate: ' .. tostring(reason)); lastGate = reason end
         if owner and (not allowed or not valid(owner) or menu:GetAddress() ~= owner:GetAddress()) then detach('Original menu closed.') end
-        if allowed and not entry and failedMenu ~= menu:GetAddress() then
+        if allowed and not entry and failedMenu ~= menu:GetAddress() and cefReady() then
             failedMenu = menu:GetAddress()
             attach(menu)
             failedMenu = nil

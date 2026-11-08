@@ -1185,7 +1185,7 @@ function renderAdminPhar(target, phar) {
   const actions = document.createElement('div'); actions.className = 'explorer-card-actions';
   const backend = document.createElement('select'); backend.className = 'panel-button'; backend.setAttribute('aria-label', 'P-HAR native backend');
   backend.dataset.savedBackend = phar.backend || 'auto';
-  for (const value of ['auto', 'cuda', 'rocm']) { const option = document.createElement('option'); option.value = value; option.textContent = value === 'auto' ? 'Auto (CUDA first)' : value.toUpperCase(); option.selected = (draftBackend || backend.dataset.savedBackend) === value; backend.append(option); }
+  for (const value of ['auto', 'cpu', 'cuda', 'rocm']) { const option = document.createElement('option'); option.value = value; option.textContent = value === 'auto' ? 'Auto (GPU, then CPU)' : value.toUpperCase(); option.selected = (draftBackend || backend.dataset.savedBackend) === value; backend.append(option); }
   const refresh = () => { const panel = target.closest('.settings-local-admin'); if (panel) refreshAdminPanel(panel); };
   const configure = async (enabled) => {
     try { await api('/api/admin/phar', { method: 'POST', body: JSON.stringify({ enabled, backend: backend.value }) }); refresh(); }
@@ -1194,10 +1194,12 @@ function renderAdminPhar(target, phar) {
   const saveBackend = panelButton('Apply backend'); saveBackend.addEventListener('click', () => configure(phar.requested));
   const intent = panelButton(phar.requested ? 'Disable P-HAR' : 'Enable P-HAR setup');
   intent.addEventListener('click', () => configure(!phar.requested));
-  const install = panelButton('Install / resume'); install.disabled = !phar.requested;
+  const active = ['detecting', 'provisioning_runtime', 'fetching_source', 'installing_dependencies', 'downloading_models', 'verifying', 'probing'].includes(phar.phase);
+  const install = panelButton(phar.phase === 'assets_ready' ? 'Set up inference' : 'Install / resume'); install.disabled = !phar.requested || active;
   install.addEventListener('click', async () => {
+    install.disabled = true;
     try { const result = await api('/api/admin/phar/install', { method: 'POST' }); toast(result.message || 'P-HAR setup evaluated.'); refresh(); }
-    catch (error) { toast(`Could not evaluate P-HAR: ${error.message}`, true); }
+    catch (error) { install.disabled = !phar.requested || active; toast(`Could not evaluate P-HAR: ${error.message}`, true); }
   });
   const cancel = panelButton('Cancel'); cancel.disabled = !phar.requested;
   cancel.addEventListener('click', async () => {

@@ -18,6 +18,9 @@ use std::{
 pub const MANIFEST_FORMAT: &str = "curator-phar-manifest-v3";
 pub const UPSTREAM_REPOSITORY: &str = "https://github.com/rlleshi/phar.git";
 pub const UPSTREAM_REVISION: &str = "94adf9900cd36360795709d920b44404f29bad3e";
+pub const MMACTION_REVISION: &str = "255bbc08634c21e6400af7b9d1a470b52285ebcd";
+const RUNTIME_FORMAT: &str = "curator-phar-runtime-v2";
+const RUNTIME_SETUP: &str = include_str!("../workers/phar_runtime.py");
 const STATE_FILE: &str = "state.json";
 const MANIFEST_FILE: &str = "manifest.json";
 const RUNTIME_FILE: &str = "runtime.json";
@@ -25,18 +28,20 @@ const CANCEL_FILE: &str = "cancel.requested";
 static JOB_SEQUENCE: AtomicU64 = AtomicU64::new(1);
 static STATE_SEQUENCE: AtomicU64 = AtomicU64::new(1);
 
-/// `auto` prefers compatible CUDA and then compatible ROCm. WSL is accepted
+/// `auto` prefers compatible CUDA, then ROCm, then measured CPU. WSL is accepted
 /// only as an old config migration value and is never a runtime selection.
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum PharBackend {
     Auto,
+    Cpu,
     Cuda,
     Rocm,
 }
 impl PharBackend {
     pub fn parse(value: Option<&str>) -> Self {
         match value.map(str::trim).map(str::to_ascii_lowercase).as_deref() {
+            Some("cpu") => Self::Cpu,
             Some("cuda") => Self::Cuda,
             Some("rocm") => Self::Rocm,
             _ => Self::Auto,
@@ -45,6 +50,7 @@ impl PharBackend {
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::Auto => "auto",
+            Self::Cpu => "cpu",
             Self::Cuda => "cuda",
             Self::Rocm => "rocm",
         }
@@ -444,12 +450,18 @@ fn start_install_job(
     ));
     write_state(data_dir, initial)?;
     let owned = data_dir.to_path_buf();
+    // Keep checkpoint installation a durable first stage. The existing Admin
+    // Install action advances AssetsReady to runtime setup on explicit use.
+    // Startup does not silently begin another large dependency download.
+    let prepare_runtime = resume_cancelled
+        && (current.phase == PharPhase::AssetsReady
+            || environment_dir(data_dir).join("phar_runtime.py").is_file());
     thread::Builder::new()
         .name("curator-phar-install".into())
         .spawn(move || {
             let _job_lock = job_lock;
             let _lease = lease;
-            run_install(&owned, scope);
+            run_install(&owned, scope, prepare_runtime);
         })
         .map_err(|error| anyhow!(error))?;
     Ok(status(data_dir, scope))
@@ -477,10 +489,10 @@ fn fail(data_dir: &Path, _phase: PharPhase, gpu: Option<DetectedGpu>, message: i
     state.repair_required = true;
     let _ = write_state(data_dir, state);
 }
-fn run_install(data_dir: &Path, scope: InstallScope) {
+fn run_install(data_dir: &Path, scope: InstallScope, prepare_runtime: bool) {
     // Acquiring the RGB asset is independent of hardware. Runtime/inference
     // readiness is a separate gate and must never follow from download alone.
-    let _ = configured_backend(scope);
+    let backend = configured_backend(scope);
     let result = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
@@ -492,11 +504,214 @@ fn run_install(data_dir: &Path, scope: InstallScope) {
         fail(data_dir, PharPhase::DownloadingModels, None, format!("P-HAR RGB asset installation failed: {error}. Use Install / resume or Repair to retry."));
     } else {
         let _ = write_state(data_dir, assets_ready_state());
+        if prepare_runtime {
+            if let Err(error) = provision_runtime(data_dir, backend) {
+                if cancelled(data_dir) {
+                    cancelled_state(data_dir, None);
+                } else {
+                    fail(data_dir, PharPhase::ProvisioningRuntime, None, format!("P-HAR RGB runtime setup failed: {error}. The verified checkpoint is retained. Run Repair; choose CPU or Auto if GPU inference is unavailable."));
+                }
+            }
+        }
     }
 }
 
 fn assets_ready_state() -> PersistedState {
-    new_state(PharPhase::AssetsReady, 100, "Official P-HAR RGB checkpoint installed and SHA-256 verified. Native inference is not ready until its managed runtime passes a real inference probe.")
+    new_state(PharPhase::AssetsReady, 100, "Official P-HAR RGB checkpoint installed and SHA-256 verified. Choose Set up inference to install the private runtime and run real video inference; model download alone does not establish readiness.")
+}
+
+fn provision_runtime(data_dir: &Path, requested: PharBackend) -> Result<()> {
+    if !cfg!(all(target_os = "windows", target_arch = "x86_64")) {
+        return Err(anyhow!("The pinned private RGB runtime currently supports Windows x64. Assets remain installed; no unverified interpreter will be used on this platform."));
+    }
+    let selected = detect_gpu(requested)?;
+    if selected.backend == PharBackend::Rocm {
+        return Err(anyhow!("The pinned MMAction RGB dependencies do not have a verified native Windows ROCm build. Choose CPU or Auto."));
+    }
+    let environment = environment_dir(data_dir);
+    std::fs::write(environment.join("phar_runtime.py"), RUNTIME_SETUP)?;
+    std::fs::write(data_dir.join("action_worker.py"), crate::ACTION_WORKER_PY)?;
+    write_state(data_dir, new_state(PharPhase::ProvisioningRuntime, 5,
+        "Preparing a private pinned Python 3.10 RGB runtime. This does not change system Python."))?;
+    let python_archive = CheckpointManifest {
+        id: "python-3.10.11-embed-amd64",
+        source_url: "https://www.python.org/ftp/python/3.10.11/python-3.10.11-embed-amd64.zip",
+        bytes: Some(8_629_277),
+        sha256: Some("608619f8619075629c9c69f361352a0da6ed7e62f83a0e19c63e0ea32eb7629d"),
+        license: "PSF-2.0; downloaded on demand",
+        release_asset_id: 0,
+        checksum_origin: "Measured from the official Python embedded distribution",
+    };
+    let archive_path = environment.join("downloads/python.zip");
+    tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()?
+        .block_on(async {
+            let client = reqwest::Client::builder()
+                .https_only(true)
+                .connect_timeout(std::time::Duration::from_secs(20))
+                .timeout(std::time::Duration::from_secs(30 * 60))
+                .build()?;
+            install_pinned_file(
+                data_dir,
+                &python_archive,
+                &client,
+                std::time::Duration::from_secs(60),
+                &archive_path,
+            )
+            .await
+        })?;
+    let python_dir = environment.join("python");
+    std::fs::create_dir_all(&python_dir)?;
+    let mut archive = zip::ZipArchive::new(std::fs::File::open(archive_path)?)?;
+    for index in 0..archive.len() {
+        if cancelled(data_dir) {
+            return Err(anyhow!("Setup cancelled"));
+        }
+        let mut entry = archive.by_index(index)?;
+        let relative = entry
+            .enclosed_name()
+            .ok_or_else(|| anyhow!("Unsafe Python archive path"))?;
+        let output = python_dir.join(relative);
+        if entry.is_dir() {
+            std::fs::create_dir_all(output)?;
+        } else {
+            std::fs::create_dir_all(output.parent().unwrap())?;
+            std::io::copy(&mut entry, &mut std::fs::File::create(output)?)?;
+        }
+    }
+    std::fs::write(
+        python_dir.join("python310._pth"),
+        "python310.zip\n.\nLib/site-packages\n../upstream/mmaction2\nimport site\n",
+    )?;
+    run_runtime_process(
+        data_dir,
+        selected.backend,
+        requested == PharBackend::Auto,
+        false,
+    )?;
+    publish_runtime_ready(data_dir)
+}
+
+fn publish_runtime_ready(data_dir: &Path) -> Result<()> {
+    if cancelled(data_dir) {
+        return Err(anyhow!("Setup cancelled"));
+    }
+    if !runtime_is_verified(data_dir) {
+        return Err(anyhow!(
+            "The real inference probe did not produce a complete pinned RGB runtime marker"
+        ));
+    }
+    let marker: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(
+        environment_dir(data_dir).join(RUNTIME_FILE),
+    )?)?;
+    let backend = marker["backend"].as_str().unwrap_or("unknown");
+    let elapsed = marker["probe"]["elapsed_secs"].as_f64().unwrap_or(0.0);
+    let fallback = marker["gpu_fallback_error"]
+        .as_str()
+        .map(|error| format!(" GPU failed; CPU fallback was measured: {error}."))
+        .unwrap_or_default();
+    write_state(data_dir, new_state(PharPhase::Ready, 100,
+        format!("Official RGB inference passed on {backend}: real neutral-video probe {elapsed:.1}s.{fallback} This verifies execution, not class accuracy. Restart AvtoHmver to activate the worker.")))
+}
+
+/// Runs only under the setup file lock. A kill-on-close Windows job owns pip
+/// and inference descendants; cancellation is polled independently of their IO.
+fn run_runtime_process(
+    data_dir: &Path,
+    backend: PharBackend,
+    fallback: bool,
+    self_test: bool,
+) -> Result<()> {
+    let environment = environment_dir(data_dir);
+    let progress_path = environment.join("runtime-progress.json");
+    let _ = std::fs::remove_file(&progress_path);
+    let stdout_path = environment.join("runtime-setup.stdout.log");
+    let stderr_path = environment.join("runtime-setup.stderr.log");
+    std::fs::create_dir_all(environment.join("tmp"))?;
+    let mut command = crate::process::blocking_command(environment.join("python/python.exe"));
+    command
+        .arg(environment.join("phar_runtime.py"))
+        .arg("--environment")
+        .arg(&environment)
+        .arg("--worker")
+        .arg(data_dir.join("action_worker.py"))
+        .arg("--backend")
+        .arg(backend.as_str())
+        .env("TEMP", environment.join("tmp"))
+        .env("TMP", environment.join("tmp"))
+        .stdout(std::process::Stdio::from(std::fs::File::create(
+            &stdout_path,
+        )?))
+        .stderr(std::process::Stdio::from(std::fs::File::create(
+            &stderr_path,
+        )?));
+    if fallback {
+        command.arg("--allow-cpu-fallback");
+    }
+    if self_test {
+        command.arg("--self-test");
+    }
+    let mut child = command.spawn()?;
+    #[cfg(windows)]
+    let tree = crate::process::guard_process_tree(child.id());
+    let started = std::time::Instant::now();
+    let mut last_progress = String::new();
+    let status = loop {
+        let timed_out = started.elapsed()
+            > std::time::Duration::from_secs(if self_test { 12 * 60 } else { 2 * 60 * 60 });
+        if cancelled(data_dir) || timed_out {
+            #[cfg(windows)]
+            {
+                if tree.is_none() {
+                    let _ = crate::process::blocking_command("taskkill")
+                        .args(["/PID", &child.id().to_string(), "/T", "/F"])
+                        .output();
+                }
+                drop(tree);
+            }
+            let _ = child.kill();
+            let _ = child.wait();
+            let _ = std::fs::remove_file(environment.join(RUNTIME_FILE));
+            return Err(anyhow!(if timed_out {
+                "Managed runtime step timed out; see phar/runtime-setup.stderr.log"
+            } else {
+                "Setup cancelled"
+            }));
+        }
+        if let Some(status) = child.try_wait()? {
+            break status;
+        }
+        if let Ok(progress) = std::fs::read_to_string(&progress_path) {
+            if progress != last_progress {
+                if let Ok(state) = serde_json::from_str::<PersistedState>(&progress) {
+                    if matches!(
+                        state.phase,
+                        PharPhase::FetchingSource
+                            | PharPhase::InstallingDependencies
+                            | PharPhase::Probing
+                    ) {
+                        write_state(data_dir, state)?;
+                    }
+                }
+                last_progress = progress;
+            }
+        }
+        thread::sleep(std::time::Duration::from_millis(200));
+    };
+    if !status.success() {
+        let output = std::fs::read_to_string(stdout_path).unwrap_or_default();
+        let error = output
+            .lines()
+            .rev()
+            .filter_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
+            .find_map(|value| value["error"].as_str().map(str::to_owned))
+            .unwrap_or_else(|| {
+                "See phar/runtime-setup.stderr.log for the failed managed step".into()
+            });
+        return Err(anyhow!(error));
+    }
+    Ok(())
 }
 
 fn checkpoint_path(data_dir: &Path) -> PathBuf {
@@ -572,6 +787,16 @@ async fn install_checkpoint_with_idle_timeout(
     idle_timeout: std::time::Duration,
 ) -> Result<()> {
     let destination = checkpoint_path(data_dir);
+    install_pinned_file(data_dir, checkpoint, client, idle_timeout, &destination).await
+}
+
+async fn install_pinned_file(
+    data_dir: &Path,
+    checkpoint: &CheckpointManifest,
+    client: &reqwest::Client,
+    idle_timeout: std::time::Duration,
+    destination: &Path,
+) -> Result<()> {
     if verify_checkpoint(&destination, checkpoint, data_dir).is_ok() {
         return Ok(());
     }
@@ -585,7 +810,10 @@ async fn install_checkpoint_with_idle_timeout(
         new_state(
             PharPhase::DownloadingModels,
             5,
-            "Downloading the pinned official RGB checkpoint.",
+            format!(
+                "Downloading pinned managed P-HAR artifact: {}.",
+                checkpoint.id
+            ),
         ),
     )?;
     let expected_size = checkpoint
@@ -615,7 +843,10 @@ async fn install_checkpoint_with_idle_timeout(
             "Download Content-Length differs from pinned asset size"
         ));
     }
-    let partial = staging_dir(data_dir).join("timeSformer.pth.part");
+    let partial = staging_dir(data_dir).join(format!(
+        "{}.part",
+        destination.file_name().unwrap().to_string_lossy()
+    ));
     let mut file = std::fs::File::create(&partial)?;
     let mut digest = Context::new(&SHA256);
     let mut received = 0_u64;
@@ -653,7 +884,8 @@ async fn install_checkpoint_with_idle_timeout(
                     PharPhase::DownloadingModels,
                     percent,
                     format!(
-                        "Downloading official RGB checkpoint: {received} / {expected_size} bytes."
+                        "Downloading {}: {received} / {expected_size} bytes.",
+                        checkpoint.id
                     ),
                 ),
             )?;
@@ -721,7 +953,26 @@ pub fn self_test(data_dir: &Path, scope: InstallScope) -> Result<PharStatus> {
             Ok(()) if !runtime_is_verified(data_dir) => {
                 write_state(data_dir, assets_ready_state())?
             }
-            Ok(()) => {}
+            Ok(()) => {
+                let marker: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(
+                    environment_dir(data_dir).join(RUNTIME_FILE),
+                )?)?;
+                let backend = PharBackend::parse(marker["backend"].as_str());
+                write_state(data_dir, new_state(PharPhase::Probing, 85,
+                    "Rehashing the checkpoint and rerunning actual neutral-video RGB inference."))?;
+                match run_runtime_process(data_dir, backend, false, true)
+                    .and_then(|_| publish_runtime_ready(data_dir))
+                {
+                    Ok(()) => {}
+                    Err(_) if cancelled(data_dir) => cancelled_state(data_dir, None),
+                    Err(error) => fail(
+                        data_dir,
+                        PharPhase::Probing,
+                        None,
+                        format!("P-HAR inference self-test failed: {error}. Run Repair."),
+                    ),
+                }
+            }
         }
     }
     Ok(status(data_dir, scope))
@@ -746,11 +997,15 @@ pub fn runtime_is_verified(data_dir: &Path) -> bool {
     struct Marker {
         format: String,
         upstream_revision: String,
+        mmaction_revision: String,
         backend: PharBackend,
+        device: String,
         checkpoints_verified: bool,
         inference_probe_passed: bool,
         managed_python: String,
         artifact_hashes: serde_json::Value,
+        packages: serde_json::Value,
+        probe: serde_json::Value,
     }
     let marker = std::fs::read_to_string(environment_dir(data_dir).join(RUNTIME_FILE))
         .ok()
@@ -758,9 +1013,30 @@ pub fn runtime_is_verified(data_dir: &Path) -> bool {
     let Some(marker) = marker else {
         return false;
     };
-    marker.format == "curator-phar-runtime-v1"
+    let expected_device = if marker.backend == PharBackend::Cpu {
+        "cpu"
+    } else {
+        "cuda:0"
+    };
+    let packages = &marker.packages;
+    let torch_version = packages["torch"].as_str();
+    let expected_vision = match torch_version {
+        Some("1.13.1+cpu") => Some("0.14.1+cpu"),
+        Some("1.13.1+cu117") => Some("0.14.1+cu117"),
+        _ => None,
+    };
+    marker.format == RUNTIME_FORMAT
         && marker.upstream_revision == UPSTREAM_REVISION
-        && matches!(marker.backend, PharBackend::Cuda | PharBackend::Rocm)
+        && marker.mmaction_revision == MMACTION_REVISION
+        && matches!(marker.backend, PharBackend::Cpu | PharBackend::Cuda)
+        && marker.device == expected_device
+        && (marker.backend != PharBackend::Cuda || torch_version == Some("1.13.1+cu117"))
+        && expected_vision.is_some()
+        && packages["torchvision"].as_str() == expected_vision
+        && packages["mmcv"].as_str() == Some("1.5.0")
+        && packages["numpy"].as_str() == Some("1.23.5")
+        && packages["opencv-python"].as_str() == Some("4.7.0.72")
+        && packages["einops"].as_str() == Some("0.4.1")
         && marker.checkpoints_verified
         && marker.inference_probe_passed
         && !marker.managed_python.is_empty()
@@ -770,6 +1046,35 @@ pub fn runtime_is_verified(data_dir: &Path) -> bool {
             .get("p-har-timesformer")
             .and_then(|hash| hash.as_str())
             == pinned_manifest().checkpoints[0].sha256
+        && marker.artifact_hashes["worker"].as_str()
+            == Some(
+                hex::encode(
+                    ring::digest::digest(&SHA256, crate::ACTION_WORKER_PY.as_bytes()).as_ref(),
+                )
+                .as_str(),
+            )
+        && marker.artifact_hashes["phar-source"].as_str()
+            == Some("80b8caf01c198e59fcb692b1afa913584cb50f3bb57e85c6b3e2b80e7798a777")
+        && marker.artifact_hashes["mmaction-source"].as_str()
+            == Some("158bfec444a4a65639b951e7879094c562afff90be3c16dd2820ac86909e7dfd")
+        && marker.probe["backend"].as_str() == Some(marker.backend.as_str())
+        && marker.probe["device"].as_str() == Some(expected_device)
+        && marker.probe["elapsed_secs"]
+            .as_f64()
+            .is_some_and(|elapsed| elapsed.is_finite() && elapsed > 0.0)
+        && marker.probe["video_sha256"].as_str()
+            == Some("071e60535eaf0aed475ddac06269ee0cdfc4740158f22d9ccd2c3b93b42aa344")
+        && marker.probe["response"]["ready"].as_bool() == Some(true)
+        && marker.probe["response"]["result"]["windows"]
+            .as_array()
+            .is_some_and(|windows| {
+                !windows.is_empty()
+                    && windows.iter().all(|window| {
+                        window["scores"]
+                            .as_object()
+                            .is_some_and(|scores| scores.len() == 17)
+                    })
+            })
         && std::fs::metadata(checkpoint_path(data_dir))
             .map(|meta| meta.len())
             .ok()
@@ -790,6 +1095,16 @@ fn command_output(program: &str, args: &[&str]) -> Option<String> {
     .map(|out| String::from_utf8_lossy(&out.stdout).trim().to_owned())
 }
 /// Pure selection is exposed for deterministic hardware-free tests.
+fn cpu_backend() -> DetectedGpu {
+    DetectedGpu {
+        backend: PharBackend::Cpu,
+        name: "CPU".into(),
+        driver: None,
+        compatible: true,
+        detail: "CPU fallback requires a measured real RGB inference probe.".into(),
+    }
+}
+
 pub fn select_backend(
     requested: PharBackend,
     cuda: Option<DetectedGpu>,
@@ -797,12 +1112,16 @@ pub fn select_backend(
 ) -> Result<DetectedGpu> {
     let compatible = |gpu: Option<DetectedGpu>| gpu.filter(|gpu| gpu.compatible);
     match requested {
+        PharBackend::Cpu => Ok(cpu_backend()),
         PharBackend::Cuda => compatible(cuda).ok_or_else(|| anyhow!("CUDA was requested, but no compatible NVIDIA GPU/driver was detected. Update the NVIDIA driver or choose ROCm only for an AMD GPU supported by AMD's Windows matrix.")),
         PharBackend::Rocm => compatible(rocm).ok_or_else(|| anyhow!("ROCm was requested, but no supported AMD GPU/driver was detected. Install an AMD-published Windows ROCm driver or choose CUDA.")),
-        PharBackend::Auto => compatible(cuda).or_else(|| compatible(rocm)).ok_or_else(|| anyhow!("No compatible native CUDA or ROCm GPU was detected. P-HAR remains disabled; NudeNet and manual review are still available.")),
+        PharBackend::Auto => Ok(compatible(cuda).or_else(|| compatible(rocm)).unwrap_or_else(cpu_backend)),
     }
 }
 pub fn detect_gpu(requested: PharBackend) -> Result<DetectedGpu> {
+    if requested == PharBackend::Cpu {
+        return Ok(cpu_backend());
+    }
     if let Ok(fake) = crate::config::env_var("CURATOR_PHAR_TEST_GPU") {
         let fake = fake.to_ascii_lowercase();
         let cuda = (fake == "cuda").then(|| DetectedGpu {
