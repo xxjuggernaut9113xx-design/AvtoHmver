@@ -1,0 +1,51 @@
+// Run against a disposable, local-owner Server fixture. Imports only generated audio.
+const {chromium}=require(process.env.FANSERVICE_PLAYWRIGHT_MODULE||'./browser/node_modules/playwright');
+const assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path');
+const {createHash}=require('node:crypto'),{pathToFileURL}=require('node:url');
+const origin=process.env.FANSERVICE_FIXTURE_ORIGIN,output=process.env.FANSERVICE_SMOKE_OUTPUT;
+let browser;
+(async()=>{
+ assert.ok(origin&&output,'Set FANSERVICE_FIXTURE_ORIGIN and an isolated FANSERVICE_SMOKE_OUTPUT');
+ assert.ok(['127.0.0.1','localhost'].includes(new URL(origin).hostname),'Disposable local-owner Server required');
+ await fs.mkdir(output,{recursive:true});
+ const rate=22050,seconds=8,wav=Buffer.alloc(44+rate*seconds*2),title=`Ticket36 neutral click ${Date.now()}.wav`;
+ wav.write('RIFF');wav.writeUInt32LE(wav.length-8,4);wav.write('WAVEfmt ',8);wav.writeUInt32LE(16,16);wav.writeUInt16LE(1,20);wav.writeUInt16LE(1,22);wav.writeUInt32LE(rate,24);wav.writeUInt32LE(rate*2,28);wav.writeUInt16LE(2,32);wav.writeUInt16LE(16,34);wav.write('data',36);wav.writeUInt32LE(wav.length-44,40);
+ for(let sample=0;sample<rate*seconds;sample++){const phase=sample%(rate/2);wav.writeInt16LE(Math.round(phase<1500?6000*Math.sin(phase*2*Math.PI*1000/rate)*Math.exp(-phase/160):0),44+sample*2);}
+ // Keep reruns independent of the Server's recording deduplication.
+ require('node:crypto').randomBytes(8).copy(wav,wav.length-8);
+ browser=await chromium.launch({headless:true,...(process.env.FANSERVICE_BROWSER_EXECUTABLE?{executablePath:process.env.FANSERVICE_BROWSER_EXECUTABLE}:{})});
+ const page=await browser.newPage({viewport:{width:1280,height:900}}),errors=[];page.on('pageerror',error=>errors.push(error.message));
+ await page.goto(origin+'/fanservice-music/');
+ await page.locator('#file').setInputFiles({name:title,mimeType:'audio/wav',buffer:wav});
+ await page.getByRole('button',{name:'Import selected audio',exact:true}).click();
+ await page.getByRole('status').filter({hasText:'Recording imported.'}).waitFor();
+ await page.locator('#tracks').selectOption({label:title});
+ const trackId=Number(await page.locator('#tracks').inputValue());
+ await page.getByRole('button',{name:'Analyze recording',exact:true}).click();
+ await page.getByRole('status').filter({hasText:'Proposal ready.'}).waitFor({timeout:60000});
+ assert.equal(await page.locator('#confirmed').isChecked(),false);
+ const proposal=JSON.parse(await page.locator('#document').inputValue());assert.ok(proposal.beats.length>4);
+ await page.locator('#audio').evaluate(audio=>audio.play());
+ await page.waitForFunction(()=>document.getElementById('audio').currentTime>.1);
+ assert.equal(await page.locator('#audio').evaluate(audio=>audio.duration),seconds);
+ await page.locator('#audio').evaluate(audio=>audio.pause());
+ assert.equal((await page.request.get(origin+`/api/fanservice/v1/music/${trackId}/manifest`)).ok(),false,'Analysis alone cannot enable delivery');
+ const edited={beats:[{time:.25,type:'accent'},{time:1,type:'stroke'},{time:2,type:'rest'},{time:3,type:'stroke'}],events:[{time:1.5,type:'text',value:'Neutral review checkpoint'}]};
+ await page.locator('#document').fill(JSON.stringify(edited,null,2));await page.locator('#bpm').fill('120');await page.locator('#offset').fill('0');
+ await page.getByRole('button',{name:'Save beatmap',exact:true}).click();await page.getByRole('status').filter({hasText:'Beatmap saved.'}).waitFor();
+ assert.equal((await page.request.get(origin+`/api/fanservice/v1/music/${trackId}/manifest`)).ok(),false,'An unconfirmed saved edit cannot enable delivery');
+ await page.locator('#confirmed').check();await page.getByRole('button',{name:'Save beatmap',exact:true}).click();await page.getByRole('status').filter({hasText:'Beatmap saved.'}).waitFor();
+ await page.waitForFunction(()=>!document.getElementById('save').disabled);
+ await page.screenshot({path:path.join(output,'confirmed-server-recording.png'),fullPage:true});
+ await page.reload();await page.locator('#tracks').selectOption(String(trackId));await page.getByRole('button',{name:'Load saved beatmap',exact:true}).click();
+ await page.getByRole('status').filter({hasText:'Saved map matches this recording.'}).waitFor();
+ assert.equal(await page.locator('#confirmed').isChecked(),true);assert.deepEqual(JSON.parse(await page.locator('#document').inputValue()),edited);
+ const manifestResponse=await page.request.get(origin+`/api/fanservice/v1/music/${trackId}/manifest`);assert.equal(manifestResponse.ok(),true);const manifest=await manifestResponse.json();
+ assert.equal(manifest.recording_id,'sha1:'+createHash('sha1').update(wav).digest('hex'));assert.deepEqual(manifest.beatmap.beats,edited.beats);assert.deepEqual(manifest.beatmap.events,edited.events);
+ const {deliverServerMusic}=await import(pathToFileURL(path.resolve('mod/native/music-delivery.mjs')));
+ const delivery=await deliverServerMusic({serverOrigin:origin,trackId,outputDirectory:path.join(output,'native-pack')});
+ assert.deepEqual(await fs.readFile(path.join(delivery.directory,'song.wav')),wav);
+ const native=JSON.parse(await fs.readFile(path.join(delivery.directory,'beatmap.json'),'utf8'));assert.deepEqual(native.beats,edited.beats);assert.deepEqual(native.events,edited.events);assert.deepEqual(errors,[]);
+ await fs.writeFile(path.join(output,'result.json'),JSON.stringify({track_id:trackId,recording_id:manifest.recording_id,analyzed_proposal_beats:proposal.beats.length,recording_preview_progressed:true,edited,confirmed_reload:true,unconfirmed_delivery_rejected:true,exact_recording_and_map_delivered:true,delivery,native_playback:'Not run by this check; retained original v005 session evidence is separate.'},null,2));
+ console.log('Server owner UI import/analyze/edit/confirm/reload and exact native delivery passed.');
+})().catch(error=>{console.error(error);process.exitCode=1;}).finally(async()=>{if(browser)await browser.close();});
