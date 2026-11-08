@@ -27,10 +27,10 @@
   }
   return true;
  }
- function schedule(map,position,state,callbacks){
+ function schedule(map,position,state,callbacks,{continuous=false}={}){
   if(!Number.isFinite(position)||position<0)return;
   timelineState(map,state);
-  if(position<state.last-.05||position>state.last+1)seek(map,position,state,callbacks);
+  if(position<state.last-.05||!continuous&&position>state.last+1)seek(map,position,state,callbacks);
   while(state.next<map.beats.length&&map.beats[state.next].time<=position||state.event<map.events.length&&map.events[state.event].time<=position){
    const nextBeat=map.beats[state.next],nextEvent=map.events[state.event];
    if(nextEvent&&nextEvent.time<=position&&(!nextBeat||nextEvent.time<=nextBeat.time)){
@@ -44,5 +44,21 @@
   state.last=position;
  }
 
- const api={thresholds,comboTier,drawMultipliers,coinAward,mediaPools,xp,meter,rewards,schedule,seek};if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.FanserviceRules=api;
+ // Recording samples can be sparse when rendering stalls. Only an explicit seek
+ // skips rows; elapsed wall time never substitutes for the recording position.
+ function recordingSample(map,position,state,callbacks,{active=false,ended=false}={}){
+  if(!Number.isFinite(position)||position<0||!active&&!ended)return null;
+  timelineState(map,state);
+  const bounded=Math.min(position,map.meta.duration),elapsed=Math.max(0,bounded-state.last);
+  if(bounded<state.last-.05)seek(map,bounded,state,callbacks);
+  let cursor=state.last;
+  const advanceTo=time=>{const next=Math.max(cursor,Math.min(time,bounded));callbacks.advance?.(next-cursor);cursor=next;};
+  const ordered={...callbacks};
+  for(const lane of ['beat','event','replayBeat'])ordered[lane]=(row,...args)=>{advanceTo(row.time);callbacks[lane]?.(row,...args);};
+  schedule(map,bounded,state,ordered,{continuous:true});
+  advanceTo(bounded);
+  return {elapsed,complete:ended&&bounded>=map.meta.duration&&state.next===map.beats.length&&state.event===map.events.length};
+ }
+
+ const api={thresholds,comboTier,drawMultipliers,coinAward,mediaPools,xp,meter,rewards,schedule,seek,recordingSample};if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.FanserviceRules=api;
 })(globalThis);

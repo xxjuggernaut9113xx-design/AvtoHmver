@@ -3,6 +3,7 @@ const $=id=>document.getElementById(id),store=FanserviceStore,rules=FanserviceRu
 const profileKey='fanservice-profile-v1:'+library,checkpointKey='fanservice-session-v1:'+library,audio=$('audio');
 let sessionId=store.id(),profile,media=[],decks,remaining={},music,map,soundtrackWarnings,run,state,catalog,contract,cardRules,started=false,paused=false,finished=false,settling=false,lastBeat=0,lastFrame=0,checkpointAt=0,category='slow',breakUntil=0,speed=1,pinnedPacks=[],restoring=false;
 const clock={next:0,event:0,last:0},resources=[],finishButton=$('finish');
+let musicBuffering=false,musicLeadIn=0,musicStarting=false;
 let finishHold;
 const mediaStatus=document.createElement('p');mediaStatus.id='media-status';mediaStatus.setAttribute('role','status');$('voice-status').after(mediaStatus);
 for(const id of ['image','video'])FanserviceMedia.observe($(id),text=>mediaStatus.textContent=text);
@@ -245,9 +246,17 @@ function reconcileTimeline(events){
  for(const entry of events)event(entry,{replay:true});
 }
 function timelineCallbacks(){return {beat,event,replayBeat:pulseBeat,reconcile:reconcileTimeline};}
+function sampleMusic(ended=false){
+ return rules.recordingSample(map,audio.currentTime,clock,{...timelineCallbacks(),advance:elapsed=>objectiveEvents(run.advance(elapsed))},{active:!paused&&!musicLeadIn&&!musicBuffering&&!audio.paused&&!audio.seeking&&audio.readyState>=3,ended});
+}
+function resumeMusic(){
+ if(musicLeadIn||musicStarting)return;
+ musicStarting=true;
+ audio.play().catch(error=>{paused=true;$('pause').textContent='Resume';status(error.message);render();}).finally(()=>{musicStarting=false;});
+}
 function checkpoint(force=false){
  if(!started||finished||!run)return;const now=performance.now();if(!force&&now-checkpointAt<1000)return;checkpointAt=now;
- try{localStorage.setItem(checkpointKey,JSON.stringify({version:1,id:sessionId,library,server:store.server(),run:run.export(),media,music,clock:{...clock},position:position(),lastBeat,category,breakUntil,speed,pinnedPacks}));}
+ try{localStorage.setItem(checkpointKey,JSON.stringify({version:1,id:sessionId,library,server:store.server(),run:run.export(),media,music,clock:{...clock},position:position(),lastBeat,category,breakUntil,speed,pinnedPacks,musicLeadIn}));}
  catch(error){status('Session checkpoint could not be saved: '+error.message);}
 }
 function renderTower(){
@@ -290,23 +299,28 @@ function objectiveEvents(events){
 function tick(now){
  const delta=lastFrame?Math.max((now-lastFrame)/1000,0):0;lastFrame=now;
  if(started&&!paused&&!finished&&run.phase==='playing'){
+  if(music&&musicLeadIn>0){
+   musicLeadIn=Math.max(0,musicLeadIn-delta);
+   status(musicLeadIn?`Song starts in ${Math.ceil(musicLeadIn)}…`:'Starting recording…');
+   if(!musicLeadIn)resumeMusic();
+   checkpoint();render();requestAnimationFrame(tick);return;
+  }
   const sample=position();
-  if(music&&!audio.seeking&&(sample<clock.last-.05||sample>clock.last+1)){
+  if(music&&!audio.seeking&&sample<clock.last-.05){
    window.FanserviceVoice.stop();
    vibration.cancel();
    rules.seek(map,sample,clock,timelineCallbacks());
   }
   const elapsed=music?Math.max(0,sample-clock.last):delta;
-  const advancing=!music||!audio.paused&&!audio.seeking&&audio.readyState>=3&&elapsed>0;
+  const advancing=!music||!musicBuffering&&!audio.paused&&!audio.seeking&&audio.readyState>=3;
   if(advancing){
    if(vibrationMode.value==='event'){
     vibration.advance(state.seconds,state.seconds+elapsed,vibrationDeadlines());
     if(music)vibration.advance(clock.last,sample,soundtrackWarnings);
    }
-   const events=run.advance(elapsed);objectiveEvents(events);
+   if(music)sampleMusic();else objectiveEvents(run.advance(elapsed));
    if(!finished&&run.phase==='playing'){
-    if(music)rules.schedule(map,sample,clock,timelineCallbacks());
-    else if(!run.config.cardRules){const interval=[.7,.5,.35][Number($('difficulty').value)]/speed*(FanserviceEconomy.has(run,6)?2:1);if(state.seconds>=breakUntil&&position()-lastBeat>=interval)beat();}
+    if(!music&&!run.config.cardRules){const interval=[.7,.5,.35][Number($('difficulty').value)]/speed*(FanserviceEconomy.has(run,6)?2:1);if(state.seconds>=breakUntil&&position()-lastBeat>=interval)beat();}
     const itemState=readItemState();for(const result of FanserviceItems.tick(run.inventory,itemState,elapsed,itemDependencies())){
      if(result==='BountyClaimed')state.BountiesCollected=(state.BountiesCollected||0)+1;
      if(result==='BountyFailed')state.BountyCollectionFailures=(state.BountyCollectionFailures||0)+1;
@@ -381,12 +395,18 @@ $('start').onclick=async()=>{
   if(!media.length)throw Error('No playable media.');if(finished||started)return;
   if(!run.resumed){const equipped=[...run.inventory.hotbarItems];installRun(makeRun());run.inventory.hotbarItems=equipped.map(type=>run.inventory.state(type)?type:8);}
   window.FanserviceVoice?.unlock().catch(()=>{});
-  if(music){await audio.play();if(Math.abs(audio.duration-music.duration)>.35){audio.pause();throw Error('Recording duration differs from the confirmed beatmap.');}}
+  if(music){
+   const lead=!run.resumed||musicLeadIn>0,muted=audio.muted;
+   if(lead)audio.muted=true;
+   try{await audio.play();if(Math.abs(audio.duration-music.duration)>.35){audio.pause();throw Error('Recording duration differs from the confirmed beatmap.');}}
+   finally{if(lead)audio.pause();audio.muted=muted;}
+   if(!run.resumed){audio.currentTime=0;musicLeadIn=2;}
+  }
   started=true;lastFrame=performance.now();$('start').disabled=true;$('difficulty').disabled=true;for(const input of settingsPanel.querySelectorAll('input,select'))input.disabled=true;
   $('pause').disabled=false;draw(category,{prepare:!run.resumed});renderTower();render();checkpoint(true);status('Playing locally with the session selection frozen.');if(run.phase==='complete')await end(!!state.won);
  }catch(error){status(error.message);}
 };
-$('pause').onclick=()=>{if(!started||finished)return;paused=!paused;if(paused){vibration.cancel();cancelFinishHold();window.FanserviceVoice?.stop();audio.pause();$('video').pause();checkpoint(true);}else{lastFrame=performance.now();if(music)audio.play().catch(error=>status(error.message));if(!$('video').hidden)$('video').play().catch(error=>status(error.message));}$('pause').textContent=paused?'Resume':'Pause';render();};
+$('pause').onclick=()=>{if(!started||finished)return;paused=!paused;if(paused){vibration.cancel();cancelFinishHold();window.FanserviceVoice?.stop();audio.pause();$('video').pause();checkpoint(true);}else{lastFrame=performance.now();if(music)resumeMusic();if(!$('video').hidden)$('video').play().catch(error=>status(error.message));}$('pause').textContent=paused?'Resume':'Pause';render();};
 function tap(){if(started&&!paused&&!finished&&!music&&run.phase==='playing')draw();}
 $('tap').onclick=tap;$('draw').onclick=()=>draw();$('pool').onchange=()=>draw($('pool').value);
 function canFinish(){
@@ -440,8 +460,9 @@ if(navigator.mediaSession){
   try{navigator.mediaSession.setActionHandler(action,()=>{});}catch{/* This browser does not implement the action. */}
  }
 }
-audio.addEventListener('waiting',()=>{window.FanserviceVoice.stop();vibration.cancel();status('Buffering: rhythm clock is held at the actual playback position.');});audio.addEventListener('playing',()=>status('Playing from the client audio clock.'));audio.addEventListener('ended',()=>{if(state)state.BestMusicModeWinRounds=1;void end(true);});audio.addEventListener('error',()=>status('Soundtrack access failed. Reconnect or use an explicitly saved snapshot.'));
-audio.addEventListener('seeked',()=>{window.FanserviceVoice.stop();vibration.cancel();if(map&&state){rules.seek(map,audio.currentTime,clock,timelineCallbacks());checkpoint(true);render();}});
+audio.addEventListener('waiting',()=>{musicBuffering=true;window.FanserviceVoice.stop();vibration.cancel();status('Buffering: rhythm clock is held at the actual playback position.');});audio.addEventListener('playing',()=>{musicBuffering=false;status('Playing from the client audio clock.');});
+audio.addEventListener('ended',()=>{if(!music||!started||paused||finished||settling||musicLeadIn||audio.seeking)return;const final=sampleMusic(true);if(!final?.complete){status('Recording ended before the confirmed song boundary. No completion rewards were granted.');return;}state.BestMusicModeWinRounds=1;void end(true);});audio.addEventListener('error',()=>status('Soundtrack access failed. Reconnect or use an explicitly saved snapshot.'));
+audio.addEventListener('seeked',()=>{window.FanserviceVoice.stop();vibration.cancel();if(started&&!musicLeadIn&&map&&state){rules.seek(map,audio.currentTime,clock,timelineCallbacks());checkpoint(true);render();}});
 document.addEventListener('visibilitychange',()=>{if(document.hidden){cancelFinishHold();if(started&&!paused&&!finished)$('pause').click();}updateScreenWake();});
 window.addEventListener('pagehide',()=>{pageHidden=true;window.FanserviceVoice.stop();vibration.cancel();cancelFinishHold();updateScreenWake();checkpoint(true);});
 window.addEventListener('pageshow',()=>{pageHidden=false;updateScreenWake();});
@@ -460,7 +481,7 @@ async function restoreMedia(item){
  if(saved){
   restoring=true;
   if(saved.version!==1||saved.library!==library||saved.server!==store.server())throw Error('An unfinished session belongs to a different Server or unsupported version.');
-  sessionId=saved.id;pinnedPacks=saved.pinnedPacks||[];media=await Promise.all(saved.media.map(restoreMedia));music=saved.music;if(music?.storage_key)music=await restoreMedia(music);installRun(FanserviceRun.Run.restore(catalog,saved.run));run.resumed=true;Object.assign(clock,saved.clock);lastBeat=saved.lastBeat??saved.position??0;category=saved.category;breakUntil=saved.breakUntil||0;speed=saved.speed||1;settingsPanel.hidden=true;$('source').textContent='Unfinished session restored · frozen membership';
+  sessionId=saved.id;pinnedPacks=saved.pinnedPacks||[];media=await Promise.all(saved.media.map(restoreMedia));music=saved.music;if(music?.storage_key)music=await restoreMedia(music);installRun(FanserviceRun.Run.restore(catalog,saved.run));run.resumed=true;Object.assign(clock,saved.clock);lastBeat=saved.lastBeat??saved.position??0;category=saved.category;breakUntil=saved.breakUntil||0;speed=saved.speed||1;musicLeadIn=Math.max(0,Math.min(2,Number(saved.musicLeadIn)||0));settingsPanel.hidden=true;$('source').textContent='Unfinished session restored · frozen membership';
  }else{
   const manifests={},enabled=profile.packs.filter(pack=>pack.owned&&pack.enabled);
   if(params.has('snapshot')){
@@ -475,6 +496,6 @@ async function restoreMedia(item){
  }
  if(saved)$('difficulty').value=String(run.config.difficulty??1);
  const missing=['slow','medium','fast','succubus','cum'].filter(pool=>!decks[pool].length);if(missing.length)throw Error('Enabled packs lack required gameplay pools: '+missing.join(', ')+'. Enable complementary packs or organize their tags in full fanservice.');
- if(music){store.validateMusic(music,{libraryId:library,playable:true});map=music.beatmap;soundtrackWarnings=map.events.filter(e=>['edge','disable_break','restore_break'].includes(e.type)).map(e=>e.time);audio.src=music.url||new URL(music.stream_url,store.server());if(saved)audio.addEventListener('loadedmetadata',()=>{audio.currentTime=saved.position;},{once:true});}
+ if(music){store.validateMusic(music,{libraryId:library,playable:true});map=music.beatmap;soundtrackWarnings=map.events.filter(e=>['edge','disable_break','restore_break'].includes(e.type)).map(e=>e.time);audio.src=music.url||new URL(music.stream_url,store.server());if(saved)audio.addEventListener('loadedmetadata',()=>{audio.currentTime=saved.position;rules.seek(map,saved.position,{...clock},timelineCallbacks());},{once:true});}
  draw(category,{prepare:!saved});renderTower();render();$('start').disabled=false;status(saved?'Unfinished session ready. Tap Start to resume.':'Ready. Tap Start to enable local playback and audio.');requestAnimationFrame(tick);
 })().catch(async error=>{status(error.message);$('start').disabled=true;if(!started&&!restoring)await releasePins().catch(()=>{});if(restoring)settingsPanel.append(action('Discard unfinished session',async()=>{if(!confirm('Discard this unfinished session without granting rewards? Saved library media and pack ownership are retained.'))return;await releasePins();localStorage.removeItem(checkpointKey);location.reload();}));});
