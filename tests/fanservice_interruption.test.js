@@ -2,6 +2,34 @@ const test=require('node:test'),assert=require('node:assert/strict');
 const {Run}=require('../static/fanservice/run');
 const modes=require('../static/fanservice/data/modes.json'),cardRules=require('../static/fanservice/data/card-rules.json');
 
+test('one Classic return edge resumes the interrupted ordinary task without draining its frozen queue',()=>{
+ let run=new Run(modes,{seed:137,cardRules,settings:{LastObjectiveIndex_Classic:1,LastObjective_Timer:300}});
+ run.startCard('slow');run.advance(2);
+ const before=run.export();run.interrupt();run=Run.restore(modes,run.export());run.resumeInterrupted();
+ run.advance(3);run.edge();run.advance(1);
+ assert.equal(run.returnEdge,null);
+ assert.equal(run.state.edge.phase,'idle');
+ assert.equal(run.state.cardFlow.pool,'slow');
+ assert.equal(run.state.canUseItems,true);
+ assert.equal(run.state.cardFlow.completed,before.state.cardFlow.completed);
+ run.advance(0);
+ assert.equal(run.state.cardFlow.completed,before.state.cardFlow.completed,'Return time cannot deliver the frozen task beats');
+ run.advance(3);
+ assert.ok(run.state.cardFlow.completed>before.state.cardFlow.completed);
+});
+
+test('reloading an interrupted Classic refocus edge retains the original task and replays only that edge',()=>{
+ let run=new Run(modes,{seed:137,cardRules,settings:{LastObjectiveIndex_Classic:1,LastObjective_Timer:300}});
+ run.startCard('medium');run.advance(2);const before=run.export();
+ run.interrupt();run.resumeInterrupted();run.advance(3);run.edge();
+ run.interrupt();run=Run.restore(modes,run.export());run.resumeInterrupted();
+ run.advance(3);run.edge();run.advance(1);
+ assert.equal(run.returnEdge,null);assert.equal(run.state.edges,1);
+ assert.equal(run.state.edge.phase,'idle');assert.equal(run.state.cardFlow.pool,'medium');
+ assert.equal(run.state.cardFlow.completed,before.state.cardFlow.completed);
+ assert.equal(run.state.canUseItems,true);
+});
+
 test('interrupted current edge rolls back its beats and reward while retaining the completed edge',()=>{
  const run=new Run(modes,{seed:137,cardRules});run.startCard('slow');
  run.edge();run.advance(1);run.continueEdgeRest();

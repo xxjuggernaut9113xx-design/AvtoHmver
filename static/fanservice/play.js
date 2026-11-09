@@ -290,6 +290,7 @@ function objectiveEvents(events){
  if(events.some(e=>e.type==='edge-streak-ended'&&e.requestNextCard)&&run.phase==='playing')draw('slow',{force:true});
  if(events.some(e=>e.type==='edge-recorded'))status(events.find(e=>e.type==='edge-recorded').perfect?'Perfect edge recorded.':'Edge recorded.');
  if(events.some(e=>e.type==='return-edge-complete')&&music){resumeMusic();status('Return edge complete. Resuming the saved song position.');}
+ if(!music){const resumed=events.find(e=>e.type==='return-edge-complete'&&e.resumePool);if(resumed){draw(resumed.resumePool,{prepare:false,force:true});status('Return edge complete. Resuming the interrupted task.');}}
  if(events.some(e=>e.type==='tribute-recorded'))status(`Tribute recorded: ${state.milkingCount}.`);
  if(events.some(e=>e.type==='objective-reset'))status('Release window closed. Objective reset.');
  if(events.some(e=>['round-complete','round-failed'].includes(e.type))||run.phase!=='playing')renderTower();

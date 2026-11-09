@@ -1,5 +1,26 @@
 # Tickets 52 and 53: interrupted edges and music returns
 
+## November 9: resume the ordinary task after one refocus edge
+
+An additional Classic UI check exposed that returning from an ordinary task
+entered a full Edge streak. The player now restores the interrupted ordinary
+card after one real refocus edge, including its prepared queue, item eligibility
+and card reward multipliers. Its queue start moves by the refocus duration so
+that frozen beats cannot drain while the return edge runs. An interruption
+during an existing Edge continues that streak after replaying only its current
+edge. Repeated interruption during an ordinary task's refocus preserves the
+original task and replays just the refocus edge.
+
+A public Run regression failed before the fix; it and an additional repeated
+interruption regression now pass. The
+All-or-Nothing UI smoke verifies the single-edge return through actual controls
+before a second item use: see `ticket48-item-reset-browser-20261109.md`.
+
+The full JavaScript suite passed 250 tests after this change. The interruption
+and music-timeline browser smokes also passed again in desktop Edge, with their
+temporary profiles on E:. These use synthetic recording endpoints and do not
+establish physical-phone lifecycle acceptance.
+
 On November 8, the shared Web app player passed a headless Microsoft Edge check
 using current working-tree assets and a synthetic four-second PCM WAV recording.
 No personal media or original game executable was used.

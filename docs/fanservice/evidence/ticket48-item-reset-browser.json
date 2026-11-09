@@ -1,0 +1,101 @@
+{
+  "authority": "Playwright normal player controls with virtual clock and synthetic neutral media/Server route; inventory is seeded through the grant API, modifier/profile through starting profile; no gameplay metrics are injected; reconstruction runtime only, not original-game execution",
+  "cases": [
+    {
+      "objective": 1,
+      "name": "Timer (seconds)",
+      "before": {
+        "seconds": 12.07,
+        "strokes": 5,
+        "coins": 5
+      },
+      "firstReset": {
+        "rawSeconds": 12.177,
+        "rawStrokes": 5,
+        "effectiveSeconds": 0.01699999999999946,
+        "effectiveStrokes": 5,
+        "coins": 0,
+        "offsets": {
+          "sessionLength": 12.16
+        }
+      },
+      "restored": {
+        "rawSeconds": 12.206999999999999,
+        "rawStrokes": 5,
+        "effectiveSeconds": 0.04699999999999882,
+        "effectiveStrokes": 5,
+        "charges": 2
+      },
+      "returnEdge": {
+        "card": 0,
+        "pool": "slow",
+        "edgePhase": "idle",
+        "canUseItems": true
+      },
+      "secondReset": {
+        "rawSeconds": 17.406,
+        "rawStrokes": 7,
+        "effectiveSeconds": 0.013999999999999346,
+        "effectiveStrokes": 7,
+        "coins": 0,
+        "charges": 1,
+        "offsets": {
+          "sessionLength": 17.392
+        }
+      },
+      "hudAfterSecondReset": "7 beats · combo 7 (0) · 0 coins · 0 SuccuCoins · heat 0.0 · 0 seconds"
+    },
+    {
+      "objective": 2,
+      "name": "Strokes",
+      "before": {
+        "seconds": 12.014,
+        "strokes": 6,
+        "coins": 6
+      },
+      "firstReset": {
+        "rawSeconds": 12.056999999999999,
+        "rawStrokes": 6,
+        "effectiveSeconds": 12.056999999999999,
+        "effectiveStrokes": 0,
+        "coins": 0,
+        "offsets": {
+          "strokes": 6
+        }
+      },
+      "restored": {
+        "rawSeconds": 12.088999999999999,
+        "rawStrokes": 6,
+        "effectiveSeconds": 12.088999999999999,
+        "effectiveStrokes": 0,
+        "charges": 2
+      },
+      "returnEdge": {
+        "card": 0,
+        "pool": "slow",
+        "edgePhase": "idle",
+        "canUseItems": true
+      },
+      "secondReset": {
+        "rawSeconds": 17.205,
+        "rawStrokes": 8,
+        "effectiveSeconds": 17.205,
+        "effectiveStrokes": 0,
+        "coins": 0,
+        "charges": 1,
+        "offsets": {
+          "strokes": 8
+        }
+      },
+      "hudAfterSecondReset": "0 beats · combo 8 (0) · 0 coins · 0 SuccuCoins · heat 0.0 · 17 seconds"
+    }
+  ],
+  "sourceHashes": {
+    "play.js": "6f7e83ad8282a68a2895ea3fcfda0d7a0ed26fe17b8316e883906d0eda32514a",
+    "run.js": "a9e6186bc95f89992967225db31d70f58d6b509a3aed9a10906a1837c8da4c68",
+    "session_metrics.js": "d156a5668a6343e90d2f16e08ded38eff4bd71ce002c69d457727eed93566fc3",
+    "economy.js": "05452f046bedc2bad78a30175b188caf1b9ef0a2e4f2dfbede86f1034f190ff5",
+    "cards.js": "f6d7562bc7cae24d14e043d8fb940b40103fa59a36af60d89df7d711198f69e3",
+    "items.js": "96f4e274f4ade154b9451d6f30aac5576ee2e3a2baa7c835c41eb485d4d5b405"
+  }
+}

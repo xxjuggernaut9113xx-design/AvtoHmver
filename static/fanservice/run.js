@@ -48,14 +48,14 @@
   interrupt(){if(this.phase==='playing'&&!this.state.finished)this.interrupted=true;}
   resumeInterrupted(){
    if(!this.interrupted||this.phase!=='playing'||this.state.finished)return [];
-   const replaying=!!this.edgeCheckpoint;
+   const replaying=!!this.edgeCheckpoint,resumeTask=!Edge.active(this);
    if(this.edgeCheckpoint){
     const checkpoint=this.edgeCheckpoint,restored=Run.restore(this.catalog,checkpoint),state=this.state;
     for(const key of Object.keys(state))delete state[key];Object.assign(state,restored.state);
     Object.assign(this,restored);this.state=state;this.edgeCheckpoint=checkpoint;
    }
    this.interrupted=false;
-   this.returnEdge??={music:this.config.mode===2,card:this.state.card,cardFlow:this.state.cardFlow??null};
+   this.returnEdge??={music:this.config.mode===2,card:this.state.card,cardFlow:this.state.cardFlow??null,resumeTask,started:this.state.seconds,canUseItems:this.state.canUseItems,coinMultiplier:this.state.coinMultiplier,meterMultiplier:this.state.meterMultiplier};
    if(replaying&&this.state.edge?.phase==='sequence')return [{type:'edge-card-started'}];
    return Edge.beginCard(this,this.state.seconds);
   }

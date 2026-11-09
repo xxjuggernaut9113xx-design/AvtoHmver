@@ -36,9 +36,17 @@
   const e=state(run),flow=run.state.cardFlow,events=Cards.advance(run,at);if(flow)flow.suspended=true;
   run.edgeCheckpoint=null;
   if(run.returnEdge){
-   if(run.returnEdge.music){run.state.card=run.returnEdge.card;run.state.cardFlow=run.returnEdge.cardFlow;e.phase='idle';e.wasEdgeCard=false;e.deadline=null;run.state.canUseItems=true;}
+   const returning=run.returnEdge;let resumePool;
+   if(returning.music||returning.resumeTask){
+    run.state.card=returning.card;run.state.cardFlow=returning.cardFlow;
+    if(!returning.music){
+     if(run.state.cardFlow){run.state.cardFlow.started+=at-returning.started;resumePool=run.state.cardFlow.pool;}
+     run.state.coinMultiplier=returning.coinMultiplier??1;run.state.meterMultiplier=returning.meterMultiplier??1;
+    }
+    e.phase='idle';e.wasEdgeCard=false;e.deadline=null;run.state.canUseItems=returning.music||returning.canUseItems!==false;
+   }
    else{e.phase='rest';e.until=Math.max(1,e.until-1);e.deadline=at+Math.max(e.breakScaled,.01);}
-   run.returnEdge=null;events.push({type:'return-edge-complete'});return events;
+   run.returnEdge=null;events.push({type:'return-edge-complete',...(resumePool?{resumePool}: {})});return events;
   }
   if(e.until<=1){e.phase='mercy';run.state.card=5;e.deadline=null;events.push({type:'mercy-opened'});}
   else{e.until--;e.phase='rest';e.deadline=at+Math.max(e.breakScaled,.01);events.push({type:'edge-rest-started',seconds:e.breakScaled});}
