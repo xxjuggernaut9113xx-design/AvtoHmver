@@ -1,0 +1,33 @@
+{
+  "evidence_kind": "user-reported physical-device observations",
+  "date": "2026-11-09",
+  "device": "iPhone 17 Pro",
+  "os_version": null,
+  "browser": "Safari",
+  "origin": "https://bougoisie.tail16554f.ts.net",
+  "path": "/fanservice/",
+  "delivery": "Existing private Tailscale HTTPS static route to the AvtoHmver workspace",
+  "current_source_commit": "a81d4d18",
+  "resume_fix_play_js_sha256": "68633a8fb00bd2633939fa28a289b357a5e36baee243090653096b3faa3ac84d",
+  "initial_reports": "Discarded at the user's request because Tailscale was disconnected.",
+  "confirmed_after_connected_refresh": [
+    "Safari loads the page.",
+    "The user selected device-local media and opened Create Pack.",
+    "The user saved a pack named iPhone Test and confirmed it appeared in Unlocks.",
+    "Enabling the pack and choosing Play enabled packs opened setup with Start.",
+    "After Start, both the media and moving beat indicator were visible.",
+    "Portrait and landscape both showed the full media, beat indicator and controls without clipping."
+  ],
+  "reported_issues": [
+    {
+      "area": "return from phone lock",
+      "user_observation": "On resume it skips to next media",
+      "status": "Media identity and video-position fix passed Edge MP4 and WebKit image regressions; physical retest pending"
+    }
+  ],
+  "limits": [
+    "The assistant has not remotely controlled or instrumented the iPhone.",
+    "The iOS version has not been supplied.",
+    "Holding-hand layouts, hold-to-finish, interruptions, offline playback, archive providers, voice and soundtrack recovery remain pending physical checks."
+  ]
+}

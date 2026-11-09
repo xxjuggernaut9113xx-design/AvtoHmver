@@ -1,7 +1,7 @@
 'use strict';
 const $=id=>document.getElementById(id),store=FanserviceStore,rules=FanserviceRules,params=new URLSearchParams(location.search),library=params.get('library')||store.savedLibrary()||'device:'+store.device;
 const profileKey='fanservice-profile-v1:'+library,checkpointKey='fanservice-session-v1:'+library,audio=$('audio');
-let sessionId=store.id(),profile,media=[],decks,remaining={},music,map,soundtrackWarnings,run,state,catalog,contract,cardRules,started=false,paused=false,finished=false,settling=false,lastBeat=0,lastFrame=0,checkpointAt=0,category='slow',breakUntil=0,speed=1,pinnedPacks=[],restoring=false;
+let sessionId=store.id(),profile,media=[],decks,remaining={},music,map,soundtrackWarnings,run,state,catalog,contract,cardRules,started=false,paused=false,finished=false,settling=false,lastBeat=0,lastFrame=0,checkpointAt=0,category='slow',breakUntil=0,speed=1,pinnedPacks=[],restoring=false,currentMedia=null,mediaPosition=0,restoredView=null,keepMediaOnReplay=false,pendingMediaSeek=null,mediaSeekToken=0;
 const clock={next:0,event:0,last:0},resources=[],finishButton=$('finish');
 let musicBuffering=false,musicLeadIn=0,musicStarting=false,restorePosition=null;
 let finishHold;
@@ -204,6 +204,24 @@ function makeRun(){
  return new FanserviceRun.Run(catalog,{mode,rounds:Number(roundsInput.value),settings,difficulty:Number($('difficulty').value),cardRules,lootEnabled:lootChoice.checked,maxBreaks:catalog.music_upgrades[1]['Value_L'+Math.max(1,Math.min(5,profile.mobile_music_upgrades?.[1]||1))],seed:run?.config.seed??crypto.getRandomValues(new Int32Array(1))[0],hotbar:run?.inventory.hotbarItems||profile.mobile_loadout,modifiers:profile.progression?.enabled_modifiers||[]});
 }
 function installRun(value){window.FanserviceVoice.stop();vibration.cancel();cancelFinishHold();run=value;state=run.state;decks=rules.mediaPools(media,FanserviceModifiers.options(state.modifiers));remaining={};}
+function seekMedia(position){
+ const item=currentMedia,token=++mediaSeekToken;pendingMediaSeek=position;
+ const apply=()=>{if(currentMedia!==item||token!==mediaSeekToken)return;if(Math.abs($('video').currentTime-position)>.05)$('video').currentTime=position;else pendingMediaSeek=null;};
+ if($('video').readyState>0)apply();else $('video').addEventListener('loadedmetadata',apply,{once:true});
+}
+function showMedia(item,position=0,{restart=false}={}){
+ const video=item.type==='video',same=currentMedia?.id===item.id&&currentMedia?.type===item.type;
+ if(!same||restart){$('video').pause();mediaSeekToken++;pendingMediaSeek=null;}currentMedia=item;mediaPosition=position;
+ $('image').hidden=video;$('video').hidden=!video;
+ if(video){
+  if(!same)$('video').src=item.url;
+  seekMedia(position);
+  if(started&&!paused)$('video').play().catch(error=>status('Video access failed: '+error.message));
+ }else if(!same)$('image').src=item.url;
+}
+function mediaView(){if(!currentMedia)return null;const time=$('video').hidden?0:$('video').currentTime;return {id:currentMedia.id,position:paused||pendingMediaSeek!==null?mediaPosition:Number.isFinite(time)&&time>0?time:mediaPosition};}
+$('video').addEventListener('seeked',()=>{if(pendingMediaSeek!==null&&Math.abs($('video').currentTime-pendingMediaSeek)<.1)pendingMediaSeek=null;});
+$('video').addEventListener('timeupdate',()=>{if(!paused&&pendingMediaSeek===null&&currentMedia?.type==='video'&&Number.isFinite($('video').currentTime)&&$('video').currentTime>0)mediaPosition=$('video').currentTime;});
 function draw(pool=category,{prepare=true,force=false,cardOptions={}}={}){
  if(prepare&&!force&&started&&FanserviceEdge.active(run)){status('Finish the active edge stage before drawing another card.');$('pool').value=category;return false;}
  if(prepare&&!force&&started&&!music&&state.card===3&&FanserviceCards.remaining(run)>0){status('Finish the active encounter before drawing another card.');$('pool').value=category;return false;}
@@ -211,8 +229,7 @@ function draw(pool=category,{prepare=true,force=false,cardOptions={}}={}){
  if(!decks[pool]?.length){status(`No ${pool} media in the frozen selection. Choose another pool or organize its tags in full fanservice.`);return false;}
  if(!remaining[pool]?.length)remaining[pool]=[...decks[pool]];
  const index=Math.floor(Math.random()*remaining[pool].length),item=remaining[pool].splice(index,1)[0],video=item.type==='video';
- $('image').hidden=video;$('video').hidden=!video;$('video').pause();
- if(video){$('video').src=item.url;if(started&&!paused)$('video').play().catch(error=>status('Video access failed: '+error.message));}else $('image').src=item.url;
+ showMedia(item,0,{restart:true});
  if(prepare){state.card={slow:0,medium:1,fast:2,succubus:3,cum:6,ass:7,boobs:8}[pool];state.canUseSlowdown=true;state.canUseBonerPill=true;if(started&&!finished&&run.phase==='playing'){FanserviceEconomy.draw(run);if(!music){run.startCard(pool,cardOptions);speed=1;}}}
  return true;
 }
@@ -256,7 +273,7 @@ function resumeMusic(){
 }
 function checkpoint(force=false){
  if(!started||finished||!run)return;const now=performance.now();if(!force&&now-checkpointAt<1000)return;checkpointAt=now;
- try{localStorage.setItem(checkpointKey,JSON.stringify({version:1,id:sessionId,library,server:store.server(),run:run.export(),media,music,clock:{...clock},position:position(),lastBeat,category,breakUntil,speed,pinnedPacks,musicLeadIn}));}
+ try{localStorage.setItem(checkpointKey,JSON.stringify({version:1,id:sessionId,library,server:store.server(),run:run.export(),media,view:mediaView(),music,clock:{...clock},position:position(),lastBeat,category,breakUntil,speed,pinnedPacks,musicLeadIn}));}
  catch(error){status('Session checkpoint could not be saved: '+error.message);}
 }
 function renderTower(){
@@ -286,11 +303,11 @@ function objectiveEvents(events){
  if(beats.length){pulseBeat();beats.forEach(()=>vibration.beat());}
  if(events.some(e=>e.type==='release-window-opened')){run.cancelEdge();draw('cum',{force:true});status('Objective complete. 60 second release window.');}
  else if(events.some(e=>e.type==='card-complete'&&e.requestNextCard)&&run.phase==='playing'&&!FanserviceEdge.active(run))draw(category,{force:true});
- if(events.some(e=>e.type==='edge-card-started'))draw('fast',{prepare:false,force:true});
+ if(events.some(e=>e.type==='edge-card-started')&&!keepMediaOnReplay)draw('fast',{prepare:false,force:true});
  if(events.some(e=>e.type==='edge-streak-ended'&&e.requestNextCard)&&run.phase==='playing')draw('slow',{force:true});
  if(events.some(e=>e.type==='edge-recorded'))status(events.find(e=>e.type==='edge-recorded').perfect?'Perfect edge recorded.':'Edge recorded.');
  if(events.some(e=>e.type==='return-edge-complete')&&music){resumeMusic();status('Return edge complete. Resuming the saved song position.');}
- if(!music){const resumed=events.find(e=>e.type==='return-edge-complete'&&e.resumePool);if(resumed){draw(resumed.resumePool,{prepare:false,force:true});status('Return edge complete. Resuming the interrupted task.');}}
+ if(!music){const resumed=events.find(e=>e.type==='return-edge-complete'&&e.resumePool);if(resumed){if(!currentMedia)draw(resumed.resumePool,{prepare:false,force:true});status('Return edge complete. Resuming the interrupted task.');}}
  if(events.some(e=>e.type==='tribute-recorded'))status(`Tribute recorded: ${state.milkingCount}.`);
  if(events.some(e=>e.type==='objective-reset'))status('Release window closed. Objective reset.');
  if(events.some(e=>['round-complete','round-failed'].includes(e.type))||run.phase!=='playing')renderTower();
@@ -416,11 +433,11 @@ $('start').onclick=async()=>{
    if(!run.resumed){audio.currentTime=0;musicLeadIn=2;}
   }
   started=true;lastFrame=performance.now();$('start').disabled=true;$('difficulty').disabled=true;for(const input of settingsPanel.querySelectorAll('input,select'))input.disabled=true;
-  if(run.interrupted)objectiveEvents(run.resumeInterrupted());
-  $('pause').disabled=false;draw(category,{prepare:!run.resumed});renderTower();render();checkpoint(true);status('Playing locally with the session selection frozen.');if(run.phase==='complete')await end(!!state.won);
+  if(run.interrupted){keepMediaOnReplay=true;try{objectiveEvents(run.resumeInterrupted());}finally{keepMediaOnReplay=false;}}
+  $('pause').disabled=false;if(restoredView){showMedia(restoredView.item,restoredView.position);restoredView=null;}else if(!currentMedia||!run.resumed)draw(category,{prepare:!run.resumed});else showMedia(currentMedia,$('video').currentTime||mediaPosition);renderTower();render();checkpoint(true);status('Playing locally with the session selection frozen.');if(run.phase==='complete')await end(!!state.won);
  }catch(error){status(error.message);}
 };
- $('pause').onclick=()=>{if(!started||finished)return;paused=!paused;if(paused){vibration.cancel();cancelFinishHold();window.FanserviceVoice?.stop();audio.pause();$('video').pause();checkpoint(true);}else{const voiceResume=window.FanserviceVoice?.unlock?.();voiceResume?.catch(()=>{});lastFrame=performance.now();if(run.interrupted)objectiveEvents(run.resumeInterrupted());if(music)resumeMusic();if(!$('video').hidden)$('video').play().catch(error=>status(error.message));checkpoint(true);}$('pause').textContent=paused?'Resume':'Pause';render();};
+ $('pause').onclick=()=>{if(!started||finished)return;if(!paused)mediaPosition=mediaView()?.position||0;paused=!paused;if(paused){checkpoint(true);vibration.cancel();cancelFinishHold();window.FanserviceVoice?.stop();audio.pause();$('video').pause();}else{const voiceResume=window.FanserviceVoice?.unlock?.();voiceResume?.catch(()=>{});lastFrame=performance.now();if(run.interrupted){keepMediaOnReplay=true;try{objectiveEvents(run.resumeInterrupted());}finally{keepMediaOnReplay=false;}}if(music)resumeMusic();if(!$('video').hidden){seekMedia(mediaPosition);$('video').play().catch(error=>status(error.message));}checkpoint(true);}$('pause').textContent=paused?'Resume':'Pause';render();};
 function tap(){if(started&&!paused&&!finished&&!music&&run.phase==='playing')draw();}
 $('tap').onclick=tap;$('draw').onclick=()=>draw();$('pool').onchange=()=>draw($('pool').value);
 function canFinish(){
@@ -497,6 +514,7 @@ async function restoreMedia(item){
   restoring=true;
   if(saved.version!==1||saved.library!==library||saved.server!==store.server())throw Error('An unfinished session belongs to a different Server or unsupported version.');
   sessionId=saved.id;pinnedPacks=saved.pinnedPacks||[];media=await Promise.all(saved.media.map(restoreMedia));music=saved.music;if(music?.storage_key)music=await restoreMedia(music);installRun(FanserviceRun.Run.restore(catalog,saved.run));run.resumed=true;Object.assign(clock,saved.clock);lastBeat=saved.lastBeat??saved.position??0;category=saved.category;breakUntil=saved.breakUntil||0;speed=saved.speed||1;musicLeadIn=Math.max(0,Math.min(2,Number(saved.musicLeadIn)||0));settingsPanel.hidden=true;$('source').textContent='Unfinished session restored · frozen membership';
+  if(saved.view){const item=media.find(candidate=>candidate.id===saved.view.id&&Object.values(decks).some(pool=>pool.includes(candidate)));if(!item)throw Error('Saved current media is no longer in the frozen session. Discard the unfinished session to continue.');restoredView={item,position:Number.isFinite(saved.view.position)&&saved.view.position>=0?saved.view.position:0};}
   run.interrupt();
  }else{
   const manifests={},enabled=profile.packs.filter(pack=>pack.owned&&pack.enabled);
@@ -513,5 +531,5 @@ async function restoreMedia(item){
  if(saved)$('difficulty').value=String(run.config.difficulty??1);
  const missing=['slow','medium','fast','succubus','cum'].filter(pool=>!decks[pool].length);if(missing.length)throw Error('Enabled packs lack required gameplay pools: '+missing.join(', ')+'. Enable complementary packs or organize their tags in full fanservice.');
  if(music){store.validateMusic(music,{libraryId:library,playable:true});map=music.beatmap;soundtrackWarnings=map.events.filter(e=>['edge','disable_break','restore_break'].includes(e.type)).map(e=>e.time);audio.src=music.url||new URL(music.stream_url,store.server());if(saved){restorePosition=saved.position;audio.addEventListener('loadedmetadata',()=>{audio.currentTime=saved.position;},{once:true});}}
- draw(category,{prepare:!saved});renderTower();render();$('start').disabled=false;status(saved?'Unfinished session ready. Tap Start to resume.':'Ready. Tap Start to enable local playback and audio.');requestAnimationFrame(tick);
+ if(restoredView)showMedia(restoredView.item,restoredView.position);else draw(category,{prepare:!saved});renderTower();render();$('start').disabled=false;status(saved?'Unfinished session ready. Tap Start to resume.':'Ready. Tap Start to enable local playback and audio.');requestAnimationFrame(tick);
 })().catch(async error=>{status(error.message);$('start').disabled=true;if(!started&&!restoring)await releasePins().catch(()=>{});if(restoring)settingsPanel.append(action('Discard unfinished session',async()=>{if(!confirm('Discard this unfinished session without granting rewards? Saved library media and pack ownership are retained.'))return;await releasePins();localStorage.removeItem(checkpointKey);location.reload();}));});

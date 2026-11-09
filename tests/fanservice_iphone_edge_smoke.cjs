@@ -33,7 +33,7 @@ function expectedBank(edges,perfectEdge=0){let bank=0;for(let n=2;n<=edges;n++)b
   }
   await page.goto(origin+'/fanservice/play.html?library=edge-fixture');await page.waitForFunction(()=>!document.querySelector('#start').disabled);
   await page.locator('#objective').selectOption('3');await page.locator('#objective-target').fill('12');
-  await page.clock.install();await page.getByRole('button',{name:'Start',exact:true}).click();
+  await page.clock.install();await page.clock.pauseAt(await page.evaluate(()=>Date.now()+1000));await page.getByRole('button',{name:'Start',exact:true}).click();
   for(let n=1;n<=5;n++){
    const s=await trigger();assert.equal(s.edges,n);assert.equal(s.edge.bank,expectedBank(n));
    if(n===5){await until(()=>state.edge.phase==='hold','fifth Edge hold');assert.equal((await snapshot()).edge.holdRemaining,2);}

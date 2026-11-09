@@ -11,7 +11,13 @@ These are reconstruction-runtime tests with synthetic neutral media and Server r
 
 ## Device status
 
-Physical iPhone 17 Pro validation remains separate. The user withdrew the initial phone-test reports after discovering Tailscale was disconnected. After connecting Tailscale and refreshing, the user confirmed Safari loads `https://bougoisie.tail16554f.ts.net/fanservice/`. The iOS version has not been provided. Gameplay, rotation, interruption, voice, and offline checks on the physical phone remain pending; automated results above do not establish those device results.
+Physical iPhone 17 Pro validation remains separate. The user withdrew the initial phone-test reports after discovering Tailscale was disconnected. After connecting Tailscale and refreshing, the user confirmed Safari loads `https://bougoisie.tail16554f.ts.net/fanservice/`, local media can be saved into an enabled pack, Start displays media with a moving beat indicator, and portrait/landscape show the media and controls without clipping. The iOS version has not been provided. The phone-lock test exposed a media change on Resume; its fix is awaiting a physical retest. Further device checks remain pending. See [the manual observations](iphone17pro-manual-20261109.json).
+
+## Media resume regression
+
+The phone-lock report exposed fresh random media draws on refocus and checkpoint restore. `play.js` now checkpoints the displayed frozen-member ID and video position, restores the ID through the frozen selection rather than a saved URL, and preserves it through the refocus Edge. Paused decoder updates cannot replace the held video position. Explicit Next still restarts a single-file video. The offline shell cache advances to v31.
+
+`tests/fanservice_media_resume_smoke.cjs` passed independently in installed Microsoft Edge and Playwright WebKit 27.2. Three neutral images retain identity through pagehide/refocus, reload preview, Start, and Edge replay. Edge plays a synthetic H.264 MP4: explicit Next restarts it, Resume restores its held position after a simulated decoder reset, and pagehide/reload/Start restores its position. The fixture serves byte ranges so seek behavior is exercised. Video decoder reset is a controlled browser test, not an observed Safari implementation detail. All 254 Node tests pass. Physical Safari verification remains separate.
 
 ## Audio test boundary
 
