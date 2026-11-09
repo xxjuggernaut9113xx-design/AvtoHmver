@@ -1,0 +1,46 @@
+{
+  "purpose": "Exact-build BP_EdgeManager CDO defaults for Edge ticket #46",
+  "build": {
+    "executable": "E:/fanservice-mod-lab/game/CockHero/Binaries/Win64/CockHero.exe",
+    "sha256": "a8f46896593d8724cefb9a232db5772df48ae5731da78cfacbec82e98d040c10",
+    "engine": "UE5.3 (measured executable string ++UE5+Release-5.3-CL-29314046)"
+  },
+  "source_asset": {
+    "container": "E:/fanservice-mod-lab/game/CockHero/Content/Paks/CockHero-Windows.utoc",
+    "container_sha256": "6b529fc3023c8e4d0a0781a8660a1c134da811a7e702f00693c872cbc0b0eaff",
+    "container_flags": "Compressed | Indexed; not encrypted",
+    "chunk_id": "89c92b1215749c0800000001",
+    "chunk_type": "ExportBundleData",
+    "chunk_size": 39472,
+    "chunk_raw_sha256": "5244412045e87623a1f27131241c33f2728e1d156260b0907a619433f39ea46f",
+    "asset_path": "../../../CockHero/Content/NewSetup/BP_EdgeManager.uasset",
+    "converted_asset_sha256": "46cc3b3d61c452dc7e4d806a438053d3e28790a704492560250aad197ec5fa3e",
+    "converted_uexp_sha256": "25c3053413e04da6591d02760bc96a23bd78d009fe5b6a5049dbfbfed45e2daf"
+  },
+  "decode": {
+    "tool": "retoc_cli 0.1.5; UAssetGUI/UAssetAPI 1.1.0 (8b8687a)",
+    "retoc_command": "to-legacy <original Content/Paks directory> <scoped output> --filter BP_EdgeManager --version UE5_3 --no-shaders --no-script-objects --no-parallel",
+    "mapping": "CockHeroProgression.usmap",
+    "mapping_sha256": "f10af9ee9a035ee8f7cd13ca2fb49b574c28666c35f55a0c35da16870e10617c",
+    "mapping_note": "FunctionOnly mapping does not parse the CDO; CockHeroProgression mapping required.",
+    "decoded_json": ".test-tmp/edge-v0051-cdo.json",
+    "decoded_json_sha256": "388aa91da8d56d158b3e08fe6b1044ee0620ceaefc6935636b1431613c60ec26",
+    "class_default_object": "Default__BP_EdgeManager_C",
+    "class_export": "BP_EdgeManager_C",
+    "class_property_order": [
+      "UberGraphFrame", "DefaultSceneRoot", "GlobalManagerRef", "EdgeScreen", "LastEdgeTime",
+      "EdgeCumMeterAdd", "PerfectEdgeStreakThreshold", "PerfectEdgeCumMeterAdd",
+      "CurrentEdgesUntillNextMercy", "PostEdgeBreakDuration", "MasterEdgesUntilNextMercy",
+      "EdgeHoldTimerHandle", "MasterEdgeHoldDuration", "CurrentEdgeHoldDuration", "IsPerfectEdge?"
+    ],
+    "defaults": {
+      "EdgeCumMeterAdd": 0.05,
+      "PerfectEdgeStreakThreshold": 0.85,
+      "PerfectEdgeCumMeterAdd": 0.08,
+      "PostEdgeBreakDuration": 1.0,
+      "MasterEdgesUntilNextMercy": 5
+    },
+    "verification": "The three requested values appear as typed properties in the NormalExport with ObjectName Default__BP_EdgeManager_C. ClassExport LoadedProperties contains all three names in the same sequence and property kinds."
+  },
+  "execution": "Static local extraction and deserialization only; original game was not launched."
+}

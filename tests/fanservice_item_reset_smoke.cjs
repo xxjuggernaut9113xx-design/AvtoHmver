@@ -1,4 +1,4 @@
-const {chromium}=require(process.env.FANSERVICE_PLAYWRIGHT_MODULE||'./browser/node_modules/playwright');
+const {chromium,webkit}=require(process.env.FANSERVICE_PLAYWRIGHT_MODULE||'./browser/node_modules/playwright');
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto'),http=require('node:http');
 const root=path.resolve(__dirname,'../static/fanservice');let origin,activeFixture='';
 const cases=[
@@ -7,7 +7,8 @@ const cases=[
 ];
 
 (async()=>{
- const browser=await chromium.launch({headless:true,...(process.env.FANSERVICE_BROWSER_EXECUTABLE?{executablePath:process.env.FANSERVICE_BROWSER_EXECUTABLE}:{})});
+ const engine=process.env.FANSERVICE_BROWSER_ENGINE==='webkit'?webkit:chromium;
+ const browser=await engine.launch({headless:true,...(process.env.FANSERVICE_BROWSER_ENGINE==='webkit'&&process.env.FANSERVICE_WEBKIT_EXECUTABLE?{executablePath:process.env.FANSERVICE_WEBKIT_EXECUTABLE}:process.env.FANSERVICE_BROWSER_ENGINE!=='webkit'&&process.env.FANSERVICE_BROWSER_EXECUTABLE?{executablePath:process.env.FANSERVICE_BROWSER_EXECUTABLE}:{})});
  const server=http.createServer((request,response)=>{
   const url=new URL(request.url,'http://localhost');
   if(url.pathname==='/api/fanservice/v1/resolve'){
@@ -22,7 +23,7 @@ const cases=[
  try{
   await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',resolve);});origin='http://127.0.0.1:'+server.address().port;
   for(const testCase of cases){
-   const fixture='item-reset-'+testCase.id,context=await browser.newContext({viewport:{width:390,height:844}}),page=await context.newPage(),errors=[];
+   const fixture='item-reset-'+testCase.id,context=await browser.newContext({viewport:{width:390,height:844},...(process.env.FANSERVICE_BROWSER_ENGINE==='webkit'?{deviceScaleFactor:3,isMobile:true,hasTouch:true}:{})}),page=await context.newPage(),errors=[];
    activeFixture=fixture;
    page.on('pageerror',error=>errors.push(error.message));
    await page.addInitScript(id=>{
@@ -78,7 +79,7 @@ const cases=[
     reports.push({objective:testCase.objective,name:testCase.name,before:{seconds:before.seconds,strokes:before.strokes,coins:before.coins},firstReset:{rawSeconds:first.seconds,rawStrokes:first.strokes,effectiveSeconds:first.session.seconds,effectiveStrokes:first.session.strokes,coins:first.coins,offsets:first.offsets},restored:{rawSeconds:restored.seconds,rawStrokes:restored.strokes,effectiveSeconds:restored.session.seconds,effectiveStrokes:restored.session.strokes,charges:restored.charges},returnEdge:{card:returned.card,pool:returned.pool,edgePhase:returned.edgePhase,canUseItems:returned.canUseItems},secondReset:{rawSeconds:second.seconds,rawStrokes:second.strokes,effectiveSeconds:second.session.seconds,effectiveStrokes:second.session.strokes,coins:second.coins,charges:second.charges,offsets:second.offsets},hudAfterSecondReset:second.hud});
    }finally{await context.close();}
   }
-  const report={authority:'Playwright normal player controls with virtual clock and synthetic neutral media/Server route; inventory is seeded through the grant API, modifier/profile through starting profile; no gameplay metrics are injected; reconstruction runtime only, not original-game execution',cases:reports,sourceHashes:Object.fromEntries(['play.js','run.js','session_metrics.js','economy.js','cards.js','items.js'].map(name=>[name,crypto.createHash('sha256').update(fs.readFileSync(path.join(root,name))).digest('hex')]))};
+  const report={authority:'Playwright player controls with virtual clock and synthetic neutral media/Server route; inventory is seeded through grant API, modifier/profile through starting profile; no gameplay metrics are injected; reconstruction runtime only, not original-game execution or device acceptance',engine:process.env.FANSERVICE_BROWSER_ENGINE==='webkit'?'Playwright WebKit 27.2':'Playwright Chromium',playwrightVersion:require('./browser/node_modules/playwright/package.json').version,viewport:{width:390,height:844,...(process.env.FANSERVICE_BROWSER_ENGINE==='webkit'?{deviceScaleFactor:3,isMobile:true,hasTouch:true}:{})},cases:reports,sourceHashes:Object.fromEntries(['play.js','run.js','session_metrics.js','economy.js','cards.js','items.js'].map(name=>[name,crypto.createHash('sha256').update(fs.readFileSync(path.join(root,name))).digest('hex')]))};
   if(process.env.FANSERVICE_SMOKE_OUTPUT){fs.mkdirSync(process.env.FANSERVICE_SMOKE_OUTPUT,{recursive:true});fs.writeFileSync(path.join(process.env.FANSERVICE_SMOKE_OUTPUT,'ticket48-item-reset-browser.json'),JSON.stringify(report,null,2));}
   console.log('All-or-Nothing browser smoke passed: defensive item resets timer and stroke metrics, preserves clock progression across checkpoint reload, and clears coins on repeated resets. '+JSON.stringify(report));
  }finally{await browser.close();await new Promise(resolve=>server.close(resolve));}

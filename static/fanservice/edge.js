@@ -17,7 +17,7 @@
   // The Blueprint keeps PostEdgeBreakDuration separate from its calculated hold.
   // Older snapshots stored only the calculated value; both source bases are exact.
   e.postBreakBase??=e.postBreak%1===.75?1.75:1;
-  if(!e.wasEdgeCard){e.lastCount=25;e.breakScaled=10;e.until=e.masterUntil;e.postBreakBase=1.75;}
+  if(!e.wasEdgeCard||run.returnEdge?.replayDirectEdge){e.lastCount=25;e.breakScaled=10;e.until=e.masterUntil;e.postBreakBase=1.75;}
   else{
    e.lastCount=Math.max(0,(flow?.assigned||0)-(flow?.remaining||0));
    e.ratio=flow?.assigned>0?e.lastCount/flow.assigned:0;e.perfect=e.ratio>=.85;
@@ -79,6 +79,6 @@
   return [{type:'mercy-accepted',earned,seconds:60}];
  }
  function cancel(run){run.edgeCheckpoint=null;run.returnEdge=null;const e=run.state.edge;if(!e)return;e.phase='idle';e.deadline=null;e.nextTick=null;e.wasEdgeCard=false;if(run.state.cardFlow)run.state.cardFlow.suspended=true;}
- const sourceLedger=['v0.05.1 a8f46896: static newer-20261017 BP_EdgeManager CalculateEdgeReward and ExecuteUbergraph call order; normal 10+5*(prior EdgeStreak+1), perfect 35+15*(prior EdgeStreak+1)','v0.05.1 a8f46896: newer-20261017 AdjustPostEdgeBreakDelay/CountdownEdgeHold; exact EdgeCumMeterAdd and PerfectEdgeCumMeterAdd defaults remain unavailable','RecoveredSessionWidget.cpp: E direct action in newer mode, excludes music','RecoveredEdgeRestWidget.cpp / RecoveredMercyRestWidget.cpp: G cancel, 60-second Mercy rest','MercyEventWidget bytecode: UpdateMasterEdgeCount&Set then EdgingEventV2'];
+ const sourceLedger=['v0.05.1 a8f46896: static newer-20261017 BP_EdgeManager CalculateEdgeReward and ExecuteUbergraph call order; normal 10+5*(prior EdgeStreak+1), perfect 35+15*(prior EdgeStreak+1)','v0.05.1 a8f46896 original packaged BP_EdgeManager CDO: EdgeCumMeterAdd=.05, PerfectEdgeStreakThreshold=.85, PerfectEdgeCumMeterAdd=.08 (retoc + UAssetAPI UE5.3; docs/fanservice/evidence/edge-v0051-cdo-defaults-20261109.json)','v0.05.1 a8f46896: newer-20261017 AdjustPostEdgeBreakDelay/CountdownEdgeHold','RecoveredSessionWidget.cpp: E direct action in newer mode, excludes music','RecoveredEdgeRestWidget.cpp / RecoveredMercyRestWidget.cpp: G cancel, 60-second Mercy rest','MercyEventWidget bytecode: UpdateMasterEdgeCount&Set then EdgingEventV2'];
  const api={state,active,allowed,trigger,advance,continueRest,mercy,cancel,beginCard,sourceLedger};if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.FanserviceEdge=api;
 })(globalThis);

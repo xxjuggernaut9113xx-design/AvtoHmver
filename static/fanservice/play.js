@@ -420,7 +420,7 @@ $('start').onclick=async()=>{
   $('pause').disabled=false;draw(category,{prepare:!run.resumed});renderTower();render();checkpoint(true);status('Playing locally with the session selection frozen.');if(run.phase==='complete')await end(!!state.won);
  }catch(error){status(error.message);}
 };
-$('pause').onclick=()=>{if(!started||finished)return;paused=!paused;if(paused){vibration.cancel();cancelFinishHold();window.FanserviceVoice?.stop();audio.pause();$('video').pause();checkpoint(true);}else{lastFrame=performance.now();if(run.interrupted)objectiveEvents(run.resumeInterrupted());if(music)resumeMusic();if(!$('video').hidden)$('video').play().catch(error=>status(error.message));checkpoint(true);}$('pause').textContent=paused?'Resume':'Pause';render();};
+ $('pause').onclick=()=>{if(!started||finished)return;paused=!paused;if(paused){vibration.cancel();cancelFinishHold();window.FanserviceVoice?.stop();audio.pause();$('video').pause();checkpoint(true);}else{const voiceResume=window.FanserviceVoice?.unlock?.();voiceResume?.catch(()=>{});lastFrame=performance.now();if(run.interrupted)objectiveEvents(run.resumeInterrupted());if(music)resumeMusic();if(!$('video').hidden)$('video').play().catch(error=>status(error.message));checkpoint(true);}$('pause').textContent=paused?'Resume':'Pause';render();};
 function tap(){if(started&&!paused&&!finished&&!music&&run.phase==='playing')draw();}
 $('tap').onclick=tap;$('draw').onclick=()=>draw();$('pool').onchange=()=>draw($('pool').value);
 function canFinish(){

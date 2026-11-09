@@ -55,7 +55,8 @@
     Object.assign(this,restored);this.state=state;this.edgeCheckpoint=checkpoint;
    }
    this.interrupted=false;
-   this.returnEdge??={music:this.config.mode===2,card:this.state.card,cardFlow:this.state.cardFlow??null,resumeTask,started:this.state.seconds,canUseItems:this.state.canUseItems,coinMultiplier:this.state.coinMultiplier,meterMultiplier:this.state.meterMultiplier};
+   this.returnEdge??={music:this.config.mode===2,card:this.state.card,cardFlow:this.state.cardFlow??null,resumeTask,replayDirectEdge:replaying&&!resumeTask&&!this.state.edge?.wasEdgeCard,started:this.state.seconds,canUseItems:this.state.canUseItems,coinMultiplier:this.state.coinMultiplier,meterMultiplier:this.state.meterMultiplier};
+   this.returnEdge.replayDirectEdge??=replaying&&this.returnEdge.resumeTask===false&&this.returnEdge.card!==5;
    if(replaying&&this.state.edge?.phase==='sequence')return [{type:'edge-card-started'}];
    return Edge.beginCard(this,this.state.seconds);
   }

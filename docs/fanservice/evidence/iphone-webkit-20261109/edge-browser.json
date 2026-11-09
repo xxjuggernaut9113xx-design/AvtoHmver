@@ -1,0 +1,133 @@
+{
+  "authority": "Playwright WebKit 27.2 with iPhone-shaped 390x844 touch context, virtual browser time, shared player controls, synthetic neutral media/Server routes; not original-game execution or physical iOS Safari/device acceptance",
+  "referenceBuild": "v0051-hotfix-public-a8f46896",
+  "referenceExeSha256": "a8f46896593d8724cefb9a232db5772df48ae5731da78cfacbec82e98d040c10",
+  "rewardFormula": "normal 10+5*(prior EdgeStreak+1); perfect 35+15*(prior EdgeStreak+1)",
+  "sourceHashes": {
+    "edge.js": "d711c0f17d45542d71a88f5d8d62a8716f29f3fafc12df9bb3e973559db62cfa",
+    "run.js": "c4edf6ed435b3bab28c4e8f57a87f6e36b4f0fad67917cf9b1f0387ec71b32d3",
+    "cards.js": "f6d7562bc7cae24d14e043d8fb940b40103fa59a36af60d89df7d711198f69e3",
+    "play.js": "474e5db31749f6928c55a95bf5e8f57df9d72cd799ca3c88c5aec33ce9cd9a2e"
+  },
+  "stages": [
+    {
+      "phase": "handoff",
+      "streak": 1,
+      "perfect": false,
+      "bank": 0,
+      "postBreak": 1.75,
+      "seconds": 0.16700000000000004
+    },
+    {
+      "phase": "handoff",
+      "streak": 2,
+      "perfect": false,
+      "bank": 20,
+      "postBreak": 1.75,
+      "seconds": 1.5499999999999996
+    },
+    {
+      "phase": "handoff",
+      "streak": 3,
+      "perfect": false,
+      "bank": 45,
+      "postBreak": 1.75,
+      "seconds": 2.8530000000000006
+    },
+    {
+      "phase": "handoff",
+      "streak": 4,
+      "perfect": false,
+      "bank": 75,
+      "postBreak": 1.75,
+      "seconds": 4.145
+    },
+    {
+      "phase": "handoff",
+      "streak": 5,
+      "perfect": false,
+      "bank": 110,
+      "postBreak": 2.75,
+      "seconds": 5.403999999999999
+    },
+    {
+      "phase": "handoff",
+      "streak": 6,
+      "perfect": true,
+      "bank": 235,
+      "postBreak": 2.75,
+      "seconds": 25.057999999999026
+    },
+    {
+      "phase": "handoff",
+      "streak": 7,
+      "perfect": false,
+      "bank": 280,
+      "postBreak": 2.75,
+      "seconds": 26.28099999999892
+    },
+    {
+      "phase": "handoff",
+      "streak": 8,
+      "perfect": false,
+      "bank": 330,
+      "postBreak": 2.75,
+      "seconds": 29.42599999999859
+    },
+    {
+      "phase": "handoff",
+      "streak": 9,
+      "perfect": false,
+      "bank": 385,
+      "postBreak": 2.75,
+      "seconds": 32.66499999999829
+    },
+    {
+      "phase": "handoff",
+      "streak": 10,
+      "perfect": false,
+      "bank": 445,
+      "postBreak": 3.75,
+      "seconds": 35.87199999999798
+    },
+    {
+      "phase": "handoff",
+      "streak": 10,
+      "perfect": false,
+      "bank": 445,
+      "postBreak": 3.75,
+      "seconds": 35.89199999999798
+    },
+    {
+      "phase": "handoff",
+      "streak": 11,
+      "perfect": false,
+      "bank": 510,
+      "postBreak": 3.75,
+      "seconds": 40.38399999999758
+    },
+    {
+      "phase": "idle",
+      "streak": 12,
+      "perfect": false,
+      "bank": 0,
+      "postBreak": 3.75,
+      "seconds": 103.95500000000824
+    }
+  ],
+  "acceptedBank": 510,
+  "persistedHoldRestored": true,
+  "currentEdgeReplayed": true,
+  "edges": 12,
+  "sessions": 1,
+  "won": true,
+  "playwrightVersion": "1.64.1",
+  "engine": "Playwright WebKit 27.2",
+  "viewport": {
+    "width": 390,
+    "height": 844,
+    "deviceScaleFactor": 3,
+    "isMobile": true,
+    "hasTouch": true
+  }
+}

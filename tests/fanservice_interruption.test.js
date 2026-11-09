@@ -30,6 +30,21 @@ test('reloading an interrupted Classic refocus edge retains the original task an
  assert.equal(run.state.canUseItems,true);
 });
 
+test('replaying the first direct Edge does not turn it into a rewarded repeat Edge',()=>{
+ const run=new Run(modes,{seed:137,cardRules});run.startCard('slow');run.advance(2);run.edge();
+ const originalBank=run.state.edge.bank;
+ run.interrupt();run.resumeInterrupted();run.advance(3);const meter=run.state.meter;run.edge();
+ assert.equal(run.state.edges,1);assert.equal(run.state.edge.bank,originalBank);
+ assert.equal(run.state.meter,meter);
+});
+
+test('a saved refocus edge from before replay-kind metadata keeps a first direct Edge bank-free',()=>{
+ let run=new Run(modes,{seed:137,cardRules});run.startCard('slow');run.edge();run.interrupt();run.resumeInterrupted();
+ const saved=run.export();delete saved.returnEdge.replayDirectEdge;delete saved.edgeCheckpoint.returnEdge.replayDirectEdge;
+ run=Run.restore(modes,saved);run.interrupt();run.resumeInterrupted();run.advance(3);run.edge();
+ assert.equal(run.state.edges,1);assert.equal(run.state.edge.bank,0);
+});
+
 test('interrupted current edge rolls back its beats and reward while retaining the completed edge',()=>{
  const run=new Run(modes,{seed:137,cardRules});run.startCard('slow');
  run.edge();run.advance(1);run.continueEdgeRest();

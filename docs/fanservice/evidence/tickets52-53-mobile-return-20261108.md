@@ -21,6 +21,12 @@ and music-timeline browser smokes also passed again in desktop Edge, with their
 temporary profiles on E:. These use synthetic recording endpoints and do not
 establish physical-phone lifecycle acceptance.
 
+An additional replay regression found that restarting the first direct Edge
+could incorrectly award the repeat-edge bank and meter bonus. Entry metadata
+now preserves the original bank-free first-Edge behavior, including saved
+refocus checkpoints from before that metadata was added. Both regression cases
+were observed failing and then passing after the correction.
+
 On November 8, the shared Web app player passed a headless Microsoft Edge check
 using current working-tree assets and a synthetic four-second PCM WAV recording.
 No personal media or original game executable was used.

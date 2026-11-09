@@ -20,6 +20,7 @@
  async function say(id,caption,report=()=>{}){
   stop();
   const token=generation;
+  const resume=unlock().then(()=>({}),error=>({error}));
   await ready;
   if(token!==generation)return false;
   const manifest=active?.manifest,definition=manifest?.packs?.[settings.pack]||manifest;
@@ -30,7 +31,8 @@
   const file=active?.audio.find(([name])=>name===selected?.file)?.[1];
   if(!file){report('Voice recording unavailable: '+id);return false;}
   try{
-   await unlock();
+   const resumed=await resume;
+   if(resumed.error)throw resumed.error;
    const buffer=await context.decodeAudioData(await file.arrayBuffer());
    if(token!==generation)return false;
    const node=context.createBufferSource(),gain=context.createGain();
