@@ -31,7 +31,7 @@
   const difficulty=run.config.difficulty??1,multipliers=Rules.drawMultipliers(Rules.comboTier(s.combo),data.difficulty_count[difficulty],data.difficulty_speed[difficulty]);
   let count=multipliers.count,time=multipliers.time,travel=data.travel,bank=pool,min,max,low,high;
   if(card<=2){const row=data.heat[['SlowHeat','MediumHeat','HighHeat'][card]];min=row.MinStrokeCount;max=row.MaxStrokeCount;low=card===2?.15:row.MinIntervalSeconds;high=row.MaxIntervalSeconds;}
-  else if(card===3){min=30;max=50;low=.15;high=.33;time=1;travel=1.5;count=Modifiers.succubusCountMultiplier(count,s.succubi,s.modifiers,Economy.has(run,7)?.5:1);if(apexLure)count+=strokeAddend;}
+  else if(card===3){min=30;max=50;low=.15;high=.33;time=1;travel=1.5;count=Modifiers.succubusCountMultiplier(count,run.effectiveStats?run.effectiveStats().succubi:s.succubi,s.modifiers,Economy.has(run,7)?.5:1);if(apexLure)count+=strokeAddend;}
   else if(card===5){
    const edge=s.edge;if(!edge)throw Error('Edge timing requires an active streak.');
    edge.strokeMultiplier+=.1+run.random.fraction()*.15;

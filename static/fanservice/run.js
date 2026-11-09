@@ -1,7 +1,7 @@
 (function(root){
  'use strict';
  const load=(name,global)=>typeof module!=='undefined'&&module.exports?require('./'+name+'.js'):root[global];
- const Objectives=load('objectives','FanserviceObjectives'),Tower=load('tower','FanserviceTower'),Inventory=load('inventory','FanserviceInventory'),Items=load('items','FanserviceItems'),Economy=load('economy','FanserviceEconomy'),Cards=load('cards','FanserviceCards'),Edge=load('edge','FanserviceEdge');
+ const Objectives=load('objectives','FanserviceObjectives'),Tower=load('tower','FanserviceTower'),Inventory=load('inventory','FanserviceInventory'),Items=load('items','FanserviceItems'),Economy=load('economy','FanserviceEconomy'),Cards=load('cards','FanserviceCards'),Edge=load('edge','FanserviceEdge'),SessionMetrics=load('session_metrics','FanserviceSessionMetrics');
  const copy=value=>JSON.parse(JSON.stringify(value));
  class Run {
   constructor(catalog,config={}){
@@ -22,7 +22,9 @@
     this.shopEvery=this.config.rounds<=3?1:Math.max(1,Math.min(4,Math.floor(Math.sqrt(this.config.rounds)+.5)));
    }
   }
-  objectiveStats(){const s=this.state;return {strokes:s.strokes,edges:s.edges,succubiDefeated:s.succubi,milkingCount:s.milkingCount,cumWindowsHit:s.CumWindowsHit||0,missedCumWindows:s.MissedCumWindows||0};}
+  effectiveStats(){return SessionMetrics.effective(this.state,this.player);}
+  resetObjective(){SessionMetrics.resetObjective(this);this.player.sessionLength=this.effectiveStats().sessionLength;}
+  objectiveStats(){const s=this.effectiveStats();return {strokes:s.strokes,edges:s.edges,succubiDefeated:s.succubi,milkingCount:s.milkingCount,cumWindowsHit:s.CumWindowsHit||0,missedCumWindows:s.MissedCumWindows||0};}
   context(){return {mode:this.config.mode,phase:this.tower&&!this.tower.endless&&this.tower.round>=this.tower.rounds?'bossRound':this.phase,state:this.roundObjective,playing:this.phase==='playing',cardType:this.state.card};}
   select(index){
    if(!this.tower||this.phase!=='selection')throw Error('No Tower draft is active.');
@@ -32,7 +34,7 @@
   }
   advance(seconds){
    if(this.phase!=='playing'||this.state.finished||!Number.isFinite(seconds)||seconds<0)return [];
-   Economy.advance(this,seconds);this.state.seconds+=seconds;this.player.sessionLength=this.state.seconds;
+   Economy.advance(this,seconds);this.state.seconds+=seconds;this.player.sessionLength=this.effectiveStats().sessionLength;
    const edge=Edge.advance(this),cards=Cards.advance(this);
    const stats=this.objectiveStats(),context=this.context();
    const expired=this.objective.expireReleaseWindow(this.player,stats,this.state.meter,this.state.seconds,context);

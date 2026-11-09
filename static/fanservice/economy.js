@@ -43,7 +43,7 @@
   if(s.card===3&&s.modifiers.includes('Avarice'))s.coins=add(s.coins,-1);else addBeatCoins(run,Rules.coinAward(s.card));
   addHeat(run,[.25,.15,.2][s.heatCategory??1]||0);
   if(s.modifiers.includes('Mr. Money Bandz'))s.baseGain=.000125;
-  s.meter=Rules.meter(s);
+  const effective=run.effectiveStats?run.effectiveStats():s;s.meter=Rules.meter({...s,edges:effective.edges,seconds:effective.seconds});
   if(run.config.lootEnabled){
    if(s.lootBar>=1){events.push({type:'loot',reward:loot(run)});s.lootBar=0;}
    const base={0:.05,1:.035,2:.03,3:.05,5:.05,6:.05,7:.03,8:.03}[s.card]||0;

@@ -108,6 +108,7 @@
   });
  }
  const connectionsKey='fanservice-servers-v1',legacyOriginKey='fanservice-server-origin',connectionHandoffKey='fanservice_servers';
+ const nativePlatform=!!root.Capacitor?.isNativePlatform?.(),pageOrigin=location.origin;
  function origin(value){
   const url=new URL(value);
   if(!['http:','https:'].includes(url.protocol)||url.username||url.password||url.search||url.hash||url.pathname!=='/')throw Error('Enter a Server HTTP(S) origin without credentials or a path.');
@@ -119,6 +120,21 @@
   try{
    saved=JSON.parse(localStorage.getItem(connectionsKey));
   }catch{}
+  if(nativePlatform){
+   const servers=saved?.servers&&typeof saved.servers==='object'?saved.servers:{};
+   let active;
+   try{active=origin(saved?.active||localStorage.getItem(legacyOriginKey)||location.origin);}catch{active=location.origin;}
+   if(!saved?.servers||typeof saved.servers!=='object'){
+    const legacyLibrary=localStorage.getItem('fanservice-last-library');
+    if(active===location.origin)servers[active]=legacyLibrary;
+    else servers[location.origin]=legacyLibrary;
+   }
+   if(!Object.hasOwn(servers,active))servers[active]=null;
+   if(!Object.hasOwn(servers,location.origin))servers[location.origin]=null;
+   localStorage.setItem(connectionsKey,JSON.stringify({active,servers}));
+   if(page.searchParams.has(connectionHandoffKey)){page.searchParams.delete(connectionHandoffKey);history.replaceState(history.state,'',page.href);}
+   return {active,servers};
+  }
   if(handoff!==null){
    let incoming=[];
    try{
@@ -168,6 +184,7 @@
   const active=origin(value),{servers}=connections();
   if(!Object.hasOwn(servers,active))servers[active]=null;
   localStorage.setItem(connectionsKey,JSON.stringify({active,servers}));
+  if(nativePlatform)return new URL('./',location.href).href;
   const url=new URL('/fanservice/',active);
   url.searchParams.set(connectionHandoffKey,JSON.stringify([...new Set([...Object.keys(servers),active])]));
   return url.href;
@@ -176,7 +193,7 @@
  addEventListener('pagehide',()=>{pageActive=false;});
  addEventListener('pageshow',()=>{pageActive=true;});
  function assertServer(){
-  if(!pageActive||location.origin!==serverOrigin||connections().active!==serverOrigin)throw Error('Server connection changed. Reopen the current library to continue.');
+  if(!pageActive||location.origin!==(nativePlatform?pageOrigin:serverOrigin)||connections().active!==serverOrigin)throw Error('Server connection changed. Reopen the current library to continue.');
  }
  function savedLibrary(){return connections().servers[serverOrigin]||null;}
  function rememberLibrary(library){
