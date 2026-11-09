@@ -48,7 +48,7 @@ completion. The service-layer column records current extraction direction.
 | [S-03](evidence/S-03.md) | Appearance/Playback/Automation | ✓ | Scoped | ✓ | Mixed | Partial | Advanced controls deferred |
 | [S-04](evidence/S-04.md) | Local Admin | ✓ | — | ✓ | Mixed | Partial | Restore and restart checks |
 | [S-05](evidence/S-05.md) | Maintenance | ✓ | — | ✓ | Mixed | Partial | Manual maintenance and recovery checks |
-| [S-06](evidence/S-06.md) | Classifier | ✓ | — | ✓ | Shared | Partial | Verified runtime availability and manual controls |
+| [S-06](evidence/S-06.md) | Classifier | ✓ | — | ✓ | Shared | Partial | Labeled-clip accuracy evaluation and manual controls |
 | [D-01](evidence/D-01.md) | Host lifecycle | ✓ | — | — | Mixed | Partial | Installed lifecycle checks |
 | [D-02](evidence/D-02.md) | Viewer lifecycle | — | ✓ | — | Mixed | Partial | Real tailnet Viewer test |
 | [C-01](evidence/C-01.md) | Diagnostics | ✓ | Scoped | ✓ | Shared | Implemented | Linux manual check skipped |

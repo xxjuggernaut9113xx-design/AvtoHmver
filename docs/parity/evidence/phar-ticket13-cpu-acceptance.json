@@ -1,0 +1,150 @@
+{
+  "device": "cpu",
+  "python": "3.10.11 (tags/v3.10.11:7d4cc5a, Apr  5 2023, 00:38:17) [MSC v.1929 64 bit (AMD64)]",
+  "worker_sha256": "9c46384af2bbcaea5eb87609e0291a068203f23cae028c29f6b96b1a0a380d17",
+  "videos": [
+    {
+      "path": "benchmark_clip",
+      "sha256": "071e60535eaf0aed475ddac06269ee0cdfc4740158f22d9ccd2c3b93b42aa344",
+      "elapsed_secs": 135.4001405001618,
+      "result": {
+        "model": "P-HAR official RGB TimeSformer",
+        "version": "94adf9900cd36360795709d920b44404f29bad3e",
+        "backend": "cpu",
+        "windows": [
+          {
+            "start_secs": 0,
+            "end_secs": 7,
+            "label": "handjob",
+            "score": 0.5843324065208435,
+            "scores": {
+              "69": 0.000003867670784529764,
+              "kissing": 0.004487896338105202,
+              "fondling": 0.0022986673284322023,
+              "handjob": 0.5843324065208435,
+              "fingering": 0.0010586121352389455,
+              "titjob": 0.009543288499116898,
+              "blowjob": 0.2938579022884369,
+              "cunnilingus": 0.01710994355380535,
+              "deepthroat": 0.0004313552053645253,
+              "doggy": 0.000072345974331256,
+              "the-snake": 2.1332293442810624e-7,
+              "anal": 0.0005479775718413293,
+              "missionary": 0.00009364658035337925,
+              "cowgirl": 0.007227880880236626,
+              "scoop-up": 0.000010923938134510536,
+              "cumshot": 0.07778500765562057,
+              "facial-cumshot": 0.0011380526702851057
+            },
+            "elapsed_secs": 83.87877029995434
+          },
+          {
+            "start_secs": 7,
+            "end_secs": 10,
+            "label": "fondling",
+            "score": 0.6157183051109314,
+            "scores": {
+              "69": 0.003321725642308593,
+              "kissing": 0.01738743670284748,
+              "fondling": 0.6157183051109314,
+              "handjob": 0.041046690195798874,
+              "fingering": 0.10176799446344376,
+              "titjob": 0.0010813227854669094,
+              "blowjob": 0.009327057749032974,
+              "cunnilingus": 0.07905662804841995,
+              "deepthroat": 0.014058172702789307,
+              "doggy": 0.01668771542608738,
+              "the-snake": 0.0010767156491056085,
+              "anal": 0.06417971104383469,
+              "missionary": 0.000889320857822895,
+              "cowgirl": 0.0198527742177248,
+              "scoop-up": 0.00004387069202493876,
+              "cumshot": 0.008637277409434319,
+              "facial-cumshot": 0.00586724141612649
+            },
+            "elapsed_secs": 51.34765379992314
+          }
+        ]
+      }
+    },
+    {
+      "path": "neutral_motion_clip",
+      "sha256": "46ee902130469b47a84b42775cfc7042b6737275e50728c2d4c4d430a19838c9",
+      "elapsed_secs": 82.68574529979378,
+      "result": {
+        "model": "P-HAR official RGB TimeSformer",
+        "version": "94adf9900cd36360795709d920b44404f29bad3e",
+        "backend": "cpu",
+        "windows": [
+          {
+            "start_secs": 0,
+            "end_secs": 7,
+            "label": "anal",
+            "score": 0.7799131274223328,
+            "scores": {
+              "69": 5.466814627652639e-7,
+              "kissing": 0.002002936555072665,
+              "fondling": 0.0009331913315691054,
+              "handjob": 0.00001013825476547936,
+              "fingering": 8.842965826261207e-8,
+              "titjob": 0.000001375127226310724,
+              "blowjob": 0.000006162690624478273,
+              "cunnilingus": 1.615343769856281e-8,
+              "deepthroat": 0.2058076411485672,
+              "doggy": 0.0009139928151853383,
+              "the-snake": 0.0000017245062053916627,
+              "anal": 0.7799131274223328,
+              "missionary": 0.00004400427860673517,
+              "cowgirl": 1.2766871293479198e-7,
+              "scoop-up": 0.0000034566710382932797,
+              "cumshot": 0.000009899325959850103,
+              "facial-cumshot": 0.01035159919410944
+            },
+            "elapsed_secs": 41.76972230011597
+          },
+          {
+            "start_secs": 7,
+            "end_secs": 14,
+            "label": "anal",
+            "score": 0.6100737452507019,
+            "scores": {
+              "69": 7.665155976610549e-7,
+              "kissing": 0.003772365627810359,
+              "fondling": 0.0007627983577549458,
+              "handjob": 0.000021722313249483705,
+              "fingering": 1.5493367300223326e-7,
+              "titjob": 0.000003015489937752136,
+              "blowjob": 0.00001589191560924519,
+              "cunnilingus": 1.8410938551483014e-8,
+              "deepthroat": 0.3706669807434082,
+              "doggy": 0.0017961441772058606,
+              "the-snake": 0.000002673588141988148,
+              "anal": 0.6100737452507019,
+              "missionary": 0.00004529322905000299,
+              "cowgirl": 2.5443821982662485e-7,
+              "scoop-up": 0.000005586746283370303,
+              "cumshot": 0.000017372003640048206,
+              "facial-cumshot": 0.012815234251320362
+            },
+            "elapsed_secs": 40.886234499979764
+          }
+        ]
+      }
+    }
+  ],
+  "accuracy_evaluated": false,
+  "checkpoint_bytes": 970440477,
+  "checkpoint_sha256": "184163c9c527113432dc6bfb639e1e604614186d243a6006016772455024378f",
+  "packages": {
+    "torch": "1.13.1+cpu",
+    "torchvision": "0.14.1+cpu",
+    "numpy": "1.23.5",
+    "mmcv": "1.5.0",
+    "opencv-python": "4.7.0.72",
+    "einops": "0.4.1"
+  },
+  "load_secs": 23.638094400055707,
+  "cuda_available": false,
+  "passed": true,
+  "provenance": "Sanitized copy of ticket #13 acceptance record; local executable and source paths omitted."
+}
