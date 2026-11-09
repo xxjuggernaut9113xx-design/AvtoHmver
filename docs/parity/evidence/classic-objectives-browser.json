@@ -3,29 +3,36 @@
   "fixture": "classic-objectives-fixture",
   "sourceHashes": {
     "objectives.js": "d45c1e4d7e462c4f4f564f0689464f9a64b726efca93b981cf2604db7f7732b7",
-    "run.js": "e81441f7c80a7f4faa2b38676548e7db8097c3cd40aa703ecd8a35d61287d813",
-    "cards.js": "af964321b0c3515bd1bcd783a39385610dca0fcd2cec46192f88fe4b57c4cd48",
-    "play.js": "22f58064855efc3fd489a703ce7b8de5e374dd8400e502c0acbaa1b26e0c25b0",
-    "progression.js": "e1bb8bc947717d3494ae0817004c745ec9572e4cb27b466eb8d3a3f60dbcaa8a"
+    "run.js": "3e2f07a0d5cae3f2b870ecef3cab4bf780084de3baae377ce9334ee1639bb36d",
+    "cards.js": "ec36df24a4e91125ac209caee2ee5f6732af83c127859d730cc8724e6d9eb4c6",
+    "play.js": "12755c4a67fbfa6014a58b65fa2fe9163865812e9d75e74335d50ac3e3e6f989",
+    "progression.js": "21c35598a1b8a4da2068f7ff13ea2b74de9a1663ebe2bb0f0b8044bba2ad6350"
   },
   "cases": [
     {
       "name": "Timer (seconds)",
       "target": 300,
-      "seconds": 306.1420000000012,
-      "strokes": 34,
+      "difficulty": 2,
+      "seconds": 306.15800000000127,
+      "strokes": 40,
       "edges": 0,
       "succubi": 0,
       "milkingCount": 0,
-      "meter": 0.008500000000000006,
+      "meter": 0.010000000000000007,
       "won": true,
       "sessions": 1,
+      "sessionMetrics": {
+        "SessionsWonAtMaxDifficulty": 1,
+        "SuccuSlayerSessionsWon": 0
+      },
+      "builtDifferentCompleted": true,
+      "publicSafetyProgress": 0,
       "checkpointReloaded": true,
       "checkpointReload": {
-        "savedSeconds": 5.059,
-        "restoredSeconds": 5.072,
-        "savedStrokes": 2,
-        "restoredStrokes": 2,
+        "savedSeconds": 5.058000000000001,
+        "restoredSeconds": 5.073000000000001,
+        "savedStrokes": 5,
+        "restoredStrokes": 5,
         "target": 300
       },
       "repeatAttempt": {
@@ -41,14 +48,21 @@
     {
       "name": "Strokes",
       "target": 100,
-      "seconds": 151.01399999999947,
-      "strokes": 103,
+      "difficulty": 2,
+      "seconds": 131.03899999999945,
+      "strokes": 107,
       "edges": 0,
       "succubi": 0,
       "milkingCount": 0,
-      "meter": 0.02575000000000002,
+      "meter": 0.02675000000000002,
       "won": true,
       "sessions": 1,
+      "sessionMetrics": {
+        "SessionsWonAtMaxDifficulty": 1,
+        "SuccuSlayerSessionsWon": 0
+      },
+      "builtDifferentCompleted": true,
+      "publicSafetyProgress": 0,
       "checkpointReloaded": false,
       "checkpointReload": null,
       "repeatAttempt": {
@@ -64,14 +78,21 @@
     {
       "name": "Edges",
       "target": 2,
-      "seconds": 21.143999999999888,
-      "strokes": 30,
+      "difficulty": 2,
+      "seconds": 21.187999999999892,
+      "strokes": 49,
       "edges": 2,
       "succubi": 0,
       "milkingCount": 0,
-      "meter": 0.0675,
+      "meter": 0.07858333333333344,
       "won": true,
       "sessions": 1,
+      "sessionMetrics": {
+        "SessionsWonAtMaxDifficulty": 1,
+        "SuccuSlayerSessionsWon": 0
+      },
+      "builtDifferentCompleted": true,
+      "publicSafetyProgress": 0,
       "checkpointReloaded": false,
       "checkpointReload": null,
       "repeatAttempt": {
@@ -87,7 +108,8 @@
     {
       "name": "Prejac (seconds)",
       "target": 30,
-      "seconds": 1.0100000000000007,
+      "difficulty": 2,
+      "seconds": 1.0150000000000008,
       "strokes": 0,
       "edges": 0,
       "succubi": 0,
@@ -95,6 +117,12 @@
       "meter": 0,
       "won": true,
       "sessions": 1,
+      "sessionMetrics": {
+        "SessionsWonAtMaxDifficulty": 1,
+        "SuccuSlayerSessionsWon": 0
+      },
+      "builtDifferentCompleted": true,
+      "publicSafetyProgress": 0,
       "checkpointReloaded": false,
       "checkpointReload": null,
       "repeatAttempt": {
@@ -110,7 +138,8 @@
     {
       "name": "Tribute",
       "target": 2,
-      "seconds": 2.2190000000000016,
+      "difficulty": 2,
+      "seconds": 2.2250000000000014,
       "strokes": 1,
       "edges": 0,
       "succubi": 0,
@@ -118,6 +147,12 @@
       "meter": 0.00025,
       "won": true,
       "sessions": 1,
+      "sessionMetrics": {
+        "SessionsWonAtMaxDifficulty": 1,
+        "SuccuSlayerSessionsWon": 0
+      },
+      "builtDifferentCompleted": true,
+      "publicSafetyProgress": 0,
       "checkpointReloaded": false,
       "checkpointReload": null,
       "repeatAttempt": {
@@ -133,14 +168,21 @@
     {
       "name": "Succu Slayer",
       "target": 5,
-      "seconds": 91.01900000000033,
-      "strokes": 305,
+      "difficulty": 2,
+      "seconds": 91.02700000000033,
+      "strokes": 294,
       "edges": 0,
       "succubi": 5,
       "milkingCount": 0,
-      "meter": 0.11575000000000009,
+      "meter": 0.10750000000000008,
       "won": true,
       "sessions": 1,
+      "sessionMetrics": {
+        "SessionsWonAtMaxDifficulty": 1,
+        "SuccuSlayerSessionsWon": 1
+      },
+      "builtDifferentCompleted": true,
+      "publicSafetyProgress": 1,
       "checkpointReloaded": false,
       "checkpointReload": null,
       "repeatAttempt": {
@@ -156,14 +198,21 @@
     {
       "name": "Cum meter",
       "target": 1,
-      "seconds": 1391.0380000000048,
-      "strokes": 1196,
+      "difficulty": 2,
+      "seconds": 1421.2480000000048,
+      "strokes": 1184,
       "edges": 0,
       "succubi": 0,
       "milkingCount": 0,
-      "meter": 1.0001999999999163,
+      "meter": 1.0007999999999164,
       "won": true,
       "sessions": 1,
+      "sessionMetrics": {
+        "SessionsWonAtMaxDifficulty": 1,
+        "SuccuSlayerSessionsWon": 0
+      },
+      "builtDifferentCompleted": true,
+      "publicSafetyProgress": 0,
       "checkpointReloaded": false,
       "checkpointReload": null,
       "repeatAttempt": {

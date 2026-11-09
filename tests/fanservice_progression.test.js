@@ -14,6 +14,24 @@ test('native requirement comparison, progress and condition semantics',()=>{
  assert.equal(progression.conditionsMet([{ConditionType:'modifier',ConditionValue:'Iron Man'},{ConditionType:'no_items'},{ConditionType:'max_time',ConditionValue:'60'}],{modifiers:['Iron Man'],ItemsUsed:0,SessionDuration:60}),true);
  assert.equal(progression.conditionsMet([{ConditionType:'unknown'}],{}),true);
 });
+test('session win metrics require a won Insane or Classic SuccuSlayer session',()=>{
+ const metric=(stats,key)=>progression.sessionMetrics(stats)[key]||0;
+ assert.equal(metric({won:true,difficulty:2},'SessionsWonAtMaxDifficulty'),1);
+ assert.equal(metric({won:false,difficulty:2},'SessionsWonAtMaxDifficulty'),0);
+ assert.equal(metric({won:true,difficulty:1},'SessionsWonAtMaxDifficulty'),0);
+ assert.equal(metric({won:true,mode:0,objective:8},'SuccuSlayerSessionsWon'),1);
+ assert.equal(metric({won:false,mode:0,objective:8},'SuccuSlayerSessionsWon'),0);
+ assert.equal(metric({won:true,mode:1,objective:8},'SuccuSlayerSessionsWon'),0);
+ assert.equal(metric({won:true,mode:2,objective:8},'SuccuSlayerSessionsWon'),0);
+ assert.equal(metric({won:true,mode:0,objective:2},'SuccuSlayerSessionsWon'),0);
+ const maxDifficultyWin=progression.settleSession(fresh(),{won:true,difficulty:2},'insane',contract,()=>0);
+ assert.equal(maxDifficultyWin.progression.challenge_progress.built_different.completed,true);
+ const lostSuccuSlayer=progression.settleSession(fresh(),{won:false,mode:0,objective:8},'lost-succu',contract,()=>0);
+ assert.equal(lostSuccuSlayer.progression.challenge_progress.public_safety.requirements[0].CurrentValue,0);
+ const classicSuccuSlayer=progression.settleSession(fresh(),{won:true,mode:0,objective:8},'succu',contract,()=>0);
+ assert.equal(classicSuccuSlayer.progression.challenge_progress.public_safety.requirements[0].CurrentValue,1);
+ assert.ok(!['mode','difficulty','objective'].some(key=>Object.hasOwn(classicSuccuSlayer.progression.lifetime_metrics,key)));
+});
 test('settlement is idempotent, awards reached level points and preserves ownership/privacy fields',()=>{
  const original=fresh(),stats={seconds:60,strokes:300,edges:6,won:true,coins:9};const next=progression.settleSession(original,stats,'session-1',contract,()=>220);
  assert.equal(next.progression.level,3);assert.equal(next.progression.xp,0);assert.equal(next.unlock_points,11+1+3+5+5);assert.deepEqual(next.packs,original.packs);assert.deepEqual(next.device,original.device);assert.deepEqual(next.future,original.future);assert.equal(original.progression,undefined);

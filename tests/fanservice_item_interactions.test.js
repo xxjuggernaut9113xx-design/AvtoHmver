@@ -1,6 +1,6 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
 const Items=require('../static/fanservice/items'),{Run}=require('../static/fanservice/run');
-const modes=require('../static/fanservice/data/modes.json');
+const modes=require('../static/fanservice/data/modes.json'),cardRules=require('../static/fanservice/data/card-rules.json'),Rules=require('../static/fanservice/rules');
 const evidence=require('./fixtures/fanservice/original-item-interactions.json');
 function inventory(type){const run=new Run(modes);run.inventory.grant(type,1);run.inventory.equip(type,0);return run.inventory;}
 
@@ -49,4 +49,28 @@ test('objective-specific All or Nothing reset hook runs only after an accepted e
  const deps={context:{allOrNothing:true,objectiveType:2},hooks:{speed:()=>false,resetObjective:()=>resets++}};
  assert.equal(Items.use(inv,3,state,deps).ok,false);assert.equal(resets,0);
  deps.hooks.speed=()=>true;assert.equal(Items.use(inv,3,state,deps).ok,true);assert.equal(resets,1);assert.equal(state.coins,0);assert.equal(state.cumMeter,.4+.01);
+});
+
+
+test('Apex Lure adds its level bonus to the existing succubus modifier before truncation',()=>{
+ const bonuses=[2,1.5,1,.5,0];
+ for(let level=1;level<=5;level++){
+  const run=new Run(modes,{seed:137,cardRules}),item=run.inventory.state(9);run.inventory.grant(9,1);run.inventory.equip(9,0);item.level=level;
+  let flow;const result=Items.use(run.inventory,9,run.state,{hooks:{spawnSuccubus:options=>{flow=run.startCard('succubus',{apexLure:true,...options});return !!flow;}}});
+  assert.equal(result.ok,true);
+  const rng=new Run(modes,{seed:137,cardRules}).random,strokes=rng.range(30,50);
+  const base=Rules.drawMultipliers(0,cardRules.difficulty_count[1],cardRules.difficulty_speed[1]).count;
+  assert.equal(flow.assigned,Math.trunc(strokes*(base+bonuses[level-1])));
+  assert.equal(run.inventory.state(9).charges,0);
+ }
+});
+
+test('Apex bonus is additive after Hivemind, Infernal Clause, and Double Devil modifiers',()=>{
+ const run=new Run(modes,{seed:137,cardRules,modifiers:['Hivemind','Double Devil']});run.state.succubi=3;run.ownedModifiers=[7];
+ const item=run.inventory.state(9);run.inventory.grant(9,1);run.inventory.equip(9,0);item.level=2;
+ let flow;assert.equal(Items.use(run.inventory,9,run.state,{hooks:{spawnSuccubus:options=>{flow=run.startCard('succubus',{apexLure:true,...options});return !!flow;}}}).ok,true);
+ const rng=new Run(modes,{seed:137,cardRules}).random,strokes=rng.range(30,50);
+ const base=Rules.drawMultipliers(0,cardRules.difficulty_count[1],cardRules.difficulty_speed[1]).count;
+ const modified=(base+.4*3)*.5+1+1.5;
+ assert.equal(flow.assigned,Math.trunc(strokes*modified));
 });

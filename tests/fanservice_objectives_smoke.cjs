@@ -8,7 +8,7 @@ const cases=[
  {index:'3',name:'Edges',objective:3,target:2,edge:true},
  {index:'4',name:'Prejac (seconds)',objective:6,target:30,immediate:true},
  {index:'5',name:'Tribute',objective:7,target:2,immediate:true,finishName:'Hold to record tribute'},
- {index:'6',name:'Succu Slayer',objective:8,target:5,pool:'succubus'},
+ {index:'6',name:'Succu Slayer',objective:8,target:5,pool:'succubus',difficulty:2},
  {index:'0',name:'Cum meter',objective:0}
 ];
 
@@ -39,7 +39,7 @@ const cases=[
     await page.locator('#mode').selectOption('0');
     await page.locator('#objective').selectOption(testCase.index);
     if(testCase.target)await page.locator('#objective-target').fill(String(testCase.target));
-    await page.locator('#difficulty').selectOption('2');
+    await page.locator('#difficulty').selectOption(String(testCase.difficulty??2));
     if(testCase.pool)await page.locator('#pool').selectOption(testCase.pool);
     await page.clock.install();
     await page.getByRole('button',{name:'Start',exact:true}).click();
@@ -96,8 +96,15 @@ const cases=[
      await page.keyboard.down('Enter');await page.clock.runFor(1200);await page.keyboard.up('Enter');
     }
     await page.getByText(/Rewards saved once/).waitFor();
-    const result=await page.evaluate(()=>({objective:(run.roundObjective||run.objective.state).objective,target:(run.roundObjective||run.objective.state).target,phase:run.phase,seconds:state.seconds,strokes:state.strokes,edges:state.edges,succubi:state.succubi,milkingCount:state.milkingCount,meter:state.meter,finished,won:state.won,progression:JSON.parse(localStorage.getItem(profileKey)).progression}));
+    const result=await page.evaluate(()=>({objective:(run.roundObjective||run.objective.state).objective,target:(run.roundObjective||run.objective.state).target,difficulty:run.config.difficulty,phase:run.phase,seconds:state.seconds,strokes:state.strokes,edges:state.edges,succubi:state.succubi,milkingCount:state.milkingCount,meter:state.meter,finished,won:state.won,progression:JSON.parse(localStorage.getItem(profileKey)).progression}));
     assert.equal(result.objective,testCase.objective);assert(result.finished&&result.won,`${testCase.name} settles a winning session`);
+    if(testCase.name==='Succu Slayer'){
+     assert.equal(result.difficulty,2,'Insane difficulty was selected through the normal UI');
+     assert.equal(result.progression.lifetime_metrics.SessionsWonAtMaxDifficulty,1);
+     assert.equal(result.progression.lifetime_metrics.SuccuSlayerSessionsWon,1);
+     assert.equal(result.progression.challenge_progress.built_different.completed,true);
+     assert.equal(result.progression.challenge_progress.public_safety.requirements[0].CurrentValue,1);
+    }
     assert.equal(result.progression.sessions,1);assert.equal(result.progression.wins,1);assert.equal(result.progression.completed_sessions.length,1);assert.deepEqual(errors,[]);
     let repeatAttempt={sessions:1,wins:1};
     if(testCase.checkpointReload){
@@ -109,7 +116,7 @@ const cases=[
      afterCompletedReload=await page.evaluate(()=>{const p=JSON.parse(localStorage.getItem(profileKey)).progression;return {sessions:p.sessions,wins:p.wins,checkpoint:localStorage.getItem(checkpointKey)};});
      assert.deepEqual(afterCompletedReload,{sessions:1,wins:1,checkpoint:null},'Reload after settlement retains one reward ledger entry and no resumable run');
     }
-    reports.push({name:testCase.name,target:result.target,seconds:result.seconds,strokes:result.strokes,edges:result.edges,succubi:result.succubi,milkingCount:result.milkingCount,meter:result.meter,won:result.won,sessions:result.progression.sessions,checkpointReloaded,checkpointReload,repeatAttempt,afterCompletedReload});
+    reports.push({name:testCase.name,target:result.target,difficulty:result.difficulty,seconds:result.seconds,strokes:result.strokes,edges:result.edges,succubi:result.succubi,milkingCount:result.milkingCount,meter:result.meter,won:result.won,sessions:result.progression.sessions,sessionMetrics:{SessionsWonAtMaxDifficulty:result.progression.lifetime_metrics.SessionsWonAtMaxDifficulty||0,SuccuSlayerSessionsWon:result.progression.lifetime_metrics.SuccuSlayerSessionsWon||0},builtDifferentCompleted:!!result.progression.challenge_progress.built_different?.completed,publicSafetyProgress:result.progression.challenge_progress.public_safety?.requirements?.[0]?.CurrentValue??0,checkpointReloaded,checkpointReload,repeatAttempt,afterCompletedReload});
    }finally{await context.close();}
   }
   const report={authority:'normal mobile player controls with Playwright virtual-clock fast-forward (one player tick per 10 simulated seconds) and synthetic neutral media/Server routes; reconstruction runtime and catalog only, not original-game execution or provenance',fixture,sourceHashes:Object.fromEntries(['objectives.js','run.js','cards.js','play.js','progression.js'].map(name=>[name,crypto.createHash('sha256').update(fs.readFileSync(path.join(root,name))).digest('hex')])),cases:reports};

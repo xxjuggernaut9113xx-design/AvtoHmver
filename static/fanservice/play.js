@@ -204,7 +204,7 @@ function makeRun(){
  return new FanserviceRun.Run(catalog,{mode,rounds:Number(roundsInput.value),settings,difficulty:Number($('difficulty').value),cardRules,lootEnabled:lootChoice.checked,maxBreaks:catalog.music_upgrades[1]['Value_L'+Math.max(1,Math.min(5,profile.mobile_music_upgrades?.[1]||1))],seed:run?.config.seed??crypto.getRandomValues(new Int32Array(1))[0],hotbar:run?.inventory.hotbarItems||profile.mobile_loadout,modifiers:profile.progression?.enabled_modifiers||[]});
 }
 function installRun(value){window.FanserviceVoice.stop();vibration.cancel();cancelFinishHold();run=value;state=run.state;decks=rules.mediaPools(media,FanserviceModifiers.options(state.modifiers));remaining={};}
-function draw(pool=category,{prepare=true,force=false}={}){
+function draw(pool=category,{prepare=true,force=false,cardOptions={}}={}){
  if(prepare&&!force&&started&&FanserviceEdge.active(run)){status('Finish the active edge stage before drawing another card.');$('pool').value=category;return false;}
  if(prepare&&!force&&started&&!music&&state.card===3&&FanserviceCards.remaining(run)>0){status('Finish the active encounter before drawing another card.');$('pool').value=category;return false;}
  category=pool;$('pool').value=pool;decks??=rules.mediaPools(media,FanserviceModifiers.options(state.modifiers));
@@ -213,7 +213,7 @@ function draw(pool=category,{prepare=true,force=false}={}){
  const index=Math.floor(Math.random()*remaining[pool].length),item=remaining[pool].splice(index,1)[0],video=item.type==='video';
  $('image').hidden=video;$('video').hidden=!video;$('video').pause();
  if(video){$('video').src=item.url;if(started&&!paused)$('video').play().catch(error=>status('Video access failed: '+error.message));}else $('image').src=item.url;
- if(prepare){state.card={slow:0,medium:1,fast:2,succubus:3,cum:6,ass:7,boobs:8}[pool];state.canUseSlowdown=true;state.canUseBonerPill=true;if(started&&!finished&&run.phase==='playing'){FanserviceEconomy.draw(run);if(!music){run.startCard(pool);speed=1;}}}
+ if(prepare){state.card={slow:0,medium:1,fast:2,succubus:3,cum:6,ass:7,boobs:8}[pool];state.canUseSlowdown=true;state.canUseBonerPill=true;if(started&&!finished&&run.phase==='playing'){FanserviceEconomy.draw(run);if(!music){run.startCard(pool,cardOptions);speed=1;}}}
  return true;
 }
 function pulseBeat(){lastBeat=position();$('beat').style.background='#fff';setTimeout(()=>$('beat').style.background='#c8ef97',80);}
@@ -351,7 +351,8 @@ async function end(won){
  if(!started){status('Session canceled; no rewards were granted.');settling=false;return;}
  state.won=won;state.finished=true;
  try{
-  await mutateProfile(current=>{const next=FanserviceProgression.settleSession(FanserviceProgression.startSession(current,contract),state,sessionId,contract);next.mobile_settings={...next.mobile_settings,...run.config.settings};next.mobile_loadout=[...run.inventory.hotbarItems];return next;});
+  const objective=run.objective.state?.objective;
+  await mutateProfile(current=>{const next=FanserviceProgression.settleSession(FanserviceProgression.startSession(current,contract),{...state,mode:run.config.mode,difficulty:run.config.difficulty,objective},sessionId,contract);next.mobile_settings={...next.mobile_settings,...run.config.settings};next.mobile_loadout=[...run.inventory.hotbarItems];return next;});
   finished=true;await releasePins();localStorage.removeItem(checkpointKey);
   $('summary').textContent=`${won?'Session completed':'Session ended'}\n${profile.progression.last_settlement.xp} XP · ${state.coins} coins · ${profile.progression.last_settlement.unlock_points} UP\nLevel ${profile.progression.level} · ${profile.progression.xp} XP toward next level\nRewards saved once. Pack ownership was retained.`;
   renderItemControls();status('Session saved. Return to the library to resolve live pack contents again.');for(const id of ['start','pause','tap','draw','finish','end'])$(id).disabled=true;renderTower();
@@ -369,7 +370,7 @@ function itemDependencies(){return {context:itemContext(),random:run.random,hook
  beginBreak:duration=>{if(state.breakSectionDisabled||state.seconds<breakUntil)return false;breakUntil=state.seconds+duration;if(!music&&state.cardFlow)run.delayCard(duration);if(music){state.MusicBreaksUsed=(state.MusicBreaksUsed||0)+1;}return true;},
  pill:effect=>{if(music)return false;const next=Math.max(.1,Math.min(5,speed*effect.speed));if(state.cardFlow&&!run.modifyCard(next,effect.timelineStrokes))return false;speed=next;return true;},
  openStore:()=>{if(run.tower&&run.phase==='playing')return false;renderInventory(true);if(!inventoryDialog.open)inventoryDialog.showModal();return true;},
- spawnSuccubus:()=>FanserviceModifiers.options(state.modifiers).canSpawnSuccubi&&draw('succubus'),
+ spawnSuccubus:({strokeAddend}={})=>FanserviceModifiers.options(state.modifiers).canSpawnSuccubi&&draw('succubus',{cardOptions:{apexLure:true,strokeAddend}}),
  escape:()=>{if(music)return false;return draw(category,{force:true});}
  }};}
 function useItem(type){

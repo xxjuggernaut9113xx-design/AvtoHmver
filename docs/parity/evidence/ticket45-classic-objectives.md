@@ -1,6 +1,6 @@
 # Ticket 45: Classic objective evidence
 
-The browser smoke exercises all seven supported Classic selections through the mobile player's selection, ordinary card/Edge/Tribute actions, hold-to-finish control, and one winning progression settlement. The report also checkpoints and reloads the Timer case, confirms its target and progress survive resume, attempts the finish key again after settlement, then reloads and verifies the completed-session count remains one with no resumable checkpoint: [browser report](classic-objectives-browser.json).
+The browser smoke exercises all seven supported Classic selections through the mobile player's selection, ordinary card/Edge/Tribute actions, hold-to-finish control, and one winning progression settlement. The Succu Slayer case selects Insane through the UI and verifies the persisted max-difficulty and Classic SuccuSlayer metrics, including Built Different completion and one step of Public Safety progress. The report also checkpoints and reloads the Timer case, confirms its target and progress survive resume, attempts the finish key again after settlement, then reloads and verifies the completed-session count remains one with no resumable checkpoint: [browser report](classic-objectives-browser.json).
 
 ## Source boundary
 

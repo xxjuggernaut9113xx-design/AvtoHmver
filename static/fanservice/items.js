@@ -41,7 +41,7 @@
   else if(type===5){const effect={strokeMultiplier:[2,2.5,3,3,4][i],intervalDivisor:[2,2,2,3,5][i],coinMultiplier:[2,2,2,3,3][i],speed:[2,2,3,5,6][i],timelineStrokes:[2,2,3,3,4][i]};if(hooks.pill(effect)===false)return fail('Timeline rejected');state.strokeCount=Math.trunc(state.strokeCount*effect.strokeMultiplier);state.beatInterval=Math.max(context.minimumBeatInterval||.05,Math.min(1,state.beatInterval/effect.intervalDivisor));state.coinMultiplier=effect.coinMultiplier;state.cardType=2;state.canUseBonerPill=false;e.temptationRemaining=60;}
   else if(type===6){state.shieldToggled=!state.shieldToggled;applyAllOrNothing();return {ok:true,consumed:false};}
   else if(type===7){e.resupplyRemaining=2;applyAllOrNothing();return {ok:true,pending:true};}
-  else if(type===9){if(hooks.spawnSuccubus({hard:i<4,strokeMultiplier:1+(4-i)*.5})===false)return fail('Succubus unavailable');}
+  else if(type===9){if(hooks.spawnSuccubus({strokeAddend:[2,1.5,1,.5,0][i]})===false)return fail('Succubus unavailable');}
   else if(type===10){if(hooks.escape()===false)return fail('Escape unavailable');state.combo=0;}
   else if(type===11){e.lootRushRemaining=[15,20,30,40,50][i];e.lootRushBonus=[.5,.75,1,1.25,1.5][i];state.lootBarMultiplier=(state.lootBarMultiplier===undefined?1:state.lootBarMultiplier)+e.lootRushBonus;}
   else if(type===12){e.bountyLevel=i+1;e.bountyStartStrokes=state.strokes;e.bountyRequiredStrokes=deps.random.range([38,38,36,34,32][i],[48,48,46,44,42][i]);e.bountyRemaining=deps.random.range([14,17,20,23,26][i],[17,20,23,26,30][i]);}

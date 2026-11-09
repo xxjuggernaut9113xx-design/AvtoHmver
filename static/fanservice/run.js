@@ -61,7 +61,7 @@
   continueEdgeRest(){return Edge.continueRest(this);}
   mercy(accept){return Edge.mercy(this,accept);}
   cancelEdge(){return Edge.cancel(this);}
-  startCard(pool){return Cards.start(this,pool);}
+  startCard(pool,options={}){return Cards.start(this,pool,options);}
   delayCard(seconds){return Cards.delay(this,seconds);}
   modifyCard(speed,factor=1){return Cards.rebuild(this,speed,factor);}
   tribute(){
