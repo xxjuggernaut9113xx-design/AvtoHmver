@@ -37,6 +37,7 @@
   constructor(settings={},player={},stats={}){this.settings=settings;this.state=initialize(settings,player,stats);this.releaseDeadline=null;player.isAllowedToCum=[6,7].includes(this.state.objective);}
   reset(){this.state={active:false,objective:0,target:1,...baselines()};this.releaseDeadline=null;}
   resolveClimax(player,context={}){
+   if(player.hasCame)return [];
    if(context.mode===2&&(!context.playing||context.awaitingNextTrack||context.paused))return [];
    if(context.mode===1&&!['playing','bossRound'].includes(context.phase))return [];
    const state=context.mode===1?context.state:this.state;

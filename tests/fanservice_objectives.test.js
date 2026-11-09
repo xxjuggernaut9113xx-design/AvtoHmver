@@ -62,3 +62,10 @@ test('Tower normal rounds complete directly, boss rounds release, Prejac fails, 
  p.sessionLength=51;assert.deepEqual(r.resolveClimax(p,{mode:1,phase:'playing',state}),[]);
  assert.deepEqual(r.tick(p,s,1,0,{mode:2}),[]);assert.deepEqual(r.tick(p,s,1,0,{mode:1,phase:'shop',state}),[]);
 });
+test('settled climax ignores Edge-card override and Tower Prejac after checkpoint restoration',()=>{
+ const p=player(),s=stats(),runtime=new O.Runtime({},p,s);
+ p.hasCame=true;
+ const restored=Object.assign(Object.create(O.Runtime.prototype),JSON.parse(JSON.stringify(runtime)));
+ assert.deepEqual(restored.resolveClimax(p,{mode:0,cardType:5}),[]);
+ assert.deepEqual(restored.resolveClimax(p,{mode:1,phase:'bossRound',state:{active:true,objective:6,baselineDuration:20,target:30}}),[]);
+});
