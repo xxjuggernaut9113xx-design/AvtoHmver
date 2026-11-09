@@ -1,0 +1,180 @@
+{
+  "authority": "normal mobile player controls with Playwright virtual-clock fast-forward (one player tick per 10 simulated seconds) and synthetic neutral media/Server routes; reconstruction runtime and catalog only, not original-game execution or provenance",
+  "fixture": "classic-objectives-fixture",
+  "sourceHashes": {
+    "objectives.js": "d45c1e4d7e462c4f4f564f0689464f9a64b726efca93b981cf2604db7f7732b7",
+    "run.js": "e81441f7c80a7f4faa2b38676548e7db8097c3cd40aa703ecd8a35d61287d813",
+    "cards.js": "af964321b0c3515bd1bcd783a39385610dca0fcd2cec46192f88fe4b57c4cd48",
+    "play.js": "22f58064855efc3fd489a703ce7b8de5e374dd8400e502c0acbaa1b26e0c25b0",
+    "progression.js": "e1bb8bc947717d3494ae0817004c745ec9572e4cb27b466eb8d3a3f60dbcaa8a"
+  },
+  "cases": [
+    {
+      "name": "Timer (seconds)",
+      "target": 300,
+      "seconds": 306.1420000000012,
+      "strokes": 34,
+      "edges": 0,
+      "succubi": 0,
+      "milkingCount": 0,
+      "meter": 0.008500000000000006,
+      "won": true,
+      "sessions": 1,
+      "checkpointReloaded": true,
+      "checkpointReload": {
+        "savedSeconds": 5.059,
+        "restoredSeconds": 5.072,
+        "savedStrokes": 2,
+        "restoredStrokes": 2,
+        "target": 300
+      },
+      "repeatAttempt": {
+        "sessions": 1,
+        "wins": 1
+      },
+      "afterCompletedReload": {
+        "sessions": 1,
+        "wins": 1,
+        "checkpoint": null
+      }
+    },
+    {
+      "name": "Strokes",
+      "target": 100,
+      "seconds": 151.01399999999947,
+      "strokes": 103,
+      "edges": 0,
+      "succubi": 0,
+      "milkingCount": 0,
+      "meter": 0.02575000000000002,
+      "won": true,
+      "sessions": 1,
+      "checkpointReloaded": false,
+      "checkpointReload": null,
+      "repeatAttempt": {
+        "sessions": 1,
+        "wins": 1
+      },
+      "afterCompletedReload": {
+        "sessions": 1,
+        "wins": 1,
+        "checkpoint": null
+      }
+    },
+    {
+      "name": "Edges",
+      "target": 2,
+      "seconds": 21.143999999999888,
+      "strokes": 30,
+      "edges": 2,
+      "succubi": 0,
+      "milkingCount": 0,
+      "meter": 0.0675,
+      "won": true,
+      "sessions": 1,
+      "checkpointReloaded": false,
+      "checkpointReload": null,
+      "repeatAttempt": {
+        "sessions": 1,
+        "wins": 1
+      },
+      "afterCompletedReload": {
+        "sessions": 1,
+        "wins": 1,
+        "checkpoint": null
+      }
+    },
+    {
+      "name": "Prejac (seconds)",
+      "target": 30,
+      "seconds": 1.0100000000000007,
+      "strokes": 0,
+      "edges": 0,
+      "succubi": 0,
+      "milkingCount": 0,
+      "meter": 0,
+      "won": true,
+      "sessions": 1,
+      "checkpointReloaded": false,
+      "checkpointReload": null,
+      "repeatAttempt": {
+        "sessions": 1,
+        "wins": 1
+      },
+      "afterCompletedReload": {
+        "sessions": 1,
+        "wins": 1,
+        "checkpoint": null
+      }
+    },
+    {
+      "name": "Tribute",
+      "target": 2,
+      "seconds": 2.2190000000000016,
+      "strokes": 1,
+      "edges": 0,
+      "succubi": 0,
+      "milkingCount": 2,
+      "meter": 0.00025,
+      "won": true,
+      "sessions": 1,
+      "checkpointReloaded": false,
+      "checkpointReload": null,
+      "repeatAttempt": {
+        "sessions": 1,
+        "wins": 1
+      },
+      "afterCompletedReload": {
+        "sessions": 1,
+        "wins": 1,
+        "checkpoint": null
+      }
+    },
+    {
+      "name": "Succu Slayer",
+      "target": 5,
+      "seconds": 91.01900000000033,
+      "strokes": 305,
+      "edges": 0,
+      "succubi": 5,
+      "milkingCount": 0,
+      "meter": 0.11575000000000009,
+      "won": true,
+      "sessions": 1,
+      "checkpointReloaded": false,
+      "checkpointReload": null,
+      "repeatAttempt": {
+        "sessions": 1,
+        "wins": 1
+      },
+      "afterCompletedReload": {
+        "sessions": 1,
+        "wins": 1,
+        "checkpoint": null
+      }
+    },
+    {
+      "name": "Cum meter",
+      "target": 1,
+      "seconds": 1391.0380000000048,
+      "strokes": 1196,
+      "edges": 0,
+      "succubi": 0,
+      "milkingCount": 0,
+      "meter": 1.0001999999999163,
+      "won": true,
+      "sessions": 1,
+      "checkpointReloaded": false,
+      "checkpointReload": null,
+      "repeatAttempt": {
+        "sessions": 1,
+        "wins": 1
+      },
+      "afterCompletedReload": {
+        "sessions": 1,
+        "wins": 1,
+        "checkpoint": null
+      }
+    }
+  ]
+}
