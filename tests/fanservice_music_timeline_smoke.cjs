@@ -2,7 +2,9 @@ const {chromium}=require(process.env.FANSERVICE_PLAYWRIGHT_MODULE||'./browser/no
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const root=path.join(__dirname,'../static/fanservice'),origin='http://127.0.0.1:42171';
 const wav=Buffer.alloc(44+8000*2*4);wav.write('RIFF');wav.writeUInt32LE(wav.length-8,4);wav.write('WAVEfmt ',8);wav.writeUInt32LE(16,16);wav.writeUInt16LE(1,20);wav.writeUInt16LE(1,22);wav.writeUInt32LE(8000,24);wav.writeUInt32LE(16000,28);wav.writeUInt16LE(2,32);wav.writeUInt16LE(16,34);wav.write('data',36);wav.writeUInt32LE(wav.length-44,40);
-const manifest={protocol:1,library_id:'music-fixture',track_id:1,recording_id:'sha1:'+'a'.repeat(40),duration:4,offset:.25,stream_url:'/api/music/tracks/1/stream?browser=true',beatmap:{meta:{duration:4,bpm:120,offset:0},beats:[0,1,2,3,4].map(time=>({time,type:'stroke'})),events:[{time:0,type:'disable_break',value:'start'},{time:1,type:'restore_break'},{time:4,type:'text',value:'Final recording boundary'}]}};
+// Match the server manifest contract: offset is already applied to each row,
+// while meta.offset is zero so the player must not shift the timeline again.
+const manifest={protocol:1,library_id:'music-fixture',track_id:1,recording_id:'sha1:'+'a'.repeat(40),duration:4,offset:.25,stream_url:'/api/music/tracks/1/stream?browser=true',beatmap:{meta:{duration:4,bpm:120,offset:0},beats:[0,.75,1.75,2.75,3.75].map(time=>({time:time+.25,type:'stroke'})),events:[{time:.25,type:'disable_break',value:'start'},{time:1,type:'restore_break'},{time:4,type:'text',value:'Final recording boundary'}]}};
 (async()=>{
  const browser=await chromium.launch({headless:true,...(process.env.FANSERVICE_BROWSER_EXECUTABLE?{executablePath:process.env.FANSERVICE_BROWSER_EXECUTABLE}:{})});
  try{

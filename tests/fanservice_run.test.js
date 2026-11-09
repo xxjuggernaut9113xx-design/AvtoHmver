@@ -24,6 +24,11 @@ test('Tower shop cadence matches native square-root interval and failed rounds p
  for(let round=1;round<=5;round++){run.select(0);run.completeRound(round!==2);if(round<5){assert.equal(run.phase,round%2===0?'shop':'round-complete');run.continue();}}
  assert.equal(run.state.won,false);assert.equal(run.tower.failed,1);
 });
+test('endless Tower continues past its configured count after a failed round',()=>{
+ const run=new Run(catalog,{mode:1,rounds:1,endless:true,seed:42});
+ run.select(0);run.completeRound(false);assert.equal(run.phase,'shop');assert.equal(run.state.won,undefined);
+ run.continue();run.select(0);run.completeRound(true);assert.equal(run.tower.round,2);assert.equal(run.phase,'shop');assert.equal(run.state.won,undefined);assert.equal(run.tower.failed,1);
+});
 test('restoring a mid-round objective preserves release deadline and Tower next-draft sequence',()=>{
  const run=new Run(catalog,{mode:1,rounds:4,seed:7});run.select(1);run.state.seconds=10;run.completeRound(true);
  const restored=Run.restore(catalog,JSON.parse(JSON.stringify(run.export())));

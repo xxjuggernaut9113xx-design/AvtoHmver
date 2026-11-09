@@ -1,0 +1,1358 @@
+{
+  "authority": "normal Tower draft/shop/finish controls with Playwright virtual-clock gameplay ticks and synthetic neutral media/Server routes; no state or gameplay counter injection; not original-game execution or device acceptance",
+  "fixture": "tower-round-fixture",
+  "sourceHashes": {
+    "tower.js": "2a3a1e2e7cc8f9c4b386b90baca2e5c155bb75f5ae779103f0b60a93a5594f68",
+    "run.js": "e81441f7c80a7f4faa2b38676548e7db8097c3cd40aa703ecd8a35d61287d813",
+    "objectives.js": "d45c1e4d7e462c4f4f564f0689464f9a64b726efca93b981cf2604db7f7732b7",
+    "cards.js": "af964321b0c3515bd1bcd783a39385610dca0fcd2cec46192f88fe4b57c4cd48",
+    "items.js": "cac04128479fd570baa408cdc7bbf0211e2f0fcd0777c89e3a4e78fbbd7d76d0",
+    "play.js": "22f58064855efc3fd489a703ce7b8de5e374dd8400e502c0acbaa1b26e0c25b0"
+  },
+  "rounds": [
+    {
+      "round": 1,
+      "objective": 2,
+      "target": 419,
+      "tier": 4,
+      "lane": 2,
+      "coins": 426,
+      "succuCoins": 9,
+      "history": {
+        "seconds": 880.193,
+        "edges": 0,
+        "defensive": 0,
+        "offensive": 0,
+        "taunts": 0,
+        "temptations": 0
+      }
+    },
+    {
+      "round": 2,
+      "objective": 6,
+      "target": 78,
+      "tier": 6,
+      "lane": 0,
+      "coins": 277,
+      "succuCoins": 9,
+      "history": {
+        "seconds": 1.0229999999977508,
+        "edges": 0,
+        "defensive": 0,
+        "offensive": 0,
+        "taunts": 0,
+        "temptations": 0
+      }
+    }
+  ],
+  "transaction": {
+    "coins": 426,
+    "buy": {
+      "id": "Slowdown",
+      "cost": 75,
+      "charges": 0,
+      "type": 3
+    },
+    "upgrade": {
+      "id": "ComboCruncher",
+      "cost": 75,
+      "level": 1,
+      "type": 13
+    }
+  },
+  "purchased": {
+    "coins": 276,
+    "inventory": {
+      "version": 1,
+      "ownedItems": [
+        {
+          "type": 3,
+          "unlocked": true,
+          "level": 1,
+          "charges": 1
+        },
+        {
+          "type": 11,
+          "unlocked": true,
+          "level": 1,
+          "charges": 0
+        },
+        {
+          "type": 13,
+          "unlocked": true,
+          "level": 2,
+          "charges": 0
+        }
+      ],
+      "hotbarItems": [
+        8,
+        8,
+        8,
+        8,
+        8
+      ]
+    },
+    "moneySpent": 150
+  },
+  "checkpoint": {
+    "phase": "shop",
+    "completed": 1,
+    "inventoryRetained": true
+  },
+  "carry": {
+    "phase": "selection",
+    "round": 1,
+    "inventory": {
+      "version": 1,
+      "ownedItems": [
+        {
+          "type": 3,
+          "unlocked": true,
+          "level": 1,
+          "charges": 1
+        },
+        {
+          "type": 11,
+          "unlocked": true,
+          "level": 1,
+          "charges": 0
+        },
+        {
+          "type": 13,
+          "unlocked": true,
+          "level": 2,
+          "charges": 0
+        }
+      ],
+      "hotbarItems": [
+        8,
+        8,
+        8,
+        8,
+        8
+      ]
+    },
+    "coins": 276
+  },
+  "settled": {
+    "won": true,
+    "round": 2,
+    "completed": 2,
+    "failed": 0,
+    "best": 2,
+    "progression": {
+      "level": 3,
+      "xp": 111,
+      "total_xp": 331,
+      "coins": 277,
+      "sessions": 1,
+      "wins": 1,
+      "completed_sessions": [
+        "14ea05ae-fa0f-4521-be84-daa4e439c228"
+      ],
+      "challenge_progress": {
+        "rookie_edger": {
+          "scope": "Session",
+          "context": "[\"Session\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::SessionsWon",
+              "TargetValue": 1,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 1
+            },
+            {
+              "MetricType": "EMetricType::Edges",
+              "TargetValue": 5,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "intermediate_edger": {
+          "scope": "Session",
+          "context": "[\"Session\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::Edges",
+              "TargetValue": 15,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            },
+            {
+              "MetricType": "EMetricType::SessionsWon",
+              "TargetValue": 1,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 1
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "master_edger": {
+          "scope": "Session",
+          "context": "[\"Session\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::Edges",
+              "TargetValue": 30,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            },
+            {
+              "MetricType": "EMetricType::SessionsWon",
+              "TargetValue": 1,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 1
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "quickshot": {
+          "scope": "Session",
+          "context": "[\"Session\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::TimesLost",
+              "TargetValue": 1,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            },
+            {
+              "MetricType": "EMetricType::SessionDuration",
+              "TargetValue": 300,
+              "ComparisonType": "EComparisonType::LessOrEqual",
+              "CurrentValue": 881
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "master_of_control": {
+          "scope": "Session",
+          "context": "[\"Session\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::ItemsUsed",
+              "TargetValue": 0,
+              "ComparisonType": "EComparisonType::LessOrEqual",
+              "CurrentValue": 0
+            },
+            {
+              "MetricType": "EMetricType::SessionsWon",
+              "TargetValue": 1,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 1
+            }
+          ],
+          "completed": true,
+          "claimed": false,
+          "archived": false,
+          "completed_session": "14ea05ae-fa0f-4521-be84-daa4e439c228"
+        },
+        "succubus_lunch": {
+          "scope": "Lifetime",
+          "context": "[\"Lifetime\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::LostToSuccubus",
+              "TargetValue": 1,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "oops": {
+          "scope": "Lifetime",
+          "context": "[\"Lifetime\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::TimesLost",
+              "TargetValue": 1,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "the_cockfather": {
+          "scope": "Session",
+          "context": "[\"Session\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::SessionDuration",
+              "TargetValue": 10500,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 881
+            },
+            {
+              "MetricType": "EMetricType::SessionsWon",
+              "TargetValue": 1,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 1
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "like_a_rabbit": {
+          "scope": "Session",
+          "context": "[\"Session\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::SessionsWon",
+              "TargetValue": 1,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 1
+            },
+            {
+              "MetricType": "EMetricType::TimeAtHighHeat",
+              "TargetValue": 600,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 11
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "demon_proof": {
+          "scope": "Session",
+          "context": "[\"Session\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::ConsecutiveSuccubiSurvived",
+              "TargetValue": 3,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "succubus_initiative": {
+          "scope": "Session",
+          "context": "[\"Session\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::MissedCumWindows",
+              "TargetValue": 1,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            },
+            {
+              "MetricType": "EMetricType::LostToSuccubus",
+              "TargetValue": 1,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "goonlight_sonata": {
+          "scope": "Session",
+          "context": "[\"Session\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::SessionDuration",
+              "TargetValue": 3600,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 881
+            },
+            {
+              "MetricType": "EMetricType::SessionsWon",
+              "TargetValue": 1,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 1
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "goon_ronin": {
+          "scope": "Session",
+          "context": "[\"Session\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::EdgeStreak",
+              "TargetValue": 30,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "carpet_burn": {
+          "scope": "Session",
+          "context": "[\"Session\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::Strokes",
+              "TargetValue": 20000,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 426
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "clit_eastwood": {
+          "scope": "Session",
+          "context": "[\"Session\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::SessionDuration",
+              "TargetValue": 30,
+              "ComparisonType": "EComparisonType::LessOrEqual",
+              "CurrentValue": 881
+            },
+            {
+              "MetricType": "EMetricType::TimesLost",
+              "TargetValue": 1,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "customer_loyalty": {
+          "scope": "Session",
+          "context": "[\"Session\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::MoneySpent",
+              "TargetValue": 7000,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 150
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "crankin_my_hog": {
+          "scope": "Session",
+          "context": "[\"Session\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::MaxCombo",
+              "TargetValue": 5000,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 426
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "chicken_dinner": {
+          "scope": "Lifetime",
+          "context": "[\"Lifetime\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::SessionsWon",
+              "TargetValue": 10,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 1
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "the_names_danger": {
+          "scope": "Lifetime",
+          "context": "[\"Lifetime\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::TimeAtHighHeat",
+              "TargetValue": 1800,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 11
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "trash_talker": {
+          "scope": "Session",
+          "context": "[\"Session\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::TimesTaunted",
+              "TargetValue": 3,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            },
+            {
+              "MetricType": "EMetricType::SessionsWon",
+              "TargetValue": 1,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 1
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "skill_issue": {
+          "scope": "Lifetime",
+          "context": "[\"Lifetime\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::TimesLost",
+              "TargetValue": 10,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "edgewalker": {
+          "scope": "Lifetime",
+          "context": "[\"Lifetime\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::Edges",
+              "TargetValue": 50,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "my_arm_hurts": {
+          "scope": "Lifetime",
+          "context": "[\"Lifetime\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::Strokes",
+              "TargetValue": 50000,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 426
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "meter_maid": {
+          "scope": "Lifetime",
+          "context": "[\"Lifetime\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::CumWindowsHit",
+              "TargetValue": 10,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "its_called_motion": {
+          "scope": "Session",
+          "context": "[\"Session\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::MoneySpent",
+              "TargetValue": 15000,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 150
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "good_boy": {
+          "scope": "Lifetime",
+          "context": "[\"Lifetime\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::PerfectEdges",
+              "TargetValue": 20,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "succubus_buffet": {
+          "scope": "Lifetime",
+          "context": "[\"Lifetime\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::LostToSuccubus",
+              "TargetValue": 10,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "bricked_up": {
+          "scope": "Session",
+          "context": "[\"Session\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::BonerPillsUsed",
+              "TargetValue": 10,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "goon_gambit": {
+          "scope": "Lifetime",
+          "context": "[\"Lifetime\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::AcceptedTemptation",
+              "TargetValue": 1,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "the_price_of_hubris": {
+          "scope": "Lifetime",
+          "context": "[\"Lifetime\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::CameDuringTaunt",
+              "TargetValue": 1,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "provoker": {
+          "scope": "Lifetime",
+          "context": "[\"Lifetime\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::TimesTaunted",
+              "TargetValue": 50,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "nice": {
+          "scope": "Lifetime",
+          "context": "[\"Lifetime\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::SessionsWon",
+              "TargetValue": 69,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 1
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "i_see_god": {
+          "scope": "Session",
+          "context": "[\"Session\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::BonerPillsUsed",
+              "TargetValue": 30,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "obedient": {
+          "scope": "Session",
+          "context": "[\"Session\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::PerfectEdges",
+              "TargetValue": 5,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "easily_tempted": {
+          "scope": "Lifetime",
+          "context": "[\"Lifetime\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::AcceptedTemptation",
+              "TargetValue": 5,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "master_of_restraint": {
+          "scope": "Session",
+          "context": "[\"Session\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::CumWindowsHit",
+              "TargetValue": 3,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "built_different": {
+          "scope": "Lifetime",
+          "context": "[\"Lifetime\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::SessionsWonAtMaxDifficulty",
+              "TargetValue": 1,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "strokeaholic": {
+          "scope": "Session",
+          "context": "[\"Session\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::MaxCombo",
+              "TargetValue": 1000,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 426
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "bag_of_tricks": {
+          "scope": "Session",
+          "context": "[\"Session\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::ItemsUsed",
+              "TargetValue": 10,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            },
+            {
+              "MetricType": "EMetricType::SessionsWon",
+              "TargetValue": 1,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 1
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "monk_of_lust": {
+          "scope": "Lifetime",
+          "context": "[\"Lifetime\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::MissedCumWindows",
+              "TargetValue": 10,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "speed_freak": {
+          "scope": "Lifetime",
+          "context": "[\"Lifetime\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::SessionsWonAtMaxDifficulty",
+              "TargetValue": 5,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "tony_stank": {
+          "scope": "Session",
+          "context": "[\"Session\",[\"[\\\"modifier\\\",\\\"Iron Man\\\"]\"]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::SessionsWon",
+              "TargetValue": 1,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "swarm_protocol": {
+          "scope": "Session",
+          "context": "[\"Session\",[\"[\\\"modifier\\\",\\\"Hungry Succubi\\\"]\",\"[\\\"modifier\\\",\\\"Pheromones\\\"]\"]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::SessionsWon",
+              "TargetValue": 1,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "overclocked": {
+          "scope": "Session",
+          "context": "[\"Session\",[\"[\\\"modifier\\\",\\\"Double Time\\\"]\"]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::SessionsWon",
+              "TargetValue": 1,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "gambler": {
+          "scope": "Session",
+          "context": "[\"Session\",[\"[\\\"modifier\\\",\\\"All or Nothing\\\"]\"]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::SessionsWon",
+              "TargetValue": 1,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 1
+            }
+          ],
+          "completed": true,
+          "claimed": false,
+          "archived": false,
+          "completed_session": "14ea05ae-fa0f-4521-be84-daa4e439c228"
+        },
+        "the_lamb": {
+          "scope": "Session",
+          "context": "[\"Session\",[\"[\\\"modifier\\\",\\\"Sacrificial\\\"]\"]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::SessionsWon",
+              "TargetValue": 1,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "feeding_hour": {
+          "scope": "Lifetime",
+          "context": "[\"Lifetime\",[\"[\\\"modifier\\\",\\\"Succufrenzy\\\"]\"]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::SessionsWon",
+              "TargetValue": 1,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "masochist": {
+          "scope": "Session",
+          "context": "[\"Session\",[\"[\\\"modifier\\\",\\\"Hivemind\\\"]\",\"[\\\"modifier\\\",\\\"Iron Man\\\"]\",\"[\\\"modifier\\\",\\\"Raw Dog\\\"]\"]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::SessionsWon",
+              "TargetValue": 1,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "devils_toll": {
+          "scope": "Session",
+          "context": "[\"Session\",[\"[\\\"modifier\\\",\\\"Cum Meter only increases during Succubus Encounters. \\\"]\"]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::SessionsWon",
+              "TargetValue": 1,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "cock_hero": {
+          "scope": "Lifetime",
+          "context": "[\"Lifetime\",[]]",
+          "requirements": [],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "death_spiral": {
+          "scope": "Session",
+          "context": "[\"Session\",[\"[\\\"modifier\\\",\\\"Hivemind\\\"]\",\"[\\\"modifier\\\",\\\"Succufrenzy\\\"]\"]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::SessionsWon",
+              "TargetValue": 1,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "reach_level_5": {
+          "scope": "Lifetime",
+          "context": "[\"Lifetime\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::TotalXPEarned",
+              "TargetValue": 750,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 331
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "reach_level_10": {
+          "scope": "Lifetime",
+          "context": "[\"Lifetime\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::TotalXPEarned",
+              "TargetValue": 2605,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 331
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "reach_level_15": {
+          "scope": "Lifetime",
+          "context": "[\"Lifetime\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::TotalXPEarned",
+              "TargetValue": 7315,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 331
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "reach_level_20": {
+          "scope": "Lifetime",
+          "context": "[\"Lifetime\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::TotalXPEarned",
+              "TargetValue": 19185,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 331
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "im_outta_here": {
+          "scope": "Lifetime",
+          "context": "[\"Lifetime\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::EscapeRopesUsed",
+              "TargetValue": 5,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "dead_or_alive": {
+          "scope": "Lifetime",
+          "context": "[\"Lifetime\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::BountiesCollected",
+              "TargetValue": 50,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "django_unclaimed": {
+          "scope": "Lifetime",
+          "context": "[\"Lifetime\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::BountyCollectionFailures",
+              "TargetValue": 10,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "loot_goblin": {
+          "scope": "Session",
+          "context": "[\"Session\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::LootRushesUsed",
+              "TargetValue": 3,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "disciplined": {
+          "scope": "Lifetime",
+          "context": "[\"Lifetime\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::DeclinedTemptation",
+              "TargetValue": 5,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "aint_got_rhythm": {
+          "scope": "Lifetime",
+          "context": "[\"Lifetime\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::DisabledBreakSectionFailures",
+              "TargetValue": 1,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "not_quite_my_tempo": {
+          "scope": "Lifetime",
+          "context": "[\"Lifetime\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::MusicBreaksUsed",
+              "TargetValue": 5,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "pump_and_dump": {
+          "scope": "Session",
+          "context": "[\"Session\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::ComboCrunchersUsed",
+              "TargetValue": 2,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "public_safety": {
+          "scope": "Lifetime",
+          "context": "[\"Lifetime\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::SuccuSlayerSessionsWon",
+              "TargetValue": 10,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "test_your_might": {
+          "scope": "Lifetime",
+          "context": "[\"Lifetime\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::BestTowerWinRounds",
+              "TargetValue": 20,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 2
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "the_whole_record": {
+          "scope": "Lifetime",
+          "context": "[\"Lifetime\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::BestMusicModeWinRounds",
+              "TargetValue": 15,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "aggravator": {
+          "scope": "Session",
+          "context": "[\"Session\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::OffensiveItemsUsed",
+              "TargetValue": 10,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            },
+            {
+              "MetricType": "EMetricType::SessionsWon",
+              "TargetValue": 1,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 1
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "fap_sensei": {
+          "scope": "Session",
+          "context": "[\"Session\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::Edges",
+              "TargetValue": 204,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "ember's fave": {
+          "scope": "Session",
+          "context": "[\"Session\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::SuccuCoinsSpent",
+              "TargetValue": 169,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 0
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        },
+        "budget_run": {
+          "scope": "Session",
+          "context": "[\"Session\",[]]",
+          "requirements": [
+            {
+              "MetricType": "EMetricType::SuccuCoinsSpent",
+              "TargetValue": 0,
+              "ComparisonType": "EComparisonType::LessOrEqual",
+              "CurrentValue": 0
+            },
+            {
+              "MetricType": "EMetricType::MoneySpent",
+              "TargetValue": 0,
+              "ComparisonType": "EComparisonType::LessOrEqual",
+              "CurrentValue": 150
+            },
+            {
+              "MetricType": "EMetricType::SessionsWon",
+              "TargetValue": 1,
+              "ComparisonType": "EComparisonType::GreaterOrEqual",
+              "CurrentValue": 1
+            }
+          ],
+          "completed": false,
+          "claimed": false,
+          "archived": false
+        }
+      },
+      "unlocked_player_cards": [],
+      "unlocked_modifiers": [],
+      "rewarded_packs": [],
+      "lifetime_metrics": {
+        "strokes": 426,
+        "combo": 426,
+        "maxCombo": 426,
+        "coins": 277,
+        "succuCoins": 9,
+        "heat": 72,
+        "meter": 0,
+        "baseGain": 0,
+        "meterMultiplier": 1,
+        "seconds": 881,
+        "edges": 0,
+        "succubi": 0,
+        "milkingCount": 0,
+        "card": 0,
+        "coinMultiplier": 1,
+        "lootBarMultiplier": 1,
+        "lootBar": 0,
+        "lootRolls": 0,
+        "totalDraws": 51,
+        "highDraws": 0,
+        "heatCategory": 0,
+        "CumWindowsHit": 0,
+        "MissedCumWindows": 0,
+        "SessionCoinsEarned": 426,
+        "enemies": 49,
+        "ConsecutiveSuccubiSurvived": 0,
+        "TimeAtHighHeat": 11,
+        "MoneySpent": 150,
+        "BestTowerWinRounds": 2,
+        "Strokes": 426,
+        "Edges": 0,
+        "EnemiesDefeated": 49,
+        "SuccubiDefeated": 0,
+        "SessionDuration": 881,
+        "MaxCombo": 426,
+        "DrawsAtMaxHeat": 0,
+        "SessionsWon": 1,
+        "TimesLost": 0,
+        "SessionsCompleted": 1,
+        "ItemsUsed": 0,
+        "PercentAtHighHeat": 1,
+        "TotalXPEarned": 331
+      },
+      "last_settlement": {
+        "session_id": "14ea05ae-fa0f-4521-be84-daa4e439c228",
+        "xp": 331,
+        "unlock_points": 16,
+        "level_events": [
+          {
+            "level": 2,
+            "unlock_points": 5,
+            "title": "Stroke Scout",
+            "content_unlocks": []
+          },
+          {
+            "level": 3,
+            "unlock_points": 6,
+            "title": "Sophomore Slapper",
+            "content_unlocks": []
+          }
+        ]
+      }
+    }
+  }
+}

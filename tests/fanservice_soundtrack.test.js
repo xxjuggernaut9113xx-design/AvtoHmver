@@ -2,10 +2,10 @@ const test=require('node:test'),assert=require('node:assert/strict'),vm=require(
 const context={URL,location:{href:'https://fixture.invalid/fanservice/',origin:'https://fixture.invalid'},history:{state:null,replaceState:()=>{}},addEventListener:()=>{},localStorage:{getItem:()=>null,setItem:()=>{}},crypto:{randomUUID:()=> 'test-device'},indexedDB:{open:()=>({})}};
 vm.createContext(context);vm.runInContext(fs.readFileSync(require.resolve('../static/fanservice/store.js'),'utf8'),context);
 const validate=context.FanserviceStore.validateMusic;
-const fixture=()=>({protocol:1,library_id:'library-one',track_id:1,recording_id:'sha1:'+'a'.repeat(40),duration:10,offset:.25,stream_url:'/api/music/tracks/1/stream?browser=true',native_stream_url:'/api/music/tracks/1/stream?native=true',beatmap:{meta:{duration:10,bpm:120,offset:0},beats:[{time:.25,type:'stroke'},{time:1,type:'accent'},{time:2,type:'rest'}],events:[{time:0,type:'text',value:'Neutral fixture'},{time:1,type:'grant_break'}]}});
+const fixture=()=>({protocol:1,library_id:'library-one',track_id:1,recording_id:'sha1:'+'a'.repeat(40),duration:10,offset:.25,stream_url:'/api/music/tracks/1/stream?browser=true',native_stream_url:'/api/music/tracks/1/stream?native=true',beatmap:{meta:{duration:10,bpm:120,offset:0},beats:[{time:.25,type:'stroke'},{time:1,type:'accent'},{time:2,type:'rest'}],events:[{time:.25,type:'text',value:'Neutral fixture'},{time:1,type:'grant_break'}]}});
 
-test('confirmed soundtrack preserves shifted stroke, rest and accent data without applying offset twice',()=>{
- const music=fixture();assert.equal(validate(music,{libraryId:'library-one',trackId:1}),music);assert.equal(music.beatmap.beats[0].time,.25);
+test('confirmed soundtrack preserves already-shifted beats and events without applying offset twice',()=>{
+ const music=fixture();assert.equal(validate(music,{libraryId:'library-one',trackId:1}),music);assert.equal(music.beatmap.meta.offset,0);assert.equal(music.beatmap.beats[0].time,.25);assert.equal(music.beatmap.events[0].time,.25);
 });
 
 test('recording, library, selected track and stream mismatches fail before playback',()=>{
