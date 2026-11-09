@@ -315,10 +315,12 @@ mod tests {
             std::fs::copy(video, state.library_dir.join("sample4.mp4")).unwrap();
             state.pool.get().unwrap().execute("INSERT INTO media(id,source_id,filepath,filename,type,added_at,downloaded,human_rating) VALUES(4,1,'sample4.mp4','sample4.mp4','video','2026',1,3)", []).unwrap();
         }
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:42169")
+        let fixture_address = std::env::var("FANSERVICE_FIXTURE_ADDR")
+            .unwrap_or_else(|_| "127.0.0.1:42169".into());
+        let listener = tokio::net::TcpListener::bind(&fixture_address)
             .await
             .unwrap();
-        println!("Isolated fanservice fixture: http://127.0.0.1:42169/fanservice/");
+        println!("Isolated fanservice fixture: http://{fixture_address}/fanservice/");
         axum::serve(
             listener,
             crate::router(state).into_make_service_with_connect_info::<std::net::SocketAddr>(),

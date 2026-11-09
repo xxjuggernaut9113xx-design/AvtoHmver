@@ -3,7 +3,7 @@ const $=id=>document.getElementById(id),store=FanserviceStore,rules=FanserviceRu
 const profileKey='fanservice-profile-v1:'+library,checkpointKey='fanservice-session-v1:'+library,audio=$('audio');
 let sessionId=store.id(),profile,media=[],decks,remaining={},music,map,soundtrackWarnings,run,state,catalog,contract,cardRules,started=false,paused=false,finished=false,settling=false,lastBeat=0,lastFrame=0,checkpointAt=0,category='slow',breakUntil=0,speed=1,pinnedPacks=[],restoring=false;
 const clock={next:0,event:0,last:0},resources=[],finishButton=$('finish');
-let musicBuffering=false,musicLeadIn=0,musicStarting=false;
+let musicBuffering=false,musicLeadIn=0,musicStarting=false,restorePosition=null;
 let finishHold;
 const mediaStatus=document.createElement('p');mediaStatus.id='media-status';mediaStatus.setAttribute('role','status');$('voice-status').after(mediaStatus);
 for(const id of ['image','video'])FanserviceMedia.observe($(id),text=>mediaStatus.textContent=text);
@@ -247,10 +247,10 @@ function reconcileTimeline(events){
 }
 function timelineCallbacks(){return {beat,event,replayBeat:pulseBeat,reconcile:reconcileTimeline};}
 function sampleMusic(ended=false){
- return rules.recordingSample(map,audio.currentTime,clock,{...timelineCallbacks(),advance:elapsed=>objectiveEvents(run.advance(elapsed))},{active:!paused&&!musicLeadIn&&!musicBuffering&&!audio.paused&&!audio.seeking&&audio.readyState>=3,ended});
+ return rules.recordingSample(map,audio.currentTime,clock,{...timelineCallbacks(),advance:elapsed=>objectiveEvents(run.advance(elapsed))},{active:!paused&&!run.returnEdge&&!musicLeadIn&&!musicBuffering&&!audio.paused&&!audio.seeking&&audio.readyState>=3,ended});
 }
 function resumeMusic(){
- if(musicLeadIn||musicStarting)return;
+ if(run.returnEdge||musicLeadIn||musicStarting)return;
  musicStarting=true;
  audio.play().catch(error=>{paused=true;$('pause').textContent='Resume';status(error.message);render();}).finally(()=>{musicStarting=false;});
 }
@@ -289,6 +289,7 @@ function objectiveEvents(events){
  if(events.some(e=>e.type==='edge-card-started'))draw('fast',{prepare:false,force:true});
  if(events.some(e=>e.type==='edge-streak-ended'&&e.requestNextCard)&&run.phase==='playing')draw('slow',{force:true});
  if(events.some(e=>e.type==='edge-recorded'))status(events.find(e=>e.type==='edge-recorded').perfect?'Perfect edge recorded.':'Edge recorded.');
+ if(events.some(e=>e.type==='return-edge-complete')&&music){resumeMusic();status('Return edge complete. Resuming the saved song position.');}
  if(events.some(e=>e.type==='tribute-recorded'))status(`Tribute recorded: ${state.milkingCount}.`);
  if(events.some(e=>e.type==='objective-reset'))status('Release window closed. Objective reset.');
  if(events.some(e=>['round-complete','round-failed'].includes(e.type))||run.phase!=='playing')renderTower();
@@ -296,9 +297,21 @@ function objectiveEvents(events){
  if(run.phase==='complete'&&!settling&&!finished)void end(!!state.won);
  updateScreenWake();
 }
+function tickItems(elapsed){
+ const itemState=readItemState();for(const result of FanserviceItems.tick(run.inventory,itemState,elapsed,itemDependencies())){
+  if(result==='BountyClaimed')state.BountiesCollected=(state.BountiesCollected||0)+1;
+  if(result==='BountyFailed')state.BountyCollectionFailures=(state.BountyCollectionFailures||0)+1;
+  if(result==='StoreOpened')FanserviceEconomy.itemUsed(run,7,run.inventory.catalog.find(r=>r.type===7)?.classification);
+ }writeItemState(itemState);
+}
 function tick(now){
  const delta=lastFrame?Math.max((now-lastFrame)/1000,0):0;lastFrame=now;
  if(started&&!paused&&!finished&&run.phase==='playing'){
+  if(run.returnEdge){
+   audio.pause();
+   if(vibrationMode.value==='event')vibration.advance(state.seconds,state.seconds+delta,vibrationDeadlines());
+   objectiveEvents(run.advance(delta));if(!finished&&run.phase==='playing')tickItems(delta);checkpoint();render();requestAnimationFrame(tick);return;
+  }
   if(music&&musicLeadIn>0){
    musicLeadIn=Math.max(0,musicLeadIn-delta);
    status(musicLeadIn?`Song starts in ${Math.ceil(musicLeadIn)}…`:'Starting recording…');
@@ -321,11 +334,7 @@ function tick(now){
    if(music)sampleMusic();else objectiveEvents(run.advance(elapsed));
    if(!finished&&run.phase==='playing'){
     if(!music&&!run.config.cardRules){const interval=[.7,.5,.35][Number($('difficulty').value)]/speed*(FanserviceEconomy.has(run,6)?2:1);if(state.seconds>=breakUntil&&position()-lastBeat>=interval)beat();}
-    const itemState=readItemState();for(const result of FanserviceItems.tick(run.inventory,itemState,elapsed,itemDependencies())){
-     if(result==='BountyClaimed')state.BountiesCollected=(state.BountiesCollected||0)+1;
-     if(result==='BountyFailed')state.BountyCollectionFailures=(state.BountyCollectionFailures||0)+1;
-     if(result==='StoreOpened')FanserviceEconomy.itemUsed(run,7,run.inventory.catalog.find(r=>r.type===7)?.classification);
-    }writeItemState(itemState);
+    tickItems(elapsed);
    }
    checkpoint();
   }
@@ -396,17 +405,19 @@ $('start').onclick=async()=>{
   if(!run.resumed){const equipped=[...run.inventory.hotbarItems];installRun(makeRun());run.inventory.hotbarItems=equipped.map(type=>run.inventory.state(type)?type:8);}
   window.FanserviceVoice?.unlock().catch(()=>{});
   if(music){
-   const lead=!run.resumed||musicLeadIn>0,muted=audio.muted;
+   const lead=!run.resumed||musicLeadIn>0||run.interrupted||run.returnEdge,muted=audio.muted;
    if(lead)audio.muted=true;
    try{await audio.play();if(Math.abs(audio.duration-music.duration)>.35){audio.pause();throw Error('Recording duration differs from the confirmed beatmap.');}}
    finally{if(lead)audio.pause();audio.muted=muted;}
+   if(restorePosition!==null){audio.currentTime=restorePosition;restorePosition=null;}
    if(!run.resumed){audio.currentTime=0;musicLeadIn=2;}
   }
   started=true;lastFrame=performance.now();$('start').disabled=true;$('difficulty').disabled=true;for(const input of settingsPanel.querySelectorAll('input,select'))input.disabled=true;
+  if(run.interrupted)objectiveEvents(run.resumeInterrupted());
   $('pause').disabled=false;draw(category,{prepare:!run.resumed});renderTower();render();checkpoint(true);status('Playing locally with the session selection frozen.');if(run.phase==='complete')await end(!!state.won);
  }catch(error){status(error.message);}
 };
-$('pause').onclick=()=>{if(!started||finished)return;paused=!paused;if(paused){vibration.cancel();cancelFinishHold();window.FanserviceVoice?.stop();audio.pause();$('video').pause();checkpoint(true);}else{lastFrame=performance.now();if(music)resumeMusic();if(!$('video').hidden)$('video').play().catch(error=>status(error.message));}$('pause').textContent=paused?'Resume':'Pause';render();};
+$('pause').onclick=()=>{if(!started||finished)return;paused=!paused;if(paused){vibration.cancel();cancelFinishHold();window.FanserviceVoice?.stop();audio.pause();$('video').pause();checkpoint(true);}else{lastFrame=performance.now();if(run.interrupted)objectiveEvents(run.resumeInterrupted());if(music)resumeMusic();if(!$('video').hidden)$('video').play().catch(error=>status(error.message));checkpoint(true);}$('pause').textContent=paused?'Resume':'Pause';render();};
 function tap(){if(started&&!paused&&!finished&&!music&&run.phase==='playing')draw();}
 $('tap').onclick=tap;$('draw').onclick=()=>draw();$('pool').onchange=()=>draw($('pool').value);
 function canFinish(){
@@ -461,10 +472,11 @@ if(navigator.mediaSession){
  }
 }
 audio.addEventListener('waiting',()=>{musicBuffering=true;window.FanserviceVoice.stop();vibration.cancel();status('Buffering: rhythm clock is held at the actual playback position.');});audio.addEventListener('playing',()=>{musicBuffering=false;status('Playing from the client audio clock.');});
-audio.addEventListener('ended',()=>{if(!music||!started||paused||finished||settling||musicLeadIn||audio.seeking)return;const final=sampleMusic(true);if(!final?.complete){status('Recording ended before the confirmed song boundary. No completion rewards were granted.');return;}state.BestMusicModeWinRounds=1;void end(true);});audio.addEventListener('error',()=>status('Soundtrack access failed. Reconnect or use an explicitly saved snapshot.'));
-audio.addEventListener('seeked',()=>{window.FanserviceVoice.stop();vibration.cancel();if(started&&!musicLeadIn&&map&&state){rules.seek(map,audio.currentTime,clock,timelineCallbacks());checkpoint(true);render();}});
-document.addEventListener('visibilitychange',()=>{if(document.hidden){cancelFinishHold();if(started&&!paused&&!finished)$('pause').click();}updateScreenWake();});
-window.addEventListener('pagehide',()=>{pageHidden=true;window.FanserviceVoice.stop();vibration.cancel();cancelFinishHold();updateScreenWake();checkpoint(true);});
+audio.addEventListener('ended',()=>{if(!music||!started||paused||run.returnEdge||finished||settling||musicLeadIn||audio.seeking)return;const final=sampleMusic(true);if(!final?.complete){status('Recording ended before the confirmed song boundary. No completion rewards were granted.');return;}state.BestMusicModeWinRounds=1;void end(true);});audio.addEventListener('error',()=>status('Soundtrack access failed. Reconnect or use an explicitly saved snapshot.'));
+audio.addEventListener('seeked',()=>{window.FanserviceVoice.stop();vibration.cancel();if(started&&!run.returnEdge&&!run.interrupted&&!musicLeadIn&&map&&state){rules.seek(map,audio.currentTime,clock,timelineCallbacks());checkpoint(true);render();}});
+function interruptSession(){if(!started||finished)return;run.interrupt();if(!paused)$('pause').click();else checkpoint(true);}
+document.addEventListener('visibilitychange',()=>{if(document.hidden){cancelFinishHold();interruptSession();}updateScreenWake();});
+window.addEventListener('pagehide',()=>{pageHidden=true;interruptSession();window.FanserviceVoice.stop();vibration.cancel();cancelFinishHold();updateScreenWake();checkpoint(true);});
 window.addEventListener('pageshow',()=>{pageHidden=false;updateScreenWake();});
 async function releasePins(){await Promise.all(pinnedPacks.map(packId=>store.releaseSession(sessionId+':'+packId)));pinnedPacks=[];}
 async function restoreMedia(item){
@@ -482,6 +494,7 @@ async function restoreMedia(item){
   restoring=true;
   if(saved.version!==1||saved.library!==library||saved.server!==store.server())throw Error('An unfinished session belongs to a different Server or unsupported version.');
   sessionId=saved.id;pinnedPacks=saved.pinnedPacks||[];media=await Promise.all(saved.media.map(restoreMedia));music=saved.music;if(music?.storage_key)music=await restoreMedia(music);installRun(FanserviceRun.Run.restore(catalog,saved.run));run.resumed=true;Object.assign(clock,saved.clock);lastBeat=saved.lastBeat??saved.position??0;category=saved.category;breakUntil=saved.breakUntil||0;speed=saved.speed||1;musicLeadIn=Math.max(0,Math.min(2,Number(saved.musicLeadIn)||0));settingsPanel.hidden=true;$('source').textContent='Unfinished session restored · frozen membership';
+  run.interrupt();
  }else{
   const manifests={},enabled=profile.packs.filter(pack=>pack.owned&&pack.enabled);
   if(params.has('snapshot')){
@@ -496,6 +509,6 @@ async function restoreMedia(item){
  }
  if(saved)$('difficulty').value=String(run.config.difficulty??1);
  const missing=['slow','medium','fast','succubus','cum'].filter(pool=>!decks[pool].length);if(missing.length)throw Error('Enabled packs lack required gameplay pools: '+missing.join(', ')+'. Enable complementary packs or organize their tags in full fanservice.');
- if(music){store.validateMusic(music,{libraryId:library,playable:true});map=music.beatmap;soundtrackWarnings=map.events.filter(e=>['edge','disable_break','restore_break'].includes(e.type)).map(e=>e.time);audio.src=music.url||new URL(music.stream_url,store.server());if(saved)audio.addEventListener('loadedmetadata',()=>{audio.currentTime=saved.position;rules.seek(map,saved.position,{...clock},timelineCallbacks());},{once:true});}
+ if(music){store.validateMusic(music,{libraryId:library,playable:true});map=music.beatmap;soundtrackWarnings=map.events.filter(e=>['edge','disable_break','restore_break'].includes(e.type)).map(e=>e.time);audio.src=music.url||new URL(music.stream_url,store.server());if(saved){restorePosition=saved.position;audio.addEventListener('loadedmetadata',()=>{audio.currentTime=saved.position;},{once:true});}}
  draw(category,{prepare:!saved});renderTower();render();$('start').disabled=false;status(saved?'Unfinished session ready. Tap Start to resume.':'Ready. Tap Start to enable local playback and audio.');requestAnimationFrame(tick);
 })().catch(async error=>{status(error.message);$('start').disabled=true;if(!started&&!restoring)await releasePins().catch(()=>{});if(restoring)settingsPanel.append(action('Discard unfinished session',async()=>{if(!confirm('Discard this unfinished session without granting rewards? Saved library media and pack ownership are retained.'))return;await releasePins();localStorage.removeItem(checkpointKey);location.reload();}));});

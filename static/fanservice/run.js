@@ -42,6 +42,21 @@
    return [...edge,...cards,...this.applyEvents(events)];
   }
   beat(){return Economy.beat(this);}
+  checkpointEdge(){const saved=this.export();delete saved.edgeCheckpoint;this.edgeCheckpoint=saved;}
+  interrupt(){if(this.phase==='playing'&&!this.state.finished)this.interrupted=true;}
+  resumeInterrupted(){
+   if(!this.interrupted||this.phase!=='playing'||this.state.finished)return [];
+   const replaying=!!this.edgeCheckpoint;
+   if(this.edgeCheckpoint){
+    const checkpoint=this.edgeCheckpoint,restored=Run.restore(this.catalog,checkpoint),state=this.state;
+    for(const key of Object.keys(state))delete state[key];Object.assign(state,restored.state);
+    Object.assign(this,restored);this.state=state;this.edgeCheckpoint=checkpoint;
+   }
+   this.interrupted=false;
+   this.returnEdge??={music:this.config.mode===2,card:this.state.card,cardFlow:this.state.cardFlow??null};
+   if(replaying&&this.state.edge?.phase==='sequence')return [{type:'edge-card-started'}];
+   return Edge.beginCard(this,this.state.seconds);
+  }
   edge(){return [...Edge.trigger(this),...this.advance(0)];}
   continueEdgeRest(){return Edge.continueRest(this);}
   mercy(accept){return Edge.mercy(this,accept);}
@@ -55,7 +70,7 @@
    this.state.milkingCount=((this.state.milkingCount||0)+1)|0;
    return [{type:'tribute-recorded'},...this.advance(0)];
   }
-  climax(){if((this.roundObjective||this.objective.state)?.objective===7)return this.tribute();return this.applyEvents(this.objective.resolveClimax(this.player,this.context()));}
+  climax(){if(this.phase!=='playing'||this.state.finished)return [];if((this.roundObjective||this.objective.state)?.objective===7)return this.tribute();return this.applyEvents(this.objective.resolveClimax(this.player,this.context()));}
   applyEvents(events){
    for(const event of events){
     if(event.type==='release-window-opened'){Edge.cancel(this);this.state.card=6;}
@@ -90,7 +105,7 @@
   continue(){if(!this.tower||!['shop','round-complete'].includes(this.phase))throw Error('Complete the current round first.');this.tower.continue();this.phase='selection';return this.tower.options;}
   export(){
    const tower=this.tower?copy({rounds:this.tower.rounds,endless:this.tower.endless,round:this.tower.round,history:this.tower.history,recent:this.tower.recent,completed:this.tower.completed,failed:this.tower.failed,phase:this.tower.phase,options:this.tower.options,selected:this.tower.selected,seed:this.tower.random.seed}):null;
-   return copy({version:1,config:this.config,state:this.state,player:this.player,phase:this.phase,inventory:this.inventory.export(),ownedModifiers:this.ownedModifiers,redeemedRounds:this.redeemedRounds,randomSeed:this.random.seed,tower,shopEvery:this.shopEvery,roundStart:this.roundStart,roundObjective:this.roundObjective,objective:{settings:this.objective.settings,state:this.objective.state,releaseDeadline:this.objective.releaseDeadline}});
+   return copy({version:1,config:this.config,state:this.state,player:this.player,phase:this.phase,inventory:this.inventory.export(),ownedModifiers:this.ownedModifiers,redeemedRounds:this.redeemedRounds,randomSeed:this.random.seed,tower,shopEvery:this.shopEvery,roundStart:this.roundStart,roundObjective:this.roundObjective,edgeCheckpoint:this.edgeCheckpoint,interrupted:this.interrupted,returnEdge:this.returnEdge,objective:{settings:this.objective.settings,state:this.objective.state,releaseDeadline:this.objective.releaseDeadline}});
   }
   static restore(catalog,saved){
    if(saved?.version!==1||!saved.config||!saved.state||!saved.player||!Array.isArray(saved.inventory?.ownedItems))throw Error('Saved mobile session is invalid or unsupported.');

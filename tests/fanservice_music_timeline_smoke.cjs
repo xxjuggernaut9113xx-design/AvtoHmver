@@ -27,14 +27,18 @@ const manifest={protocol:1,library_id:'music-fixture',track_id:1,recording_id:'s
   const lead=await page.evaluate(()=>({remaining:musicLeadIn,strokes:state.strokes,seconds:state.seconds,position:audio.currentTime}));assert.ok(lead.remaining>1);assert.equal(lead.strokes,0);assert.equal(lead.seconds,0);assert.equal(lead.position,0);
   await page.locator('#pause').click();const pausedLead=await page.evaluate(()=>musicLeadIn);await page.waitForTimeout(300);assert.equal(await page.evaluate(()=>musicLeadIn),pausedLead);
   await page.evaluate(()=>checkpoint(true));await page.reload();await page.waitForFunction(()=>!document.querySelector('#start').disabled);assert.ok(await page.evaluate(()=>musicLeadIn)>1);
-  await page.locator('#start').click();await page.waitForFunction(()=>state.strokes===1);
+  await page.locator('#start').click();assert.equal(await page.evaluate(()=>audio.paused),true);
+  await page.getByRole('button',{name:'Edge / E',exact:true}).click();await page.waitForFunction(()=>!run.returnEdge);
+  const returned=await page.evaluate(()=>({strokes:state.strokes,seconds:state.seconds}));
+  await page.waitForFunction(strokes=>state.strokes>strokes,returned.strokes);
   await page.locator('#pause').click();const stopped=await page.evaluate(()=>({seconds:state.seconds,strokes:state.strokes}));await page.waitForTimeout(250);assert.deepEqual(await page.evaluate(()=>({seconds:state.seconds,strokes:state.strokes})),stopped);
   await page.locator('#pause').click();
   await page.evaluate(()=>{audio.pause();audio.dispatchEvent(new Event('waiting'));});
   const buffered=await page.evaluate(()=>({seconds:state.seconds,strokes:state.strokes}));await page.waitForTimeout(250);assert.deepEqual(await page.evaluate(()=>({seconds:state.seconds,strokes:state.strokes})),buffered);
   await page.evaluate(async()=>{await audio.play();const until=performance.now()+4300;while(performance.now()<until){};});
   await page.waitForFunction(()=>finished);
-  assert.deepEqual(await page.evaluate(()=>({strokes:state.strokes,seconds:state.seconds,caption:document.querySelector('#caption').textContent,sessions:profile.progression.sessions,wins:profile.progression.wins})),{strokes:5,seconds:4,caption:'Final recording boundary',sessions:1,wins:1});
+  const completed=await page.evaluate(()=>({strokes:state.strokes,seconds:state.seconds,caption:document.querySelector('#caption').textContent,sessions:profile.progression.sessions,wins:profile.progression.wins}));
+  assert.equal(completed.strokes,5+returned.strokes);assert.ok(Math.abs(completed.seconds-4-returned.seconds)<.05);assert.equal(completed.caption,'Final recording boundary');assert.equal(completed.sessions,1);assert.equal(completed.wins,1);
   await page.evaluate(()=>audio.dispatchEvent(new Event('ended')));assert.equal(await page.evaluate(()=>profile.progression.sessions),1);assert.deepEqual(errors,[]);
   console.log('Music timeline player passed: checkpointed 2s lead-in, pause/buffering hold, sparse recording callbacks, final beat/control drain and once-only natural settlement. Synthetic recording and mocked library API; no original-build runtime claim.');
  }finally{await browser.close();}

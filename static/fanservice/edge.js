@@ -5,13 +5,14 @@
  const clamp=(value,min,max)=>Math.max(min,Math.min(max,value)),add=(a,b)=>((a||0)+b)|0;
  function state(run){return run.state.edge??={version:1,phase:'idle',streak:0,bank:0,lastCount:25,lastInterval:1,strokeMultiplier:1.1,breakScaled:1,postBreak:1,masterUntil:5,until:5,wasEdgeCard:false,perfect:false,ratio:0,strokesPerEdge:[]};}
  function active(run){return !!run.state.edge&&run.state.edge.phase!=='idle';}
- function allowed(run){const e=run.state.edge;return run.config.mode!==2&&!!run.config.cardRules&&run.phase==='playing'&&!run.state.finished&&!run.player.hasCame&&(!e||['idle','sequence'].includes(e.phase));}
+ function allowed(run){const e=run.state.edge;return (run.config.mode!==2||!!run.returnEdge)&&!!run.config.cardRules&&run.phase==='playing'&&!run.state.finished&&!run.player.hasCame&&(!e||['idle','sequence'].includes(e.phase));}
  function beginCard(run,at){
   const e=state(run);run.state.card=5;Economy.draw(run);Cards.start(run,'edge',{at});run.state.canUseItems=false;e.phase='sequence';e.wasEdgeCard=true;e.deadline=null;
-  return [{type:'edge-card-started'}];
+  run.checkpointEdge();return [{type:'edge-card-started'}];
  }
  function trigger(run){
   if(!allowed(run))return [];
+  if(!active(run))run.checkpointEdge();
   const e=state(run),s=run.state,flow=s.cardFlow,devil=s.modifiers.includes('Deal With The Devil');e.perfect=false;e.ratio=0;
   if(!e.wasEdgeCard){e.lastCount=25;e.breakScaled=10;e.until=e.masterUntil;e.postBreak=1.75;}
   else{
@@ -28,6 +29,12 @@
  }
  function completeBreak(run,at){
   const e=state(run),flow=run.state.cardFlow,events=Cards.advance(run,at);if(flow)flow.suspended=true;
+  run.edgeCheckpoint=null;
+  if(run.returnEdge){
+   if(run.returnEdge.music){run.state.card=run.returnEdge.card;run.state.cardFlow=run.returnEdge.cardFlow;e.phase='idle';e.wasEdgeCard=false;e.deadline=null;run.state.canUseItems=true;}
+   else{e.phase='rest';e.until=Math.max(1,e.until-1);e.deadline=at+Math.max(e.breakScaled,.01);}
+   run.returnEdge=null;events.push({type:'return-edge-complete'});return events;
+  }
   if(e.until<=1){e.phase='mercy';run.state.card=5;e.deadline=null;events.push({type:'mercy-opened'});}
   else{e.until--;e.phase='rest';e.deadline=at+Math.max(e.breakScaled,.01);events.push({type:'edge-rest-started',seconds:e.breakScaled});}
   return events;
@@ -58,7 +65,7 @@
   run.state.heat=0;run.state.meter+=.01;const earned=Economy.addBeatCoins(run,e.bank);e.bank=0;e.phase='mercy-rest';e.deadline=run.state.seconds+60;
   return [{type:'mercy-accepted',earned,seconds:60}];
  }
- function cancel(run){const e=run.state.edge;if(!e)return;e.phase='idle';e.deadline=null;e.nextTick=null;e.wasEdgeCard=false;if(run.state.cardFlow)run.state.cardFlow.suspended=true;}
+ function cancel(run){run.edgeCheckpoint=null;run.returnEdge=null;const e=run.state.edge;if(!e)return;e.phase='idle';e.deadline=null;e.nextTick=null;e.wasEdgeCard=false;if(run.state.cardFlow)run.state.cardFlow.suspended=true;}
  const sourceLedger=['RecoveredSessionWidget.cpp: E direct action in newer mode, excludes music','BP_EdgeManager TriggerEdgeV2: entry3675 / ExecuteUbergraph','RecoveredEdgeManager.cpp: ratio .85, bank30/50, handoff .9/1, hold timer, rest/mercy','RecoveredEdgeRestWidget.cpp / RecoveredMercyRestWidget.cpp: G cancel, 60-second Mercy rest','MercyEventWidget bytecode: UpdateMasterEdgeCount&Set then EdgingEventV2'];
- const api={state,active,allowed,trigger,advance,continueRest,mercy,cancel,sourceLedger};if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.FanserviceEdge=api;
+ const api={state,active,allowed,trigger,advance,continueRest,mercy,cancel,beginCard,sourceLedger};if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.FanserviceEdge=api;
 })(globalThis);

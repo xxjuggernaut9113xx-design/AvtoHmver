@@ -7,6 +7,7 @@ import subprocess
 import shutil
 import time
 import urllib.request
+import urllib.parse
 
 selected = set(sys.argv[1:])
 allowed = {'fanservice_browser_smoke.cjs','fanservice_export_smoke.cjs','fanservice_mobile_smoke.cjs','fanservice_flow_smoke.cjs','fanservice_economy_smoke.cjs','fanservice_media_smoke.cjs','fanservice_snapshot_pins.test.cjs','fanservice_sync_smoke.cjs','fanservice_voice_smoke.cjs','fanservice_native_companion_smoke.cjs'}
@@ -15,6 +16,7 @@ allowed.add('served_library_smoke.cjs')
 allowed.add('fanservice_classic_smoke.cjs')
 allowed.add('fanservice_inventory_smoke.cjs')
 allowed.add('fanservice_music_timeline_smoke.cjs')
+allowed.add('fanservice_interruption_smoke.cjs')
 if not selected <= allowed:
     raise ValueError('Unknown fixture check: ' + ', '.join(sorted(selected - allowed)))
 
@@ -24,8 +26,9 @@ def run_check(script):
 
 output = Path(os.environ.get('FANSERVICE_SMOKE_OUTPUT', 'fanservice-ci-results')).resolve()
 output.mkdir(parents=True, exist_ok=True)
-origin = 'http://127.0.0.1:42169'
+origin = os.environ.get('FANSERVICE_FIXTURE_ORIGIN', 'http://127.0.0.1:42169')
 env = dict(os.environ, FANSERVICE_FIXTURE_ORIGIN=origin, FANSERVICE_SMOKE_OUTPUT=str(output))
+env['FANSERVICE_FIXTURE_ADDR'] = urllib.parse.urlsplit(origin).netloc
 env['FANSERVICE_NATIVE_FFMPEG'] = shutil.which('ffmpeg') or ''
 # Keep the standard three-image fixture deterministic, even on developer machines.
 env.pop('FANSERVICE_FIXTURE_VIDEO', None)
@@ -75,6 +78,7 @@ with (output / 'fixture.log').open('w', encoding='utf-8') as log:
         run_check('served_library_smoke.cjs')
         run_check('fanservice_mobile_smoke.cjs')
         run_check('fanservice_music_timeline_smoke.cjs')
+        run_check('fanservice_interruption_smoke.cjs')
         run_check('fanservice_flow_smoke.cjs')
         run_check('fanservice_classic_smoke.cjs')
         run_check('fanservice_economy_smoke.cjs')
