@@ -1,0 +1,3879 @@
+{
+  "authority": "Retained original newer-20261017 extracted Blueprint bytecode; static comparison, not original-game runtime observation",
+  "repository": "https://github.com/xxjuggernaut9113xx-design/reJOIce",
+  "commit": "1a18e9a8ccd97fbfb0cc785f6f3d2e025ad86cff",
+  "records": [
+    {
+      "filename": "BP_CHGameInstance-ActivateItem.json",
+      "retained_sha256": "1eeee4af08e2b7fb1d924a2f44f285cbe0345cc2f0a64ab155f867e9bf07fb58",
+      "function": "ActivateItem",
+      "statements": [
+        {
+          "index": 38,
+          "statement": {
+            "op": "EX_LocalVirtualFunction",
+            "VirtualFunctionName": "UseItem",
+            "Parameters": [
+              {
+                "op": "EX_ByteConst",
+                "Value": 1
+              },
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "CallFunc_UseItem_Success__10",
+                  "owner": "ActivateItem"
+                }
+              },
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "CallFunc_UseItem_WasLastItem__10",
+                  "owner": "ActivateItem"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "index": 39,
+          "statement": {
+            "op": "EX_JumpIfNot",
+            "CodeOffset": 1222,
+            "BooleanExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_UseItem_Success__10",
+                "owner": "ActivateItem"
+              }
+            }
+          }
+        },
+        {
+          "index": 40,
+          "statement": {
+            "op": "EX_Context",
+            "ObjectExpression": {
+              "op": "EX_Context",
+              "ObjectExpression": {
+                "op": "EX_Context",
+                "ObjectExpression": {
+                  "op": "EX_InstanceVariable",
+                  "Variable": {
+                    "field": "GlobalManagerRef",
+                    "owner": "BP_CHGameInstance_C"
+                  }
+                },
+                "Offset": 9,
+                "PropertyType": 0,
+                "RValuePointer": {
+                  "field": "UIManager",
+                  "owner": "BP_GlobalManager_C"
+                },
+                "ContextExpression": {
+                  "op": "EX_InstanceVariable",
+                  "Variable": {
+                    "field": "UIManager",
+                    "owner": "BP_GlobalManager_C"
+                  }
+                }
+              },
+              "Offset": 9,
+              "PropertyType": 0,
+              "RValuePointer": {
+                "field": "PG1TabbedInventory_Widget",
+                "owner": "UI_Manager_C"
+              },
+              "ContextExpression": {
+                "op": "EX_InstanceVariable",
+                "Variable": {
+                  "field": "PG1TabbedInventory_Widget",
+                  "owner": "UI_Manager_C"
+                }
+              }
+            },
+            "Offset": 14,
+            "PropertyType": 0,
+            "RValuePointer": {
+              "field": "",
+              "owner": "null"
+            },
+            "ContextExpression": {
+              "op": "EX_LocalVirtualFunction",
+              "VirtualFunctionName": "UseReduceHeatItem",
+              "Parameters": []
+            }
+          }
+        },
+        {
+          "index": 41,
+          "statement": {
+            "op": "EX_LocalVirtualFunction",
+            "VirtualFunctionName": "PlayUseItemAnim",
+            "Parameters": [
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "SlotIndex",
+                  "owner": "ActivateItem"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "index": 42,
+          "statement": {
+            "op": "EX_Context",
+            "ObjectExpression": {
+              "op": "EX_InstanceVariable",
+              "Variable": {
+                "field": "GlobalManagerRef",
+                "owner": "BP_CHGameInstance_C"
+              }
+            },
+            "Offset": 14,
+            "PropertyType": 0,
+            "RValuePointer": {
+              "field": "",
+              "owner": "null"
+            },
+            "ContextExpression": {
+              "op": "EX_LocalVirtualFunction",
+              "VirtualFunctionName": "ApplyHeatSpellEffect",
+              "Parameters": []
+            }
+          }
+        },
+        {
+          "index": 43,
+          "statement": {
+            "op": "EX_LocalVirtualFunction",
+            "VirtualFunctionName": "PlayUsedLastItemAnim",
+            "Parameters": [
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "CallFunc_UseItem_WasLastItem__10",
+                  "owner": "ActivateItem"
+                }
+              },
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "SlotIndex",
+                  "owner": "ActivateItem"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "index": 44,
+          "statement": {
+            "op": "EX_LocalVirtualFunction",
+            "VirtualFunctionName": "DetermineShouldHotHandsModifierApply",
+            "Parameters": [
+              {
+                "op": "EX_ByteConst",
+                "Value": 1
+              }
+            ]
+          }
+        },
+        {
+          "index": 45,
+          "statement": {
+            "op": "EX_Context",
+            "ObjectExpression": {
+              "op": "EX_InstanceVariable",
+              "Variable": {
+                "field": "GlobalManagerRef",
+                "owner": "BP_CHGameInstance_C"
+              }
+            },
+            "Offset": 14,
+            "PropertyType": 0,
+            "RValuePointer": {
+              "field": "",
+              "owner": "null"
+            },
+            "ContextExpression": {
+              "op": "EX_LocalVirtualFunction",
+              "VirtualFunctionName": "ApplyAllOrNothingModifierEffects_IfToggled",
+              "Parameters": []
+            }
+          }
+        },
+        {
+          "index": 49,
+          "statement": {
+            "op": "EX_LocalVirtualFunction",
+            "VirtualFunctionName": "UseItem",
+            "Parameters": [
+              {
+                "op": "EX_ByteConst",
+                "Value": 3
+              },
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "CallFunc_UseItem_Success__9",
+                  "owner": "ActivateItem"
+                }
+              },
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "CallFunc_UseItem_WasLastItem__9",
+                  "owner": "ActivateItem"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "index": 50,
+          "statement": {
+            "op": "EX_JumpIfNot",
+            "CodeOffset": 1528,
+            "BooleanExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_UseItem_Success__9",
+                "owner": "ActivateItem"
+              }
+            }
+          }
+        },
+        {
+          "index": 51,
+          "statement": {
+            "op": "EX_Context",
+            "ObjectExpression": {
+              "op": "EX_Context",
+              "ObjectExpression": {
+                "op": "EX_Context",
+                "ObjectExpression": {
+                  "op": "EX_InstanceVariable",
+                  "Variable": {
+                    "field": "GlobalManagerRef",
+                    "owner": "BP_CHGameInstance_C"
+                  }
+                },
+                "Offset": 9,
+                "PropertyType": 0,
+                "RValuePointer": {
+                  "field": "UIManager",
+                  "owner": "BP_GlobalManager_C"
+                },
+                "ContextExpression": {
+                  "op": "EX_InstanceVariable",
+                  "Variable": {
+                    "field": "UIManager",
+                    "owner": "BP_GlobalManager_C"
+                  }
+                }
+              },
+              "Offset": 9,
+              "PropertyType": 0,
+              "RValuePointer": {
+                "field": "PG1TabbedInventory_Widget",
+                "owner": "UI_Manager_C"
+              },
+              "ContextExpression": {
+                "op": "EX_InstanceVariable",
+                "Variable": {
+                  "field": "PG1TabbedInventory_Widget",
+                  "owner": "UI_Manager_C"
+                }
+              }
+            },
+            "Offset": 14,
+            "PropertyType": 0,
+            "RValuePointer": {
+              "field": "",
+              "owner": "null"
+            },
+            "ContextExpression": {
+              "op": "EX_LocalVirtualFunction",
+              "VirtualFunctionName": "UseSlowdownItem",
+              "Parameters": []
+            }
+          }
+        },
+        {
+          "index": 52,
+          "statement": {
+            "op": "EX_LocalVirtualFunction",
+            "VirtualFunctionName": "PlayUseItemAnim",
+            "Parameters": [
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "SlotIndex",
+                  "owner": "ActivateItem"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "index": 53,
+          "statement": {
+            "op": "EX_Context",
+            "ObjectExpression": {
+              "op": "EX_InstanceVariable",
+              "Variable": {
+                "field": "GlobalManagerRef",
+                "owner": "BP_CHGameInstance_C"
+              }
+            },
+            "Offset": 14,
+            "PropertyType": 0,
+            "RValuePointer": {
+              "field": "",
+              "owner": "null"
+            },
+            "ContextExpression": {
+              "op": "EX_LocalVirtualFunction",
+              "VirtualFunctionName": "ApplyHeatSpellEffect",
+              "Parameters": []
+            }
+          }
+        },
+        {
+          "index": 54,
+          "statement": {
+            "op": "EX_LocalVirtualFunction",
+            "VirtualFunctionName": "PlayUsedLastItemAnim",
+            "Parameters": [
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "CallFunc_UseItem_WasLastItem__9",
+                  "owner": "ActivateItem"
+                }
+              },
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "SlotIndex",
+                  "owner": "ActivateItem"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "index": 55,
+          "statement": {
+            "op": "EX_LocalVirtualFunction",
+            "VirtualFunctionName": "DetermineShouldHotHandsModifierApply",
+            "Parameters": [
+              {
+                "op": "EX_ByteConst",
+                "Value": 3
+              }
+            ]
+          }
+        },
+        {
+          "index": 56,
+          "statement": {
+            "op": "EX_Context",
+            "ObjectExpression": {
+              "op": "EX_InstanceVariable",
+              "Variable": {
+                "field": "GlobalManagerRef",
+                "owner": "BP_CHGameInstance_C"
+              }
+            },
+            "Offset": 14,
+            "PropertyType": 0,
+            "RValuePointer": {
+              "field": "",
+              "owner": "null"
+            },
+            "ContextExpression": {
+              "op": "EX_LocalVirtualFunction",
+              "VirtualFunctionName": "ApplyAllOrNothingModifierEffects_IfToggled",
+              "Parameters": []
+            }
+          }
+        },
+        {
+          "index": 60,
+          "statement": {
+            "op": "EX_LocalVirtualFunction",
+            "VirtualFunctionName": "UseItem",
+            "Parameters": [
+              {
+                "op": "EX_ByteConst",
+                "Value": 4
+              },
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "CallFunc_UseItem_Success__8",
+                  "owner": "ActivateItem"
+                }
+              },
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "CallFunc_UseItem_WasLastItem__8",
+                  "owner": "ActivateItem"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "index": 61,
+          "statement": {
+            "op": "EX_JumpIfNot",
+            "CodeOffset": 1986,
+            "BooleanExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_UseItem_Success__8",
+                "owner": "ActivateItem"
+              }
+            }
+          }
+        },
+        {
+          "index": 62,
+          "statement": {
+            "op": "EX_LetBool",
+            "VariableExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_EqualEqual_ByteByte_ReturnValue",
+                "owner": "ActivateItem"
+              }
+            },
+            "AssignmentExpression": {
+              "op": "EX_CallMath",
+              "StackNode": "EqualEqual_ByteByte",
+              "Parameters": [
+                {
+                  "op": "EX_InstanceVariable",
+                  "Variable": {
+                    "field": "GameModeSelection",
+                    "owner": "BP_CHGameInstance_C"
+                  }
+                },
+                {
+                  "op": "EX_ByteConst",
+                  "Value": 2
+                }
+              ]
+            }
+          }
+        },
+        {
+          "index": 63,
+          "statement": {
+            "op": "EX_JumpIfNot",
+            "CodeOffset": 1842,
+            "BooleanExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_EqualEqual_ByteByte_ReturnValue",
+                "owner": "ActivateItem"
+              }
+            }
+          }
+        },
+        {
+          "index": 64,
+          "statement": {
+            "op": "EX_LetBool",
+            "VariableExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_IsValid_ReturnValue",
+                "owner": "ActivateItem"
+              }
+            },
+            "AssignmentExpression": {
+              "op": "EX_CallMath",
+              "StackNode": "IsValid",
+              "Parameters": [
+                {
+                  "op": "EX_InstanceVariable",
+                  "Variable": {
+                    "field": "GlobalManagerRef",
+                    "owner": "BP_CHGameInstance_C"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "index": 65,
+          "statement": {
+            "op": "EX_JumpIfNot",
+            "CodeOffset": 4193,
+            "BooleanExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_IsValid_ReturnValue",
+                "owner": "ActivateItem"
+              }
+            }
+          }
+        },
+        {
+          "index": 66,
+          "statement": {
+            "op": "EX_Context",
+            "ObjectExpression": {
+              "op": "EX_InstanceVariable",
+              "Variable": {
+                "field": "GlobalManagerRef",
+                "owner": "BP_CHGameInstance_C"
+              }
+            },
+            "Offset": 14,
+            "PropertyType": 0,
+            "RValuePointer": {
+              "field": "",
+              "owner": "null"
+            },
+            "ContextExpression": {
+              "op": "EX_LocalVirtualFunction",
+              "VirtualFunctionName": "StartRhythmModeBreak",
+              "Parameters": []
+            }
+          }
+        },
+        {
+          "index": 67,
+          "statement": {
+            "op": "EX_LocalVirtualFunction",
+            "VirtualFunctionName": "PlayUseItemAnim",
+            "Parameters": [
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "SlotIndex",
+                  "owner": "ActivateItem"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "index": 68,
+          "statement": {
+            "op": "EX_LocalVirtualFunction",
+            "VirtualFunctionName": "PlayUsedLastItemAnim",
+            "Parameters": [
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "CallFunc_UseItem_WasLastItem__8",
+                  "owner": "ActivateItem"
+                }
+              },
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "SlotIndex",
+                  "owner": "ActivateItem"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "index": 69,
+          "statement": {
+            "op": "EX_LocalVirtualFunction",
+            "VirtualFunctionName": "DetermineShouldHotHandsModifierApply",
+            "Parameters": [
+              {
+                "op": "EX_ByteConst",
+                "Value": 4
+              }
+            ]
+          }
+        },
+        {
+          "index": 70,
+          "statement": {
+            "op": "EX_Context",
+            "ObjectExpression": {
+              "op": "EX_InstanceVariable",
+              "Variable": {
+                "field": "GlobalManagerRef",
+                "owner": "BP_CHGameInstance_C"
+              }
+            },
+            "Offset": 14,
+            "PropertyType": 0,
+            "RValuePointer": {
+              "field": "",
+              "owner": "null"
+            },
+            "ContextExpression": {
+              "op": "EX_LocalVirtualFunction",
+              "VirtualFunctionName": "ApplyAllOrNothingModifierEffects_IfToggled",
+              "Parameters": []
+            }
+          }
+        },
+        {
+          "index": 71,
+          "statement": {
+            "op": "EX_Jump",
+            "CodeOffset": 4193
+          }
+        },
+        {
+          "index": 72,
+          "statement": {
+            "op": "EX_Context",
+            "ObjectExpression": {
+              "op": "EX_Context",
+              "ObjectExpression": {
+                "op": "EX_Context",
+                "ObjectExpression": {
+                  "op": "EX_InstanceVariable",
+                  "Variable": {
+                    "field": "GlobalManagerRef",
+                    "owner": "BP_CHGameInstance_C"
+                  }
+                },
+                "Offset": 9,
+                "PropertyType": 0,
+                "RValuePointer": {
+                  "field": "UIManager",
+                  "owner": "BP_GlobalManager_C"
+                },
+                "ContextExpression": {
+                  "op": "EX_InstanceVariable",
+                  "Variable": {
+                    "field": "UIManager",
+                    "owner": "BP_GlobalManager_C"
+                  }
+                }
+              },
+              "Offset": 9,
+              "PropertyType": 0,
+              "RValuePointer": {
+                "field": "PG1TabbedInventory_Widget",
+                "owner": "UI_Manager_C"
+              },
+              "ContextExpression": {
+                "op": "EX_InstanceVariable",
+                "Variable": {
+                  "field": "PG1TabbedInventory_Widget",
+                  "owner": "UI_Manager_C"
+                }
+              }
+            },
+            "Offset": 14,
+            "PropertyType": 0,
+            "RValuePointer": {
+              "field": "",
+              "owner": "null"
+            },
+            "ContextExpression": {
+              "op": "EX_LocalVirtualFunction",
+              "VirtualFunctionName": "Use Break Item",
+              "Parameters": []
+            }
+          }
+        },
+        {
+          "index": 73,
+          "statement": {
+            "op": "EX_LocalVirtualFunction",
+            "VirtualFunctionName": "PlayUseItemAnim",
+            "Parameters": [
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "SlotIndex",
+                  "owner": "ActivateItem"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "index": 74,
+          "statement": {
+            "op": "EX_Context",
+            "ObjectExpression": {
+              "op": "EX_InstanceVariable",
+              "Variable": {
+                "field": "GlobalManagerRef",
+                "owner": "BP_CHGameInstance_C"
+              }
+            },
+            "Offset": 14,
+            "PropertyType": 0,
+            "RValuePointer": {
+              "field": "",
+              "owner": "null"
+            },
+            "ContextExpression": {
+              "op": "EX_LocalVirtualFunction",
+              "VirtualFunctionName": "ApplyHeatSpellEffect",
+              "Parameters": []
+            }
+          }
+        },
+        {
+          "index": 75,
+          "statement": {
+            "op": "EX_Jump",
+            "CodeOffset": 4193
+          }
+        },
+        {
+          "index": 78,
+          "statement": {
+            "op": "EX_LocalVirtualFunction",
+            "VirtualFunctionName": "UseItem",
+            "Parameters": [
+              {
+                "op": "EX_ByteConst",
+                "Value": 5
+              },
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "CallFunc_UseItem_Success__7",
+                  "owner": "ActivateItem"
+                }
+              },
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "CallFunc_UseItem_WasLastItem__7",
+                  "owner": "ActivateItem"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "index": 79,
+          "statement": {
+            "op": "EX_JumpIfNot",
+            "CodeOffset": 2220,
+            "BooleanExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_UseItem_Success__7",
+                "owner": "ActivateItem"
+              }
+            }
+          }
+        },
+        {
+          "index": 80,
+          "statement": {
+            "op": "EX_Context",
+            "ObjectExpression": {
+              "op": "EX_Context",
+              "ObjectExpression": {
+                "op": "EX_Context",
+                "ObjectExpression": {
+                  "op": "EX_InstanceVariable",
+                  "Variable": {
+                    "field": "GlobalManagerRef",
+                    "owner": "BP_CHGameInstance_C"
+                  }
+                },
+                "Offset": 9,
+                "PropertyType": 0,
+                "RValuePointer": {
+                  "field": "UIManager",
+                  "owner": "BP_GlobalManager_C"
+                },
+                "ContextExpression": {
+                  "op": "EX_InstanceVariable",
+                  "Variable": {
+                    "field": "UIManager",
+                    "owner": "BP_GlobalManager_C"
+                  }
+                }
+              },
+              "Offset": 9,
+              "PropertyType": 0,
+              "RValuePointer": {
+                "field": "PG2TabbedInventory_Widget",
+                "owner": "UI_Manager_C"
+              },
+              "ContextExpression": {
+                "op": "EX_InstanceVariable",
+                "Variable": {
+                  "field": "PG2TabbedInventory_Widget",
+                  "owner": "UI_Manager_C"
+                }
+              }
+            },
+            "Offset": 14,
+            "PropertyType": 0,
+            "RValuePointer": {
+              "field": "",
+              "owner": "null"
+            },
+            "ContextExpression": {
+              "op": "EX_LocalVirtualFunction",
+              "VirtualFunctionName": "UseBonerPillItem",
+              "Parameters": []
+            }
+          }
+        },
+        {
+          "index": 81,
+          "statement": {
+            "op": "EX_LocalVirtualFunction",
+            "VirtualFunctionName": "PlayUseItemAnim",
+            "Parameters": [
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "SlotIndex",
+                  "owner": "ActivateItem"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "index": 82,
+          "statement": {
+            "op": "EX_LocalVirtualFunction",
+            "VirtualFunctionName": "PlayUsedLastItemAnim",
+            "Parameters": [
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "CallFunc_UseItem_WasLastItem__7",
+                  "owner": "ActivateItem"
+                }
+              },
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "SlotIndex",
+                  "owner": "ActivateItem"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "index": 83,
+          "statement": {
+            "op": "EX_LocalVirtualFunction",
+            "VirtualFunctionName": "DetermineShouldHotHandsModifierApply",
+            "Parameters": [
+              {
+                "op": "EX_ByteConst",
+                "Value": 5
+              }
+            ]
+          }
+        },
+        {
+          "index": 84,
+          "statement": {
+            "op": "EX_Jump",
+            "CodeOffset": 4193
+          }
+        },
+        {
+          "index": 87,
+          "statement": {
+            "op": "EX_LocalVirtualFunction",
+            "VirtualFunctionName": "UseItem",
+            "Parameters": [
+              {
+                "op": "EX_ByteConst",
+                "Value": 6
+              },
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "CallFunc_UseItem_Success__5",
+                  "owner": "ActivateItem"
+                }
+              },
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "CallFunc_UseItem_WasLastItem__5",
+                  "owner": "ActivateItem"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "index": 88,
+          "statement": {
+            "op": "EX_JumpIfNot",
+            "CodeOffset": 2526,
+            "BooleanExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_UseItem_Success__5",
+                "owner": "ActivateItem"
+              }
+            }
+          }
+        },
+        {
+          "index": 89,
+          "statement": {
+            "op": "EX_Context",
+            "ObjectExpression": {
+              "op": "EX_Context",
+              "ObjectExpression": {
+                "op": "EX_Context",
+                "ObjectExpression": {
+                  "op": "EX_InstanceVariable",
+                  "Variable": {
+                    "field": "GlobalManagerRef",
+                    "owner": "BP_CHGameInstance_C"
+                  }
+                },
+                "Offset": 9,
+                "PropertyType": 0,
+                "RValuePointer": {
+                  "field": "UIManager",
+                  "owner": "BP_GlobalManager_C"
+                },
+                "ContextExpression": {
+                  "op": "EX_InstanceVariable",
+                  "Variable": {
+                    "field": "UIManager",
+                    "owner": "BP_GlobalManager_C"
+                  }
+                }
+              },
+              "Offset": 9,
+              "PropertyType": 0,
+              "RValuePointer": {
+                "field": "PG2TabbedInventory_Widget",
+                "owner": "UI_Manager_C"
+              },
+              "ContextExpression": {
+                "op": "EX_InstanceVariable",
+                "Variable": {
+                  "field": "PG2TabbedInventory_Widget",
+                  "owner": "UI_Manager_C"
+                }
+              }
+            },
+            "Offset": 14,
+            "PropertyType": 0,
+            "RValuePointer": {
+              "field": "",
+              "owner": "null"
+            },
+            "ContextExpression": {
+              "op": "EX_LocalVirtualFunction",
+              "VirtualFunctionName": "ToggleSuccuShields",
+              "Parameters": []
+            }
+          }
+        },
+        {
+          "index": 90,
+          "statement": {
+            "op": "EX_LocalVirtualFunction",
+            "VirtualFunctionName": "PlayUseItemAnim",
+            "Parameters": [
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "SlotIndex",
+                  "owner": "ActivateItem"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "index": 91,
+          "statement": {
+            "op": "EX_Context",
+            "ObjectExpression": {
+              "op": "EX_InstanceVariable",
+              "Variable": {
+                "field": "GlobalManagerRef",
+                "owner": "BP_CHGameInstance_C"
+              }
+            },
+            "Offset": 14,
+            "PropertyType": 0,
+            "RValuePointer": {
+              "field": "",
+              "owner": "null"
+            },
+            "ContextExpression": {
+              "op": "EX_LocalVirtualFunction",
+              "VirtualFunctionName": "ApplyHeatSpellEffect",
+              "Parameters": []
+            }
+          }
+        },
+        {
+          "index": 92,
+          "statement": {
+            "op": "EX_LocalVirtualFunction",
+            "VirtualFunctionName": "PlayUsedLastItemAnim",
+            "Parameters": [
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "CallFunc_UseItem_WasLastItem__5",
+                  "owner": "ActivateItem"
+                }
+              },
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "SlotIndex",
+                  "owner": "ActivateItem"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "index": 93,
+          "statement": {
+            "op": "EX_LocalVirtualFunction",
+            "VirtualFunctionName": "DetermineShouldHotHandsModifierApply",
+            "Parameters": [
+              {
+                "op": "EX_ByteConst",
+                "Value": 6
+              }
+            ]
+          }
+        },
+        {
+          "index": 94,
+          "statement": {
+            "op": "EX_Context",
+            "ObjectExpression": {
+              "op": "EX_InstanceVariable",
+              "Variable": {
+                "field": "GlobalManagerRef",
+                "owner": "BP_CHGameInstance_C"
+              }
+            },
+            "Offset": 14,
+            "PropertyType": 0,
+            "RValuePointer": {
+              "field": "",
+              "owner": "null"
+            },
+            "ContextExpression": {
+              "op": "EX_LocalVirtualFunction",
+              "VirtualFunctionName": "ApplyAllOrNothingModifierEffects_IfToggled",
+              "Parameters": []
+            }
+          }
+        },
+        {
+          "index": 95,
+          "statement": {
+            "op": "EX_Jump",
+            "CodeOffset": 4193
+          }
+        },
+        {
+          "index": 98,
+          "statement": {
+            "op": "EX_LocalVirtualFunction",
+            "VirtualFunctionName": "UseItem",
+            "Parameters": [
+              {
+                "op": "EX_ByteConst",
+                "Value": 7
+              },
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "CallFunc_UseItem_Success__6",
+                  "owner": "ActivateItem"
+                }
+              },
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "CallFunc_UseItem_WasLastItem__6",
+                  "owner": "ActivateItem"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "index": 99,
+          "statement": {
+            "op": "EX_JumpIfNot",
+            "CodeOffset": 2868,
+            "BooleanExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_UseItem_Success__6",
+                "owner": "ActivateItem"
+              }
+            }
+          }
+        },
+        {
+          "index": 100,
+          "statement": {
+            "op": "EX_Context",
+            "ObjectExpression": {
+              "op": "EX_Context",
+              "ObjectExpression": {
+                "op": "EX_Context",
+                "ObjectExpression": {
+                  "op": "EX_InstanceVariable",
+                  "Variable": {
+                    "field": "GlobalManagerRef",
+                    "owner": "BP_CHGameInstance_C"
+                  }
+                },
+                "Offset": 9,
+                "PropertyType": 0,
+                "RValuePointer": {
+                  "field": "UIManager",
+                  "owner": "BP_GlobalManager_C"
+                },
+                "ContextExpression": {
+                  "op": "EX_InstanceVariable",
+                  "Variable": {
+                    "field": "UIManager",
+                    "owner": "BP_GlobalManager_C"
+                  }
+                }
+              },
+              "Offset": 9,
+              "PropertyType": 0,
+              "RValuePointer": {
+                "field": "PG2TabbedInventory_Widget",
+                "owner": "UI_Manager_C"
+              },
+              "ContextExpression": {
+                "op": "EX_InstanceVariable",
+                "Variable": {
+                  "field": "PG2TabbedInventory_Widget",
+                  "owner": "UI_Manager_C"
+                }
+              }
+            },
+            "Offset": 14,
+            "PropertyType": 0,
+            "RValuePointer": {
+              "field": "",
+              "owner": "null"
+            },
+            "ContextExpression": {
+              "op": "EX_LocalVirtualFunction",
+              "VirtualFunctionName": "TabbedInventoryResupplyTrigger",
+              "Parameters": []
+            }
+          }
+        },
+        {
+          "index": 101,
+          "statement": {
+            "op": "EX_LocalVirtualFunction",
+            "VirtualFunctionName": "PlayUseItemAnim",
+            "Parameters": [
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "SlotIndex",
+                  "owner": "ActivateItem"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "index": 102,
+          "statement": {
+            "op": "EX_Context",
+            "ObjectExpression": {
+              "op": "EX_InstanceVariable",
+              "Variable": {
+                "field": "GlobalManagerRef",
+                "owner": "BP_CHGameInstance_C"
+              }
+            },
+            "Offset": 14,
+            "PropertyType": 0,
+            "RValuePointer": {
+              "field": "",
+              "owner": "null"
+            },
+            "ContextExpression": {
+              "op": "EX_LocalVirtualFunction",
+              "VirtualFunctionName": "ApplyHeatSpellEffect",
+              "Parameters": []
+            }
+          }
+        },
+        {
+          "index": 103,
+          "statement": {
+            "op": "EX_Context",
+            "ObjectExpression": {
+              "op": "EX_InstanceVariable",
+              "Variable": {
+                "field": "GlobalManagerRef",
+                "owner": "BP_CHGameInstance_C"
+              }
+            },
+            "Offset": 14,
+            "PropertyType": 0,
+            "RValuePointer": {
+              "field": "",
+              "owner": "null"
+            },
+            "ContextExpression": {
+              "op": "EX_LocalVirtualFunction",
+              "VirtualFunctionName": "BreakCombo",
+              "Parameters": []
+            }
+          }
+        },
+        {
+          "index": 104,
+          "statement": {
+            "op": "EX_LocalVirtualFunction",
+            "VirtualFunctionName": "PlayUsedLastItemAnim",
+            "Parameters": [
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "CallFunc_UseItem_WasLastItem__6",
+                  "owner": "ActivateItem"
+                }
+              },
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "SlotIndex",
+                  "owner": "ActivateItem"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "index": 105,
+          "statement": {
+            "op": "EX_LocalVirtualFunction",
+            "VirtualFunctionName": "DetermineShouldHotHandsModifierApply",
+            "Parameters": [
+              {
+                "op": "EX_ByteConst",
+                "Value": 7
+              }
+            ]
+          }
+        },
+        {
+          "index": 106,
+          "statement": {
+            "op": "EX_Context",
+            "ObjectExpression": {
+              "op": "EX_InstanceVariable",
+              "Variable": {
+                "field": "GlobalManagerRef",
+                "owner": "BP_CHGameInstance_C"
+              }
+            },
+            "Offset": 14,
+            "PropertyType": 0,
+            "RValuePointer": {
+              "field": "",
+              "owner": "null"
+            },
+            "ContextExpression": {
+              "op": "EX_LocalVirtualFunction",
+              "VirtualFunctionName": "ApplyAllOrNothingModifierEffects_IfToggled",
+              "Parameters": []
+            }
+          }
+        },
+        {
+          "index": 110,
+          "statement": {
+            "op": "EX_LocalVirtualFunction",
+            "VirtualFunctionName": "UseItem",
+            "Parameters": [
+              {
+                "op": "EX_ByteConst",
+                "Value": 9
+              },
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "CallFunc_UseItem_Success__4",
+                  "owner": "ActivateItem"
+                }
+              },
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "CallFunc_UseItem_WasLastItem__4",
+                  "owner": "ActivateItem"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "index": 111,
+          "statement": {
+            "op": "EX_JumpIfNot",
+            "CodeOffset": 3141,
+            "BooleanExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_UseItem_Success__4",
+                "owner": "ActivateItem"
+              }
+            }
+          }
+        },
+        {
+          "index": 112,
+          "statement": {
+            "op": "EX_Context",
+            "ObjectExpression": {
+              "op": "EX_Context",
+              "ObjectExpression": {
+                "op": "EX_Context",
+                "ObjectExpression": {
+                  "op": "EX_InstanceVariable",
+                  "Variable": {
+                    "field": "GlobalManagerRef",
+                    "owner": "BP_CHGameInstance_C"
+                  }
+                },
+                "Offset": 9,
+                "PropertyType": 0,
+                "RValuePointer": {
+                  "field": "UIManager",
+                  "owner": "BP_GlobalManager_C"
+                },
+                "ContextExpression": {
+                  "op": "EX_InstanceVariable",
+                  "Variable": {
+                    "field": "UIManager",
+                    "owner": "BP_GlobalManager_C"
+                  }
+                }
+              },
+              "Offset": 9,
+              "PropertyType": 0,
+              "RValuePointer": {
+                "field": "PG2TabbedInventory_Widget",
+                "owner": "UI_Manager_C"
+              },
+              "ContextExpression": {
+                "op": "EX_InstanceVariable",
+                "Variable": {
+                  "field": "PG2TabbedInventory_Widget",
+                  "owner": "UI_Manager_C"
+                }
+              }
+            },
+            "Offset": 14,
+            "PropertyType": 0,
+            "RValuePointer": {
+              "field": "",
+              "owner": "null"
+            },
+            "ContextExpression": {
+              "op": "EX_LocalVirtualFunction",
+              "VirtualFunctionName": "Use Apex Lure Item",
+              "Parameters": []
+            }
+          }
+        },
+        {
+          "index": 113,
+          "statement": {
+            "op": "EX_Context",
+            "ObjectExpression": {
+              "op": "EX_InstanceVariable",
+              "Variable": {
+                "field": "ProgressionManager",
+                "owner": "BP_CHGameInstance_C"
+              }
+            },
+            "Offset": 17,
+            "PropertyType": 0,
+            "RValuePointer": {
+              "field": "",
+              "owner": "null"
+            },
+            "ContextExpression": {
+              "op": "EX_FinalFunction",
+              "StackNode": "UpdateMetric",
+              "Parameters": [
+                {
+                  "op": "EX_ByteConst",
+                  "Value": 31
+                },
+                {
+                  "op": "EX_IntConst",
+                  "Value": 1
+                }
+              ]
+            }
+          }
+        },
+        {
+          "index": 114,
+          "statement": {
+            "op": "EX_LocalVirtualFunction",
+            "VirtualFunctionName": "PlayUseItemAnim",
+            "Parameters": [
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "SlotIndex",
+                  "owner": "ActivateItem"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "index": 115,
+          "statement": {
+            "op": "EX_LocalVirtualFunction",
+            "VirtualFunctionName": "PlayUsedLastItemAnim",
+            "Parameters": [
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "CallFunc_UseItem_WasLastItem__4",
+                  "owner": "ActivateItem"
+                }
+              },
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "SlotIndex",
+                  "owner": "ActivateItem"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "index": 116,
+          "statement": {
+            "op": "EX_LocalVirtualFunction",
+            "VirtualFunctionName": "DetermineShouldHotHandsModifierApply",
+            "Parameters": [
+              {
+                "op": "EX_ByteConst",
+                "Value": 9
+              }
+            ]
+          }
+        },
+        {
+          "index": 117,
+          "statement": {
+            "op": "EX_Jump",
+            "CodeOffset": 4193
+          }
+        },
+        {
+          "index": 120,
+          "statement": {
+            "op": "EX_LocalVirtualFunction",
+            "VirtualFunctionName": "UseItem",
+            "Parameters": [
+              {
+                "op": "EX_ByteConst",
+                "Value": 10
+              },
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "CallFunc_UseItem_Success_",
+                  "owner": "ActivateItem"
+                }
+              },
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "CallFunc_UseItem_WasLastItem_",
+                  "owner": "ActivateItem"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "index": 121,
+          "statement": {
+            "op": "EX_JumpIfNot",
+            "CodeOffset": 3481,
+            "BooleanExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_UseItem_Success_",
+                "owner": "ActivateItem"
+              }
+            }
+          }
+        },
+        {
+          "index": 122,
+          "statement": {
+            "op": "EX_Context",
+            "ObjectExpression": {
+              "op": "EX_InstanceVariable",
+              "Variable": {
+                "field": "GlobalManagerRef",
+                "owner": "BP_CHGameInstance_C"
+              }
+            },
+            "Offset": 14,
+            "PropertyType": 0,
+            "RValuePointer": {
+              "field": "",
+              "owner": "null"
+            },
+            "ContextExpression": {
+              "op": "EX_LocalVirtualFunction",
+              "VirtualFunctionName": "UseEscapeRopeItem",
+              "Parameters": []
+            }
+          }
+        },
+        {
+          "index": 123,
+          "statement": {
+            "op": "EX_Context",
+            "ObjectExpression": {
+              "op": "EX_InstanceVariable",
+              "Variable": {
+                "field": "ProgressionManager",
+                "owner": "BP_CHGameInstance_C"
+              }
+            },
+            "Offset": 17,
+            "PropertyType": 0,
+            "RValuePointer": {
+              "field": "",
+              "owner": "null"
+            },
+            "ContextExpression": {
+              "op": "EX_FinalFunction",
+              "StackNode": "UpdateMetric",
+              "Parameters": [
+                {
+                  "op": "EX_ByteConst",
+                  "Value": 35
+                },
+                {
+                  "op": "EX_IntConst",
+                  "Value": 1
+                }
+              ]
+            }
+          }
+        },
+        {
+          "index": 124,
+          "statement": {
+            "op": "EX_Context",
+            "ObjectExpression": {
+              "op": "EX_InstanceVariable",
+              "Variable": {
+                "field": "ProgressionManager",
+                "owner": "BP_CHGameInstance_C"
+              }
+            },
+            "Offset": 17,
+            "PropertyType": 0,
+            "RValuePointer": {
+              "field": "",
+              "owner": "null"
+            },
+            "ContextExpression": {
+              "op": "EX_FinalFunction",
+              "StackNode": "UpdateMetric",
+              "Parameters": [
+                {
+                  "op": "EX_ByteConst",
+                  "Value": 30
+                },
+                {
+                  "op": "EX_IntConst",
+                  "Value": 1
+                }
+              ]
+            }
+          }
+        },
+        {
+          "index": 125,
+          "statement": {
+            "op": "EX_LocalVirtualFunction",
+            "VirtualFunctionName": "PlayUseItemAnim",
+            "Parameters": [
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "SlotIndex",
+                  "owner": "ActivateItem"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "index": 126,
+          "statement": {
+            "op": "EX_LocalVirtualFunction",
+            "VirtualFunctionName": "PlayUsedLastItemAnim",
+            "Parameters": [
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "CallFunc_UseItem_WasLastItem_",
+                  "owner": "ActivateItem"
+                }
+              },
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "SlotIndex",
+                  "owner": "ActivateItem"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "index": 127,
+          "statement": {
+            "op": "EX_Context",
+            "ObjectExpression": {
+              "op": "EX_InstanceVariable",
+              "Variable": {
+                "field": "GlobalManagerRef",
+                "owner": "BP_CHGameInstance_C"
+              }
+            },
+            "Offset": 14,
+            "PropertyType": 0,
+            "RValuePointer": {
+              "field": "",
+              "owner": "null"
+            },
+            "ContextExpression": {
+              "op": "EX_LocalVirtualFunction",
+              "VirtualFunctionName": "BreakCombo",
+              "Parameters": []
+            }
+          }
+        },
+        {
+          "index": 128,
+          "statement": {
+            "op": "EX_LocalVirtualFunction",
+            "VirtualFunctionName": "DetermineShouldHotHandsModifierApply",
+            "Parameters": [
+              {
+                "op": "EX_ByteConst",
+                "Value": 10
+              }
+            ]
+          }
+        },
+        {
+          "index": 129,
+          "statement": {
+            "op": "EX_Context",
+            "ObjectExpression": {
+              "op": "EX_InstanceVariable",
+              "Variable": {
+                "field": "GlobalManagerRef",
+                "owner": "BP_CHGameInstance_C"
+              }
+            },
+            "Offset": 14,
+            "PropertyType": 0,
+            "RValuePointer": {
+              "field": "",
+              "owner": "null"
+            },
+            "ContextExpression": {
+              "op": "EX_LocalVirtualFunction",
+              "VirtualFunctionName": "ApplyAllOrNothingModifierEffects_IfToggled",
+              "Parameters": []
+            }
+          }
+        },
+        {
+          "index": 133,
+          "statement": {
+            "op": "EX_LocalVirtualFunction",
+            "VirtualFunctionName": "UseItem",
+            "Parameters": [
+              {
+                "op": "EX_ByteConst",
+                "Value": 11
+              },
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "CallFunc_UseItem_Success__2",
+                  "owner": "ActivateItem"
+                }
+              },
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "CallFunc_UseItem_WasLastItem__2",
+                  "owner": "ActivateItem"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "index": 134,
+          "statement": {
+            "op": "EX_JumpIfNot",
+            "CodeOffset": 3710,
+            "BooleanExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_UseItem_Success__2",
+                "owner": "ActivateItem"
+              }
+            }
+          }
+        },
+        {
+          "index": 135,
+          "statement": {
+            "op": "EX_Context",
+            "ObjectExpression": {
+              "op": "EX_InstanceVariable",
+              "Variable": {
+                "field": "GlobalManagerRef",
+                "owner": "BP_CHGameInstance_C"
+              }
+            },
+            "Offset": 14,
+            "PropertyType": 0,
+            "RValuePointer": {
+              "field": "",
+              "owner": "null"
+            },
+            "ContextExpression": {
+              "op": "EX_LocalVirtualFunction",
+              "VirtualFunctionName": "UseLootRushItem",
+              "Parameters": []
+            }
+          }
+        },
+        {
+          "index": 136,
+          "statement": {
+            "op": "EX_Context",
+            "ObjectExpression": {
+              "op": "EX_InstanceVariable",
+              "Variable": {
+                "field": "ProgressionManager",
+                "owner": "BP_CHGameInstance_C"
+              }
+            },
+            "Offset": 17,
+            "PropertyType": 0,
+            "RValuePointer": {
+              "field": "",
+              "owner": "null"
+            },
+            "ContextExpression": {
+              "op": "EX_FinalFunction",
+              "StackNode": "UpdateMetric",
+              "Parameters": [
+                {
+                  "op": "EX_ByteConst",
+                  "Value": 31
+                },
+                {
+                  "op": "EX_IntConst",
+                  "Value": 1
+                }
+              ]
+            }
+          }
+        },
+        {
+          "index": 137,
+          "statement": {
+            "op": "EX_LocalVirtualFunction",
+            "VirtualFunctionName": "PlayUseItemAnim",
+            "Parameters": [
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "SlotIndex",
+                  "owner": "ActivateItem"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "index": 138,
+          "statement": {
+            "op": "EX_LocalVirtualFunction",
+            "VirtualFunctionName": "PlayUsedLastItemAnim",
+            "Parameters": [
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "CallFunc_UseItem_WasLastItem__2",
+                  "owner": "ActivateItem"
+                }
+              },
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "SlotIndex",
+                  "owner": "ActivateItem"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "index": 139,
+          "statement": {
+            "op": "EX_LocalVirtualFunction",
+            "VirtualFunctionName": "DetermineShouldHotHandsModifierApply",
+            "Parameters": [
+              {
+                "op": "EX_ByteConst",
+                "Value": 11
+              }
+            ]
+          }
+        },
+        {
+          "index": 140,
+          "statement": {
+            "op": "EX_Jump",
+            "CodeOffset": 4193
+          }
+        },
+        {
+          "index": 143,
+          "statement": {
+            "op": "EX_LocalVirtualFunction",
+            "VirtualFunctionName": "UseItem",
+            "Parameters": [
+              {
+                "op": "EX_ByteConst",
+                "Value": 12
+              },
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "CallFunc_UseItem_Success__1",
+                  "owner": "ActivateItem"
+                }
+              },
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "CallFunc_UseItem_WasLastItem__1",
+                  "owner": "ActivateItem"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "index": 144,
+          "statement": {
+            "op": "EX_JumpIfNot",
+            "CodeOffset": 3939,
+            "BooleanExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_UseItem_Success__1",
+                "owner": "ActivateItem"
+              }
+            }
+          }
+        },
+        {
+          "index": 145,
+          "statement": {
+            "op": "EX_Context",
+            "ObjectExpression": {
+              "op": "EX_InstanceVariable",
+              "Variable": {
+                "field": "GlobalManagerRef",
+                "owner": "BP_CHGameInstance_C"
+              }
+            },
+            "Offset": 14,
+            "PropertyType": 0,
+            "RValuePointer": {
+              "field": "",
+              "owner": "null"
+            },
+            "ContextExpression": {
+              "op": "EX_LocalVirtualFunction",
+              "VirtualFunctionName": "UseBountyItem",
+              "Parameters": []
+            }
+          }
+        },
+        {
+          "index": 146,
+          "statement": {
+            "op": "EX_Context",
+            "ObjectExpression": {
+              "op": "EX_InstanceVariable",
+              "Variable": {
+                "field": "ProgressionManager",
+                "owner": "BP_CHGameInstance_C"
+              }
+            },
+            "Offset": 17,
+            "PropertyType": 0,
+            "RValuePointer": {
+              "field": "",
+              "owner": "null"
+            },
+            "ContextExpression": {
+              "op": "EX_FinalFunction",
+              "StackNode": "UpdateMetric",
+              "Parameters": [
+                {
+                  "op": "EX_ByteConst",
+                  "Value": 31
+                },
+                {
+                  "op": "EX_IntConst",
+                  "Value": 1
+                }
+              ]
+            }
+          }
+        },
+        {
+          "index": 147,
+          "statement": {
+            "op": "EX_LocalVirtualFunction",
+            "VirtualFunctionName": "PlayUseItemAnim",
+            "Parameters": [
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "SlotIndex",
+                  "owner": "ActivateItem"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "index": 148,
+          "statement": {
+            "op": "EX_LocalVirtualFunction",
+            "VirtualFunctionName": "PlayUsedLastItemAnim",
+            "Parameters": [
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "CallFunc_UseItem_WasLastItem__1",
+                  "owner": "ActivateItem"
+                }
+              },
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "SlotIndex",
+                  "owner": "ActivateItem"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "index": 149,
+          "statement": {
+            "op": "EX_LocalVirtualFunction",
+            "VirtualFunctionName": "DetermineShouldHotHandsModifierApply",
+            "Parameters": [
+              {
+                "op": "EX_ByteConst",
+                "Value": 12
+              }
+            ]
+          }
+        },
+        {
+          "index": 150,
+          "statement": {
+            "op": "EX_Jump",
+            "CodeOffset": 4193
+          }
+        },
+        {
+          "index": 153,
+          "statement": {
+            "op": "EX_LocalVirtualFunction",
+            "VirtualFunctionName": "UseItem",
+            "Parameters": [
+              {
+                "op": "EX_ByteConst",
+                "Value": 13
+              },
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "CallFunc_UseItem_Success__3",
+                  "owner": "ActivateItem"
+                }
+              },
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "CallFunc_UseItem_WasLastItem__3",
+                  "owner": "ActivateItem"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "index": 154,
+          "statement": {
+            "op": "EX_JumpIfNot",
+            "CodeOffset": 4168,
+            "BooleanExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_UseItem_Success__3",
+                "owner": "ActivateItem"
+              }
+            }
+          }
+        },
+        {
+          "index": 155,
+          "statement": {
+            "op": "EX_Context",
+            "ObjectExpression": {
+              "op": "EX_InstanceVariable",
+              "Variable": {
+                "field": "GlobalManagerRef",
+                "owner": "BP_CHGameInstance_C"
+              }
+            },
+            "Offset": 14,
+            "PropertyType": 0,
+            "RValuePointer": {
+              "field": "",
+              "owner": "null"
+            },
+            "ContextExpression": {
+              "op": "EX_LocalVirtualFunction",
+              "VirtualFunctionName": "UseComboCruncherItem",
+              "Parameters": []
+            }
+          }
+        },
+        {
+          "index": 156,
+          "statement": {
+            "op": "EX_Context",
+            "ObjectExpression": {
+              "op": "EX_InstanceVariable",
+              "Variable": {
+                "field": "ProgressionManager",
+                "owner": "BP_CHGameInstance_C"
+              }
+            },
+            "Offset": 17,
+            "PropertyType": 0,
+            "RValuePointer": {
+              "field": "",
+              "owner": "null"
+            },
+            "ContextExpression": {
+              "op": "EX_FinalFunction",
+              "StackNode": "UpdateMetric",
+              "Parameters": [
+                {
+                  "op": "EX_ByteConst",
+                  "Value": 30
+                },
+                {
+                  "op": "EX_IntConst",
+                  "Value": 1
+                }
+              ]
+            }
+          }
+        },
+        {
+          "index": 157,
+          "statement": {
+            "op": "EX_LocalVirtualFunction",
+            "VirtualFunctionName": "PlayUseItemAnim",
+            "Parameters": [
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "SlotIndex",
+                  "owner": "ActivateItem"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "index": 158,
+          "statement": {
+            "op": "EX_LocalVirtualFunction",
+            "VirtualFunctionName": "PlayUsedLastItemAnim",
+            "Parameters": [
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "CallFunc_UseItem_WasLastItem__3",
+                  "owner": "ActivateItem"
+                }
+              },
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "SlotIndex",
+                  "owner": "ActivateItem"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "index": 159,
+          "statement": {
+            "op": "EX_LocalVirtualFunction",
+            "VirtualFunctionName": "DetermineShouldHotHandsModifierApply",
+            "Parameters": [
+              {
+                "op": "EX_ByteConst",
+                "Value": 13
+              }
+            ]
+          }
+        },
+        {
+          "index": 160,
+          "statement": {
+            "op": "EX_Jump",
+            "CodeOffset": 4193
+          }
+        }
+      ]
+    },
+    {
+      "filename": "BP_CHGameInstance-UseItem.json",
+      "retained_sha256": "26d7bf7b9a2c432a9746710c007b9093d80ef83f7b101988a79bc389b7e556a2",
+      "function": "UseItem",
+      "statements": [
+        {
+          "index": 14,
+          "statement": {
+            "op": "EX_JumpIfNot",
+            "CodeOffset": 1021,
+            "BooleanExpression": {
+              "op": "EX_StructMemberContext",
+              "StructMemberExpression": {
+                "field": "CanUseItems?_95_5DA0FAB747CA4CDCE12D5CA50A03E14E",
+                "owner": "LegacyStats"
+              },
+              "StructExpression": {
+                "op": "EX_Context",
+                "ObjectExpression": {
+                  "op": "EX_InstanceVariable",
+                  "Variable": {
+                    "field": "GlobalManagerRef",
+                    "owner": "BP_CHGameInstance_C"
+                  }
+                },
+                "Offset": 9,
+                "PropertyType": 0,
+                "RValuePointer": {
+                  "field": "PlayerVariablesStruct",
+                  "owner": "BP_GlobalManager_C"
+                },
+                "ContextExpression": {
+                  "op": "EX_InstanceVariable",
+                  "Variable": {
+                    "field": "PlayerVariablesStruct",
+                    "owner": "BP_GlobalManager_C"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "index": 15,
+          "statement": {
+            "op": "EX_LetBool",
+            "VariableExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_Map_Find_ReturnValue",
+                "owner": "UseItem"
+              }
+            },
+            "AssignmentExpression": {
+              "op": "EX_Context",
+              "ObjectExpression": {
+                "op": "EX_ObjectConst",
+                "Value": -5
+              },
+              "Offset": 37,
+              "PropertyType": 0,
+              "RValuePointer": {
+                "field": "CallFunc_Map_Find_ReturnValue",
+                "owner": "UseItem"
+              },
+              "ContextExpression": {
+                "op": "EX_FinalFunction",
+                "StackNode": "Map_Find",
+                "Parameters": [
+                  {
+                    "op": "EX_InstanceVariable",
+                    "Variable": {
+                      "field": "OwnedItems",
+                      "owner": "BP_CHGameInstance_C"
+                    }
+                  },
+                  {
+                    "op": "EX_LocalVariable",
+                    "Variable": {
+                      "field": "Item Type",
+                      "owner": "UseItem"
+                    }
+                  },
+                  {
+                    "op": "EX_LocalVariable",
+                    "Variable": {
+                      "field": "CallFunc_Map_Find_Value",
+                      "owner": "UseItem"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "index": 16,
+          "statement": {
+            "op": "EX_JumpIfNot",
+            "CodeOffset": 107,
+            "BooleanExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_Map_Find_ReturnValue",
+                "owner": "UseItem"
+              }
+            }
+          }
+        },
+        {
+          "index": 17,
+          "statement": {
+            "op": "EX_LetBool",
+            "VariableExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_Map_Find_ReturnValue",
+                "owner": "UseItem"
+              }
+            },
+            "AssignmentExpression": {
+              "op": "EX_Context",
+              "ObjectExpression": {
+                "op": "EX_ObjectConst",
+                "Value": -5
+              },
+              "Offset": 37,
+              "PropertyType": 0,
+              "RValuePointer": {
+                "field": "CallFunc_Map_Find_ReturnValue",
+                "owner": "UseItem"
+              },
+              "ContextExpression": {
+                "op": "EX_FinalFunction",
+                "StackNode": "Map_Find",
+                "Parameters": [
+                  {
+                    "op": "EX_InstanceVariable",
+                    "Variable": {
+                      "field": "OwnedItems",
+                      "owner": "BP_CHGameInstance_C"
+                    }
+                  },
+                  {
+                    "op": "EX_LocalVariable",
+                    "Variable": {
+                      "field": "Item Type",
+                      "owner": "UseItem"
+                    }
+                  },
+                  {
+                    "op": "EX_LocalVariable",
+                    "Variable": {
+                      "field": "CallFunc_Map_Find_Value",
+                      "owner": "UseItem"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "index": 18,
+          "statement": {
+            "op": "EX_LetBool",
+            "VariableExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_Greater_IntInt_ReturnValue",
+                "owner": "UseItem"
+              }
+            },
+            "AssignmentExpression": {
+              "op": "EX_CallMath",
+              "StackNode": "Greater_IntInt",
+              "Parameters": [
+                {
+                  "op": "EX_StructMemberContext",
+                  "StructMemberExpression": {
+                    "field": "Charges",
+                    "owner": "ItemState"
+                  },
+                  "StructExpression": {
+                    "op": "EX_LocalVariable",
+                    "Variable": {
+                      "field": "CallFunc_Map_Find_Value",
+                      "owner": "UseItem"
+                    }
+                  }
+                },
+                {
+                  "op": "EX_IntConst",
+                  "Value": 0
+                }
+              ]
+            }
+          }
+        },
+        {
+          "index": 19,
+          "statement": {
+            "op": "EX_JumpIfNot",
+            "CodeOffset": 273,
+            "BooleanExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_Greater_IntInt_ReturnValue",
+                "owner": "UseItem"
+              }
+            }
+          }
+        },
+        {
+          "index": 20,
+          "statement": {
+            "op": "EX_LetBool",
+            "VariableExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_HasSuccuModifier_ReturnValue",
+                "owner": "UseItem"
+              }
+            },
+            "AssignmentExpression": {
+              "op": "EX_Context",
+              "ObjectExpression": {
+                "op": "EX_InstanceVariable",
+                "Variable": {
+                  "field": "RoundManager",
+                  "owner": "BP_CHGameInstance_C"
+                }
+              },
+              "Offset": 12,
+              "PropertyType": 0,
+              "RValuePointer": {
+                "field": "CallFunc_HasSuccuModifier_ReturnValue",
+                "owner": "UseItem"
+              },
+              "ContextExpression": {
+                "op": "EX_FinalFunction",
+                "StackNode": "HasSuccuModifier",
+                "Parameters": [
+                  {
+                    "op": "EX_ByteConst",
+                    "Value": 17
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "index": 21,
+          "statement": {
+            "op": "EX_JumpIfNot",
+            "CodeOffset": 971,
+            "BooleanExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_HasSuccuModifier_ReturnValue",
+                "owner": "UseItem"
+              }
+            }
+          }
+        },
+        {
+          "index": 22,
+          "statement": {
+            "op": "EX_LetBool",
+            "VariableExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_RollChance_ReturnValue",
+                "owner": "UseItem"
+              }
+            },
+            "AssignmentExpression": {
+              "op": "EX_CallMath",
+              "StackNode": "RollChance",
+              "Parameters": [
+                {
+                  "op": "EX_FloatConst",
+                  "Value": 25
+                }
+              ]
+            }
+          }
+        },
+        {
+          "index": 23,
+          "statement": {
+            "op": "EX_JumpIfNot",
+            "CodeOffset": 2644,
+            "BooleanExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_RollChance_ReturnValue",
+                "owner": "UseItem"
+              }
+            }
+          }
+        },
+        {
+          "index": 29,
+          "statement": {
+            "op": "EX_LetBool",
+            "VariableExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "Bool",
+                "owner": "UseItem"
+              }
+            },
+            "AssignmentExpression": {
+              "op": "EX_True"
+            }
+          }
+        },
+        {
+          "index": 30,
+          "statement": {
+            "op": "EX_Jump",
+            "CodeOffset": 118
+          }
+        },
+        {
+          "index": 31,
+          "statement": {
+            "op": "EX_LetBool",
+            "VariableExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_EqualEqual_ByteByte_ReturnValue",
+                "owner": "UseItem"
+              }
+            },
+            "AssignmentExpression": {
+              "op": "EX_CallMath",
+              "StackNode": "EqualEqual_ByteByte",
+              "Parameters": [
+                {
+                  "op": "EX_LocalVariable",
+                  "Variable": {
+                    "field": "Item Type",
+                    "owner": "UseItem"
+                  }
+                },
+                {
+                  "op": "EX_ByteConst",
+                  "Value": 6
+                }
+              ]
+            }
+          }
+        },
+        {
+          "index": 32,
+          "statement": {
+            "op": "EX_JumpIfNot",
+            "CodeOffset": 2644,
+            "BooleanExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_EqualEqual_ByteByte_ReturnValue",
+                "owner": "UseItem"
+              }
+            }
+          }
+        },
+        {
+          "index": 33,
+          "statement": {
+            "op": "EX_Jump",
+            "CodeOffset": 955
+          }
+        },
+        {
+          "index": 34,
+          "statement": {
+            "op": "EX_LetBool",
+            "VariableExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_EqualEqual_ByteByte_ReturnValue_1",
+                "owner": "UseItem"
+              }
+            },
+            "AssignmentExpression": {
+              "op": "EX_CallMath",
+              "StackNode": "EqualEqual_ByteByte",
+              "Parameters": [
+                {
+                  "op": "EX_LocalVariable",
+                  "Variable": {
+                    "field": "Item Type",
+                    "owner": "UseItem"
+                  }
+                },
+                {
+                  "op": "EX_ByteConst",
+                  "Value": 10
+                }
+              ]
+            }
+          }
+        },
+        {
+          "index": 35,
+          "statement": {
+            "op": "EX_LetBool",
+            "VariableExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_EqualEqual_ByteByte_ReturnValue_4",
+                "owner": "UseItem"
+              }
+            },
+            "AssignmentExpression": {
+              "op": "EX_CallMath",
+              "StackNode": "EqualEqual_ByteByte",
+              "Parameters": [
+                {
+                  "op": "EX_Context",
+                  "ObjectExpression": {
+                    "op": "EX_InstanceVariable",
+                    "Variable": {
+                      "field": "GlobalManagerRef",
+                      "owner": "BP_CHGameInstance_C"
+                    }
+                  },
+                  "Offset": 9,
+                  "PropertyType": 0,
+                  "RValuePointer": {
+                    "field": "CurrentCardTypeEnum",
+                    "owner": "BP_GlobalManager_C"
+                  },
+                  "ContextExpression": {
+                    "op": "EX_InstanceVariable",
+                    "Variable": {
+                      "field": "CurrentCardTypeEnum",
+                      "owner": "BP_GlobalManager_C"
+                    }
+                  }
+                },
+                {
+                  "op": "EX_ByteConst",
+                  "Value": 6
+                }
+              ]
+            }
+          }
+        },
+        {
+          "index": 36,
+          "statement": {
+            "op": "EX_LetBool",
+            "VariableExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_EqualEqual_ByteByte_ReturnValue_5",
+                "owner": "UseItem"
+              }
+            },
+            "AssignmentExpression": {
+              "op": "EX_CallMath",
+              "StackNode": "EqualEqual_ByteByte",
+              "Parameters": [
+                {
+                  "op": "EX_Context",
+                  "ObjectExpression": {
+                    "op": "EX_InstanceVariable",
+                    "Variable": {
+                      "field": "GlobalManagerRef",
+                      "owner": "BP_CHGameInstance_C"
+                    }
+                  },
+                  "Offset": 9,
+                  "PropertyType": 0,
+                  "RValuePointer": {
+                    "field": "CurrentCardTypeEnum",
+                    "owner": "BP_GlobalManager_C"
+                  },
+                  "ContextExpression": {
+                    "op": "EX_InstanceVariable",
+                    "Variable": {
+                      "field": "CurrentCardTypeEnum",
+                      "owner": "BP_GlobalManager_C"
+                    }
+                  }
+                },
+                {
+                  "op": "EX_ByteConst",
+                  "Value": 5
+                }
+              ]
+            }
+          }
+        },
+        {
+          "index": 37,
+          "statement": {
+            "op": "EX_LetBool",
+            "VariableExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_Not_PreBool_ReturnValue_1",
+                "owner": "UseItem"
+              }
+            },
+            "AssignmentExpression": {
+              "op": "EX_CallMath",
+              "StackNode": "Not_PreBool",
+              "Parameters": [
+                {
+                  "op": "EX_LocalVariable",
+                  "Variable": {
+                    "field": "CallFunc_EqualEqual_ByteByte_ReturnValue_4",
+                    "owner": "UseItem"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "index": 38,
+          "statement": {
+            "op": "EX_LetBool",
+            "VariableExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_Not_PreBool_ReturnValue_2",
+                "owner": "UseItem"
+              }
+            },
+            "AssignmentExpression": {
+              "op": "EX_CallMath",
+              "StackNode": "Not_PreBool",
+              "Parameters": [
+                {
+                  "op": "EX_LocalVariable",
+                  "Variable": {
+                    "field": "CallFunc_EqualEqual_ByteByte_ReturnValue_5",
+                    "owner": "UseItem"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "index": 39,
+          "statement": {
+            "op": "EX_LetBool",
+            "VariableExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_BooleanAND_ReturnValue_1",
+                "owner": "UseItem"
+              }
+            },
+            "AssignmentExpression": {
+              "op": "EX_CallMath",
+              "StackNode": "BooleanAND",
+              "Parameters": [
+                {
+                  "op": "EX_LocalVariable",
+                  "Variable": {
+                    "field": "CallFunc_Not_PreBool_ReturnValue_2",
+                    "owner": "UseItem"
+                  }
+                },
+                {
+                  "op": "EX_LocalVariable",
+                  "Variable": {
+                    "field": "CallFunc_Not_PreBool_ReturnValue_1",
+                    "owner": "UseItem"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "index": 40,
+          "statement": {
+            "op": "EX_LetBool",
+            "VariableExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_BooleanAND_ReturnValue_2",
+                "owner": "UseItem"
+              }
+            },
+            "AssignmentExpression": {
+              "op": "EX_CallMath",
+              "StackNode": "BooleanAND",
+              "Parameters": [
+                {
+                  "op": "EX_LocalVariable",
+                  "Variable": {
+                    "field": "CallFunc_EqualEqual_ByteByte_ReturnValue_1",
+                    "owner": "UseItem"
+                  }
+                },
+                {
+                  "op": "EX_LocalVariable",
+                  "Variable": {
+                    "field": "CallFunc_BooleanAND_ReturnValue_1",
+                    "owner": "UseItem"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "index": 41,
+          "statement": {
+            "op": "EX_JumpIfNot",
+            "CodeOffset": 1311,
+            "BooleanExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_BooleanAND_ReturnValue_2",
+                "owner": "UseItem"
+              }
+            }
+          }
+        },
+        {
+          "index": 42,
+          "statement": {
+            "op": "EX_Jump",
+            "CodeOffset": 334
+          }
+        },
+        {
+          "index": 43,
+          "statement": {
+            "op": "EX_LetBool",
+            "VariableExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "Bool",
+                "owner": "UseItem"
+              }
+            },
+            "AssignmentExpression": {
+              "op": "EX_False"
+            }
+          }
+        },
+        {
+          "index": 81,
+          "statement": {
+            "op": "EX_LetBool",
+            "VariableExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_Map_Find_ReturnValue",
+                "owner": "UseItem"
+              }
+            },
+            "AssignmentExpression": {
+              "op": "EX_Context",
+              "ObjectExpression": {
+                "op": "EX_ObjectConst",
+                "Value": -5
+              },
+              "Offset": 37,
+              "PropertyType": 0,
+              "RValuePointer": {
+                "field": "CallFunc_Map_Find_ReturnValue",
+                "owner": "UseItem"
+              },
+              "ContextExpression": {
+                "op": "EX_FinalFunction",
+                "StackNode": "Map_Find",
+                "Parameters": [
+                  {
+                    "op": "EX_InstanceVariable",
+                    "Variable": {
+                      "field": "OwnedItems",
+                      "owner": "BP_CHGameInstance_C"
+                    }
+                  },
+                  {
+                    "op": "EX_LocalVariable",
+                    "Variable": {
+                      "field": "Item Type",
+                      "owner": "UseItem"
+                    }
+                  },
+                  {
+                    "op": "EX_LocalVariable",
+                    "Variable": {
+                      "field": "CallFunc_Map_Find_Value",
+                      "owner": "UseItem"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "index": 82,
+          "statement": {
+            "op": "EX_Let",
+            "Value": {
+              "field": "CallFunc_Subtract_IntInt_ReturnValue",
+              "owner": "UseItem"
+            },
+            "Variable": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_Subtract_IntInt_ReturnValue",
+                "owner": "UseItem"
+              }
+            },
+            "Expression": {
+              "op": "EX_CallMath",
+              "StackNode": "Subtract_IntInt",
+              "Parameters": [
+                {
+                  "op": "EX_StructMemberContext",
+                  "StructMemberExpression": {
+                    "field": "Charges",
+                    "owner": "ItemState"
+                  },
+                  "StructExpression": {
+                    "op": "EX_LocalVariable",
+                    "Variable": {
+                      "field": "CallFunc_Map_Find_Value",
+                      "owner": "UseItem"
+                    }
+                  }
+                },
+                {
+                  "op": "EX_IntConst",
+                  "Value": 1
+                }
+              ]
+            }
+          }
+        },
+        {
+          "index": 83,
+          "statement": {
+            "op": "EX_Let",
+            "Value": {
+              "field": "Charges",
+              "owner": "ItemState"
+            },
+            "Variable": {
+              "op": "EX_StructMemberContext",
+              "StructMemberExpression": {
+                "field": "Charges",
+                "owner": "ItemState"
+              },
+              "StructExpression": {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "CallFunc_Map_Find_Value",
+                  "owner": "UseItem"
+                }
+              }
+            },
+            "Expression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_Subtract_IntInt_ReturnValue",
+                "owner": "UseItem"
+              }
+            }
+          }
+        },
+        {
+          "index": 84,
+          "statement": {
+            "op": "EX_Let",
+            "Value": {
+              "field": "K2Node_SetFieldsInStruct_StructOut",
+              "owner": "UseItem"
+            },
+            "Variable": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "K2Node_SetFieldsInStruct_StructOut",
+                "owner": "UseItem"
+              }
+            },
+            "Expression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_Map_Find_Value",
+                "owner": "UseItem"
+              }
+            }
+          }
+        },
+        {
+          "index": 85,
+          "statement": {
+            "op": "EX_Context",
+            "ObjectExpression": {
+              "op": "EX_ObjectConst",
+              "Value": -5
+            },
+            "Offset": 37,
+            "PropertyType": 0,
+            "RValuePointer": {
+              "field": "",
+              "owner": "null"
+            },
+            "ContextExpression": {
+              "op": "EX_FinalFunction",
+              "StackNode": "Map_Add",
+              "Parameters": [
+                {
+                  "op": "EX_InstanceVariable",
+                  "Variable": {
+                    "field": "OwnedItems",
+                    "owner": "BP_CHGameInstance_C"
+                  }
+                },
+                {
+                  "op": "EX_LocalVariable",
+                  "Variable": {
+                    "field": "Item Type",
+                    "owner": "UseItem"
+                  }
+                },
+                {
+                  "op": "EX_LocalVariable",
+                  "Variable": {
+                    "field": "K2Node_SetFieldsInStruct_StructOut",
+                    "owner": "UseItem"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "index": 86,
+          "statement": {
+            "op": "EX_Jump",
+            "CodeOffset": 955
+          }
+        }
+      ]
+    },
+    {
+      "filename": "BP_GlobalManager-ApplyAllOrNothingModifierEffects_IfToggled.json",
+      "retained_sha256": "1b88ec6f37fa3f801efa79222819b2f17055cd8a478bf4a057fa5c300035f392",
+      "function": "ApplyAllOrNothingModifierEffects_IfToggled",
+      "statements": [
+        {
+          "index": 0,
+          "statement": {
+            "op": "EX_LocalVirtualFunction",
+            "VirtualFunctionName": "IsModifierActive?",
+            "Parameters": [
+              {
+                "op": "EX_StringConst",
+                "Value": "All or Nothing"
+              },
+              {
+                "op": "EX_LocalVariable",
+                "Variable": {
+                  "field": "CallFunc_IsModifierActive__Active_",
+                  "owner": "ApplyAllOrNothingModifierEffects_IfToggled"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "index": 1,
+          "statement": {
+            "op": "EX_JumpIfNot",
+            "CodeOffset": 984,
+            "BooleanExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "CallFunc_IsModifierActive__Active_",
+                "owner": "ApplyAllOrNothingModifierEffects_IfToggled"
+              }
+            }
+          }
+        },
+        {
+          "index": 2,
+          "statement": {
+            "op": "EX_Let",
+            "Value": {
+              "field": "PlayerCoins_68_973E21014EEAD400FB28C1BFC6BC7AE4",
+              "owner": "LegacyStats"
+            },
+            "Variable": {
+              "op": "EX_StructMemberContext",
+              "StructMemberExpression": {
+                "field": "PlayerCoins_68_973E21014EEAD400FB28C1BFC6BC7AE4",
+                "owner": "LegacyStats"
+              },
+              "StructExpression": {
+                "op": "EX_InstanceVariable",
+                "Variable": {
+                  "field": "PlayerVariablesStruct",
+                  "owner": "BP_GlobalManager_C"
+                }
+              }
+            },
+            "Expression": {
+              "op": "EX_IntConst",
+              "Value": 0
+            }
+          }
+        },
+        {
+          "index": 3,
+          "statement": {
+            "op": "EX_Context",
+            "ObjectExpression": {
+              "op": "EX_InstanceVariable",
+              "Variable": {
+                "field": "UIManager",
+                "owner": "BP_GlobalManager_C"
+              }
+            },
+            "Offset": 162,
+            "PropertyType": 0,
+            "RValuePointer": {
+              "field": "",
+              "owner": "null"
+            },
+            "ContextExpression": {
+              "op": "EX_LocalVirtualFunction",
+              "VirtualFunctionName": "CreateNotificationBox",
+              "Parameters": [
+                {
+                  "op": "EX_ObjectConst",
+                  "Value": -3983
+                },
+                {
+                  "op": "EX_StringConst",
+                  "Value": "All or Nothing"
+                },
+                {
+                  "op": "EX_StringConst",
+                  "Value": "Your coins are gone. \r\nObjective progress wiped."
+                },
+                {
+                  "op": "EX_False"
+                },
+                {
+                  "op": "EX_NoObject"
+                },
+                {
+                  "op": "EX_ByteConst",
+                  "Value": 0
+                },
+                {
+                  "op": "EX_DoubleConst",
+                  "Value": "+0"
+                },
+                {
+                  "op": "EX_DoubleConst",
+                  "Value": "+0"
+                },
+                {
+                  "op": "EX_IntConst",
+                  "Value": 0
+                },
+                {
+                  "op": "EX_IntConst",
+                  "Value": 0
+                },
+                {
+                  "op": "EX_ByteConst",
+                  "Value": 0
+                },
+                {
+                  "op": "EX_IntConst",
+                  "Value": 0
+                },
+                {
+                  "op": "EX_StructConst",
+                  "Struct": -2285,
+                  "StructSize": 16,
+                  "Value": [
+                    {
+                      "op": "EX_FloatConst",
+                      "Value": "+0"
+                    },
+                    {
+                      "op": "EX_FloatConst",
+                      "Value": "+0"
+                    },
+                    {
+                      "op": "EX_FloatConst",
+                      "Value": "+0"
+                    },
+                    {
+                      "op": "EX_FloatConst",
+                      "Value": "+0"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "index": 4,
+          "statement": {
+            "op": "EX_LetBool",
+            "VariableExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "K2Node_SwitchEnum_CmpSuccess",
+                "owner": "ApplyAllOrNothingModifierEffects_IfToggled"
+              }
+            },
+            "AssignmentExpression": {
+              "op": "EX_CallMath",
+              "StackNode": "NotEqual_ByteByte",
+              "Parameters": [
+                {
+                  "op": "EX_Context",
+                  "ObjectExpression": {
+                    "op": "EX_InstanceVariable",
+                    "Variable": {
+                      "field": "GameInstance",
+                      "owner": "BP_GlobalManager_C"
+                    }
+                  },
+                  "Offset": 9,
+                  "PropertyType": 0,
+                  "RValuePointer": {
+                    "field": "CurrentSessionObjective",
+                    "owner": "BP_CHGameInstance_C"
+                  },
+                  "ContextExpression": {
+                    "op": "EX_InstanceVariable",
+                    "Variable": {
+                      "field": "CurrentSessionObjective",
+                      "owner": "BP_CHGameInstance_C"
+                    }
+                  }
+                },
+                {
+                  "op": "EX_ByteConst",
+                  "Value": 0
+                }
+              ]
+            }
+          }
+        },
+        {
+          "index": 5,
+          "statement": {
+            "op": "EX_JumpIfNot",
+            "CodeOffset": 676,
+            "BooleanExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "K2Node_SwitchEnum_CmpSuccess",
+                "owner": "ApplyAllOrNothingModifierEffects_IfToggled"
+              }
+            }
+          }
+        },
+        {
+          "index": 6,
+          "statement": {
+            "op": "EX_LetBool",
+            "VariableExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "K2Node_SwitchEnum_CmpSuccess",
+                "owner": "ApplyAllOrNothingModifierEffects_IfToggled"
+              }
+            },
+            "AssignmentExpression": {
+              "op": "EX_CallMath",
+              "StackNode": "NotEqual_ByteByte",
+              "Parameters": [
+                {
+                  "op": "EX_Context",
+                  "ObjectExpression": {
+                    "op": "EX_InstanceVariable",
+                    "Variable": {
+                      "field": "GameInstance",
+                      "owner": "BP_GlobalManager_C"
+                    }
+                  },
+                  "Offset": 9,
+                  "PropertyType": 0,
+                  "RValuePointer": {
+                    "field": "CurrentSessionObjective",
+                    "owner": "BP_CHGameInstance_C"
+                  },
+                  "ContextExpression": {
+                    "op": "EX_InstanceVariable",
+                    "Variable": {
+                      "field": "CurrentSessionObjective",
+                      "owner": "BP_CHGameInstance_C"
+                    }
+                  }
+                },
+                {
+                  "op": "EX_ByteConst",
+                  "Value": 1
+                }
+              ]
+            }
+          }
+        },
+        {
+          "index": 7,
+          "statement": {
+            "op": "EX_JumpIfNot",
+            "CodeOffset": 708,
+            "BooleanExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "K2Node_SwitchEnum_CmpSuccess",
+                "owner": "ApplyAllOrNothingModifierEffects_IfToggled"
+              }
+            }
+          }
+        },
+        {
+          "index": 8,
+          "statement": {
+            "op": "EX_LetBool",
+            "VariableExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "K2Node_SwitchEnum_CmpSuccess",
+                "owner": "ApplyAllOrNothingModifierEffects_IfToggled"
+              }
+            },
+            "AssignmentExpression": {
+              "op": "EX_CallMath",
+              "StackNode": "NotEqual_ByteByte",
+              "Parameters": [
+                {
+                  "op": "EX_Context",
+                  "ObjectExpression": {
+                    "op": "EX_InstanceVariable",
+                    "Variable": {
+                      "field": "GameInstance",
+                      "owner": "BP_GlobalManager_C"
+                    }
+                  },
+                  "Offset": 9,
+                  "PropertyType": 0,
+                  "RValuePointer": {
+                    "field": "CurrentSessionObjective",
+                    "owner": "BP_CHGameInstance_C"
+                  },
+                  "ContextExpression": {
+                    "op": "EX_InstanceVariable",
+                    "Variable": {
+                      "field": "CurrentSessionObjective",
+                      "owner": "BP_CHGameInstance_C"
+                    }
+                  }
+                },
+                {
+                  "op": "EX_ByteConst",
+                  "Value": 2
+                }
+              ]
+            }
+          }
+        },
+        {
+          "index": 9,
+          "statement": {
+            "op": "EX_JumpIfNot",
+            "CodeOffset": 745,
+            "BooleanExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "K2Node_SwitchEnum_CmpSuccess",
+                "owner": "ApplyAllOrNothingModifierEffects_IfToggled"
+              }
+            }
+          }
+        },
+        {
+          "index": 10,
+          "statement": {
+            "op": "EX_LetBool",
+            "VariableExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "K2Node_SwitchEnum_CmpSuccess",
+                "owner": "ApplyAllOrNothingModifierEffects_IfToggled"
+              }
+            },
+            "AssignmentExpression": {
+              "op": "EX_CallMath",
+              "StackNode": "NotEqual_ByteByte",
+              "Parameters": [
+                {
+                  "op": "EX_Context",
+                  "ObjectExpression": {
+                    "op": "EX_InstanceVariable",
+                    "Variable": {
+                      "field": "GameInstance",
+                      "owner": "BP_GlobalManager_C"
+                    }
+                  },
+                  "Offset": 9,
+                  "PropertyType": 0,
+                  "RValuePointer": {
+                    "field": "CurrentSessionObjective",
+                    "owner": "BP_CHGameInstance_C"
+                  },
+                  "ContextExpression": {
+                    "op": "EX_InstanceVariable",
+                    "Variable": {
+                      "field": "CurrentSessionObjective",
+                      "owner": "BP_CHGameInstance_C"
+                    }
+                  }
+                },
+                {
+                  "op": "EX_ByteConst",
+                  "Value": 3
+                }
+              ]
+            }
+          }
+        },
+        {
+          "index": 11,
+          "statement": {
+            "op": "EX_JumpIfNot",
+            "CodeOffset": 806,
+            "BooleanExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "K2Node_SwitchEnum_CmpSuccess",
+                "owner": "ApplyAllOrNothingModifierEffects_IfToggled"
+              }
+            }
+          }
+        },
+        {
+          "index": 12,
+          "statement": {
+            "op": "EX_LetBool",
+            "VariableExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "K2Node_SwitchEnum_CmpSuccess",
+                "owner": "ApplyAllOrNothingModifierEffects_IfToggled"
+              }
+            },
+            "AssignmentExpression": {
+              "op": "EX_CallMath",
+              "StackNode": "NotEqual_ByteByte",
+              "Parameters": [
+                {
+                  "op": "EX_Context",
+                  "ObjectExpression": {
+                    "op": "EX_InstanceVariable",
+                    "Variable": {
+                      "field": "GameInstance",
+                      "owner": "BP_GlobalManager_C"
+                    }
+                  },
+                  "Offset": 9,
+                  "PropertyType": 0,
+                  "RValuePointer": {
+                    "field": "CurrentSessionObjective",
+                    "owner": "BP_CHGameInstance_C"
+                  },
+                  "ContextExpression": {
+                    "op": "EX_InstanceVariable",
+                    "Variable": {
+                      "field": "CurrentSessionObjective",
+                      "owner": "BP_CHGameInstance_C"
+                    }
+                  }
+                },
+                {
+                  "op": "EX_ByteConst",
+                  "Value": 7
+                }
+              ]
+            }
+          }
+        },
+        {
+          "index": 13,
+          "statement": {
+            "op": "EX_JumpIfNot",
+            "CodeOffset": 867,
+            "BooleanExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "K2Node_SwitchEnum_CmpSuccess",
+                "owner": "ApplyAllOrNothingModifierEffects_IfToggled"
+              }
+            }
+          }
+        },
+        {
+          "index": 14,
+          "statement": {
+            "op": "EX_LetBool",
+            "VariableExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "K2Node_SwitchEnum_CmpSuccess",
+                "owner": "ApplyAllOrNothingModifierEffects_IfToggled"
+              }
+            },
+            "AssignmentExpression": {
+              "op": "EX_CallMath",
+              "StackNode": "NotEqual_ByteByte",
+              "Parameters": [
+                {
+                  "op": "EX_Context",
+                  "ObjectExpression": {
+                    "op": "EX_InstanceVariable",
+                    "Variable": {
+                      "field": "GameInstance",
+                      "owner": "BP_GlobalManager_C"
+                    }
+                  },
+                  "Offset": 9,
+                  "PropertyType": 0,
+                  "RValuePointer": {
+                    "field": "CurrentSessionObjective",
+                    "owner": "BP_CHGameInstance_C"
+                  },
+                  "ContextExpression": {
+                    "op": "EX_InstanceVariable",
+                    "Variable": {
+                      "field": "CurrentSessionObjective",
+                      "owner": "BP_CHGameInstance_C"
+                    }
+                  }
+                },
+                {
+                  "op": "EX_ByteConst",
+                  "Value": 8
+                }
+              ]
+            }
+          }
+        },
+        {
+          "index": 15,
+          "statement": {
+            "op": "EX_JumpIfNot",
+            "CodeOffset": 928,
+            "BooleanExpression": {
+              "op": "EX_LocalVariable",
+              "Variable": {
+                "field": "K2Node_SwitchEnum_CmpSuccess",
+                "owner": "ApplyAllOrNothingModifierEffects_IfToggled"
+              }
+            }
+          }
+        },
+        {
+          "index": 16,
+          "statement": {
+            "op": "EX_Jump",
+            "CodeOffset": 984
+          }
+        },
+        {
+          "index": 17,
+          "statement": {
+            "op": "EX_Let",
+            "Value": {
+              "field": "CumMeterPercentage",
+              "owner": "BP_GlobalManager_C"
+            },
+            "Variable": {
+              "op": "EX_InstanceVariable",
+              "Variable": {
+                "field": "CumMeterPercentage",
+                "owner": "BP_GlobalManager_C"
+              }
+            },
+            "Expression": {
+              "op": "EX_DoubleConst",
+              "Value": "+0"
+            }
+          }
+        },
+        {
+          "index": 18,
+          "statement": {
+            "op": "EX_Jump",
+            "CodeOffset": 984
+          }
+        },
+        {
+          "index": 19,
+          "statement": {
+            "op": "EX_Let",
+            "Value": {
+              "field": "SessionLength_56_D6CECACC4BB58ACDC313F09687D17721",
+              "owner": "LegacyStats"
+            },
+            "Variable": {
+              "op": "EX_StructMemberContext",
+              "StructMemberExpression": {
+                "field": "SessionLength_56_D6CECACC4BB58ACDC313F09687D17721",
+                "owner": "LegacyStats"
+              },
+              "StructExpression": {
+                "op": "EX_InstanceVariable",
+                "Variable": {
+                  "field": "PlayerVariablesStruct",
+                  "owner": "BP_GlobalManager_C"
+                }
+              }
+            },
+            "Expression": {
+              "op": "EX_IntConst",
+              "Value": 0
+            }
+          }
+        },
+        {
+          "index": 20,
+          "statement": {
+            "op": "EX_Jump",
+            "CodeOffset": 984
+          }
+        },
+        {
+          "index": 21,
+          "statement": {
+            "op": "EX_Context",
+            "ObjectExpression": {
+              "op": "EX_Context",
+              "ObjectExpression": {
+                "op": "EX_InstanceVariable",
+                "Variable": {
+                  "field": "GameInstance",
+                  "owner": "BP_GlobalManager_C"
+                }
+              },
+              "Offset": 9,
+              "PropertyType": 0,
+              "RValuePointer": {
+                "field": "ProgressionManager",
+                "owner": "BP_CHGameInstance_C"
+              },
+              "ContextExpression": {
+                "op": "EX_InstanceVariable",
+                "Variable": {
+                  "field": "ProgressionManager",
+                  "owner": "BP_CHGameInstance_C"
+                }
+              }
+            },
+            "Offset": 12,
+            "PropertyType": 0,
+            "RValuePointer": {
+              "field": "",
+              "owner": "null"
+            },
+            "ContextExpression": {
+              "op": "EX_FinalFunction",
+              "StackNode": "ResetSessionMetric",
+              "Parameters": [
+                {
+                  "op": "EX_ByteConst",
+                  "Value": 0
+                }
+              ]
+            }
+          }
+        },
+        {
+          "index": 22,
+          "statement": {
+            "op": "EX_Jump",
+            "CodeOffset": 984
+          }
+        },
+        {
+          "index": 23,
+          "statement": {
+            "op": "EX_Context",
+            "ObjectExpression": {
+              "op": "EX_Context",
+              "ObjectExpression": {
+                "op": "EX_InstanceVariable",
+                "Variable": {
+                  "field": "GameInstance",
+                  "owner": "BP_GlobalManager_C"
+                }
+              },
+              "Offset": 9,
+              "PropertyType": 0,
+              "RValuePointer": {
+                "field": "ProgressionManager",
+                "owner": "BP_CHGameInstance_C"
+              },
+              "ContextExpression": {
+                "op": "EX_InstanceVariable",
+                "Variable": {
+                  "field": "ProgressionManager",
+                  "owner": "BP_CHGameInstance_C"
+                }
+              }
+            },
+            "Offset": 12,
+            "PropertyType": 0,
+            "RValuePointer": {
+              "field": "",
+              "owner": "null"
+            },
+            "ContextExpression": {
+              "op": "EX_FinalFunction",
+              "StackNode": "ResetSessionMetric",
+              "Parameters": [
+                {
+                  "op": "EX_ByteConst",
+                  "Value": 1
+                }
+              ]
+            }
+          }
+        },
+        {
+          "index": 24,
+          "statement": {
+            "op": "EX_Jump",
+            "CodeOffset": 984
+          }
+        },
+        {
+          "index": 25,
+          "statement": {
+            "op": "EX_Context",
+            "ObjectExpression": {
+              "op": "EX_Context",
+              "ObjectExpression": {
+                "op": "EX_InstanceVariable",
+                "Variable": {
+                  "field": "GameInstance",
+                  "owner": "BP_GlobalManager_C"
+                }
+              },
+              "Offset": 9,
+              "PropertyType": 0,
+              "RValuePointer": {
+                "field": "ProgressionManager",
+                "owner": "BP_CHGameInstance_C"
+              },
+              "ContextExpression": {
+                "op": "EX_InstanceVariable",
+                "Variable": {
+                  "field": "ProgressionManager",
+                  "owner": "BP_CHGameInstance_C"
+                }
+              }
+            },
+            "Offset": 12,
+            "PropertyType": 0,
+            "RValuePointer": {
+              "field": "",
+              "owner": "null"
+            },
+            "ContextExpression": {
+              "op": "EX_FinalFunction",
+              "StackNode": "ResetSessionMetric",
+              "Parameters": [
+                {
+                  "op": "EX_ByteConst",
+                  "Value": 36
+                }
+              ]
+            }
+          }
+        },
+        {
+          "index": 26,
+          "statement": {
+            "op": "EX_Jump",
+            "CodeOffset": 984
+          }
+        },
+        {
+          "index": 27,
+          "statement": {
+            "op": "EX_Context",
+            "ObjectExpression": {
+              "op": "EX_Context",
+              "ObjectExpression": {
+                "op": "EX_InstanceVariable",
+                "Variable": {
+                  "field": "GameInstance",
+                  "owner": "BP_GlobalManager_C"
+                }
+              },
+              "Offset": 9,
+              "PropertyType": 0,
+              "RValuePointer": {
+                "field": "ProgressionManager",
+                "owner": "BP_CHGameInstance_C"
+              },
+              "ContextExpression": {
+                "op": "EX_InstanceVariable",
+                "Variable": {
+                  "field": "ProgressionManager",
+                  "owner": "BP_CHGameInstance_C"
+                }
+              }
+            },
+            "Offset": 12,
+            "PropertyType": 0,
+            "RValuePointer": {
+              "field": "",
+              "owner": "null"
+            },
+            "ContextExpression": {
+              "op": "EX_FinalFunction",
+              "StackNode": "ResetSessionMetric",
+              "Parameters": [
+                {
+                  "op": "EX_ByteConst",
+                  "Value": 2
+                }
+              ]
+            }
+          }
+        },
+        {
+          "index": 28,
+          "statement": {
+            "op": "EX_Return",
+            "ReturnExpression": {
+              "op": "EX_Nothing"
+            }
+          }
+        },
+        {
+          "index": 29,
+          "statement": {
+            "op": "EX_EndOfScript"
+          }
+        }
+      ]
+    }
+  ]
+}

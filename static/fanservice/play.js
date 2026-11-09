@@ -120,7 +120,7 @@ function vibrationDeadlines(){
  const edge=state.edge;
  if(edge?.phase==='rest'||edge?.phase==='mercy-rest')deadlines.push(edge.deadline);
  if(edge?.until>1){
-  if(edge.phase==='handoff')deadlines.push(edge.deadline+(edge.postBreak>=2&&!edge.perfect?edge.holdRemaining-1:0));
+  if(edge.phase==='handoff')deadlines.push(edge.deadline+(edge.postBreak>=2&&!edge.perfect?edge.holdRemaining:0));
   if(edge.phase==='hold'&&state.card!==6)deadlines.push(edge.nextTick+edge.holdRemaining-1);
  }
  const round=run.roundObjective;
@@ -358,11 +358,12 @@ async function end(won){
  }catch(error){state.finished=false;status('Rewards could not be saved: '+error.message);checkpoint(true);}
  finally{settling=false;updateScreenWake();}
 }
-function itemContext(){const levels=profile.mobile_music_upgrades||[1,1,1],value=type=>catalog.music_upgrades[type]['Value_L'+Math.max(1,Math.min(5,levels[type]||1))];return {mode:run.config.mode,manager:true,maxBreaks:value(1),breakDuration:value(0),minimumBeatInterval:0,biggerPockets:run.ownedModifiers.includes(13),allOrNothing:state.modifiers.includes('All or Nothing')};}
+function itemContext(){const levels=profile.mobile_music_upgrades||[1,1,1],value=type=>catalog.music_upgrades[type]['Value_L'+Math.max(1,Math.min(5,levels[type]||1))];return {mode:run.config.mode,manager:true,maxBreaks:value(1),breakDuration:value(0),minimumBeatInterval:0,biggerPockets:run.ownedModifiers.includes(13),allOrNothing:state.modifiers.includes('All or Nothing'),objectiveType:(run.roundObjective||run.objective.state).objective};}
 function readItemState(){return {...state,_baseline:{...state},cumMeter:state.meter,cardType:state.card,strokeCount:state.cardFlow?.remaining??state.strokes,beatInterval:state.cardFlow?.interval??[.7,.5,.35][Number($('difficulty').value)]/speed,beatsRemaining:music?map.beats.length-clock.next:state.cardFlow?.remaining??1,canUseItems:state.canUseItems!==false&&FanserviceModifiers.options(state.modifiers).canUseItems&&!state.breakSectionDisabled&&state.seconds>=breakUntil};}
 function writeItemState(value){for(const key of ['heat','combo','coins','effects','metrics','canUseSlowdown','canUseBonerPill','coinMultiplier','lootBarMultiplier','shieldToggled'])if(value[key]!==value._baseline[key])state[key]=value[key];if(value.cumMeter!==value._baseline.meter)state.meter=value.cumMeter;if(value.cardType!==value._baseline.card){state.card=value.cardType;if(state.cardFlow)state.cardFlow.card=value.cardType;}}
 function itemDependencies(){return {context:itemContext(),random:run.random,hooks:{
  recycler:()=>FanserviceEconomy.recycler(run),
+ resetObjective:value=>{const objective=run.roundObjective||run.objective.state,key={1:'baselineDuration',2:'baselineStrokes',3:'baselineEdges',6:'baselineDuration',7:'baselineMilking',8:'baselineSuccubi'}[objective.objective];if(objective.objective===0)value.cumMeter=0;else if(key)objective[key]=FanserviceObjectives.baselines(run.player,run.objectiveStats())[key];},
  panicBlocked:(type,s)=>FanserviceModifiers.panicBlocked(run.inventory.catalog.find(r=>r.type===type)?.id,s.heat,state.modifiers),
  speed:multiplier=>{if(music)return false;const next=Math.max(.1,Math.min(5,speed*multiplier));if(state.cardFlow&&!run.modifyCard(next))return false;speed=next;return true;},
  beginBreak:duration=>{if(state.breakSectionDisabled||state.seconds<breakUntil)return false;breakUntil=state.seconds+duration;if(!music&&state.cardFlow)run.delayCard(duration);if(music){state.MusicBreaksUsed=(state.MusicBreaksUsed||0)+1;}return true;},
@@ -377,7 +378,7 @@ function useItem(type){
  const value=readItemState(),result=FanserviceItems.use(run.inventory,type,value,itemDependencies());
  if(!result.ok)throw Error(result.reason);
  writeItemState(value);
- if(result.consumed)FanserviceEconomy.itemUsed(run,type,run.inventory.catalog.find(row=>row.type===type).classification);
+ if(result.consumed||type===6)FanserviceEconomy.itemUsed(run,type,run.inventory.catalog.find(row=>row.type===type).classification);
  checkpoint(true);
 }
 function renderInventory(storeEvent=false){

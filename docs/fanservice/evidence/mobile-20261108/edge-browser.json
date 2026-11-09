@@ -1,0 +1,121 @@
+{
+  "authority": "shared player controls with virtual browser time and synthetic neutral media/Server routes; not original-game execution or physical-device acceptance",
+  "sourceHashes": {
+    "edge.js": "3b3eaf1f66095b74b300ae33cc72f5e8b8beab0edc30d39dfa324870124daf1c",
+    "run.js": "e81441f7c80a7f4faa2b38676548e7db8097c3cd40aa703ecd8a35d61287d813",
+    "cards.js": "af964321b0c3515bd1bcd783a39385610dca0fcd2cec46192f88fe4b57c4cd48",
+    "play.js": "22f58064855efc3fd489a703ce7b8de5e374dd8400e502c0acbaa1b26e0c25b0"
+  },
+  "stages": [
+    {
+      "phase": "handoff",
+      "streak": 1,
+      "perfect": false,
+      "bank": 0,
+      "postBreak": 1.75,
+      "seconds": 0.25000000000000006
+    },
+    {
+      "phase": "handoff",
+      "streak": 2,
+      "perfect": false,
+      "bank": 30,
+      "postBreak": 1.75,
+      "seconds": 1.3550000000000006
+    },
+    {
+      "phase": "handoff",
+      "streak": 3,
+      "perfect": false,
+      "bank": 60,
+      "postBreak": 1.75,
+      "seconds": 2.5050000000000012
+    },
+    {
+      "phase": "handoff",
+      "streak": 4,
+      "perfect": false,
+      "bank": 90,
+      "postBreak": 1.75,
+      "seconds": 3.625000000000001
+    },
+    {
+      "phase": "handoff",
+      "streak": 5,
+      "perfect": false,
+      "bank": 120,
+      "postBreak": 2.75,
+      "seconds": 4.778000000000001
+    },
+    {
+      "phase": "handoff",
+      "streak": 6,
+      "perfect": true,
+      "bank": 170,
+      "postBreak": 2.75,
+      "seconds": 20.641999999999527
+    },
+    {
+      "phase": "handoff",
+      "streak": 7,
+      "perfect": false,
+      "bank": 200,
+      "postBreak": 2.75,
+      "seconds": 21.64199999999944
+    },
+    {
+      "phase": "handoff",
+      "streak": 8,
+      "perfect": false,
+      "bank": 230,
+      "postBreak": 2.75,
+      "seconds": 24.762999999999153
+    },
+    {
+      "phase": "handoff",
+      "streak": 9,
+      "perfect": false,
+      "bank": 260,
+      "postBreak": 2.75,
+      "seconds": 27.869999999998914
+    },
+    {
+      "phase": "handoff",
+      "streak": 10,
+      "perfect": false,
+      "bank": 290,
+      "postBreak": 3.75,
+      "seconds": 30.920999999998642
+    },
+    {
+      "phase": "handoff",
+      "streak": 10,
+      "perfect": false,
+      "bank": 290,
+      "postBreak": 3.75,
+      "seconds": 30.932999999998643
+    },
+    {
+      "phase": "handoff",
+      "streak": 11,
+      "perfect": false,
+      "bank": 320,
+      "postBreak": 3.75,
+      "seconds": 34.9489999999983
+    },
+    {
+      "phase": "idle",
+      "streak": 12,
+      "perfect": false,
+      "bank": 0,
+      "postBreak": 3.75,
+      "seconds": 98.09100000000655
+    }
+  ],
+  "acceptedBank": 320,
+  "persistedHoldRestored": true,
+  "currentEdgeReplayed": true,
+  "edges": 12,
+  "sessions": 1,
+  "won": true
+}

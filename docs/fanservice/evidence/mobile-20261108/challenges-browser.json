@@ -1,0 +1,15 @@
+{
+  "authority": "shared playable browser UI with virtual time; not original-game execution",
+  "firstSessionEdges": 30,
+  "secondSessionEdges": 2,
+  "sessions": 2,
+  "wins": 2,
+  "claimXPCounted": true,
+  "conflictRejected": true,
+  "enabledModifiers": [
+    "Pheromones",
+    "Raw Dog"
+  ],
+  "claimsRemainClaimed": true,
+  "profilePreserved": true
+}

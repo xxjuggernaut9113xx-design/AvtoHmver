@@ -32,6 +32,23 @@ test('pack rewards record entitlement without enabling or replacing custom packs
  const settled=progression.settleSession(fresh(),{seconds:20,won:false,LostToSuccubus:1},'loss',contract,()=>0);const next=progression.claimChallenge(settled,'succubus_lunch',contract);
  assert.ok(next.progression.rewarded_packs.includes('cum_covered_succubi_vol._1'));assert.deepEqual(next.packs,fresh().packs);
 });
+test('claim XP advances native lifetime XP challenges once, including after profile reload',()=>{
+ let profile=progression.settleSession(fresh(),{seconds:400,edges:15,won:true},'edge-win',contract,()=>250);
+ assert.equal(profile.progression.challenge_progress.reach_level_5.completed,false);
+ profile=progression.claimChallenge(profile,'intermediate_edger',contract);
+ assert.equal(profile.progression.total_xp,750);
+ assert.equal(profile.progression.lifetime_metrics.TotalXPEarned,750);
+ assert.equal(profile.progression.challenge_progress.reach_level_5.completed,true);
+ assert.equal(profile.progression.challenge_progress.reach_level_5.claimed,false);
+ assert.equal(profile.progression.challenge_progress.reach_level_5.requirements[0].CurrentValue,750);
+ const reloaded=JSON.parse(JSON.stringify(profile));
+ assert.deepEqual(progression.claimChallenge(reloaded,'intermediate_edger',contract),reloaded);
+ const next=progression.claimChallenge(reloaded,'reach_level_5',contract);
+ assert.equal(next.progression.total_xp,900);
+ assert.equal(next.progression.lifetime_metrics.TotalXPEarned,900);
+ assert.deepEqual(progression.claimChallenge(next,'reach_level_5',contract),next);
+ assert.deepEqual(next.packs,fresh().packs);
+});
 test('session reset preserves completion and lifetime progress',()=>{
  let profile=progression.settleSession(fresh(),{seconds:400,won:true,edges:1,strokes:20},'first',contract,()=>0);const before=profile.progression.challenge_progress;profile=progression.startSession(profile,contract);
  for(const [id,entry] of Object.entries(profile.progression.challenge_progress))if(entry.scope==='Session'&&!entry.completed)assert.ok(entry.requirements.every(r=>r.CurrentValue===0));else assert.deepEqual(entry.requirements,before[id].requirements);

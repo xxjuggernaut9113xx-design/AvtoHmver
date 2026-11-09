@@ -14,7 +14,10 @@
   if(!allowed(run))return [];
   if(!active(run))run.checkpointEdge();
   const e=state(run),s=run.state,flow=s.cardFlow,devil=s.modifiers.includes('Deal With The Devil');e.perfect=false;e.ratio=0;
-  if(!e.wasEdgeCard){e.lastCount=25;e.breakScaled=10;e.until=e.masterUntil;e.postBreak=1.75;}
+  // The Blueprint keeps PostEdgeBreakDuration separate from its calculated hold.
+  // Older snapshots stored only the calculated value; both source bases are exact.
+  e.postBreakBase??=e.postBreak%1===.75?1.75:1;
+  if(!e.wasEdgeCard){e.lastCount=25;e.breakScaled=10;e.until=e.masterUntil;e.postBreakBase=1.75;}
   else{
    e.lastCount=Math.max(0,(flow?.assigned||0)-(flow?.remaining||0));
    e.ratio=flow?.assigned>0?e.lastCount/flow.assigned:0;e.perfect=e.ratio>=.85;
@@ -23,7 +26,7 @@
    e.breakScaled=clamp(e.breakScaled-e.breakScaled*(.05+run.random.fraction()*.05),1,30);
   }
   s.edges=add(s.edges,1);e.streak=add(e.streak,1);s.EdgeStreak=e.streak;s.LastEdgeTime=s.seconds;e.wasEdgeCard=true;e.strokesPerEdge.push(s.combo);
-  s.canUseItems=false;e.postBreak=clamp(e.postBreak+Math.trunc(e.streak/5),1,8);e.holdRemaining=Math.trunc(e.postBreak);
+  s.canUseItems=false;e.postBreak=clamp(e.postBreakBase+Math.trunc(e.streak/5),1,8);e.holdRemaining=Math.trunc(e.postBreak);
   e.phase='handoff';e.deadline=s.seconds+(e.postBreak>=2?.9:1);Cards.extendForEdge(run);
   return [{type:'edge-recorded',perfect:e.perfect,ratio:e.ratio,streak:e.streak}];
  }
@@ -42,7 +45,7 @@
  function advance(run){
   const e=run.state.edge,now=run.state.seconds,events=[];if(!e||run.phase!=='playing'||run.state.finished)return events;
   if(e.phase==='handoff'&&now>=e.deadline){
-   if(e.postBreak>=2&&!e.perfect){e.phase='hold';e.nextTick=e.deadline;}
+   if(e.postBreak>=2&&!e.perfect){e.phase='hold';e.nextTick=e.deadline+1;}
    else events.push(...completeBreak(run,e.deadline));
   }
   if(e.phase==='hold'){

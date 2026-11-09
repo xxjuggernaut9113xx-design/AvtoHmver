@@ -2,7 +2,7 @@ const test=require('node:test'),assert=require('node:assert/strict');
 const Edge=require('../static/fanservice/edge'),Cards=require('../static/fanservice/cards'),{Run}=require('../static/fanservice/run');
 const modes=require('../static/fanservice/data/modes.json'),cardRules=require('../static/fanservice/data/card-rules.json');
 function session(config={}){const run=new Run(modes,{seed:137,cardRules,...config});run.startCard('slow');return run;}
-function handoff(run){const e=run.state.edge,seconds=e.postBreak>=2?e.perfect?.9:.9+Math.trunc(e.postBreak)-1:1;return run.advance(seconds+.00001);}
+function handoff(run){const e=run.state.edge,seconds=e.postBreak>=2?e.perfect?.9:.9+Math.trunc(e.postBreak):1;return run.advance(seconds+.00001);}
 function reachMercy(run){for(let n=1;n<=5;n++){assert(run.edge().some(e=>e.type==='edge-recorded'));handoff(run);if(n<5){assert.equal(run.state.edge.phase,'rest');run.continueEdgeRest();}}assert.equal(run.state.edge.phase,'mercy');}
 
 test('newer direct Edge action records without requiring or fabricating an inventory charge',()=>{
@@ -39,7 +39,7 @@ test('pending edge handoff/rest/hold rejects repeated activation instead of dupl
 
 test('fifth normal edge uses .9-second handoff and the truncated hold before Mercy',()=>{
  const run=session();for(let n=1;n<5;n++){run.edge();handoff(run);run.continueEdgeRest();}
- run.edge();assert.equal(run.state.edge.postBreak,2.75);run.advance(.899);assert.equal(run.state.edge.phase,'handoff');run.advance(.00101);assert.equal(run.state.edge.phase,'hold');assert.equal(run.state.edge.holdRemaining,1);run.advance(.999);assert.equal(run.state.edge.phase,'hold');run.advance(.001);assert.equal(run.state.edge.phase,'mercy');assert.equal(run.state.edge.bank,120);
+ run.edge();assert.equal(run.state.edge.postBreak,2.75);run.advance(.899);assert.equal(run.state.edge.phase,'handoff');run.advance(.00101);assert.equal(run.state.edge.phase,'hold');assert.equal(run.state.edge.holdRemaining,2);run.advance(.999);assert.equal(run.state.edge.holdRemaining,2);run.advance(.001);assert.equal(run.state.edge.phase,'hold');assert.equal(run.state.edge.holdRemaining,1);run.advance(.999);assert.equal(run.state.edge.phase,'hold');run.advance(.001);assert.equal(run.state.edge.phase,'mercy');assert.equal(run.state.edge.bank,120);
 });
 
 test('Mercy acceptance pays the bank exactly once and starts cancellable sixty-second rest',()=>{
@@ -49,6 +49,42 @@ test('Mercy acceptance pays the bank exactly once and starts cancellable sixty-s
 
 test('Mercy rejection retains the bank and increases source edges-until-Mercy by truncated 1.25',()=>{
  const run=session();reachMercy(run);const coins=run.state.coins;assert(run.mercy(false).some(e=>e.type==='mercy-declined'));assert.equal(run.state.edge.masterUntil,6);assert.equal(run.state.edge.until,6);assert.equal(run.state.edge.bank,120);assert.equal(run.state.coins,coins);assert.equal(run.state.card,5);assert.equal(run.state.edge.phase,'sequence');assert.deepEqual(run.mercy(false),[]);
+});
+
+test('continued Edge streak derives each hold from the fixed source base through the next Mercy',()=>{
+ const run=session();reachMercy(run);run.mercy(false);
+ for(let n=6;n<=11;n++){
+  assert(run.edge().some(event=>event.type==='edge-recorded'));
+  assert.equal(run.state.edge.streak,n);
+  assert.equal(run.state.edge.postBreak,1.75+Math.trunc(n/5));
+  handoff(run);
+  if(n<11){assert.equal(run.state.edge.phase,'rest');run.continueEdgeRest();}
+ }
+ assert.equal(run.state.edge.phase,'mercy');assert.equal(run.state.edge.bank,300);
+});
+
+test('hold timer survives reload before its first tick and Mercy rest expires at sixty seconds',()=>{
+ const run=session();for(let n=1;n<5;n++){run.edge();handoff(run);run.continueEdgeRest();}
+ run.edge();run.advance(.9);assert.equal(run.state.edge.holdRemaining,2);
+ const resumed=Run.restore(modes,run.export());
+ for(const current of [run,resumed]){
+  current.advance(.999);assert.equal(current.state.edge.holdRemaining,2);
+  current.advance(.00101);assert.equal(current.state.edge.holdRemaining,1);
+  current.advance(.999);assert.equal(current.state.edge.phase,'hold');
+  current.advance(.001);assert.equal(current.state.edge.phase,'mercy');
+  current.mercy(true);current.advance(59.999);assert.equal(current.state.edge.phase,'mercy-rest');
+  current.advance(.00101);assert.equal(current.state.edge.phase,'idle');
+ }
+ assert.deepEqual(resumed.export(),run.export());
+});
+
+test('perfect fifth Edge bypasses the hold after the handoff while keeping its bank and streak',()=>{
+ const run=session();for(let n=1;n<5;n++){run.edge();handoff(run);run.continueEdgeRest();}
+ const flow=run.state.cardFlow,index=Math.ceil(flow.assigned*.85)-1;
+ run.advance(flow.started+flow.queue[index].TargetHitTime-run.state.seconds+.00001);
+ assert(run.edge().some(event=>event.type==='edge-recorded'&&event.perfect));
+ assert.equal(run.state.edge.postBreak,2.75);run.advance(.899);assert.equal(run.state.edge.phase,'handoff');
+ run.advance(.00101);assert.equal(run.state.edge.phase,'mercy');assert.equal(run.state.edge.bank,140);assert.equal(run.state.edges,5);
 });
 
 test('edge hold and rest restore exact deadlines, pattern and RNG through checkpoint reload',()=>{

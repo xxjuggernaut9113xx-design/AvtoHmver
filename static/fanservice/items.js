@@ -25,27 +25,28 @@
   const item=inventory.state(type),hooks=deps.hooks||{},context=deps.context||{},i=item?level(item):0,id=ids[type];
   if(!id||!item||!item.unlocked||item.charges<=0)return fail('No item available');
   if(hooks.panicBlocked&&hooks.panicBlocked(type,state))return fail('Panic blocked');
-  if(state.canUseItems===false&&!(state.cardType===3&&[10,11,12,13].includes(type)))return fail('Cannot use items');
+  if(state.canUseItems===false&&!(type===10&&![5,6].includes(state.cardType)))return fail('Cannot use items');
   state.effects=state.effects||{};const e=state.effects;
   const requireHook=name=>typeof hooks[name]==='function';
   if(type===3&&(state.canUseSlowdown===false||state.canUseBonerPill===false)||type===5&&state.canUseBonerPill===false||type===11&&e.lootRushRemaining>0||type===12&&e.bountyRemaining>0||type===7&&e.resupplyRemaining>0)return fail('Cooldown active');
   if(type===1&&!Number.isFinite(state.heat)||type===13&&!(state.combo>0))return fail('Effect state unavailable');
-  if(type===3&&(!requireHook('speed')||!Number.isFinite(state.beatInterval))||type===4&&!requireHook('beginBreak')||type===5&&(!requireHook('pill')||!Number.isFinite(state.strokeCount)||!Number.isFinite(state.beatInterval)||!Number.isFinite(context.minimumBeatInterval))||type===7&&!requireHook('openStore')||type===9&&!requireHook('spawnSuccubus')||type===10&&(!requireHook('escape')||!(state.beatsRemaining>0)||[4,5].includes(state.cardType))||type===12&&(!deps.random||typeof deps.random.range!=='function'||!Number.isFinite(state.strokes)))return fail('Effect prerequisite unavailable');
+  if(type===3&&(!requireHook('speed')||!Number.isFinite(state.beatInterval))||type===4&&!requireHook('beginBreak')||type===5&&(!requireHook('pill')||!Number.isFinite(state.strokeCount)||!Number.isFinite(state.beatInterval)||!Number.isFinite(context.minimumBeatInterval))||type===7&&!requireHook('openStore')||type===9&&!requireHook('spawnSuccubus')||type===10&&(!requireHook('escape')||!(state.beatsRemaining>0)||[5,6].includes(state.cardType))||type===12&&(!deps.random||typeof deps.random.range!=='function'||!Number.isFinite(state.strokes)))return fail('Effect prerequisite unavailable');
   if([1,3,4,6,7].includes(type)&&context.punishmentEnabled&&!requireHook('punishment'))return fail('Punishment prerequisite unavailable');
   if([1,3,4,6,7].includes(type)&&context.punishmentEnabled&&hooks.punishment(type,state)){if(type===1)state.heat=Math.min(100,state.heat+15);return fail('Punishment triggered');}
-  if(context.allOrNothing&&[1,5,7].includes(type)){state.coins=0;state.cumMeter=0;}
+  // ActivateItem applies this modifier after the effect, only on these branches.
+  const applyAllOrNothing=()=>{if(context.allOrNothing&&[1,3,4,6,7,10].includes(type)){state.coins=0;if(requireHook('resetObjective'))hooks.resetObjective(state);else if((context.objectiveType??0)===0)state.cumMeter=0;}};
   if(type===1){state.heat=Math.max(0,state.heat-[15,25,35,45,60][i]);state.cumMeter=Math.min(1,(state.cumMeter||0)+.01);}
   else if(type===3){if(hooks.speed(1/(i+2))===false)return fail('Timeline rejected');state.beatInterval*=i+2;state.canUseSlowdown=false;state.cumMeter=Math.min(1,(state.cumMeter||0)+.01);}
   else if(type===4){const duration=context.mode===2?context.breakDuration:[5,10,15,25,50][i];if(!Number.isFinite(duration)||hooks.beginBreak(duration)===false)return fail('Break unavailable');state.combo=0;state.cumMeter=Math.min(1,(state.cumMeter||0)+.01);}
   else if(type===5){const effect={strokeMultiplier:[2,2.5,3,3,4][i],intervalDivisor:[2,2,2,3,5][i],coinMultiplier:[2,2,2,3,3][i],speed:[2,2,3,5,6][i],timelineStrokes:[2,2,3,3,4][i]};if(hooks.pill(effect)===false)return fail('Timeline rejected');state.strokeCount=Math.trunc(state.strokeCount*effect.strokeMultiplier);state.beatInterval=Math.max(context.minimumBeatInterval||.05,Math.min(1,state.beatInterval/effect.intervalDivisor));state.coinMultiplier=effect.coinMultiplier;state.cardType=2;state.canUseBonerPill=false;e.temptationRemaining=60;}
-  else if(type===6){state.shieldToggled=!state.shieldToggled;return {ok:true,consumed:false};}
-  else if(type===7){e.resupplyRemaining=2;return {ok:true,pending:true};}
+  else if(type===6){state.shieldToggled=!state.shieldToggled;applyAllOrNothing();return {ok:true,consumed:false};}
+  else if(type===7){e.resupplyRemaining=2;applyAllOrNothing();return {ok:true,pending:true};}
   else if(type===9){if(hooks.spawnSuccubus({hard:i<4,strokeMultiplier:1+(4-i)*.5})===false)return fail('Succubus unavailable');}
   else if(type===10){if(hooks.escape()===false)return fail('Escape unavailable');state.combo=0;}
   else if(type===11){e.lootRushRemaining=[15,20,30,40,50][i];e.lootRushBonus=[.5,.75,1,1.25,1.5][i];state.lootBarMultiplier=(state.lootBarMultiplier===undefined?1:state.lootBarMultiplier)+e.lootRushBonus;}
   else if(type===12){e.bountyLevel=i+1;e.bountyStartStrokes=state.strokes;e.bountyRequiredStrokes=deps.random.range([38,38,36,34,32][i],[48,48,46,44,42][i]);e.bountyRemaining=deps.random.range([14,17,20,23,26][i],[17,20,23,26,30][i]);}
   else if(type===13){state.cumMeter=Math.min(1,(state.cumMeter||0)+state.combo/5000);state.combo=Math.trunc(state.combo*[0,.05,.1,.15,.2][i]);}
-  consume(inventory,type,state,hooks);return {ok:true,consumed:true};
+  applyAllOrNothing();consume(inventory,type,state,hooks);return {ok:true,consumed:true};
  }
  function tick(inventory,state,seconds,deps={}){
   if(!Number.isFinite(seconds)||seconds<0)return [];const e=state.effects||{},events=[],hooks=deps.hooks||{},context=deps.context||{};
