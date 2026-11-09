@@ -1,6 +1,9 @@
 const {chromium}=require(process.env.FANSERVICE_PLAYWRIGHT_MODULE||'./browser/node_modules/playwright');
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
 const root=path.resolve(__dirname,'../static/fanservice'),origin='http://127.0.0.1:42176';
+function normalReward(priorStreak){return 10+5*(priorStreak+1);}
+function perfectReward(priorStreak){return 35+15*(priorStreak+1);}
+function expectedBank(edges,perfectEdge=0){let bank=0;for(let n=2;n<=edges;n++)bank+=n===perfectEdge?perfectReward(n-1):normalReward(n-1);return bank;}
 (async()=>{
  const browser=await chromium.launch({headless:true,...(process.env.FANSERVICE_BROWSER_EXECUTABLE?{executablePath:process.env.FANSERVICE_BROWSER_EXECUTABLE}:{})});
  try{
@@ -32,30 +35,30 @@ const root=path.resolve(__dirname,'../static/fanservice'),origin='http://127.0.0
   await page.locator('#objective').selectOption('3');await page.locator('#objective-target').fill('12');
   await page.clock.install();await page.getByRole('button',{name:'Start',exact:true}).click();
   for(let n=1;n<=5;n++){
-   const s=await trigger();assert.equal(s.edges,n);assert.equal(s.edge.bank,(n-1)*30);
+   const s=await trigger();assert.equal(s.edges,n);assert.equal(s.edge.bank,expectedBank(n));
    if(n===5){await until(()=>state.edge.phase==='hold','fifth Edge hold');assert.equal((await snapshot()).edge.holdRemaining,2);}
    await rest();
    if(n<5)await page.getByRole('button',{name:'Continue / G',exact:true}).click();
   }
   assert.equal((await snapshot()).edge.phase,'mercy');await page.getByRole('button',{name:'Continue streak',exact:true}).click();
-  assert.equal((await snapshot()).edge.until,6);assert.equal((await snapshot()).edge.bank,120);
+  assert.equal((await snapshot()).edge.until,6);assert.equal((await snapshot()).edge.bank,expectedBank(5));
   await until(()=>state.cardFlow.completed/state.cardFlow.assigned>=.85,'perfect sixth Edge');
-  const perfect=await trigger();assert(perfect.edge.perfect);assert.equal(perfect.edge.bank,170);assert.equal(perfect.edge.postBreak,2.75);
+  const perfect=await trigger();assert(perfect.edge.perfect);assert.equal(perfect.edge.bank,expectedBank(6,6));assert.equal(perfect.edge.postBreak,2.75);
   await rest();assert.equal((await snapshot()).edge.phase,'rest');await page.getByRole('button',{name:'Continue / G',exact:true}).click();
   for(let n=7;n<=11;n++){
-   const s=await trigger();assert.equal(s.edges,n);assert.equal(s.edge.postBreak,1.75+Math.trunc(n/5));if(n===10)await replayHold();await rest();
+   const s=await trigger();assert.equal(s.edges,n);assert.equal(s.edge.bank,expectedBank(n,6));assert.equal(s.edge.postBreak,1.75+Math.trunc(n/5));if(n===10)await replayHold();await rest();
    if(n<11)await page.getByRole('button',{name:'Continue / G',exact:true}).click();
   }
-  const before=await snapshot();assert.equal(before.edge.phase,'mercy');assert.equal(before.edge.bank,320);
+  const before=await snapshot();assert.equal(before.edge.phase,'mercy');assert.equal(before.edge.bank,510);
   await page.getByRole('button',{name:'Accept Mercy',exact:true}).click();const accepted=await snapshot();
-  assert.equal(accepted.coins,before.coins+320);assert.equal(accepted.edge.bank,0);assert(accepted.edge.deadline-accepted.seconds>59.9&&accepted.edge.deadline-accepted.seconds<=60);assert.equal(accepted.meter,before.meter+.01);
+  assert.equal(accepted.coins,before.coins+510);assert.equal(accepted.edge.bank,0);assert(accepted.edge.deadline-accepted.seconds>59.9&&accepted.edge.deadline-accepted.seconds<=60);assert.equal(accepted.meter,before.meter+.01);
   await page.clock.runFor(59000);assert.equal((await snapshot()).edge.phase,'mercy-rest');assert.equal((await snapshot()).strokes,accepted.strokes);
   await page.getByRole('button',{name:'Continue / G',exact:true}).click();await trigger();assert.equal(await page.evaluate(()=>run.player.isAllowedToCum),true);
   await page.getByRole('button',{name:'Hold to finish',exact:true}).focus();await page.keyboard.down('Enter');await page.clock.runFor(1200);await page.keyboard.up('Enter');
   await page.getByText(/Rewards saved once/).waitFor();
   const result=await page.evaluate(()=>({edges:state.edges,finished,won:state.won,progression:JSON.parse(localStorage.getItem(profileKey)).progression}));
   assert.equal(result.edges,12);assert(result.finished&&result.won);assert.equal(result.progression.sessions,1);assert.equal(result.progression.lifetime_metrics.Edges,12);assert.deepEqual(errors,[]);
-  const report={authority:'shared player controls with virtual browser time and synthetic neutral media/Server routes; not original-game execution or physical-device acceptance',sourceHashes:Object.fromEntries(['edge.js','run.js','cards.js','play.js'].map(name=>[name,crypto.createHash('sha256').update(fs.readFileSync(path.join(root,name))).digest('hex')])),stages,acceptedBank:320,persistedHoldRestored:true,currentEdgeReplayed:true,edges:result.edges,sessions:1,won:result.won};
+  const report={authority:'shared player controls with virtual browser time and synthetic neutral media/Server routes; not original-game execution or physical-device acceptance',referenceBuild:'v0051-hotfix-public-a8f46896',referenceExeSha256:'a8f46896593d8724cefb9a232db5772df48ae5731da78cfacbec82e98d040c10',rewardFormula:'normal 10+5*(prior EdgeStreak+1); perfect 35+15*(prior EdgeStreak+1)',sourceHashes:Object.fromEntries(['edge.js','run.js','cards.js','play.js'].map(name=>[name,crypto.createHash('sha256').update(fs.readFileSync(path.join(root,name))).digest('hex')])),stages,acceptedBank:510,persistedHoldRestored:true,currentEdgeReplayed:true,edges:result.edges,sessions:1,won:result.won};
   if(process.env.FANSERVICE_SMOKE_OUTPUT){fs.mkdirSync(process.env.FANSERVICE_SMOKE_OUTPUT,{recursive:true});fs.writeFileSync(path.join(process.env.FANSERVICE_SMOKE_OUTPUT,'edge-browser.json'),JSON.stringify(report,null,2));}
   console.log('Edge controls passed: normal/perfect, both Mercy choices, hold persistence and replay, fixed-base continuation, bank payout and one winning settlement. '+JSON.stringify(report));
  }finally{await browser.close();}

@@ -1,0 +1,124 @@
+{
+  "authority": "shared player controls with virtual browser time and synthetic neutral media/Server routes; not original-game execution or physical-device acceptance",
+  "referenceBuild": "v0051-hotfix-public-a8f46896",
+  "referenceExeSha256": "a8f46896593d8724cefb9a232db5772df48ae5731da78cfacbec82e98d040c10",
+  "rewardFormula": "normal 10+5*(prior EdgeStreak+1); perfect 35+15*(prior EdgeStreak+1)",
+  "sourceHashes": {
+    "edge.js": "e7f6a75eb204e282ae98fae33beb24e865133977b1ac5080b4b1384dce8941bf",
+    "run.js": "c8392584ef9e663964d8a2f180b39b1be68a25ab91f55893247054ceee987cdf",
+    "cards.js": "f6d7562bc7cae24d14e043d8fb940b40103fa59a36af60d89df7d711198f69e3",
+    "play.js": "98c1f3f5f7dd6098c53bd76a2a1803bad4b6da25c3f2aa469131dd77919d0f6f"
+  },
+  "stages": [
+    {
+      "phase": "handoff",
+      "streak": 1,
+      "perfect": false,
+      "bank": 0,
+      "postBreak": 1.75,
+      "seconds": 0.068
+    },
+    {
+      "phase": "handoff",
+      "streak": 2,
+      "perfect": false,
+      "bank": 20,
+      "postBreak": 1.75,
+      "seconds": 1.1540000000000006
+    },
+    {
+      "phase": "handoff",
+      "streak": 3,
+      "perfect": false,
+      "bank": 45,
+      "postBreak": 1.75,
+      "seconds": 2.3700000000000006
+    },
+    {
+      "phase": "handoff",
+      "streak": 4,
+      "perfect": false,
+      "bank": 75,
+      "postBreak": 1.75,
+      "seconds": 3.523000000000001
+    },
+    {
+      "phase": "handoff",
+      "streak": 5,
+      "perfect": false,
+      "bank": 110,
+      "postBreak": 2.75,
+      "seconds": 4.674
+    },
+    {
+      "phase": "handoff",
+      "streak": 6,
+      "perfect": true,
+      "bank": 235,
+      "postBreak": 2.75,
+      "seconds": 20.929999999999488
+    },
+    {
+      "phase": "handoff",
+      "streak": 7,
+      "perfect": false,
+      "bank": 280,
+      "postBreak": 2.75,
+      "seconds": 21.970999999999385
+    },
+    {
+      "phase": "handoff",
+      "streak": 8,
+      "perfect": false,
+      "bank": 330,
+      "postBreak": 2.75,
+      "seconds": 25.00999999999907
+    },
+    {
+      "phase": "handoff",
+      "streak": 9,
+      "perfect": false,
+      "bank": 385,
+      "postBreak": 2.75,
+      "seconds": 28.065999999998755
+    },
+    {
+      "phase": "handoff",
+      "streak": 10,
+      "perfect": false,
+      "bank": 445,
+      "postBreak": 3.75,
+      "seconds": 31.074999999998447
+    },
+    {
+      "phase": "handoff",
+      "streak": 10,
+      "perfect": false,
+      "bank": 445,
+      "postBreak": 3.75,
+      "seconds": 31.07399999999845
+    },
+    {
+      "phase": "handoff",
+      "streak": 11,
+      "perfect": false,
+      "bank": 510,
+      "postBreak": 3.75,
+      "seconds": 35.071999999998056
+    },
+    {
+      "phase": "idle",
+      "streak": 12,
+      "perfect": false,
+      "bank": 0,
+      "postBreak": 3.75,
+      "seconds": 98.23100000000632
+    }
+  ],
+  "acceptedBank": 510,
+  "persistedHoldRestored": true,
+  "currentEdgeReplayed": true,
+  "edges": 12,
+  "sessions": 1,
+  "won": true
+}

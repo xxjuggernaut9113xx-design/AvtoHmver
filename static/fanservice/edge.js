@@ -22,7 +22,9 @@
    e.lastCount=Math.max(0,(flow?.assigned||0)-(flow?.remaining||0));
    e.ratio=flow?.assigned>0?e.lastCount/flow.assigned:0;e.perfect=e.ratio>=.85;
    if(!devil)s.meter+=e.perfect?.08:.05;
-   e.bank=add(e.bank,e.perfect?50:30);if(e.perfect)s.PerfectEdges=add(s.PerfectEdges,1);
+   // The newer Blueprint calculates the reward against the prior streak count,
+   // then increments EdgeStreak below.
+   e.bank=add(e.bank,e.perfect?35+15*(e.streak+1):10+5*(e.streak+1));if(e.perfect)s.PerfectEdges=add(s.PerfectEdges,1);
    e.breakScaled=clamp(e.breakScaled-e.breakScaled*(.05+run.random.fraction()*.05),1,30);
   }
   s.edges=add(s.edges,1);e.streak=add(e.streak,1);s.EdgeStreak=e.streak;s.LastEdgeTime=s.seconds;e.wasEdgeCard=true;e.strokesPerEdge.push(s.combo);
@@ -69,6 +71,6 @@
   return [{type:'mercy-accepted',earned,seconds:60}];
  }
  function cancel(run){run.edgeCheckpoint=null;run.returnEdge=null;const e=run.state.edge;if(!e)return;e.phase='idle';e.deadline=null;e.nextTick=null;e.wasEdgeCard=false;if(run.state.cardFlow)run.state.cardFlow.suspended=true;}
- const sourceLedger=['RecoveredSessionWidget.cpp: E direct action in newer mode, excludes music','BP_EdgeManager TriggerEdgeV2: entry3675 / ExecuteUbergraph','RecoveredEdgeManager.cpp: ratio .85, bank30/50, handoff .9/1, hold timer, rest/mercy','RecoveredEdgeRestWidget.cpp / RecoveredMercyRestWidget.cpp: G cancel, 60-second Mercy rest','MercyEventWidget bytecode: UpdateMasterEdgeCount&Set then EdgingEventV2'];
+ const sourceLedger=['v0.05.1 a8f46896: static newer-20261017 BP_EdgeManager CalculateEdgeReward and ExecuteUbergraph call order; normal 10+5*(prior EdgeStreak+1), perfect 35+15*(prior EdgeStreak+1)','v0.05.1 a8f46896: newer-20261017 AdjustPostEdgeBreakDelay/CountdownEdgeHold; exact EdgeCumMeterAdd and PerfectEdgeCumMeterAdd defaults remain unavailable','RecoveredSessionWidget.cpp: E direct action in newer mode, excludes music','RecoveredEdgeRestWidget.cpp / RecoveredMercyRestWidget.cpp: G cancel, 60-second Mercy rest','MercyEventWidget bytecode: UpdateMasterEdgeCount&Set then EdgingEventV2'];
  const api={state,active,allowed,trigger,advance,continueRest,mercy,cancel,beginCard,sourceLedger};if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.FanserviceEdge=api;
 })(globalThis);

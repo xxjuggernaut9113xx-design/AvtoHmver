@@ -7,7 +7,7 @@ test('interrupted current edge rolls back its beats and reward while retaining t
  run.edge();run.advance(1);run.continueEdgeRest();
  const start=run.export();
  run.advance(5);run.edge();
- assert.equal(run.state.edges,2);assert.equal(run.state.edge.bank,30);
+ assert.equal(run.state.edges,2);assert.equal(run.state.edge.bank,20);
  run.interrupt();const restored=Run.restore(modes,run.export());
  restored.resumeInterrupted();
  assert.equal(restored.state.edge.phase,'sequence');
@@ -15,7 +15,7 @@ test('interrupted current edge rolls back its beats and reward while retaining t
  assert.equal(restored.state.meter,start.state.meter);assert.equal(restored.state.strokes,start.state.strokes);
  assert.deepEqual(restored.state.cardFlow,start.state.cardFlow);
  restored.advance(5);restored.edge();
- assert.equal(restored.state.edges,2);assert.equal(restored.state.edge.bank,30);
+ assert.equal(restored.state.edges,2);assert.equal(restored.state.edge.bank,20);
 });
 
 test('legacy session without an edge-start snapshot retains saved earnings and begins a fresh return edge',()=>{
