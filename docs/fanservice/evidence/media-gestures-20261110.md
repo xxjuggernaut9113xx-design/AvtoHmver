@@ -8,7 +8,7 @@ Validation: 273 Node tests pass; JavaScript syntax and whitespace checks pass. T
 
 These are reconstruction browser fixtures with neutral media, synthetic Server routes, authored profile setup and virtual timing where used. They are not original-game runtime or physical iOS acceptance. The user directly confirmed that after Safari refresh, multiple selection works and all imported files appear selected.
 
-In the subsequent physical iPhone check, the user confirmed media-tap Pause and screen-relative icons with “Yes, both work.” An eligible half-second media hold showed the ring under the finger, and releasing cancelled without ending the session: “Yes, ring appears and release cancels.” Full one-second hold completion, reward-message verification and physical meter-readout checks remain pending under #58. The phone's loaded asset hashes were not instrumented.
+In the subsequent physical iPhone check, the user confirmed media-tap Pause and screen-relative icons with “Yes, both work.” An eligible half-second media hold showed the ring under the finger, and releasing cancelled without ending the session: “Yes, ring appears and release cancels.” The user then held until the ring completed for at least one full second and confirmed, “Yes, session ends and rewards are saved once.” This confirms the observed completion and message; repeated settlement after reload was not physically checked. Physical meter-readout checks and the remaining #58 acceptance areas are still pending. The phone's loaded asset hashes were not instrumented.
 
 The follow-up media-resume browser regression passes actual MP4 identity/position checks in installed Edge and image identity in both Edge and WebKit after migrating the remaining Pause-selector alternatives to media taps.
 

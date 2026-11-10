@@ -26,7 +26,7 @@
   "finish_review": {
     "observation_source": "HANDOFF-LOCAL-20261110.md, Current physical iPhone test",
     "selected_objective": "Cum meter",
-    "status": "Pending physical acceptance: user had not seen Hold to finish; no verified brief-press cancellation or full one-second hold",
+    "status": "Historical handoff observation, superseded by the confirmed media-hold cancellation and completion checks in media_gesture_request",
     "last_instruction_in_handoff": "Hold to finish appears when the thin meter above the beatbar reaches 100%; complete a return Edge with Edge first if needed"
   },
   "multi_file_picker_review": {
@@ -58,9 +58,13 @@
       {
         "check": "Eligible half-second media hold shows ring under finger; release cancels without ending the session",
         "user_response": "Yes, ring appears and release cancels"
+      },
+      {
+        "check": "Hold media until the ring completes for at least one full second; session ends and displays Rewards saved once",
+        "user_response": "Yes, session ends and rewards are saved once"
       }
     ],
-    "physical_acceptance": "Media-tap Pause, screen-relative icon placement and early-release cancellation confirmed by user. Completed one-second hold and resulting reward message pending."
+    "physical_acceptance": "Media-tap Pause, screen-relative icon placement, early-release cancellation, completed one-second media hold, session end and Rewards saved once message confirmed by user. Repeated settlement/reload was not checked in this physical observation."
   },
   "initial_reports": "Discarded at the user's request because Tailscale was disconnected.",
   "confirmed_after_connected_refresh": [
@@ -87,6 +91,6 @@
   "limits": [
     "The assistant has not remotely controlled or instrumented the iPhone.",
     "The iOS version has not been supplied.",
-    "Holding-hand layouts, hold-to-finish, interruptions, offline playback, archive providers, voice and soundtrack recovery remain pending physical checks."
+    "Both holding-hand layouts, complete interruption/rollback coverage, offline playback, archive providers, voice and soundtrack recovery remain pending physical checks. Media-hold cancellation and completion are confirmed above."
   ]
 }
