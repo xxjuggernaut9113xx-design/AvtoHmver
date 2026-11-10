@@ -67,6 +67,15 @@
     "physical_acceptance": "Media-tap Pause, screen-relative icon placement, early-release cancellation, completed one-second media hold, session end and Rewards saved once message confirmed by user. Repeated settlement/reload was not checked in this physical observation."
   },
   "initial_reports": "Discarded at the user's request because Tailscale was disconnected.",
+  "holding_hand_landscape_followup": {
+    "date": "2026-11-10",
+    "evidence_kind": "direct user report",
+    "selected_preference_in_test_instruction": "Left hand",
+    "user_observation": "Wrong in landscape",
+    "clarification": "They appear on the left instead of the right",
+    "preference_retention_user_response": "Yes, it still shows Left hand",
+    "status": "Open physical discrepancy with Left hand retained in Pause. WebKit fixture checks at 844 CSS pixels wide and 180, 220, 260, 300 and 390 pixels high did not reproduce it. A landscape screenshot is needed to distinguish the device layout from the passing fixture."
+  },
   "confirmed_after_connected_refresh": [
     "Safari loads the page.",
     "The user selected device-local media and opened Create Pack.",

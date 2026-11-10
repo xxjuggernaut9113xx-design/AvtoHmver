@@ -64,6 +64,12 @@ async function check(engine,name){
   assert.ok(landscape.session.seconds>=pausedSeconds,`${name}: rotation does not reset session clock`);
   assert.ok(landscape.beats.bottom<=landscape.viewport.height+1&&landscape.hud.bottom-landscape.beats.bottom<=20,`${name}: landscape beat lane stays near the bottom safe area`);
   assert.ok((await page.locator('#item-controls').boundingBox()).x>422,`${name}: left holding hand puts slots on the right`);
+  for(const height of [300,260,220,180]){
+   await page.setViewportSize({width:844,height});await page.waitForTimeout(50);
+   const slots=await page.locator('#item-controls button').evaluateAll(nodes=>nodes.map(node=>({x:node.getBoundingClientRect().x,right:node.getBoundingClientRect().right})));
+   assert.ok(slots.every(slot=>slot.x>422&&slot.right<=844),`${name}: landscape ${height}px left holding hand keeps every item on right: ${JSON.stringify(slots)}`);
+  }
+  await page.setViewportSize({width:844,height:390});
   await page.screenshot({path:path.join(screenshots,`session-hud-landscape-${name.toLowerCase()}.png`)});
   const resumedSeconds=landscape.session.seconds;await page.waitForTimeout(300);
   assert.ok(await page.evaluate(()=>state.seconds)>resumedSeconds,`${name}: clock advances after Resume`);
