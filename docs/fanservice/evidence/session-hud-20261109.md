@@ -12,6 +12,7 @@ The pause menu holds the actual session clock, video and soundtrack, keeps Resum
 - `fanservice_session_hud_smoke.cjs` passes in installed Edge and Playwright WebKit 27.2 with touch-enabled 390×844 and 844×390 viewports. It checks setup/preset application, full viewport media surface, transparent bottom beatbar, 44-pixel primary targets, both opposite-hand slot layouts, paused clock, menu actions and rotation continuity.
 - `fanservice_media_resume_smoke.cjs` passes Edge actual H.264 playback/seek and WebKit image identity through the pause menu, pagehide/refocus and reload.
 - The recording interruption and music timeline smokes pass in Edge; the iPhone-shaped hold/rotation/voice-resume smoke passes in WebKit.
+- The ordinary Timer/Strokes item-slot and return-Edge smoke passes in WebKit. Its virtual clock is paused between explicit advances so browser action latency cannot add a beat between reset snapshots; timing assertions remain unchanged.
 - The complete WebKit Edge sequence passes: normal/perfect paths, both Mercy choices, persisted hold replay, 510-point bank, next streak reset to one and one winning settlement. [Retained report](session-hud-20261109/edge-browser.json).
 - Screenshots with neutral synthetic artwork: [landscape](session-hud-20261109/landscape.png), [portrait](session-hud-20261109/portrait.png), [pause menu](session-hud-20261109/pause.png). These were visually reviewed for clipping, readability and layering. The test artwork is not player content.
 

@@ -34,7 +34,7 @@ const cases=[
     await page.goto(origin+'/fanservice/play.html?library='+fixture);
     await page.waitForFunction(()=>!document.querySelector('#start').disabled);
     await page.locator('#mode').selectOption('0');await page.locator('#objective').selectOption(testCase.index);
-    await page.clock.install();await page.getByRole('button',{name:'Start',exact:true}).click();
+    await page.clock.install();await page.clock.pauseAt(await page.evaluate(()=>Date.now()+1000));await page.getByRole('button',{name:'Start',exact:true}).click();
     await page.evaluate(()=>{if(!run.inventory.grant(1,3,{mode:0}))throw Error('Could not seed the three granted defensive charges.');if(run.inventory.catalog.find(row=>row.type===1)?.classification!=='Defensive')throw Error('Expected Decrease Heat to be a defensive item.');checkpoint(true);renderItemControls();});
     await page.clock.fastForward(12000);
     const before=await page.evaluate(()=>({seconds:state.seconds,strokes:state.strokes,coins:state.coins,charges:run.inventory.state(1).charges,enabled:state.modifiers.includes('All or Nothing')}));
@@ -57,6 +57,7 @@ const cases=[
     await page.getByRole('button',{name:'Start',exact:true}).click();await page.waitForFunction(()=>started);
     await page.waitForFunction(()=>!!run.returnEdge);
     await page.getByRole('button',{name:'Edge / E',exact:true}).click();
+    await page.clock.runFor(1500);
     await page.waitForFunction(()=>!run.returnEdge&&state.edge?.phase==='idle'&&state.canUseItems===true);
     const returned=await page.evaluate(()=>({card:state.card,pool:state.cardFlow?.pool,returnEdge:run.returnEdge,edgePhase:state.edge?.phase,canUseItems:state.canUseItems}));
     assert.equal(returned.card,first.card,'Return edge resumes the interrupted gameplay card');
