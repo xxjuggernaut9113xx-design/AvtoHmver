@@ -74,7 +74,8 @@
     "user_observation": "Wrong in landscape",
     "clarification": "They appear on the left instead of the right",
     "preference_retention_user_response": "Yes, it still shows Left hand",
-    "status": "Open physical discrepancy with Left hand retained in Pause. WebKit fixture checks at 844 CSS pixels wide and 180, 220, 260, 300 and 390 pixels high did not reproduce it. A landscape screenshot is needed to distinguish the device layout from the passing fixture."
+    "screenshot_followup": "The screenshot showed five item slots on the right and Edge / E at the upper right. The user identified Edge / E as the control they meant and confirmed it should be on the left with Left hand selected.",
+    "status": "Compact layout now mirrors Edge / E to the selected hand's side. Item slots use the opposite side. Physical confirmation of the updated placement is pending."
   },
   "confirmed_after_connected_refresh": [
     "Safari loads the page.",

@@ -102,6 +102,7 @@ body[data-session-state="paused"] #item-controls, body[data-session-state="pause
   #gameplay-stage[data-holding-hand="left"] #item-controls { justify-content: flex-end; }
   #item-controls button { width: 44px; min-width: 44px; max-width: 44px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #controls { margin-left: auto; flex-direction: row; max-width: 100%; }
+  #gameplay-stage[data-holding-hand="left"] #controls { margin-left: 0; margin-right: auto; }
 }
 @container (max-height: 180px) {
   #hud-top { padding: max(4px, var(--safe-top)) max(4px, var(--safe-right)) 0 max(4px, var(--safe-left)); gap: 4px; }

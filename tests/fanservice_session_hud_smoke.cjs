@@ -44,6 +44,11 @@ async function check(engine,name){
   assert.ok(await page.locator('#meter').evaluate(node=>node.value)>0,'Naturally delivered beats advance the displayed Cum meter');
   assert.match(await page.locator('#meter-value').innerText(),/[1-9]/,'Small per-beat gains have a visible numeric readout');
   await page.screenshot({path:path.join(screenshots,`session-hud-portrait-playing-${name.toLowerCase()}.png`)});
+  assert.ok((await page.locator('#edge-action').boundingBox()).x>195,`${name}: right holding hand puts Edge on the right in portrait`);
+  await page.setViewportSize({width:844,height:260});
+  assert.ok((await page.locator('#edge-action').boundingBox()).x>422,`${name}: right holding hand puts Edge on the right in compact landscape`);
+  assert.ok((await page.locator('#item-controls button').first().boundingBox()).x<422,`${name}: right holding hand puts slots on the left in compact landscape`);
+  await page.setViewportSize({width:390,height:844});
   await page.locator('#stage').click({position:{x:195,y:400}});await page.waitForFunction(()=>document.querySelector('#pause-menu').open&&document.body.dataset.sessionState==='paused');
   const session=(await dimensions()).session;
   const pausedSeconds=await page.evaluate(()=>state.seconds);await page.waitForTimeout(350);
@@ -64,10 +69,13 @@ async function check(engine,name){
   assert.ok(landscape.session.seconds>=pausedSeconds,`${name}: rotation does not reset session clock`);
   assert.ok(landscape.beats.bottom<=landscape.viewport.height+1&&landscape.hud.bottom-landscape.beats.bottom<=20,`${name}: landscape beat lane stays near the bottom safe area`);
   assert.ok((await page.locator('#item-controls').boundingBox()).x>422,`${name}: left holding hand puts slots on the right`);
+  assert.ok((await page.locator('#edge-action').boundingBox()).x<422,`${name}: Edge stays on the selected left side`);
   for(const height of [300,260,220,180]){
    await page.setViewportSize({width:844,height});await page.waitForTimeout(50);
    const slots=await page.locator('#item-controls button').evaluateAll(nodes=>nodes.map(node=>({x:node.getBoundingClientRect().x,right:node.getBoundingClientRect().right})));
    assert.ok(slots.every(slot=>slot.x>422&&slot.right<=844),`${name}: landscape ${height}px left holding hand keeps every item on right: ${JSON.stringify(slots)}`);
+   const edge=await page.locator('#edge-action').boundingBox();
+   assert.ok(edge&&edge.x+edge.width<422,`${name}: landscape ${height}px keeps Edge on the left`);
   }
   await page.setViewportSize({width:844,height:390});
   await page.screenshot({path:path.join(screenshots,`session-hud-landscape-${name.toLowerCase()}.png`)});
@@ -75,6 +83,8 @@ async function check(engine,name){
   assert.ok(await page.evaluate(()=>state.seconds)>resumedSeconds,`${name}: clock advances after Resume`);
   await page.setViewportSize({width:320,height:844});
   await page.waitForTimeout(100);
+  assert.ok((await page.locator('#edge-action').boundingBox()).x<160,`${name}: left holding hand puts Edge on the left in portrait`);
+  assert.ok((await page.locator('#item-controls button').first().boundingBox()).x>160,`${name}: left holding hand puts slots on the right in portrait`);
   await page.locator('#stage').click({position:{x:160,y:400}});
   assert.equal(await page.locator('#pause-menu').evaluate(menu=>menu.open),true,`${name}: short-media toolbar keeps Pause pointer-accessible`);
   await page.locator('#resume-session').click();
