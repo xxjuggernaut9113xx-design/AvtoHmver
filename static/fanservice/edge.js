@@ -52,6 +52,14 @@
   else{e.until--;e.phase='rest';e.deadline=at+Math.max(e.breakScaled,.01);events.push({type:'edge-rest-started',seconds:e.breakScaled});}
   return events;
  }
+ function endMercyRest(run){
+  const e=run.state.edge;e.phase='idle';e.wasEdgeCard=false;e.deadline=null;
+  return [{type:'edge-streak-ended',requestNextCard:true}];
+ }
+ function ordinaryCardStarted(run){
+  const e=run.state.edge;if(!e||e.phase!=='idle'||run.returnEdge)return;
+  e.streak=0;run.state.EdgeStreak=0;
+ }
  function advance(run){
   const e=run.state.edge,now=run.state.seconds,events=[];if(!e||run.phase!=='playing'||run.state.finished)return events;
   if(e.phase==='handoff'&&now>=e.deadline){
@@ -63,13 +71,13 @@
    while(e.phase==='hold'&&now>=e.nextTick){const at=e.nextTick;e.nextTick++;e.holdRemaining--;if(e.holdRemaining<=0)events.push(...completeBreak(run,at));}
   }
   if(e.phase==='rest'&&now>=e.deadline)events.push(...beginCard(run,e.deadline));
-  else if(e.phase==='mercy-rest'&&now>=e.deadline){e.phase='idle';e.wasEdgeCard=false;e.deadline=null;events.push({type:'edge-streak-ended',requestNextCard:true});}
+  else if(e.phase==='mercy-rest'&&now>=e.deadline)events.push(...endMercyRest(run));
   return events;
  }
  function continueRest(run){
   const e=run.state.edge;if(!e||run.phase!=='playing'||run.state.finished)return [];
   if(e.phase==='rest')return beginCard(run,run.state.seconds);
-  if(e.phase==='mercy-rest'){e.phase='idle';e.wasEdgeCard=false;e.deadline=null;return [{type:'edge-streak-ended',requestNextCard:true}];}
+  if(e.phase==='mercy-rest')return endMercyRest(run);
   return [];
  }
  function mercy(run,accept){
@@ -80,5 +88,5 @@
  }
  function cancel(run){run.edgeCheckpoint=null;run.returnEdge=null;const e=run.state.edge;if(!e)return;e.phase='idle';e.deadline=null;e.nextTick=null;e.wasEdgeCard=false;if(run.state.cardFlow)run.state.cardFlow.suspended=true;}
  const sourceLedger=['v0.05.1 a8f46896: static newer-20261017 BP_EdgeManager CalculateEdgeReward and ExecuteUbergraph call order; normal 10+5*(prior EdgeStreak+1), perfect 35+15*(prior EdgeStreak+1)','v0.05.1 a8f46896 original packaged BP_EdgeManager CDO: EdgeCumMeterAdd=.05, PerfectEdgeStreakThreshold=.85, PerfectEdgeCumMeterAdd=.08 (retoc + UAssetAPI UE5.3; docs/fanservice/evidence/edge-v0051-cdo-defaults-20261109.json)','v0.05.1 a8f46896: newer-20261017 AdjustPostEdgeBreakDelay/CountdownEdgeHold','RecoveredSessionWidget.cpp: E direct action in newer mode, excludes music','RecoveredEdgeRestWidget.cpp / RecoveredMercyRestWidget.cpp: G cancel, 60-second Mercy rest','MercyEventWidget bytecode: UpdateMasterEdgeCount&Set then EdgingEventV2'];
- const api={state,active,allowed,trigger,advance,continueRest,mercy,cancel,beginCard,sourceLedger};if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.FanserviceEdge=api;
+ const api={state,active,allowed,trigger,advance,continueRest,mercy,cancel,beginCard,ordinaryCardStarted,sourceLedger};if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.FanserviceEdge=api;
 })(globalThis);

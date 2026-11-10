@@ -1,0 +1,133 @@
+{
+  "authority": "Playwright WebKit 27.2 with iPhone-shaped 390x844 touch context, virtual browser time, shared player controls, and synthetic neutral media/Server routes; not original-game execution or physical iOS Safari/device acceptance",
+  "playwrightVersion": "1.64.1",
+  "engine": "Playwright WebKit 27.2",
+  "viewport": {
+    "width": 390,
+    "height": 844,
+    "deviceScaleFactor": 3,
+    "isMobile": true,
+    "hasTouch": true
+  },
+  "referenceBuild": "v0051-hotfix-public-a8f46896",
+  "referenceExeSha256": "a8f46896593d8724cefb9a232db5772df48ae5731da78cfacbec82e98d040c10",
+  "rewardFormula": "normal 10+5*(prior EdgeStreak+1); perfect 35+15*(prior EdgeStreak+1)",
+  "sourceHashes": {
+    "edge.js": "d216a2ecd18e08b647684695d1b0897f4ada8b5b43fe17762e0663e6f88cdf66",
+    "run.js": "fa15d65e9ca6f278a92b5ca33dc976f339ef2a31a943e7106bc613361e7875f2",
+    "cards.js": "f6d7562bc7cae24d14e043d8fb940b40103fa59a36af60d89df7d711198f69e3",
+    "play.js": "3d3179e013c7a8348c7f6b8dbf5906e4091ef0aa44d31beeb56b84948c302467"
+  },
+  "stages": [
+    {
+      "phase": "handoff",
+      "streak": 1,
+      "perfect": false,
+      "bank": 0,
+      "postBreak": 1.75,
+      "seconds": 0
+    },
+    {
+      "phase": "handoff",
+      "streak": 2,
+      "perfect": false,
+      "bank": 20,
+      "postBreak": 1.75,
+      "seconds": 1.0400000000000007
+    },
+    {
+      "phase": "handoff",
+      "streak": 3,
+      "perfect": false,
+      "bank": 45,
+      "postBreak": 1.75,
+      "seconds": 2.0480000000000014
+    },
+    {
+      "phase": "handoff",
+      "streak": 4,
+      "perfect": false,
+      "bank": 75,
+      "postBreak": 1.75,
+      "seconds": 3.0880000000000023
+    },
+    {
+      "phase": "handoff",
+      "streak": 5,
+      "perfect": false,
+      "bank": 110,
+      "postBreak": 2.75,
+      "seconds": 4.096000000000003
+    },
+    {
+      "phase": "handoff",
+      "streak": 6,
+      "perfect": true,
+      "bank": 235,
+      "postBreak": 2.75,
+      "seconds": 19.839999999999588
+    },
+    {
+      "phase": "handoff",
+      "streak": 7,
+      "perfect": false,
+      "bank": 280,
+      "postBreak": 2.75,
+      "seconds": 20.799999999999482
+    },
+    {
+      "phase": "handoff",
+      "streak": 8,
+      "perfect": false,
+      "bank": 330,
+      "postBreak": 2.75,
+      "seconds": 23.743999999999158
+    },
+    {
+      "phase": "handoff",
+      "streak": 9,
+      "perfect": false,
+      "bank": 385,
+      "postBreak": 2.75,
+      "seconds": 26.687999999998834
+    },
+    {
+      "phase": "handoff",
+      "streak": 10,
+      "perfect": false,
+      "bank": 445,
+      "postBreak": 3.75,
+      "seconds": 29.599999999998513
+    },
+    {
+      "phase": "handoff",
+      "streak": 10,
+      "perfect": false,
+      "bank": 445,
+      "postBreak": 3.75,
+      "seconds": 29.599999999998513
+    },
+    {
+      "phase": "handoff",
+      "streak": 11,
+      "perfect": false,
+      "bank": 510,
+      "postBreak": 3.75,
+      "seconds": 33.53699999999808
+    },
+    {
+      "phase": "idle",
+      "streak": 1,
+      "perfect": false,
+      "bank": 0,
+      "postBreak": 1.75,
+      "seconds": 96.44900000000557
+    }
+  ],
+  "acceptedBank": 510,
+  "persistedHoldRestored": true,
+  "currentEdgeReplayed": true,
+  "edges": 12,
+  "sessions": 1,
+  "won": true
+}

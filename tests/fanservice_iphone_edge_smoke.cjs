@@ -53,7 +53,7 @@ function expectedBank(edges,perfectEdge=0){let bank=0;for(let n=2;n<=edges;n++)b
   await page.getByRole('button',{name:'Accept Mercy',exact:true}).click();const accepted=await snapshot();
   assert.equal(accepted.coins,before.coins+510);assert.equal(accepted.edge.bank,0);assert(accepted.edge.deadline-accepted.seconds>59.9&&accepted.edge.deadline-accepted.seconds<=60);assert.equal(accepted.meter,before.meter+.01);
   await page.clock.runFor(59000);assert.equal((await snapshot()).edge.phase,'mercy-rest');assert.equal((await snapshot()).strokes,accepted.strokes);
-  await page.getByRole('button',{name:'Continue / G',exact:true}).click();await trigger();assert.equal(await page.evaluate(()=>run.player.isAllowedToCum),true);
+  await page.getByRole('button',{name:'Continue / G',exact:true}).click();const restarted=await trigger();assert.equal(restarted.edge.streak,1,'The ordinary card after Mercy resets the next streak');assert.equal(restarted.edge.postBreak,1.75);assert.equal(await page.evaluate(()=>run.player.isAllowedToCum),true);
   await page.getByRole('button',{name:'Hold to finish',exact:true}).focus();await page.keyboard.down('Enter');await page.clock.runFor(1200);await page.keyboard.up('Enter');
   await page.getByText(/Rewards saved once/).waitFor();
   const result=await page.evaluate(()=>({edges:state.edges,finished,won:state.won,progression:JSON.parse(localStorage.getItem(profileKey)).progression}));

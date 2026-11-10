@@ -47,6 +47,27 @@ test('Mercy acceptance pays the versioned bank exactly once and starts cancellab
  const strokes=run.state.strokes;run.advance(59);assert.equal(run.state.strokes,strokes);assert.equal(run.state.edge.phase,'mercy-rest');assert(run.continueEdgeRest().some(e=>e.type==='edge-streak-ended'));assert.equal(run.state.edge.phase,'idle');
 });
 
+for(const exit of ['continue','timer'])test(`Mercy ${exit} exit clears the live streak before a new ordinary-task Edge`,()=>{
+ const run=session();reachMercy(run);run.mercy(true);
+ const events=exit==='continue'?run.continueEdgeRest():run.advance(60);
+ assert(events.some(event=>event.type==='edge-streak-ended'&&event.requestNextCard));
+ assert.equal(run.state.edge.phase,'idle');assert.equal(run.state.edge.streak,5);assert.equal(run.state.EdgeStreak,5);
+ run.startCard('slow');
+ assert.equal(run.state.edge.streak,0);assert.equal(run.state.EdgeStreak,0);
+ const first=run.edge();assert(first.some(event=>event.type==='edge-recorded'&&event.streak===1));
+ assert.equal(run.state.edge.bank,0);assert.equal(run.state.edge.postBreak,1.75);
+ handoff(run);run.continueEdgeRest();
+ const repeat=run.edge();assert(repeat.some(event=>event.type==='edge-recorded'&&event.streak===2));
+ assert.equal(run.state.edge.bank,20);
+});
+
+test('Mercy exit does not apply the ordinary-draw reset to Edge or release cards',()=>{
+ const run=session();reachMercy(run);run.mercy(true);run.continueEdgeRest();
+ run.startCard('edge');
+ assert.equal(run.state.edge.streak,5);assert.equal(run.state.EdgeStreak,5);
+ run.startCard('cum');assert.equal(run.state.edge.streak,5);assert.equal(run.state.EdgeStreak,5);
+});
+
 test('Mercy rejection retains the bank and increases source edges-until-Mercy by truncated 1.25',()=>{
  const run=session();reachMercy(run);const coins=run.state.coins;assert(run.mercy(false).some(e=>e.type==='mercy-declined'));assert.equal(run.state.edge.masterUntil,6);assert.equal(run.state.edge.until,6);assert.equal(run.state.edge.bank,110);assert.equal(run.state.coins,coins);assert.equal(run.state.card,5);assert.equal(run.state.edge.phase,'sequence');assert.deepEqual(run.mercy(false),[]);
 });

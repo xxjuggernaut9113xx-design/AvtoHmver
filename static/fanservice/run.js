@@ -64,7 +64,11 @@
   continueEdgeRest(){return Edge.continueRest(this);}
   mercy(accept){return Edge.mercy(this,accept);}
   cancelEdge(){return Edge.cancel(this);}
-  startCard(pool,options={}){return Cards.start(this,pool,options);}
+  startCard(pool,options={}){
+   const flow=Cards.start(this,pool,options);
+   if(flow&&!['edge','cum'].includes(pool))Edge.ordinaryCardStarted(this);
+   return flow;
+  }
   delayCard(seconds){return Cards.delay(this,seconds);}
   modifyCard(speed,factor=1){return Cards.rebuild(this,speed,factor);}
   tribute(){
