@@ -48,7 +48,19 @@
       "Hold media anywhere to finish, with a progress ring under the finger"
     ],
     "reported_issue": "Beats do not visibly advance the Cum meter; user used Edge repeatedly while testing Finish",
-    "physical_acceptance": "Pending after implementation; the report does not establish a completed one-second hold"
+    "source_commit": "2916c3e",
+    "source_identity_limit": "Workspace commit at test request; loaded phone asset hashes not instrumented",
+    "confirmed_after_refresh": [
+      {
+        "check": "Media tap opens Pause and icons follow the phone screen rather than media bounds",
+        "user_response": "Yes, both work"
+      },
+      {
+        "check": "Eligible half-second media hold shows ring under finger; release cancels without ending the session",
+        "user_response": "Yes, ring appears and release cancels"
+      }
+    ],
+    "physical_acceptance": "Media-tap Pause, screen-relative icon placement and early-release cancellation confirmed by user. Completed one-second hold and resulting reward message pending."
   },
   "initial_reports": "Discarded at the user's request because Tailscale was disconnected.",
   "confirmed_after_connected_refresh": [

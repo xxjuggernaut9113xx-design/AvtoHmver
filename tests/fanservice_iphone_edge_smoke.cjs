@@ -51,7 +51,7 @@ function expectedBank(edges,perfectEdge=0){let bank=0;for(let n=2;n<=edges;n++)b
   }
   const before=await snapshot();assert.equal(before.edge.phase,'mercy');assert.equal(before.edge.bank,510);
   await page.getByRole('button',{name:'Accept Mercy',exact:true}).click();const accepted=await snapshot();
-  assert.equal(accepted.coins,before.coins+510);assert.equal(accepted.edge.bank,0);assert(accepted.edge.deadline-accepted.seconds>59.9&&accepted.edge.deadline-accepted.seconds<=60);assert.equal(accepted.meter,before.meter+.01);
+  assert.equal(accepted.coins,before.coins+510);assert.equal(accepted.edge.bank,0);assert.ok(Math.abs(accepted.edge.deadline-accepted.seconds-60)<1e-9,`Mercy rest lasts 60 seconds: ${accepted.edge.deadline-accepted.seconds}`);assert.equal(accepted.meter,before.meter+.01);
   await page.clock.runFor(59000);assert.equal((await snapshot()).edge.phase,'mercy-rest');assert.equal((await snapshot()).strokes,accepted.strokes);
   await page.getByRole('button',{name:'Continue / G',exact:true}).click();const restarted=await trigger();assert.equal(restarted.edge.streak,1,'The ordinary card after Mercy resets the next streak');assert.equal(restarted.edge.postBreak,1.75);assert.equal(await page.evaluate(()=>run.player.isAllowedToCum),true);
   await page.getByRole('button',{name:'Hold to finish',exact:true}).focus();await page.keyboard.down('Enter');await page.clock.runFor(1200);await page.keyboard.up('Enter');
