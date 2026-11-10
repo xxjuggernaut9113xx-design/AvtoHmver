@@ -6,7 +6,7 @@ const media=[1,2,3].map(id=>({id,type:'image',url:gif+'#'+id,tags:['slow','mediu
 async function check(engine,name){
  const browser=await engine.launch({headless:true,...(name==='Chromium'&&process.env.FANSERVICE_BROWSER_EXECUTABLE?{executablePath:process.env.FANSERVICE_BROWSER_EXECUTABLE}:{})});
  try{
-  const page=await browser.newPage(),errors=[];page.on('pageerror',error=>errors.push(error.message));
+  const page=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:3,isMobile:true,hasTouch:true}),errors=[];page.on('pageerror',error=>errors.push(error.message));
   await page.addInitScript(()=>{if(!localStorage.getItem('fanservice-profile-v1:resume-fixture'))localStorage.setItem('fanservice-profile-v1:resume-fixture',JSON.stringify({version:1,unlock_points:0,packs:[{id:'custom:resume-fixture',library_id:'resume-fixture',device_id:'fixture',name:'Resume fixture',owned:true,enabled:true,selection:{ids:[1,2,3],rules:[],local_ids:[]}}]}));});
   await page.route(origin+'/**',async route=>{
    const url=new URL(route.request().url());if(url.pathname==='/api/fanservice/v1/resolve')return route.fulfill({json:{library_id:'resume-fixture',media}});
@@ -19,7 +19,16 @@ async function check(engine,name){
   await page.goto(origin+'/fanservice/play.html?library=resume-fixture');await page.waitForFunction(()=>!document.querySelector('#start').disabled);
   await page.locator('#start').click();const initial=await view();
   await page.evaluate(()=>window.dispatchEvent(new PageTransitionEvent('pagehide')));
+  assert.equal(await page.evaluate(()=>paused),true,`${name}: pagehide pauses`);
   await page.locator('#pause').click();assert.deepEqual((await view()).id,initial.id,`${name}: refocus preserved image`);
+  assert.equal(await page.evaluate(()=>paused),false,`${name}: Resume unpauses`);
+  await page.locator('#status').filter({hasText:/Return Edge: follow the beats/}).waitFor();
+  assert.match(await page.locator('#status').textContent(),/tap Edge \/ E to continue your session/,`${name}: visible status explains return Edge`);
+  const seconds=await page.evaluate(()=>state.seconds),beat=await page.locator('#beat').evaluate(element=>element.style.left);await page.waitForTimeout(300);
+  assert.ok(await page.evaluate(()=>state.seconds)>seconds,`${name}: gameplay advances after Resume`);
+  assert.notEqual(await page.locator('#beat').evaluate(element=>element.style.left),beat,`${name}: return Edge beat visibly advances`);
+  await page.getByRole('button',{name:'Edge / E',exact:true}).click();await page.waitForFunction(()=>!run.returnEdge);
+  assert.equal((await view()).id,initial.id,`${name}: completed return Edge retains media`);
   await page.locator('#pause').click();const saved=await view();
   await page.reload();await page.waitForFunction(()=>!document.querySelector('#start').disabled);
   assert.equal((await view()).id,saved.id,`${name}: checkpoint preview preserved image`);
@@ -51,6 +60,9 @@ async function checkVideo(){
   await page.locator('#video').evaluate(video=>{video.currentTime=1.4;});await page.waitForFunction(()=>document.querySelector('#video').currentTime>=1.39);
   await page.locator('#pause').click();await page.locator('#video').evaluate(video=>{video.currentTime=0;});await page.locator('#pause').click();
   await page.waitForFunction(()=>document.querySelector('#video').currentTime>=1.35,{timeout:5000});
+  assert.equal(await page.locator('#video').evaluate(video=>video.paused),false,'Video plays during return Edge');
+  const resumedTime=await page.locator('#video').evaluate(video=>video.currentTime);await page.waitForTimeout(250);
+  assert.ok(await page.locator('#video').evaluate(video=>video.currentTime)>resumedTime+.1,'Video frames advance after Resume');
   await page.evaluate(()=>window.dispatchEvent(new PageTransitionEvent('pagehide')));await page.reload();await page.waitForFunction(()=>!document.querySelector('#start').disabled);await page.locator('#start').click();
   await page.waitForFunction(()=>document.querySelector('#video').currentTime>=1.35);
  }finally{await browser.close();}

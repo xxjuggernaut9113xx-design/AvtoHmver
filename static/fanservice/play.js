@@ -188,7 +188,8 @@ function edgeAction(events){objectiveEvents(events);checkpoint(true);render();}
 function renderEdge(){
  const e=state.edge,enabled=started&&!paused&&!finished&&FanserviceEdge.allowed(run);edgeButton.disabled=!enabled;
  edgePanel.hidden=!e||e.phase==='idle'||finished;const seconds=e?.phase==='hold'?e.holdRemaining:e?.deadline?Math.max(0,Math.ceil(e.deadline-state.seconds)):0;
- const view=JSON.stringify([e?.phase,seconds,e?.streak,e?.bank,paused,finished]);if(edgeView===view)return;edgeView=view;edgePanel.replaceChildren();if(edgePanel.hidden)return;
+ const view=JSON.stringify([e?.phase,seconds,e?.streak,e?.bank,paused,finished,!!run.returnEdge]);if(edgeView===view)return;edgeView=view;edgePanel.replaceChildren();if(edgePanel.hidden)return;
+ if(run.returnEdge)edgePanel.append(element('p','Return Edge: follow the beats, then tap Edge / E to continue your session. Your current media stays in place.'));
  edgePanel.append(element('p',`Edge streak ${e.streak} · pending ${e.bank} coins · ${e.phase}${seconds?` · ${seconds} seconds`:''}.`));
  if(['rest','mercy-rest'].includes(e.phase)){const button=action('Continue / G',()=>edgeAction(run.continueEdgeRest()));button.disabled=paused;edgePanel.append(button);}
  if(e.phase==='mercy')for(const [accepted,title] of [[true,'Accept Mercy'],[false,'Continue streak']]){const button=action(title,()=>edgeAction(run.mercy(accepted)));button.disabled=paused;edgePanel.append(button);}
@@ -328,7 +329,13 @@ function tick(now){
   if(run.returnEdge){
    audio.pause();
    if(vibrationMode.value==='event')vibration.advance(state.seconds,state.seconds+delta,vibrationDeadlines());
-   objectiveEvents(run.advance(delta));if(!finished&&run.phase==='playing')tickItems(delta);checkpoint();render();requestAnimationFrame(tick);return;
+   objectiveEvents(run.advance(delta));if(!finished&&run.phase==='playing')tickItems(delta);checkpoint();
+   const flow=state.cardFlow,next=flow?.queue.slice(flow.nextHit).find(entry=>entry.CustomMultiplier>=0);
+   const previous=flow?.queue.slice(0,flow.nextHit).reverse().find(entry=>entry.CustomMultiplier>=0);
+   const from=previous?.TargetHitTime??0,to=next?.TargetHitTime??from;
+   const progress=next&&state.edge?.phase==='sequence'?Math.max(0,Math.min(1,(state.seconds-flow.started-from)/Math.max(.001,to-from))):0;
+   $('beat').style.left=`${50+progress*45}%`;
+   render();requestAnimationFrame(tick);return;
   }
   if(music&&musicLeadIn>0){
    musicLeadIn=Math.max(0,musicLeadIn-delta);
@@ -434,10 +441,10 @@ $('start').onclick=async()=>{
   }
   started=true;lastFrame=performance.now();$('start').disabled=true;$('difficulty').disabled=true;for(const input of settingsPanel.querySelectorAll('input,select'))input.disabled=true;
   if(run.interrupted){keepMediaOnReplay=true;try{objectiveEvents(run.resumeInterrupted());}finally{keepMediaOnReplay=false;}}
-  $('pause').disabled=false;if(restoredView){showMedia(restoredView.item,restoredView.position);restoredView=null;}else if(!currentMedia||!run.resumed)draw(category,{prepare:!run.resumed});else showMedia(currentMedia,$('video').currentTime||mediaPosition);renderTower();render();checkpoint(true);status('Playing locally with the session selection frozen.');if(run.phase==='complete')await end(!!state.won);
+  $('pause').disabled=false;if(restoredView){showMedia(restoredView.item,restoredView.position);restoredView=null;}else if(!currentMedia||!run.resumed)draw(category,{prepare:!run.resumed});else showMedia(currentMedia,$('video').currentTime||mediaPosition);renderTower();render();checkpoint(true);status(run.returnEdge?'Return Edge: follow the beats, then tap Edge / E to continue your session.':'Playing locally with the session selection frozen.');if(run.phase==='complete')await end(!!state.won);
  }catch(error){status(error.message);}
 };
- $('pause').onclick=()=>{if(!started||finished)return;if(!paused)mediaPosition=mediaView()?.position||0;paused=!paused;if(paused){checkpoint(true);vibration.cancel();cancelFinishHold();window.FanserviceVoice?.stop();audio.pause();$('video').pause();}else{const voiceResume=window.FanserviceVoice?.unlock?.();voiceResume?.catch(()=>{});lastFrame=performance.now();if(run.interrupted){keepMediaOnReplay=true;try{objectiveEvents(run.resumeInterrupted());}finally{keepMediaOnReplay=false;}}if(music)resumeMusic();if(!$('video').hidden){seekMedia(mediaPosition);$('video').play().catch(error=>status(error.message));}checkpoint(true);}$('pause').textContent=paused?'Resume':'Pause';render();};
+ $('pause').onclick=()=>{if(!started||finished)return;if(!paused)mediaPosition=mediaView()?.position||0;paused=!paused;if(paused){checkpoint(true);vibration.cancel();cancelFinishHold();window.FanserviceVoice?.stop();audio.pause();$('video').pause();}else{const voiceResume=window.FanserviceVoice?.unlock?.();voiceResume?.catch(()=>{});lastFrame=performance.now();if(run.interrupted){keepMediaOnReplay=true;try{objectiveEvents(run.resumeInterrupted());}finally{keepMediaOnReplay=false;}}if(music)resumeMusic();if(!$('video').hidden){seekMedia(mediaPosition);$('video').play().catch(error=>status(error.message));}checkpoint(true);if(run.returnEdge)status('Return Edge: follow the beats, then tap Edge / E to continue your session.');}$('pause').textContent=paused?'Resume':'Pause';render();};
 function tap(){if(started&&!paused&&!finished&&!music&&run.phase==='playing')draw();}
 $('tap').onclick=tap;$('draw').onclick=()=>draw();$('pool').onchange=()=>draw($('pool').value);
 function canFinish(){
