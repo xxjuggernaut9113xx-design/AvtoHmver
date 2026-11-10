@@ -16,7 +16,7 @@
     "edge.js": "d216a2ecd18e08b647684695d1b0897f4ada8b5b43fe17762e0663e6f88cdf66",
     "run.js": "fa15d65e9ca6f278a92b5ca33dc976f339ef2a31a943e7106bc613361e7875f2",
     "cards.js": "f6d7562bc7cae24d14e043d8fb940b40103fa59a36af60d89df7d711198f69e3",
-    "play.js": "3d3179e013c7a8348c7f6b8dbf5906e4091ef0aa44d31beeb56b84948c302467"
+    "play.js": "8b69832f44094a4003a723fadd17cd3abadffb3ccfa5da4fd73f4c370bf80b54"
   },
   "stages": [
     {
@@ -33,7 +33,7 @@
       "perfect": false,
       "bank": 20,
       "postBreak": 1.75,
-      "seconds": 1.0400000000000007
+      "seconds": 1.0420000000000007
     },
     {
       "phase": "handoff",
@@ -41,7 +41,7 @@
       "perfect": false,
       "bank": 45,
       "postBreak": 1.75,
-      "seconds": 2.0480000000000014
+      "seconds": 2.0500000000000016
     },
     {
       "phase": "handoff",
@@ -49,7 +49,7 @@
       "perfect": false,
       "bank": 75,
       "postBreak": 1.75,
-      "seconds": 3.0880000000000023
+      "seconds": 3.0900000000000025
     },
     {
       "phase": "handoff",
@@ -57,7 +57,7 @@
       "perfect": false,
       "bank": 110,
       "postBreak": 2.75,
-      "seconds": 4.096000000000003
+      "seconds": 4.098000000000003
     },
     {
       "phase": "handoff",
@@ -65,7 +65,7 @@
       "perfect": true,
       "bank": 235,
       "postBreak": 2.75,
-      "seconds": 19.839999999999588
+      "seconds": 19.48999999999963
     },
     {
       "phase": "handoff",
@@ -73,7 +73,7 @@
       "perfect": false,
       "bank": 280,
       "postBreak": 2.75,
-      "seconds": 20.799999999999482
+      "seconds": 20.449999999999523
     },
     {
       "phase": "handoff",
@@ -81,7 +81,7 @@
       "perfect": false,
       "bank": 330,
       "postBreak": 2.75,
-      "seconds": 23.743999999999158
+      "seconds": 23.3939999999992
     },
     {
       "phase": "handoff",
@@ -89,7 +89,7 @@
       "perfect": false,
       "bank": 385,
       "postBreak": 2.75,
-      "seconds": 26.687999999998834
+      "seconds": 26.337999999998875
     },
     {
       "phase": "handoff",
@@ -97,7 +97,7 @@
       "perfect": false,
       "bank": 445,
       "postBreak": 3.75,
-      "seconds": 29.599999999998513
+      "seconds": 29.249999999998554
     },
     {
       "phase": "handoff",
@@ -105,7 +105,7 @@
       "perfect": false,
       "bank": 445,
       "postBreak": 3.75,
-      "seconds": 29.599999999998513
+      "seconds": 29.249999999998554
     },
     {
       "phase": "handoff",
@@ -113,7 +113,7 @@
       "perfect": false,
       "bank": 510,
       "postBreak": 3.75,
-      "seconds": 33.53699999999808
+      "seconds": 33.18699999999812
     },
     {
       "phase": "idle",
@@ -121,7 +121,7 @@
       "perfect": false,
       "bank": 0,
       "postBreak": 1.75,
-      "seconds": 96.44900000000557
+      "seconds": 96.09900000000545
     }
   ],
   "acceptedBank": 510,

@@ -8,8 +8,8 @@
  function plain(value){return value!==null&&typeof value==='object'&&!Array.isArray(value);}
  function validSettings(value,specs){
   if(!plain(value))return null;
-  const s={mode:value.mode,difficulty:value.difficulty,objective:value.objective,target:value.target,rounds:value.rounds,loot:value.loot,holding:value.holding,vibration:value.vibration,wake:value.wake};
-  if(!Number.isInteger(s.mode)||s.mode<0||s.mode>2||!Number.isInteger(s.difficulty)||s.difficulty<0||s.difficulty>2||!Number.isInteger(s.objective)||s.objective<0||s.objective>6||!Number.isFinite(s.target)||!Number.isInteger(s.target)||s.target<1||s.target>86400||!Number.isInteger(s.rounds)||s.rounds<1||s.rounds>1000||typeof s.loot!=='boolean'||!['left','right'].includes(s.holding)||!['off','event','beat'].includes(s.vibration)||typeof s.wake!=='boolean')return null;
+  const s={mode:value.mode,difficulty:value.difficulty,objective:value.objective,target:value.target,rounds:value.rounds,loot:value.loot,frenzy:value.frenzy??false,holding:value.holding,vibration:value.vibration,wake:value.wake};
+  if(!Number.isInteger(s.mode)||s.mode<0||s.mode>2||!Number.isInteger(s.difficulty)||s.difficulty<0||s.difficulty>2||!Number.isInteger(s.objective)||s.objective<0||s.objective>6||!Number.isFinite(s.target)||!Number.isInteger(s.target)||s.target<1||s.target>86400||!Number.isInteger(s.rounds)||s.rounds<1||s.rounds>1000||typeof s.loot!=='boolean'||typeof s.frenzy!=='boolean'||!['left','right'].includes(s.holding)||!['off','event','beat'].includes(s.vibration)||typeof s.wake!=='boolean')return null;
   const spec=specs[s.objective];
   if(!spec||!Number.isFinite(spec.min)||!Number.isFinite(spec.max)||s.target<spec.min||s.target>spec.max)return null;
   return s;

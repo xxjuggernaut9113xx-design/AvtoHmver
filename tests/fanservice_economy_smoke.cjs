@@ -1,6 +1,11 @@
 const {chromium}=require('./browser/node_modules/playwright');
 const assert=require('node:assert/strict'),fs=require('node:fs');
 const origin=process.env.FANSERVICE_FIXTURE_ORIGIN||'http://127.0.0.1:42169';
+async function setFixtureSuccufrenzy(page,library,enabled){
+ await page.evaluate(({key,enabled})=>{const saved=JSON.parse(localStorage.getItem(key));saved.progression??={};saved.progression.unlocked_modifiers=enabled?['Succufrenzy']:[];saved.progression.enabled_modifiers=enabled?['Succufrenzy']:[];localStorage.setItem(key,JSON.stringify(saved));},{key:'fanservice-profile-v1:'+library,enabled});
+}
+async function pause(page){const button=page.locator('#pause');await button.click();await page.waitForFunction(()=>document.querySelector('#pause-menu').open);}
+async function activate(page,button){await button.click();}
 (async()=>{
  const browser=await chromium.launch({headless:true,...(process.env.FANSERVICE_BROWSER_EXECUTABLE?{executablePath:process.env.FANSERVICE_BROWSER_EXECUTABLE}:{})});
  try{
@@ -25,23 +30,27 @@ const origin=process.env.FANSERVICE_FIXTURE_ORIGIN||'http://127.0.0.1:42169';
   await page.evaluate(()=>{run.config.seed=7331;});
   await page.getByRole('button',{name:'Inventory / loadout',exact:true}).click();await page.getByRole('button',{name:'Equip DecreaseHeat',exact:true}).click();await page.getByRole('button',{name:'Close inventory',exact:true}).click();
   await page.getByRole('button',{name:'Start',exact:true}).click();
-  await page.locator('#pool').selectOption('fast');
+  assert.equal(await page.locator('#pool').count(),0,'automatic media selection has no manual pool selector');
   await page.waitForFunction(()=>state.lootRolls>=1,{},{timeout:45000});
-  await page.getByRole('button',{name:'Pause',exact:true}).click();
+  await pause(page);
   const before=await page.evaluate(()=>({id:sessionId,run:run.export(),lastBeat,speed}));assert(before.run.state.strokes>=20);assert.equal(before.run.config.difficulty,2);assert(before.run.state.heat>10);
   await page.reload();await page.getByText('Unfinished session ready. Tap Start to resume.').waitFor();
-  const restored=await page.evaluate(()=>({id:sessionId,run:run.export(),lastBeat,speed}));assert.deepEqual(restored,before);assert.equal(await page.locator('#difficulty').inputValue(),'2');
-  await page.getByRole('button',{name:'Start',exact:true}).click();await page.getByRole('button',{name:'Pause',exact:true}).click();
-  assert.equal(await page.evaluate(()=>state.totalDraws),before.run.state.totalDraws,'resume must not count another draw or reset item multipliers');
+  const restored=await page.evaluate(()=>({id:sessionId,run:run.export(),lastBeat,speed}));const expectedRestored=structuredClone(before);expectedRestored.run.interrupted=true;assert.deepEqual(restored,expectedRestored);assert.equal(await page.locator('#difficulty').inputValue(),'2');
+  await page.getByRole('button',{name:'Start',exact:true}).click();await pause(page);
+  const resumedFlow=await page.evaluate(()=>({draws:state.totalDraws,returnEdge:!!run.returnEdge,pool:state.cardFlow?.pool}));
+  assert.equal(resumedFlow.returnEdge,true,'an interrupted ordinary session resumes through its required Return Edge');
+  assert.equal(resumedFlow.pool,'edge','interruption starts one Edge card');
+  assert.equal(resumedFlow.draws,before.run.state.totalDraws+1,'the interruption adds exactly its required Edge draw, without resetting the saved ordinary draw ledger');
   await page.evaluate(()=>{const current=JSON.parse(localStorage.getItem(profileKey));current.packs[0].name='Edited during economy run';localStorage.setItem(profileKey,JSON.stringify(current));});
   await page.getByRole('button',{name:'End session',exact:true}).click();await page.waitForFunction(()=>finished);
   const settled=await page.evaluate(()=>JSON.parse(localStorage.getItem(profileKey)));assert.equal(settled.progression.sessions,1);assert.equal(settled.packs[0].name,'Edited during economy run');assert(settled.progression.lifetime_metrics.Strokes>=20);assert.deepEqual(settled.user_field,{preserved:true});
   await page.evaluate(()=>end(false));assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem(profileKey)).progression.sessions),1);assert.deepEqual(errors,[]);
+  await setFixtureSuccufrenzy(page,library,true);
   await page.goto(origin+'/fanservice/play.html?library='+encodeURIComponent(library));
   await page.getByText('Ready. Tap Start to enable local playback and audio.').waitFor();
   await page.locator('#objective').selectOption('6');await page.locator('#objective-target').fill('5');
-  await page.getByRole('button',{name:'Start',exact:true}).click();await page.locator('#pool').selectOption('succubus');
-  await page.getByRole('button',{name:'Pause',exact:true}).click();
+  await page.getByRole('button',{name:'Start',exact:true}).click();assert.equal(await page.locator('#pool').count(),0,'encounters use the forced Succufrenzy fixture, without a manual selector');
+  await pause(page);
   const encounters=await page.evaluate(()=>{
    const counts=[];for(let n=0;n<5;n++){
     const flow=state.cardFlow;if(flow.card!==3)throw Error('Expected an active source-backed encounter');
@@ -49,22 +58,24 @@ const origin=process.env.FANSERVICE_FIXTURE_ORIGIN||'http://127.0.0.1:42169';
     objectiveEvents(run.advance(endTime-state.seconds+.001));counts.push(state.succubi);
    }render();return {counts,currency:state.succuCoins,allowed:run.player.isAllowedToCum};
   });assert.deepEqual(encounters.counts,[1,2,3,4,5]);assert.equal(encounters.currency,5);assert.equal(encounters.allowed,true);
-  await page.getByRole('button',{name:'Resume',exact:true}).click();await page.getByRole('button',{name:'Hold to finish',exact:true}).press('Enter',{delay:1100});await page.waitForFunction(()=>finished);
+  await page.locator('#resume-session').click();await page.getByRole('button',{name:'Hold to finish',exact:true}).press('Enter',{delay:1100});await page.waitForFunction(()=>finished);
   assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem(profileKey)).progression.sessions),2);
+  await setFixtureSuccufrenzy(page,library,false);
   await page.goto(origin+'/fanservice/play.html?library='+encodeURIComponent(library));
   await page.getByText('Ready. Tap Start to enable local playback and audio.').waitFor();
   await page.locator('#objective').selectOption('5');await page.locator('#objective-target').fill('2');await page.getByRole('button',{name:'Start',exact:true}).click();
   await page.getByRole('button',{name:'Hold to record tribute',exact:true}).press('Enter',{delay:1100});assert.equal(await page.evaluate(()=>state.milkingCount),1);assert.equal(await page.evaluate(()=>finished),false);
   await page.getByRole('button',{name:'Hold to record tribute',exact:true}).press('Enter',{delay:1100});await page.waitForFunction(()=>finished);
   assert.equal(await page.evaluate(()=>state.milkingCount),2);assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem(profileKey)).progression.sessions),3);assert.deepEqual(errors,[]);
+  await setFixtureSuccufrenzy(page,library,false);
   await page.goto(origin+'/fanservice/play.html?library='+encodeURIComponent(library));await page.getByText('Ready. Tap Start to enable local playback and audio.').waitFor();
   await page.locator('#objective').selectOption('3');await page.locator('#objective-target').fill('2');await page.getByRole('button',{name:'Start',exact:true}).click();
-  await page.getByRole('button',{name:'Edge / E',exact:true}).click();assert.equal(await page.evaluate(()=>state.edges),1);
-  await page.getByRole('button',{name:'Continue / G',exact:true}).waitFor({timeout:5000});await page.getByRole('button',{name:'Continue / G',exact:true}).click();
-  await page.getByRole('button',{name:'Pause',exact:true}).click();const edgeBefore=await page.evaluate(()=>({id:sessionId,edge:state.edge,flow:state.cardFlow,edges:state.edges}));
+  const edgeButton=page.getByRole('button',{name:'Edge / E',exact:true});await activate(page,edgeButton);assert.equal(await page.evaluate(()=>state.edges),1);
+  const continueButton=page.getByRole('button',{name:'Continue / G',exact:true});await continueButton.waitFor({timeout:5000});await activate(page,continueButton);
+  await pause(page);const edgeBefore=await page.evaluate(()=>({id:sessionId,edge:state.edge,flow:state.cardFlow,edges:state.edges}));
   await page.reload();await page.getByText('Unfinished session ready. Tap Start to resume.').waitFor();const edgeRestored=await page.evaluate(()=>({id:sessionId,edge:state.edge,flow:state.cardFlow,edges:state.edges}));assert.deepEqual(edgeRestored,edgeBefore);
   await page.getByRole('button',{name:'Start',exact:true}).click();await page.keyboard.press('e');assert.equal(await page.evaluate(()=>state.edges),2);assert.equal(await page.evaluate(()=>run.player.isAllowedToCum),true);
   await page.getByRole('button',{name:'Hold to finish',exact:true}).press('Enter',{delay:1100});await page.waitForFunction(()=>finished);const edgeProfile=await page.evaluate(()=>JSON.parse(localStorage.getItem(profileKey)));assert.equal(edgeProfile.progression.sessions,4);assert.equal(edgeProfile.progression.lifetime_metrics.Edges,2);assert.deepEqual(errors,[]);
-  console.log('Live economy smoke passed: profile-readiness race, real timer beats and loot, difficulty heat, exact reward/RNG/checkpoint restore, no resume draw reset, profile-preserving settlement, deterministic native-fixture encounter queue completions, two actual Tribute button events, and actual E/G Edge controls with checkpoint restore and natural Edge-objective completion.');
+  console.log('Live economy smoke passed: profile-readiness race, real timer beats and loot, difficulty heat, exact reward/RNG/checkpoint restore, exactly one required interruption Return Edge draw without resetting the saved ordinary draw count, profile-preserving settlement, deterministic native-fixture encounter queue completions, two actual Tribute button events, and actual E/G Edge controls with checkpoint restore and natural Edge-objective completion.');
  }finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

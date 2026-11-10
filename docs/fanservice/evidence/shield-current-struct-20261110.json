@@ -1,0 +1,11 @@
+{
+  "asset": "/Game/NewSetup/PlayerStructs/LegacyStats",
+  "metadata_sha256": "9b9dae5ca15d3f1f939332788504fb997e084105e834ea1f3ab9e602da07dea9",
+  "fields_match_historical_mapping": true,
+  "field_count": 39,
+  "can_succubi_spawn_field": {
+    "index": 37,
+    "name": "CanSuccubiSpawn?_150_8E10317348C0D9E436BC019A13ACDC60",
+    "type": "BoolProperty"
+  }
+}

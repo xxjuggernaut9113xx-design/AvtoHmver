@@ -6,9 +6,9 @@ const cases=[
  {index:'1',name:'Timer (seconds)',objective:1,target:300,checkpointReload:true},
  {index:'2',name:'Strokes',objective:2,target:100},
  {index:'3',name:'Edges',objective:3,target:2,edge:true},
- {index:'4',name:'Prejac (seconds)',objective:6,target:30,immediate:true},
+ {index:'4',name:'Prejac (seconds)',objective:6,target:30},
  {index:'5',name:'Tribute',objective:7,target:2,immediate:true,finishName:'Hold to record tribute'},
- {index:'6',name:'Succu Slayer',objective:8,target:5,pool:'succubus',difficulty:2},
+ {index:'6',name:'Succu Slayer',objective:8,target:5,difficulty:2,modifiers:['Succufrenzy']},
  {index:'0',name:'Cum meter',objective:0}
 ];
 
@@ -20,10 +20,10 @@ const cases=[
    console.log('Starting Classic objective smoke: '+testCase.name);
    const context=await browser.newContext({viewport:{width:390,height:844}}),page=await context.newPage(),errors=[];
    page.on('pageerror',error=>errors.push(error.message));
-   await page.addInitScript(id=>{
+   await page.addInitScript(({id,modifiers})=>{
     const key='fanservice-profile-v1:'+id;
-    if(!localStorage.getItem(key))localStorage.setItem(key,JSON.stringify({version:1,unlock_points:0,packs:[{id:'custom:'+id,library_id:id,device_id:'fixture',name:'Neutral Classic objective fixture',owned:true,enabled:true,selection:{ids:[1],rules:[],local_ids:[]}}]}));
-   },fixture);
+    if(!localStorage.getItem(key))localStorage.setItem(key,JSON.stringify({version:1,unlock_points:0,progression:{unlocked_modifiers:modifiers,enabled_modifiers:modifiers},packs:[{id:'custom:'+id,library_id:id,device_id:'fixture',name:'Neutral Classic objective fixture',owned:true,enabled:true,selection:{ids:[1],rules:[],local_ids:[]}}]}));
+   },{id:fixture,modifiers:testCase.modifiers||[]});
    await page.route(origin+'/**',async route=>{
     const url=new URL(route.request().url());
     if(url.pathname==='/api/fanservice/v1/resolve')return route.fulfill({json:{library_id:fixture,media:[{id:1,type:'image',url:'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',tags:['slow','medium','fast','succubus','cum','ass','boobs']} ]}});
@@ -40,7 +40,6 @@ const cases=[
     await page.locator('#objective').selectOption(testCase.index);
     if(testCase.target)await page.locator('#objective-target').fill(String(testCase.target));
     await page.locator('#difficulty').selectOption(String(testCase.difficulty??2));
-    if(testCase.pool)await page.locator('#pool').selectOption(testCase.pool);
     await page.clock.install();
     await page.getByRole('button',{name:'Start',exact:true}).click();
     console.log('Started Classic objective smoke: '+testCase.name);
@@ -119,7 +118,7 @@ const cases=[
     reports.push({name:testCase.name,target:result.target,difficulty:result.difficulty,seconds:result.seconds,strokes:result.strokes,edges:result.edges,succubi:result.succubi,milkingCount:result.milkingCount,meter:result.meter,won:result.won,sessions:result.progression.sessions,sessionMetrics:{SessionsWonAtMaxDifficulty:result.progression.lifetime_metrics.SessionsWonAtMaxDifficulty||0,SuccuSlayerSessionsWon:result.progression.lifetime_metrics.SuccuSlayerSessionsWon||0},builtDifferentCompleted:!!result.progression.challenge_progress.built_different?.completed,publicSafetyProgress:result.progression.challenge_progress.public_safety?.requirements?.[0]?.CurrentValue??0,checkpointReloaded,checkpointReload,repeatAttempt,afterCompletedReload});
    }finally{await context.close();}
   }
-  const report={authority:'normal mobile player controls with Playwright virtual-clock fast-forward (one player tick per 10 simulated seconds) and synthetic neutral media/Server routes; reconstruction runtime and catalog only, not original-game execution or provenance',fixture,sourceHashes:Object.fromEntries(['objectives.js','run.js','cards.js','play.js','progression.js'].map(name=>[name,crypto.createHash('sha256').update(fs.readFileSync(path.join(root,name))).digest('hex')])),cases:reports};
+  const report={authority:'normal mobile player controls with Playwright virtual-clock fast-forward (one player tick per 10 simulated seconds) and synthetic neutral media/Server routes; Succu Slayer fixture enables unlocked Succufrenzy to force the encounter and does not test weighted event chance; reconstruction runtime and catalog only, not original-game execution or provenance',fixture,sourceHashes:Object.fromEntries(['objectives.js','run.js','cards.js','play.js','progression.js'].map(name=>[name,crypto.createHash('sha256').update(fs.readFileSync(path.join(root,name))).digest('hex')])),cases:reports};
   if(process.env.FANSERVICE_SMOKE_OUTPUT){fs.mkdirSync(process.env.FANSERVICE_SMOKE_OUTPUT,{recursive:true});fs.writeFileSync(path.join(process.env.FANSERVICE_SMOKE_OUTPUT,'classic-objectives-browser.json'),JSON.stringify(report,null,2));}
   console.log('Classic objective controls passed: all seven supported selections reached normal finish eligibility and one winning progression settlement. '+JSON.stringify(report));
  }finally{await browser.close();}

@@ -3,6 +3,7 @@ const $=id=>document.getElementById(id),store=FanserviceStore,rules=FanserviceRu
 const profileKey='fanservice-profile-v1:'+library,checkpointKey='fanservice-session-v1:'+library,audio=$('audio');
 let sessionId=store.id(),profile,media=[],decks,remaining={},music,map,soundtrackWarnings,run,state,catalog,contract,cardRules,started=false,paused=false,finished=false,settling=false,lastBeat=0,lastFrame=0,checkpointAt=0,category='slow',breakUntil=0,speed=1,pinnedPacks=[],restoring=false,currentMedia=null,mediaPosition=0,restoredView=null,keepMediaOnReplay=false,pendingMediaSeek=null,mediaSeekToken=0;
 const clock={next:0,event:0,last:0},resources=[],finishButton=$('finish');
+let specialEvents;
 let musicBuffering=false,musicLeadIn=0,musicStarting=false,restorePosition=null;
 let finishHold;
 const mediaStatus=document.createElement('p');mediaStatus.id='media-status';mediaStatus.setAttribute('role','status');$('voice-status').after(mediaStatus);
@@ -14,11 +15,12 @@ async function api(path){store.assertServer();const controller=new AbortControll
 async function readJSON(path){const response=await fetch(path);if(!response.ok)throw Error('Gameplay specification unavailable: '+path);return response.json();}
 const settingsPanel=element('section'),modeSelect=element('select'),objectiveSelect=element('select'),targetInput=element('input'),roundsInput=element('input'),objectiveLabel=element('label'),roundsLabel=element('label');
 const lootChoice=element('input'),lootLabel=element('label','Enable loot bar');lootChoice.type='checkbox';lootChoice.id='loot-enabled';lootLabel.prepend(lootChoice);
+const frenzyChoice=element('input'),frenzyLabel=element('label','Include body-part frenzy events');frenzyChoice.type='checkbox';frenzyChoice.id='frenzy-enabled';frenzyLabel.prepend(frenzyChoice);
 settingsPanel.id='session-setup';settingsPanel.append(element('h2','Session setup'));
 for(const [id,title] of [[0,'Classic'],[1,'Tower'],[2,'Soundtrack']]){const option=element('option',title);option.value=id;modeSelect.append(option);}modeSelect.id='mode';
 for(const [index,spec] of FanserviceObjectives.specs.entries()){const option=element('option',spec.title);option.value=index;objectiveSelect.append(option);}objectiveSelect.id='objective';
 targetInput.id='objective-target';targetInput.type='number';roundsInput.id='tower-rounds';roundsInput.type='number';roundsInput.min=1;roundsInput.max=1000;roundsInput.value=3;
-const modeLabel=element('label','Mode');modeLabel.append(modeSelect);objectiveLabel.append('Objective',objectiveSelect,'Target',targetInput);roundsLabel.append('Tower rounds',roundsInput);settingsPanel.append(modeLabel,objectiveLabel,roundsLabel,lootLabel);
+const modeLabel=element('label','Mode');modeLabel.append(modeSelect);objectiveLabel.append('Objective',objectiveSelect,'Target',targetInput);roundsLabel.append('Tower rounds',roundsInput);settingsPanel.append(modeLabel,objectiveLabel,roundsLabel,lootLabel,frenzyLabel);
 const wakeChoice=element('input'),wakeLabel=element('label','Keep screen awake during play'),wakeStatus=element('p');
 const wakePreference='fanservice-keep-awake';
 wakeChoice.type='checkbox';wakeChoice.checked=localStorage.getItem(wakePreference)!=='off';wakeLabel.prepend(wakeChoice);
@@ -170,17 +172,19 @@ function renderItemControls(){
   const type=inventory.hotbarItems[slot],item=inventory.state(type);
   const row=item?.unlocked&&inventory.catalog.find(entry=>entry.type===type);
   button.hidden=false;
-  if(!row){button.disabled=true;button.textContent='—';button.title='Empty slot '+(slot+1);button.setAttribute('aria-label','Empty slot '+(slot+1));continue;}
+  if(type===6)button.setAttribute('aria-pressed',String(!!state.shieldToggled));else button.removeAttribute('aria-pressed');
+  if(!row){button.dataset.compactLabel='-';button.disabled=true;button.textContent='—';button.title='Empty slot '+(slot+1);button.setAttribute('aria-label','Empty slot '+(slot+1));continue;}
   button.disabled=!canAttemptItem(item);
+  button.dataset.compactLabel=(row.title.replace(/[^A-Z]/g,'').slice(0,2)||row.title.slice(0,2))+' '+item.charges;
   const text=row.title+' · '+item.charges;
   if(button.textContent!==text){
-   button.textContent=text;
+   button.textContent=text;button.title=text;
    button.setAttribute('aria-label','Use '+row.title+' · '+item.charges+' charges');
   }
  }
  itemControls.hidden=!started||finished;
 }
-const edgePanel=element('section'),edgeButton=action('Edge / E',()=>triggerEdge());edgePanel.id='edge-panel';edgePanel.setAttribute('aria-live','polite');objectiveStatus.after(edgePanel);$('controls').append(edgeButton);
+const edgePanel=element('section'),edgeButton=action('Edge / E',()=>triggerEdge());edgePanel.id='edge-panel';edgeButton.id='edge-action';edgeButton.setAttribute('aria-label','Edge / E');edgePanel.setAttribute('aria-live','polite');objectiveStatus.after(edgePanel);$('controls').append(edgeButton);
 let edgeView='';
 function triggerEdge(){if(!started||paused||finished||!FanserviceEdge.allowed(run))return;objectiveEvents(run.edge());checkpoint(true);render();}
 function edgeAction(events){objectiveEvents(events);checkpoint(true);render();}
@@ -200,7 +204,7 @@ function makeRun(){
  if(mode===2&&!music)throw Error('Select a confirmed soundtrack in Unlocks before starting Soundtrack mode.');
  if(mode!==2&&music)throw Error('Return to Unlocks and select Classic · no soundtrack for Classic or Tower.');
  if(!Number.isSafeInteger(target)||target<spec.min||target>spec.max)throw Error(`Objective target must be between ${spec.min} and ${spec.max}.`);
- const settings={...(profile.mobile_settings||{}),LastObjectiveIndex_Classic:Number(objectiveSelect.value),LootBarEnabled:lootChoice.checked};if(spec.saveKey)settings[spec.saveKey]=target;
+ const settings={...(profile.mobile_settings||{}),LastObjectiveIndex_Classic:Number(objectiveSelect.value),LootBarEnabled:lootChoice.checked,'IsBrainMelterEnabled?':frenzyChoice.checked};if(spec.saveKey)settings[spec.saveKey]=target;
  return new FanserviceRun.Run(catalog,{mode,rounds:Number(roundsInput.value),settings,difficulty:Number($('difficulty').value),cardRules,lootEnabled:lootChoice.checked,maxBreaks:catalog.music_upgrades[1]['Value_L'+Math.max(1,Math.min(5,profile.mobile_music_upgrades?.[1]||1))],seed:run?.config.seed??crypto.getRandomValues(new Int32Array(1))[0],hotbar:run?.inventory.hotbarItems||profile.mobile_loadout,modifiers:profile.progression?.enabled_modifiers||[]});
 }
 function installRun(value){window.FanserviceVoice.stop();vibration.cancel();cancelFinishHold();run=value;state=run.state;decks=rules.mediaPools(media,FanserviceModifiers.options(state.modifiers));remaining={};}
@@ -210,6 +214,8 @@ function updateMediaBounds(){
  if(!width||!height||!surface.clientWidth||!surface.clientHeight)return;
  const scale=Math.min(surface.clientWidth/width,surface.clientHeight/height),w=width*scale,h=height*scale,hud=$('session-hud');
  Object.assign(hud.style,{inset:'auto',left:(surface.clientWidth-w)/2+'px',top:(surface.clientHeight-h)/2+'px',width:w+'px',height:h+'px'});
+ const box=surface.getBoundingClientRect(),root=getComputedStyle(document.documentElement),x=box.left+(surface.clientWidth-w)/2,y=box.top+(surface.clientHeight-h)/2;
+ for(const [side,margin] of Object.entries({top:y,left:x,right:innerWidth-x-w,bottom:innerHeight-y-h}))hud.style.setProperty('--safe-'+side,Math.max(0,(parseFloat(root.getPropertyValue('--safe-'+side))||0)-margin)+'px');
 }
 new ResizeObserver(updateMediaBounds).observe($('stage'));
 $('image').addEventListener('load',updateMediaBounds);$('video').addEventListener('loadedmetadata',updateMediaBounds);
@@ -238,18 +244,54 @@ function showMedia(item,position=0,{restart=false}={}){
 function mediaView(){if(!currentMedia)return null;const time=$('video').hidden?0:$('video').currentTime;return {id:currentMedia.id,position:paused||pendingMediaSeek!==null?mediaPosition:Number.isFinite(time)&&time>0?time:mediaPosition};}
 $('video').addEventListener('seeked',()=>{if(pendingMediaSeek!==null&&Math.abs($('video').currentTime-pendingMediaSeek)<.1)pendingMediaSeek=null;});
 $('video').addEventListener('timeupdate',()=>{if(!paused&&pendingMediaSeek===null&&currentMedia?.type==='video'&&Number.isFinite($('video').currentTime)&&$('video').currentTime>0)mediaPosition=$('video').currentTime;});
-function draw(pool=category,{prepare=true,force=false,cardOptions={}}={}){
- if(prepare&&!force&&started&&FanserviceEdge.active(run)){status('Finish the active edge stage before drawing another card.');$('pool').value=category;return false;}
- if(prepare&&!force&&started&&!music&&state.card===3&&FanserviceCards.remaining(run)>0){status('Finish the active encounter before drawing another card.');$('pool').value=category;return false;}
- category=pool;$('pool').value=pool;decks??=rules.mediaPools(media,FanserviceModifiers.options(state.modifiers));
- if(!decks[pool]?.length){status(`No ${pool} media in the frozen selection. Choose another pool or organize its tags in full fanservice.`);return false;}
+function automaticMediaPool(){
+ const options=FanserviceModifiers.options(state.modifiers);
+ if(options.eventOverride==='succubus')return 'succubus';
+ if(options.eventOverride==='slow-medium')return run.random.range(0,1)===0?'medium':'slow';
+ if(options.eventOverride==='fast-succubus')return run.random.range(0,1)===0?'succubus':'fast';
+ const shield=run.inventory.state(6),heatCategory=state.heat<=30?2:state.heat<=70?1:0;
+ const gate=FanserviceSpawnEligibility.check({heatCategory,combo:state.combo,canSuccubiSpawn:state.canSuccubiSpawn??false,shieldToggled:!!state.shieldToggled,shieldCharges:shield?.charges||0,shieldBlockCount:state.shieldBlockCount??0,enhancedPlating:FanserviceEconomy.has(run,14),demonProof:!options.canSpawnSuccubi,exorcistRemaining:state.economy?.exorcistRemaining||0});
+ if(shield)shield.charges=gate.shieldCharges;
+ state.shieldBlockCount=gate.shieldBlockCount;state.shieldToggled=gate.shieldToggled;
+ const pools={0:'slow',1:'medium',2:'fast',5:'succubus',7:'ass',8:'boobs'};
+ const rows=specialEvents.rows.filter(row=>{
+  const pool=pools[row.eventCode];if(!pool||!decks[pool]?.length)return false;
+  if(row.eventCode===5)return gate.eligible;
+  if(row.eventCode===7||row.eventCode===8)return run.config.settings['IsBrainMelterEnabled?']===true&&heatCategory===0;
+  return true;
+ });
+ const selected=FanserviceMediaSelection.weightedEvents(rows,{heat:state.heat,comboTier:rules.comboTier(state.combo)},run.random.fraction());
+ state.mediaEvent=selected?.name||'SlowStrokeEvent';return selected?pools[selected.eventCode]:'slow';
+}
+function draw(pool,{prepare=true,force=false,cardOptions={}}={}){
+ if(prepare&&!force&&started&&FanserviceEdge.active(run)){status('Finish the active edge stage before drawing another card.');return false;}
+ if(prepare&&!force&&started&&!music&&state.card===3&&FanserviceCards.remaining(run)>0){status('Finish the active encounter before drawing another card.');return false;}
+ decks??=rules.mediaPools(media,FanserviceModifiers.options(state.modifiers));
+ pool??=music?category:automaticMediaPool();category=pool;
+ if(!decks[pool]?.length){status(`No ${pool} media in the frozen selection. Enable a complementary pack or organize its tags in full fanservice.`);return false;}
  if(!remaining[pool]?.length)remaining[pool]=[...decks[pool]];
  const index=Math.floor(Math.random()*remaining[pool].length),item=remaining[pool].splice(index,1)[0],video=item.type==='video';
  showMedia(item,0,{restart:true});
  if(prepare){state.card={slow:0,medium:1,fast:2,succubus:3,cum:6,ass:7,boobs:8}[pool];state.canUseSlowdown=true;state.canUseBonerPill=true;if(started&&!finished&&run.phase==='playing'){FanserviceEconomy.draw(run);if(!music){run.startCard(pool,cardOptions);speed=1;}}}
  return true;
 }
-function pulseBeat(){lastBeat=position();$('beat').style.background='#fff';setTimeout(()=>$('beat').style.background='#c8ef97',80);}
+function pulseBeat(){lastBeat=position();$('center').style.boxShadow='0 0 18px #fff';setTimeout(()=>$('center').style.boxShadow='',80);}
+let laneSource,laneQueue,laneStarted,laneTimes=[],laneNodes=[$('beat')];
+function renderBeatLane(){
+ const card=run?.returnEdge||!music,flow=state?.cardFlow,source=card?flow:map,queue=card?flow?.queue:map?.beats;
+ if(source!==laneSource||queue!==laneQueue||flow?.started!==laneStarted){laneSource=source;laneQueue=queue;laneStarted=flow?.started;laneTimes=card?FanserviceBeatLane.cardTimes(flow):(map?.beats||[]).filter(beat=>beat.type!=='rest').map(beat=>beat.time);}
+ const now=card?state?.seconds:audio.currentTime,notes=started&&(!card||!flow?.suspended&&!flow?.ended)?FanserviceBeatLane.project(laneTimes,now,{lead:card?flow?.travel:3}):[];
+ let spacing=Infinity;for(let index=1;index<notes.length;index++){const gap=Math.abs(notes[index].x-notes[index-1].x)*$('beats').clientWidth/100;if(gap>.1)spacing=Math.min(spacing,gap);}
+ const diameter=Math.max(6,Math.min(23,spacing*.8));
+ for(let index=0;index<notes.length;index++){
+  const node=laneNodes[index]??document.createElement('span');
+  if(!laneNodes[index]){node.className='beat-ball';node.setAttribute('aria-hidden','true');$('beats').append(node);laneNodes.push(node);}
+  node.hidden=false;node.style.left=notes[index].x+'%';node.dataset.hitTime=String(notes[index].time);
+  node.style.width=diameter+'px';node.style.height=diameter+'px';
+  node.style.opacity=notes[index].time<now?String(Math.max(0,1-(now-notes[index].time)/.25)):'1';
+ }
+ for(let index=notes.length;index<laneNodes.length;index++)laneNodes[index].hidden=true;
+}
 function beat(){scoreBeat();pulseBeat();}
 function scoreBeat(){
  if(!started||paused||finished||run.phase!=='playing'||state.seconds<breakUntil)return;
@@ -307,11 +349,14 @@ function render(){
  updateScreenWake();
  if(!state)return;
  renderSessionShell();
+ renderBeatLane();
  renderItemControls();
  const session=run.effectiveStats();$('meter').value=Math.min(state.meter,1);$('stats').textContent=`${session.strokes} beats · combo ${state.combo} (${rules.comboTier(state.combo)}) · ${state.coins} coins · ${state.succuCoins} SuccuCoins · heat ${state.heat.toFixed(1)} · ${Math.floor(session.seconds)} seconds${run.config.lootEnabled?` · loot ${Math.floor(Math.max(0,state.lootBar)*100)}%`:''}`;
  const objective=run.roundObjective||run.objective.state,spec=FanserviceObjectives.specs.find(s=>s.objective===objective.objective);
  objectiveStatus.textContent=(run.tower?`Tower ${run.phase}. `:'')+(spec?`${spec.title}: ${objective.target}. `:'')+(run.objective.releaseDeadline===null?'':`Release window: ${Math.max(0,Math.ceil(run.objective.releaseDeadline-state.seconds))} seconds.`)+(state.seconds<breakUntil?` Break: ${Math.ceil(breakUntil-state.seconds)} seconds.`:'');
  finishButton.textContent=objective.objective===7?'Hold to record tribute':'Hold to finish';finishButton.disabled=!canFinish();
+ finishButton.setAttribute('aria-label',finishButton.textContent);
+ $('controls').dataset.finishReady=String(!finishButton.disabled);
  if(finishButton.disabled)cancelFinishHold();
  $('draw').disabled=!started||finished||run.phase!=='playing'||FanserviceEdge.active(run);$('tap').disabled=$('draw').disabled||paused;renderEdge();
 }
@@ -319,9 +364,9 @@ function objectiveEvents(events){
  const beats=events.filter(e=>e.type==='card-beat');
  if(beats.length){pulseBeat();beats.forEach(()=>vibration.beat());}
  if(events.some(e=>e.type==='release-window-opened')){run.cancelEdge();draw('cum',{force:true});status('Objective complete. 60 second release window.');}
- else if(events.some(e=>e.type==='card-complete'&&e.requestNextCard)&&run.phase==='playing'&&!FanserviceEdge.active(run))draw(category,{force:true});
+ else if(events.some(e=>e.type==='card-complete'&&e.requestNextCard)&&run.phase==='playing'&&!FanserviceEdge.active(run))draw(undefined,{force:true});
  if(events.some(e=>e.type==='edge-card-started')&&!keepMediaOnReplay)draw('fast',{prepare:false,force:true});
- if(events.some(e=>e.type==='edge-streak-ended'&&e.requestNextCard)&&run.phase==='playing')draw('slow',{force:true});
+ if(events.some(e=>e.type==='edge-streak-ended'&&e.requestNextCard)&&run.phase==='playing')draw(undefined,{force:true});
  if(events.some(e=>e.type==='edge-recorded'))status(events.find(e=>e.type==='edge-recorded').perfect?'Perfect edge recorded.':'Edge recorded.');
  if(events.some(e=>e.type==='return-edge-complete')&&music){resumeMusic();status('Return edge complete. Resuming the saved song position.');}
  if(!music){const resumed=events.find(e=>e.type==='return-edge-complete'&&e.resumePool);if(resumed){if(!currentMedia)draw(resumed.resumePool,{prepare:false,force:true});status('Return edge complete. Resuming the interrupted task.');}}
@@ -346,11 +391,6 @@ function tick(now){
    audio.pause();
    if(vibrationMode.value==='event')vibration.advance(state.seconds,state.seconds+delta,vibrationDeadlines());
    objectiveEvents(run.advance(delta));if(!finished&&run.phase==='playing')tickItems(delta);checkpoint();
-   const flow=state.cardFlow,next=flow?.queue.slice(flow.nextHit).find(entry=>entry.CustomMultiplier>=0);
-   const previous=flow?.queue.slice(0,flow.nextHit).reverse().find(entry=>entry.CustomMultiplier>=0);
-   const from=previous?.TargetHitTime??0,to=next?.TargetHitTime??from;
-   const progress=next&&state.edge?.phase==='sequence'?Math.max(0,Math.min(1,(state.seconds-flow.started-from)/Math.max(.001,to-from))):0;
-   $('beat').style.left=`${50+progress*45}%`;
    render();requestAnimationFrame(tick);return;
   }
   if(music&&musicLeadIn>0){
@@ -379,7 +419,7 @@ function tick(now){
    }
    checkpoint();
   }
-  const interval=music?60/map.meta.bpm:[.7,.5,.35][Number($('difficulty').value)];$('beat').style.left=`${50+Math.max(-1,Math.min(1,(position()-lastBeat)/interval))*45}%`;render();
+  render();
  }
  requestAnimationFrame(tick);
 }
@@ -412,7 +452,7 @@ function itemDependencies(){return {context:itemContext(),random:run.random,hook
  pill:effect=>{if(music)return false;const next=Math.max(.1,Math.min(5,speed*effect.speed));if(state.cardFlow&&!run.modifyCard(next,effect.timelineStrokes))return false;speed=next;return true;},
  openStore:()=>{if(run.tower&&run.phase==='playing')return false;renderInventory(true);if(!inventoryDialog.open)inventoryDialog.showModal();return true;},
  spawnSuccubus:({strokeAddend}={})=>FanserviceModifiers.options(state.modifiers).canSpawnSuccubi&&draw('succubus',{cardOptions:{apexLure:true,strokeAddend}}),
- escape:()=>{if(music)return false;return draw(category,{force:true});}
+ escape:()=>{if(music)return false;return draw(undefined,{force:true});}
  }};}
 function useItem(type){
  if(!started||paused||finished||settling||run.phase!=='playing')throw Error('Start an active round before using items.');
@@ -457,12 +497,12 @@ $('start').onclick=async()=>{
   }
   started=true;lastFrame=performance.now();$('start').disabled=true;$('difficulty').disabled=true;for(const input of settingsPanel.querySelectorAll('input,select'))input.disabled=true;
   if(run.interrupted){keepMediaOnReplay=true;try{objectiveEvents(run.resumeInterrupted());}finally{keepMediaOnReplay=false;}}
-  $('pause').disabled=false;if(restoredView){showMedia(restoredView.item,restoredView.position);restoredView=null;}else if(!currentMedia||!run.resumed)draw(category,{prepare:!run.resumed});else showMedia(currentMedia,$('video').currentTime||mediaPosition);renderTower();render();checkpoint(true);status(run.returnEdge?'Return Edge: follow the beats, then tap Edge / E to continue your session.':'');if(run.phase==='complete')await end(!!state.won);
+  $('pause').disabled=false;if(restoredView){showMedia(restoredView.item,restoredView.position);restoredView=null;}else if(!currentMedia||!run.resumed)draw(run.resumed?category:undefined,{prepare:!run.resumed});else showMedia(currentMedia,$('video').currentTime||mediaPosition);renderTower();render();checkpoint(true);status(run.returnEdge?'Return Edge: follow the beats, then tap Edge / E to continue your session.':'');if(run.phase==='complete')await end(!!state.won);
  }catch(error){status(error.message);}
 };
  $('pause').onclick=()=>{if(!started||finished)return;if(!paused)mediaPosition=mediaView()?.position||0;paused=!paused;if(paused){checkpoint(true);vibration.cancel();cancelFinishHold();window.FanserviceVoice?.stop();audio.pause();pauseVisualMedia();}else{const voiceResume=window.FanserviceVoice?.unlock?.();voiceResume?.catch(()=>{});lastFrame=performance.now();if(run.interrupted){keepMediaOnReplay=true;try{objectiveEvents(run.resumeInterrupted());}finally{keepMediaOnReplay=false;}}if(music)resumeMusic();if(!$('video').hidden){seekMedia(mediaPosition);playVisualMedia();}checkpoint(true);if(run.returnEdge)status('Return Edge: follow the beats, then tap Edge / E to continue your session.');}$('pause').textContent='Pause';render();};
 function tap(){if(started&&!paused&&!finished&&!music&&run.phase==='playing')draw();}
-$('tap').onclick=tap;$('draw').onclick=()=>{draw();checkpoint(true);render();};$('pool').onchange=()=>{draw($('pool').value);checkpoint(true);render();};
+$('tap').onclick=tap;$('draw').onclick=()=>{draw();checkpoint(true);render();};
 function canFinish(){
  return started&&!paused&&!finished&&!settling&&run.phase==='playing'&&(run.player.isAllowedToCum||state.meter>=1);
 }
@@ -535,7 +575,7 @@ presetChoice.id='session-preset';presetChoice.setAttribute('aria-label','Saved s
 presetName.id='preset-name';presetName.maxLength=40;presetName.placeholder='Preset name';presetName.setAttribute('aria-label','Preset name');
 function savedPresets(){try{return FanserviceSessionPresets.normalize(JSON.parse(localStorage.getItem(presetKey)||'null'),FanserviceObjectives.specs).presets;}catch{return [];}}
 function refreshPresets(){presetChoice.replaceChildren(new Option('Choose a preset',''));for(const [index,preset] of savedPresets().entries())presetChoice.append(new Option(preset.name,String(index)));}
-function presetSettings(){return {mode:Number(modeSelect.value),difficulty:Number($('difficulty').value),objective:Number(objectiveSelect.value),target:Number(targetInput.value),rounds:Number(roundsInput.value),loot:lootChoice.checked,holding:holdingHand.value,vibration:vibrationMode.value,wake:wakeChoice.checked};}
+function presetSettings(){return {mode:Number(modeSelect.value),difficulty:Number($('difficulty').value),objective:Number(objectiveSelect.value),target:Number(targetInput.value),rounds:Number(roundsInput.value),loot:lootChoice.checked,frenzy:frenzyChoice.checked,holding:holdingHand.value,vibration:vibrationMode.value,wake:wakeChoice.checked};}
 const savePreset=action('Save preset',()=>{
  if(started||restoring)return;
  const entries=FanserviceSessionPresets.save(savedPresets(),presetName.value,presetSettings(),FanserviceObjectives.specs);
@@ -546,11 +586,11 @@ const loadPreset=action('Apply preset',()=>{
  const value=preset.settings;
  if((value.mode===2)!==!!music)throw Error('Choose a preset that matches this session’s soundtrack selection.');
  modeSelect.value=value.mode;objectiveSelect.value=value.objective;settingsChanged();targetInput.value=value.target;roundsInput.value=value.rounds;
- $('difficulty').value=value.difficulty;lootChoice.checked=value.loot;holdingHand.value=value.holding;holdingHand.onchange();vibrationMode.value=value.vibration;vibrationMode.onchange();wakeChoice.checked=value.wake;wakeChoice.onchange();
+ $('difficulty').value=value.difficulty;lootChoice.checked=value.loot;frenzyChoice.checked=value.frenzy;holdingHand.value=value.holding;holdingHand.onchange();vibrationMode.value=value.vibration;vibrationMode.onchange();wakeChoice.checked=value.wake;wakeChoice.onchange();
  installRun(makeRun());presetName.value=preset.name;presetStatus.textContent='Preset applied. Check your settings, then Start.';
 });
 presetPanel.append(presetChoice,loadPreset,presetName,savePreset,presetStatus);refreshPresets();
-const sessionOptions=[settingsPanel,$('difficulty').closest('label'),$('pool').closest('label'),holdingLabel,wakeLabel,wakeStatus,vibrationLabel,vibrationStatus,presetPanel];
+const sessionOptions=[settingsPanel,$('difficulty').closest('label'),holdingLabel,wakeLabel,wakeStatus,vibrationLabel,vibrationStatus,presetPanel];
 const secondaryActions=[inventoryAction,challengeAction,$('tap'),$('draw'),$('end')];
 for(const button of secondaryActions)button.dataset.secondary='true';
 setupHost.append(...sessionOptions,inventoryAction,challengeAction,$('start'));
@@ -562,7 +602,7 @@ function renderSessionShell(){
  if(started&&!shellMounted){
   const lockedSettings=element('details');lockedSettings.append(element('summary','Session rules (set before Start)'),settingsPanel,$('difficulty').closest('label'));
   $('tap').hidden=true;
-  pauseBody.append(inventoryAction,challengeAction,$('draw'),holdingLabel,$('pool').closest('label'),wakeLabel,wakeStatus,vibrationLabel,vibrationStatus,lockedSettings,$('session-statistics'),$('end'));
+  pauseBody.append(inventoryAction,challengeAction,$('draw'),holdingLabel,wakeLabel,wakeStatus,vibrationLabel,vibrationStatus,lockedSettings,$('session-statistics'),$('end'));
   const libraryLink=element('a','Return to library');libraryLink.href='index.html';pauseBody.append(libraryLink);shellMounted=true;
  }
  presetPanel.disabled=started||restoring;
@@ -579,7 +619,8 @@ window.addEventListener('pageshow',renderSessionShell);
  if(store.savedLibrary()&&library!==store.savedLibrary())throw Error('This session belongs to a different library. Return to the selected Server library.');
  profile=JSON.parse(localStorage.getItem(profileKey)||'null');if(!profile)throw Error('No game profile on this device. Create and enable a pack first.');
  lootChoice.checked=!!profile.mobile_settings?.LootBarEnabled;
- [catalog,contract,cardRules]=await Promise.all([readJSON('data/modes.json'),readJSON('data/native-contract.json'),readJSON('data/card-rules.json')]);
+ frenzyChoice.checked=!!profile.mobile_settings?.['IsBrainMelterEnabled?'];
+ [catalog,contract,cardRules,specialEvents]=await Promise.all([readJSON('data/modes.json'),readJSON('data/native-contract.json'),readJSON('data/card-rules.json'),readJSON('data/special-events.json')]);
  const saved=JSON.parse(localStorage.getItem(checkpointKey)||'null');
  if(saved){
   restoring=true;

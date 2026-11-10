@@ -1,0 +1,21 @@
+{
+  "source_json_sha256": "af81369b98a00658012eba800fbd5d43c257e4be9dd9bcb35d1d9ef45b4ed48f",
+  "source_asset_sha256": "b5b2263b3b72a891dbd9a50d4e17f56800c78628a99ce175dae4e731c0ce278c",
+  "owner": "Default__BP_GlobalManager_C",
+  "parsed_properties": 115,
+  "struct_property": "PlayerVariablesStruct",
+  "struct_type": "LegacyStats",
+  "typed_children": 39,
+  "flag": {
+    "$type": "UAssetAPI.PropertyTypes.Objects.BoolPropertyData, UAssetAPI",
+    "Name": "CanSuccubiSpawn?_150_8E10317348C0D9E436BC019A13ACDC60",
+    "ArrayIndex": 0,
+    "PropertyGuid": null,
+    "IsZero": true,
+    "PropertyTagFlags": "None",
+    "PropertyTypeName": null,
+    "PropertyTagExtensions": "NoExtension",
+    "Value": false
+  },
+  "scope": "Typed field extracted before a later unrelated property-schema failure; no original game runtime was observed."
+}

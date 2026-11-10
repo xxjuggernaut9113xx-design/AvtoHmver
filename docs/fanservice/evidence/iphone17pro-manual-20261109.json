@@ -13,7 +13,12 @@
     "date": "2026-11-10",
     "source_commit": "d1468623",
     "user_observation": "closer but the icons and beatbar should over lay on the media",
-    "status": "HUD now tracks the actual contained-media rectangle; Edge/WebKit regression passes; physical retest pending"
+    "status": "User confirmed controls and beatbar overlay the media in both orientations; subsequent pattern/pool changes remain pending physical review"
+  },
+  "pattern_review": {
+    "date": "2026-11-10",
+    "user_request": "Multiple balls before the center according to the pattern, and dynamic pools without a media speed selector",
+    "status": "Actual queue/beatmap projection and supported native-weighted media draws implemented; browser regressions pass; physical retest pending"
   },
   "initial_reports": "Discarded at the user's request because Tailscale was disconnected.",
   "confirmed_after_connected_refresh": [

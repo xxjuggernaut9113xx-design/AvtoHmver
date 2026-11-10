@@ -84,6 +84,7 @@ Combine the existing included AvtoHmver parity areas and all Fanservice delivera
 64. As a player, I want landscape gameplay to resemble the original desktop session with mobile controls: media covering most of the screen above a background image or video, a transparent bottom beatbar, and only Pause, equipped item slots, Edge and contextual actions overlaid. Session rules belong before Start, while secondary controls and adjustable display settings belong in the pause menu. Named presets can save pre-session choices on the device. This layout clarification was requested during physical iPhone testing on 2026-11-09.
 65. As a player, I want rotation to preserve the active session, so that changing orientation does not restart or alter progress.
 66. As a player, I want full media visible, so that the layout preserves the selected image or video.
+    The 2026-11-10 physical review clarified that controls and the transparent beatbar overlay the visible media rectangle, including letterboxed content. Upcoming beat balls preview the actual pattern before the center. Media pools change automatically through gameplay events and weights; there is no manual speed-pool selector.
 67. As a player, I want detailed statistics expandable, so that I can inspect them when needed.
 68. As a player holding the phone in my left hand, I want item buttons on the right, so that their placement follows my selected holding hand.
 69. As a player holding the phone in my right hand, I want item buttons on the left, so that the same placement rule works for either hand.

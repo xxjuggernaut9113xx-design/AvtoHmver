@@ -1,0 +1,274 @@
+{
+  "source": {
+    "asset": "/Game/NewSetup/DataTables/SpecialEventDataTable",
+    "assetSha256": "f07f451b448e82c8c0ee860735b3f4b9d599c64223d6d9d293410d0bfd7a77ec",
+    "containerSha256": "6b529fc3023c8e4d0a0781a8660a1c134da811a7e702f00693c872cbcb0eafef",
+    "decoder": "UAssetAPI 1.1.0 with current-fixed.usmap scratch mapping"
+  },
+  "rows": [
+    {
+      "name": "SlowStrokeEvent",
+      "eventCode": 0,
+      "baseWeight": 0.0,
+      "weightMultiplier": 1.0,
+      "heat": {
+        "slow": 75.0,
+        "medium": 25.0,
+        "fast": 10.0
+      },
+      "combo": {
+        "F": 10.0,
+        "D": 5.0,
+        "C": 0.0,
+        "B": -5.0,
+        "A": -10.0,
+        "S": -25.0
+      },
+      "isEligible": false,
+      "cooldownDuration": 0.0,
+      "isOnCooldown": false
+    },
+    {
+      "name": "MediumStrokeEvent",
+      "eventCode": 1,
+      "baseWeight": 0.0,
+      "weightMultiplier": 1.0,
+      "heat": {
+        "slow": 25.0,
+        "medium": 50.0,
+        "fast": 25.0
+      },
+      "combo": {
+        "F": 0.0,
+        "D": 5.0,
+        "C": 10.0,
+        "B": 5.0,
+        "A": 0.0,
+        "S": -10.0
+      },
+      "isEligible": false,
+      "cooldownDuration": 0.0,
+      "isOnCooldown": false
+    },
+    {
+      "name": "FastStrokeEvent",
+      "eventCode": 2,
+      "baseWeight": 0.0,
+      "weightMultiplier": 1.0,
+      "heat": {
+        "slow": 5.0,
+        "medium": 25.0,
+        "fast": 85.0
+      },
+      "combo": {
+        "F": -10.0,
+        "D": 0.0,
+        "C": 5.0,
+        "B": 10.0,
+        "A": 25.0,
+        "S": 50.0
+      },
+      "isEligible": false,
+      "cooldownDuration": 0.0,
+      "isOnCooldown": false
+    },
+    {
+      "name": "CoinFlipEvent",
+      "eventCode": 3,
+      "baseWeight": 0.0,
+      "weightMultiplier": 1.0,
+      "heat": {
+        "slow": 0.0,
+        "medium": 5.0,
+        "fast": 25.0
+      },
+      "combo": {
+        "F": 0.0,
+        "D": 5.0,
+        "C": 5.0,
+        "B": 5.0,
+        "A": 5.0,
+        "S": 25.0
+      },
+      "isEligible": false,
+      "cooldownDuration": 0.0,
+      "isOnCooldown": false
+    },
+    {
+      "name": "TemptationEvent",
+      "eventCode": 4,
+      "baseWeight": 0.0,
+      "weightMultiplier": 1.0,
+      "heat": {
+        "slow": 10.0,
+        "medium": 0.0,
+        "fast": 0.0
+      },
+      "combo": {
+        "F": 5.0,
+        "D": 5.0,
+        "C": 5.0,
+        "B": 0.0,
+        "A": 0.0,
+        "S": 0.0
+      },
+      "isEligible": false,
+      "cooldownDuration": 0.0,
+      "isOnCooldown": false
+    },
+    {
+      "name": "SuccubusEvent",
+      "eventCode": 5,
+      "baseWeight": 0.0,
+      "weightMultiplier": 1.0,
+      "heat": {
+        "slow": 0.0,
+        "medium": 0.0,
+        "fast": 25.0
+      },
+      "combo": {
+        "F": 0.0,
+        "D": 0.0,
+        "C": 5.0,
+        "B": 10.0,
+        "A": 25.0,
+        "S": 40.0
+      },
+      "isEligible": false,
+      "cooldownDuration": 0.0,
+      "isOnCooldown": false
+    },
+    {
+      "name": "AssFrenzyEvent",
+      "eventCode": 7,
+      "baseWeight": 0.0,
+      "weightMultiplier": 1.0,
+      "heat": {
+        "slow": 0.0,
+        "medium": 0.0,
+        "fast": 0.0
+      },
+      "combo": {
+        "F": 0.0,
+        "D": 0.0,
+        "C": 0.0,
+        "B": 0.0,
+        "A": 10.0,
+        "S": 25.0
+      },
+      "isEligible": false,
+      "cooldownDuration": 0.0,
+      "isOnCooldown": false
+    },
+    {
+      "name": "BoobFrenzyEvent",
+      "eventCode": 8,
+      "baseWeight": 0.0,
+      "weightMultiplier": 1.0,
+      "heat": {
+        "slow": 0.0,
+        "medium": 0.0,
+        "fast": 0.0
+      },
+      "combo": {
+        "F": 0.0,
+        "D": 0.0,
+        "C": 0.0,
+        "B": 0.0,
+        "A": 10.0,
+        "S": 25.0
+      },
+      "isEligible": false,
+      "cooldownDuration": 0.0,
+      "isOnCooldown": false
+    },
+    {
+      "name": "FeetFrenzyEvent",
+      "eventCode": 9,
+      "baseWeight": 0.0,
+      "weightMultiplier": 1.0,
+      "heat": {
+        "slow": 0.0,
+        "medium": 0.0,
+        "fast": 0.0
+      },
+      "combo": {
+        "F": 0.0,
+        "D": 0.0,
+        "C": 0.0,
+        "B": 0.0,
+        "A": 10.0,
+        "S": 25.0
+      },
+      "isEligible": false,
+      "cooldownDuration": 0.0,
+      "isOnCooldown": false
+    },
+    {
+      "name": "BossSpawnEvent",
+      "eventCode": 10,
+      "baseWeight": 0.0,
+      "weightMultiplier": 1.0,
+      "heat": {
+        "slow": 0.0,
+        "medium": 0.0,
+        "fast": 0.0
+      },
+      "combo": {
+        "F": 0.0,
+        "D": 0.0,
+        "C": 0.0,
+        "B": 0.0,
+        "A": 0.0,
+        "S": 30.0
+      },
+      "isEligible": false,
+      "cooldownDuration": 0.0,
+      "isOnCooldown": false
+    },
+    {
+      "name": "StoreEvent",
+      "eventCode": 11,
+      "baseWeight": 0.0,
+      "weightMultiplier": 1.0,
+      "heat": {
+        "slow": 5.0,
+        "medium": 5.0,
+        "fast": 10.0
+      },
+      "combo": {
+        "F": -5.0,
+        "D": 0.0,
+        "C": 10.0,
+        "B": 10.0,
+        "A": 25.0,
+        "S": 30.0
+      },
+      "isEligible": false,
+      "cooldownDuration": 0.0,
+      "isOnCooldown": false
+    },
+    {
+      "name": "NewRow",
+      "eventCode": 12,
+      "baseWeight": 0.0,
+      "weightMultiplier": 0.0,
+      "heat": {
+        "slow": 5.0,
+        "medium": 5.0,
+        "fast": 5.0
+      },
+      "combo": {
+        "F": 5.0,
+        "D": 5.0,
+        "C": 5.0,
+        "B": 5.0,
+        "A": 25.0,
+        "S": 35.0
+      },
+      "isEligible": false,
+      "cooldownDuration": 0.0,
+      "isOnCooldown": false
+    }
+  ]
+}

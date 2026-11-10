@@ -18,7 +18,8 @@ main { padding-left: max(12px, var(--safe-left)); padding-right: max(12px, var(-
 #session-hud { position: absolute; z-index: 2; inset: 0; display: flex; flex-direction: column; justify-content: space-between; pointer-events: none; container-type: size; }
 #hud-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; padding: max(10px, var(--safe-top)) max(10px, var(--safe-right)) 0 max(10px, var(--safe-left)); }
 #gameplay-stage[data-holding-hand="left"] #hud-top { flex-direction: row-reverse; }
-#item-controls { display: flex; flex-direction: column; gap: 6px; max-height: 55dvh; overflow: auto; max-width: min(38vw, 180px); pointer-events: auto; }
+#item-controls { display: flex; flex-direction: column; gap: 6px; max-height: 55dvh; overflow: auto; max-width: min(38vw, 180px); pointer-events: none; }
+#item-controls button { pointer-events: auto; }
 #item-controls button { min-height: 44px; padding: 6px 8px; line-height: 1.05; overflow-wrap: anywhere; background: #14202dcc; box-shadow: 0 2px 10px #0008; }
 #controls { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; max-width: min(55vw, 360px); pointer-events: auto; }
 #controls button { min-height: 44px; padding: 6px 10px; line-height: 1.05; overflow-wrap: anywhere; background: #14202dcc; box-shadow: 0 2px 10px #0008; }
@@ -26,6 +27,7 @@ main { padding-left: max(12px, var(--safe-left)); padding-right: max(12px, var(-
 #controls #finish:disabled { display: none; pointer-events: none; }
 #controls button, #item-controls button { color: #f3f8fa; }
 #item-controls button { min-width: 44px; max-width: 96px; font-size: 14px; }
+#item-controls button[aria-pressed="true"] { border-color: #d7ff98; box-shadow: 0 0 12px #c8ef9780; }
 #edge-panel, #tower-draft { pointer-events: auto; font-size: 14px; }
 #edge-panel p, #objective-status { margin: 2px 0; font-size: 14px; }
 #edge-panel button, #tower-draft button { min-width: 44px; min-height: 44px; }
@@ -36,7 +38,7 @@ main { padding-left: max(12px, var(--safe-left)); padding-right: max(12px, var(-
 #meter { width: min(85%, 600px); height: 8px; margin: 3px 0; accent-color: #b0e4c0; }
 #beats { position: relative; width: min(100%, 740px); height: 32px; flex-shrink: 0; overflow: hidden; border: 1px solid #ffffff70; border-radius: 20px; background: linear-gradient(90deg, #0a122039, #3a79664d 50%, #0a122039); box-shadow: 0 1px 8px #0008; }
 #center { position: absolute; left: 50%; height: 100%; width: 3px; background: #fff; box-shadow: 0 0 8px #fff; }
-#beat { position: absolute; top: 50%; translate: -50% -50%; width: 23px; height: 23px; border-radius: 50%; background: #c8ef97; box-shadow: 0 0 18px #b5ff8a; }
+.beat-ball { position: absolute; top: 50%; translate: -50% -50%; width: 23px; height: 23px; border-radius: 50%; background: #c8ef97; box-shadow: 0 0 18px #b5ff8a; }
 #summary { white-space: pre-wrap; }
 #pause-menu { width: min(680px, calc(100vw - 24px)); max-height: min(90dvh, 850px); padding: 18px; overflow: auto; overscroll-behavior: contain; }
 #pause-menu h2 { margin: 0 0 10px; }
@@ -69,7 +71,7 @@ body[data-session-state="paused"] #item-controls, body[data-session-state="pause
   #controls { max-width: min(45vw, 350px); }
   #hud-bottom { gap: 0; padding-bottom: max(4px, var(--safe-bottom)); }
   #beats { height: 24px; }
-  #beat { width: 17px; height: 17px; }
+  .beat-ball { width: 17px; height: 17px; }
   #meter { height: 6px; margin: 1px 0; }
   #caption, #voice-status, #media-status, #status { font-size: 13px; }
 }
@@ -89,4 +91,18 @@ body[data-session-state="paused"] #item-controls, body[data-session-state="pause
   #gameplay-stage[data-holding-hand="left"] #item-controls { justify-content: flex-end; }
   #item-controls button { width: 44px; min-width: 44px; max-width: 44px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #controls { margin-left: auto; flex-direction: row; max-width: 100%; }
+}
+@container (max-height: 180px) {
+  #hud-top { padding: max(4px, var(--safe-top)) max(4px, var(--safe-right)) 0 max(4px, var(--safe-left)); gap: 4px; }
+  #item-controls { position: static; flex: 0 0 auto; gap: 0; max-height: 44px; overflow: visible; }
+  #controls { flex: 0 0 auto; gap: 0; margin: 0; }
+  #controls button { width: 44px; min-width: 44px; padding: 0; font-size: 0; }
+  #controls #pause::before { content: 'Ⅱ'; font-size: 22px; }
+  #controls #edge-action::before { content: 'Edge'; font-size: 12px; }
+  #controls #finish::before { content: 'Hold'; font-size: 12px; }
+  #controls[data-finish-ready="true"] #edge-action { display: none; }
+  #item-controls button { font-size: 0; padding: 0; }
+  #item-controls button::before { content: attr(data-compact-label); font-size: 12px; }
+  #hud-bottom { padding-bottom: max(4px, var(--safe-bottom)); }
+  #beats { height: 24px; }
 }

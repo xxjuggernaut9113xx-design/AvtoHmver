@@ -4,15 +4,14 @@
     <p id="setup-intro">Choose your session settings, then start playing.</p>
     <button id="start">Start</button>
     <label>Difficulty<select id="difficulty"><option value="0">Easy</option><option value="1" selected>Normal</option><option value="2">Insane</option></select></label>
-    <label>Media pool<select id="pool"><option>slow</option><option>medium</option><option>fast</option><option>succubus</option><option>cum</option><option>ass</option><option>boobs</option></select></label>
   </section>
   <section id="gameplay" aria-label="Gameplay">
     <div id="gameplay-stage">
       <div id="session-background" aria-hidden="true"><img id="background-image" alt=""><video id="background-video" muted playsinline loop hidden></video></div>
       <div id="stage"><img id="image" alt="Selected pack media"><video id="video" playsinline muted loop hidden></video></div>
       <div id="session-hud">
-        <div id="hud-top"><div id="item-controls" role="group" aria-label="Equipped items" hidden></div><div id="controls"><button id="pause" disabled>Pause</button><button id="tap" disabled>Draw / Space</button><button id="draw" disabled>Next media</button><button id="finish" aria-keyshortcuts="Enter Space" disabled>Hold to finish</button><button id="end">End session</button></div></div>
-        <div id="hud-bottom"><p id="caption" aria-live="polite"></p><p id="voice-status" role="status"></p><p id="status" role="status">Preparing local gameplay…</p><progress id="meter" max="1" value="0" aria-label="Session meter"></progress><div id="beats"><span id="center"></span><span id="beat"></span></div></div>
+        <div id="hud-top"><div id="item-controls" role="group" aria-label="Equipped items" hidden></div><div id="controls"><button id="pause" aria-label="Pause" disabled>Pause</button><button id="tap" disabled>Draw / Space</button><button id="draw" disabled>Next media</button><button id="finish" aria-keyshortcuts="Enter Space" disabled>Hold to finish</button><button id="end">End session</button></div></div>
+        <div id="hud-bottom"><p id="caption" aria-live="polite"></p><p id="voice-status" role="status"></p><p id="status" role="status">Preparing local gameplay…</p><progress id="meter" max="1" value="0" aria-label="Session meter"></progress><div id="beats"><span id="center"></span><span id="beat" class="beat-ball" aria-hidden="true" hidden></span></div></div>
       </div>
     </div>
   </section>
@@ -21,4 +20,4 @@
   <pre id="summary"></pre>
 </main>
 <dialog id="pause-menu" aria-labelledby="pause-menu-title"><h2 id="pause-menu-title">Pause menu</h2><div id="pause-menu-body"></div><button id="resume-session" type="button">Resume</button></dialog>
-<script src="store.js"></script><script src="model.js"></script><script src="rules.js"></script><script src="inventory.js"></script><script src="items.js"></script><script src="objectives.js"></script><script src="tower.js"></script><script src="modifiers.js"></script><script src="economy.js"></script><script src="cards.js"></script><script src="edge.js"></script><script src="session_metrics.js"></script><script src="run.js"></script><script src="progression.js"></script><script src="voice.js"></script><script src="background.js"></script><script src="vibration.js"></script><script src="session_presets.js"></script><script src="play.js"></script></body></html>
+<script src="store.js"></script><script src="model.js"></script><script src="rules.js"></script><script src="inventory.js"></script><script src="items.js"></script><script src="objectives.js"></script><script src="tower.js"></script><script src="modifiers.js"></script><script src="economy.js"></script><script src="cards.js"></script><script src="edge.js"></script><script src="session_metrics.js"></script><script src="run.js"></script><script src="progression.js"></script><script src="voice.js"></script><script src="background.js"></script><script src="vibration.js"></script><script src="session_presets.js"></script><script src="beat_lane.js"></script><script src="media_selection.js"></script><script src="spawn_eligibility.js"></script><script src="play.js"></script></body></html>

@@ -61,6 +61,13 @@ async function check(engine,name){
   await page.screenshot({path:path.join(screenshots,`session-hud-landscape-${name.toLowerCase()}.png`)});
   const resumedSeconds=landscape.session.seconds;await page.waitForTimeout(300);
   assert.ok(await page.evaluate(()=>state.seconds)>resumedSeconds,`${name}: clock advances after Resume`);
+  await page.setViewportSize({width:320,height:844});
+  await page.waitForTimeout(100);
+  await page.locator('#pause').click();
+  assert.equal(await page.locator('#pause-menu').evaluate(menu=>menu.open),true,`${name}: short-media toolbar keeps Pause pointer-accessible`);
+  await page.locator('#resume-session').click();
+  await page.locator('#edge-action').click();
+  assert.equal(await page.evaluate(()=>state.edges),1,`${name}: short-media toolbar keeps Edge pointer-accessible`);
   assert.deepEqual(errors,[],`${name}: no browser errors`);
  }finally{await browser.close();}
 }
