@@ -27,13 +27,13 @@ const manifest={protocol:1,library_id:'music-fixture',track_id:1,recording_id:'s
   await page.waitForFunction(()=>!document.querySelector('#start').disabled);
   await page.locator('#start').click();await page.waitForTimeout(350);
   const lead=await page.evaluate(()=>({remaining:musicLeadIn,strokes:state.strokes,seconds:state.seconds,position:audio.currentTime}));assert.ok(lead.remaining>1);assert.equal(lead.strokes,0);assert.equal(lead.seconds,0);assert.equal(lead.position,0);
-  await page.locator('#pause').click();const pausedLead=await page.evaluate(()=>musicLeadIn);await page.waitForTimeout(300);assert.equal(await page.evaluate(()=>musicLeadIn),pausedLead);
+  await page.locator('#stage').click();const pausedLead=await page.evaluate(()=>musicLeadIn);await page.waitForTimeout(300);assert.equal(await page.evaluate(()=>musicLeadIn),pausedLead);
   await page.evaluate(()=>checkpoint(true));await page.reload();await page.waitForFunction(()=>!document.querySelector('#start').disabled);assert.ok(await page.evaluate(()=>musicLeadIn)>1);
   await page.locator('#start').click();assert.equal(await page.evaluate(()=>audio.paused),true);
   await page.getByRole('button',{name:'Edge / E',exact:true}).click();await page.waitForFunction(()=>!run.returnEdge);
   const returned=await page.evaluate(()=>({strokes:state.strokes,seconds:state.seconds}));
   await page.waitForFunction(strokes=>state.strokes>strokes,returned.strokes);
-  await page.locator('#pause').click();const stopped=await page.evaluate(()=>({seconds:state.seconds,strokes:state.strokes}));await page.waitForTimeout(250);assert.deepEqual(await page.evaluate(()=>({seconds:state.seconds,strokes:state.strokes})),stopped);
+  await page.locator('#stage').click();const stopped=await page.evaluate(()=>({seconds:state.seconds,strokes:state.strokes}));await page.waitForTimeout(250);assert.deepEqual(await page.evaluate(()=>({seconds:state.seconds,strokes:state.strokes})),stopped);
   await page.locator('#resume-session').click();
   await page.evaluate(()=>{audio.pause();audio.dispatchEvent(new Event('waiting'));});
   const buffered=await page.evaluate(()=>({seconds:state.seconds,strokes:state.strokes}));await page.waitForTimeout(250);assert.deepEqual(await page.evaluate(()=>({seconds:state.seconds,strokes:state.strokes})),buffered);

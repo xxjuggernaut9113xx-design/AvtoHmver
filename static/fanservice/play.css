@@ -13,7 +13,17 @@ main { padding-left: max(12px, var(--safe-left)); padding-right: max(12px, var(-
 #gameplay-stage { position: relative; height: min(55dvh, 520px); min-height: 240px; isolation: isolate; overflow: hidden; border-radius: 12px; background: #101722; }
 #session-background { position: absolute; z-index: 0; inset: -24px; overflow: hidden; background: radial-gradient(ellipse at 50% 85%, #305659, #101722 72%); }
 #session-background img, #session-background video { width: 100%; height: 100%; object-fit: cover; filter: blur(18px) brightness(.45) saturate(.8); transform: scale(1.05); }
-#stage { position: absolute; z-index: 1; inset: 0; }
+#stage { position: absolute; z-index: 1; inset: 0; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+#stage img, #stage video { pointer-events: none; }
+#controls #pause { display: none; }
+#controls #finish { position: fixed; width: 1px; height: 1px; min-height: 0; padding: 0; clip-path: inset(50%); overflow: hidden; }
+#finish-ring { position: fixed; z-index: 20; transform: translate(-50%,-50%); pointer-events: none; overflow: visible; }
+#finish-ring[hidden] { display: none; }
+#finish-ring circle { fill: #10202080; stroke-width: 5; }
+.ring-track { stroke: #ffffff60; }
+.ring-progress { stroke: #c8ef97; stroke-dasharray: 1; stroke-dashoffset: 1; transform: rotate(-90deg); transform-origin: center; animation: finish-progress 1s linear forwards; }
+@keyframes finish-progress { to { stroke-dashoffset: 0; } }
+#meter-value { font-size: 13px; color: #f3f8fa; text-shadow: 0 1px 4px #000; }
 #stage img, #stage video { display: block; width: 100%; height: 100%; object-fit: contain; }
 #session-hud { position: absolute; z-index: 2; inset: 0; display: flex; flex-direction: column; justify-content: space-between; pointer-events: none; container-type: size; }
 #hud-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; padding: max(10px, var(--safe-top)) max(10px, var(--safe-right)) 0 max(10px, var(--safe-left)); }
@@ -21,7 +31,8 @@ main { padding-left: max(12px, var(--safe-left)); padding-right: max(12px, var(-
 #item-controls { display: flex; flex-direction: column; gap: 6px; max-height: 55dvh; overflow: auto; max-width: min(38vw, 180px); pointer-events: none; }
 #item-controls button { pointer-events: auto; }
 #item-controls button { min-height: 44px; padding: 6px 8px; line-height: 1.05; overflow-wrap: anywhere; background: #14202dcc; box-shadow: 0 2px 10px #0008; }
-#controls { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; max-width: min(55vw, 360px); pointer-events: auto; }
+#controls { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; max-width: min(55vw, 360px); pointer-events: none; }
+#controls button { pointer-events: auto; }
 #controls button { min-height: 44px; padding: 6px 10px; line-height: 1.05; overflow-wrap: anywhere; background: #14202dcc; box-shadow: 0 2px 10px #0008; }
 #controls #finish { touch-action: none; user-select: none; border-color: #c8ef97; }
 #controls #finish:disabled { display: none; pointer-events: none; }

@@ -8,7 +8,8 @@
   <section id="gameplay" aria-label="Gameplay">
     <div id="gameplay-stage">
       <div id="session-background" aria-hidden="true"><img id="background-image" alt=""><video id="background-video" muted playsinline loop hidden></video></div>
-      <div id="stage"><img id="image" alt="Selected pack media"><video id="video" playsinline muted loop hidden></video></div>
+      <div id="stage" tabindex="0" role="button" aria-label="Media. Tap to pause. Hold one second to finish when eligible."><img id="image" alt="Selected pack media"><video id="video" playsinline muted loop hidden></video></div>
+      <svg id="finish-ring" viewBox="0 0 64 64" width="64" height="64" aria-hidden="true" hidden><circle class="ring-track" cx="32" cy="32" r="27"/><circle class="ring-progress" cx="32" cy="32" r="27" pathLength="1"/></svg>
       <div id="session-hud">
         <div id="hud-top"><div id="item-controls" role="group" aria-label="Equipped items" hidden></div><div id="controls"><button id="pause" aria-label="Pause" disabled>Pause</button><button id="tap" disabled>Draw / Space</button><button id="draw" disabled>Next media</button><button id="finish" aria-keyshortcuts="Enter Space" disabled>Hold to finish</button><button id="end">End session</button></div></div>
         <div id="hud-bottom"><p id="caption" aria-live="polite"></p><p id="voice-status" role="status"></p><p id="status" role="status">Preparing local gameplay…</p><progress id="meter" max="1" value="0" aria-label="Session meter"></progress><div id="beats"><span id="center"></span><span id="beat" class="beat-ball" aria-hidden="true" hidden></span></div></div>

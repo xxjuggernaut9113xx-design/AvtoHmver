@@ -56,7 +56,7 @@ async function checkVideo(){
   await page.goto(origin+'/fanservice/play.html?library=resume-fixture');await page.waitForFunction(()=>!document.querySelector('#start').disabled);await page.locator('#start').click();
   await page.locator('#video').evaluate(video=>new Promise(resolve=>video.readyState?resolve():video.addEventListener('loadedmetadata',resolve,{once:true})));
   await page.locator('#video').evaluate(video=>{video.pause();video.currentTime=1.4;});await page.waitForFunction(()=>document.querySelector('#video').currentTime>=1.39);
-  await page.locator('#pause').click();await page.locator('#draw').click();await page.locator('#resume-session').click();await page.waitForFunction(()=>document.querySelector('#video').currentTime<.5);
+  await page.locator('#stage').click();await page.locator('#draw').click();await page.locator('#resume-session').click();await page.waitForFunction(()=>document.querySelector('#video').currentTime<.5);
   await page.locator('#video').evaluate(video=>{video.currentTime=1.4;});await page.waitForFunction(()=>document.querySelector('#video').currentTime>=1.39);
   await page.locator('#pause-menu[open] #resume-session, body[data-session-state=playing] #pause').click();await page.locator('#video').evaluate(video=>{video.currentTime=0;});await page.locator('#pause-menu[open] #resume-session, body[data-session-state=playing] #pause').click();
   await page.waitForFunction(()=>document.querySelector('#video').currentTime>=1.35,{timeout:5000});

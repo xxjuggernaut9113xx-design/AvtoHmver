@@ -46,7 +46,7 @@ const cases=[
     let checkpointReloaded=false,checkpointReload=null,afterCompletedReload={sessions:1,wins:1,checkpoint:null};
     if(testCase.checkpointReload){
      await page.clock.fastForward(5000);
-     await page.getByRole('button',{name:'Pause',exact:true}).click();
+     await page.locator('#stage').click();
      const checkpoint=await page.evaluate(()=>({seconds:state.seconds,strokes:state.strokes,meter:state.meter,objective:(run.roundObjective||run.objective.state).objective,target:(run.roundObjective||run.objective.state).target,flowCompleted:state.cardFlow?.completed||0}));
      assert(checkpoint.seconds>0&&checkpoint.strokes>0,'Ordinary card play advances before checkpoint reload');
      await page.reload();

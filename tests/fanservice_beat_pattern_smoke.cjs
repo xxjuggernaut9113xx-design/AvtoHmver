@@ -38,7 +38,7 @@ const root=path.resolve(__dirname,'../static/fanservice'),origin='http://127.0.0
   const gaps=before.balls.slice(1).map((ball,index)=>ball.time-before.balls[index].time);
   assert.ok(new Set(gaps.map(gap=>gap.toFixed(3))).size>=2,'fixture exposes uneven pattern spacing');
   if(process.env.FANSERVICE_BEAT_SCREENSHOT)await page.screenshot({path:process.env.FANSERVICE_BEAT_SCREENSHOT});
-  await page.locator('#pause').click();await page.waitForFunction(()=>document.querySelector('#pause-menu').open&&document.body.dataset.sessionState==='paused');
+  await page.locator('#stage').click();await page.waitForFunction(()=>document.querySelector('#pause-menu').open&&document.body.dataset.sessionState==='paused');
   const paused=await read();await page.clock.runFor(1000);const held=await read();
   assert.equal(held.stateSeconds,paused.stateSeconds,'game time remains held while paused');
   assert.deepEqual(held.balls,paused.balls,'beat positions remain held while paused');

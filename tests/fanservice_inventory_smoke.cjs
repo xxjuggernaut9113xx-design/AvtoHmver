@@ -32,7 +32,7 @@ const output=process.env.FANSERVICE_SMOKE_OUTPUT;
   await page.getByRole('button',{name:'Equip DecreaseHeat',exact:true}).click();
   await page.getByRole('button',{name:'Close inventory',exact:true}).click();
   await page.getByRole('button',{name:'Start',exact:true}).click();
-  await page.getByRole('button',{name:'Pause',exact:true}).click();
+  await page.locator('#stage').click();
   // Controlled shop entry avoids claiming Tower-objective coverage in this test.
   await page.evaluate(()=>{run.phase='shop';state.coins=0;renderInventory();});
   await page.getByRole('button',{name:'Inventory / loadout',exact:true}).click();
@@ -56,7 +56,7 @@ const output=process.env.FANSERVICE_SMOKE_OUTPUT;
   const saved=await snapshot();assert.equal(saved.inventory.hotbarItems[4],1);assert.equal(saved.inventory.hotbarItems.filter(i=>i===1).length,1);
   if(output){fs.mkdirSync(output,{recursive:true});await page.screenshot({path:path.join(output,'inventory-purchased.png'),fullPage:true});}
   await page.reload();await page.getByText('Unfinished session ready. Tap Start to resume.').waitFor();assert.deepEqual(await snapshot(),saved);
-  await page.getByRole('button',{name:'Start',exact:true}).click();await page.getByRole('button',{name:'Pause',exact:true}).click();assert.deepEqual(await snapshot(),saved);
+  await page.getByRole('button',{name:'Start',exact:true}).click();await page.locator('#stage').click();assert.deepEqual(await snapshot(),saved);
   await page.getByRole('button',{name:'End session',exact:true}).click();await page.waitForFunction(()=>finished);
   assert.deepEqual(await page.evaluate(()=>JSON.parse(localStorage.getItem(profileKey)).mobile_loadout),saved.inventory.hotbarItems);
   await page.goto(play);await page.getByText('Ready. Tap Start to enable local playback and audio.').waitFor();

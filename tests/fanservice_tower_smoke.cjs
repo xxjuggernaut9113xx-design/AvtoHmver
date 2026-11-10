@@ -87,7 +87,7 @@ function chooseOption(options,final){
   const purchased=await page.evaluate(()=>({coins:state.coins,inventory:run.inventory.export(),moneySpent:state.MoneySpent}));
   assert.equal(purchased.coins,transaction.coins-transaction.buy.cost-transaction.upgrade.cost);
   await page.getByRole('button',{name:'Close inventory',exact:true}).click();
-  await page.getByRole('button',{name:'Pause',exact:true}).click();
+  await page.locator('#stage').click();
   const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem(checkpointKey)));
   assert.equal(saved.run.phase,'shop');assert.equal(saved.run.tower.completed,1);assert.equal(saved.run.tower.failed,0);
   await page.reload();await page.getByText('Unfinished session ready. Tap Start to resume.').waitFor();

@@ -35,8 +35,20 @@
     "initial_observation": "Both Photo Library and Choose Files closed immediately after the first item was tapped",
     "action": "Refresh Safari on the import page and reopen Local phone media",
     "user_response": "Now allows multiple selections",
-    "status": "Picker selection confirmed after refresh; cause not instrumented; batch import and saved-pack contents not yet confirmed",
+    "batch_import_user_response": "yes all appear selected",
+    "status": "Picker selection and batch import with all files selected confirmed by user; cause of initial picker behavior not instrumented; saved-pack contents not yet confirmed",
     "runtime_changes": "None"
+  },
+  "media_gesture_request": {
+    "date": "2026-11-10",
+    "evidence_kind": "direct user request and reported issue",
+    "requested_changes": [
+      "Anchor icons to device orientation rather than media dimensions",
+      "Tap media to pause instead of a direct Pause button",
+      "Hold media anywhere to finish, with a progress ring under the finger"
+    ],
+    "reported_issue": "Beats do not visibly advance the Cum meter; user used Edge repeatedly while testing Finish",
+    "physical_acceptance": "Pending after implementation; the report does not establish a completed one-second hold"
   },
   "initial_reports": "Discarded at the user's request because Tailscale was disconnected.",
   "confirmed_after_connected_refresh": [

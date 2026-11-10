@@ -4,7 +4,7 @@ const origin=process.env.FANSERVICE_FIXTURE_ORIGIN||'http://127.0.0.1:42169';
 async function setFixtureSuccufrenzy(page,library,enabled){
  await page.evaluate(({key,enabled})=>{const saved=JSON.parse(localStorage.getItem(key));saved.progression??={};saved.progression.unlocked_modifiers=enabled?['Succufrenzy']:[];saved.progression.enabled_modifiers=enabled?['Succufrenzy']:[];localStorage.setItem(key,JSON.stringify(saved));},{key:'fanservice-profile-v1:'+library,enabled});
 }
-async function pause(page){const button=page.locator('#pause');await button.click();await page.waitForFunction(()=>document.querySelector('#pause-menu').open);}
+async function pause(page){await page.locator('#stage').click();await page.waitForFunction(()=>document.querySelector('#pause-menu').open);}
 async function activate(page,button){await button.click();}
 (async()=>{
  const browser=await chromium.launch({headless:true,...(process.env.FANSERVICE_BROWSER_EXECUTABLE?{executablePath:process.env.FANSERVICE_BROWSER_EXECUTABLE}:{})});

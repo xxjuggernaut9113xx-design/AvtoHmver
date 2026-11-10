@@ -26,7 +26,7 @@ function expectedBank(edges,perfectEdge=0){let bank=0;for(let n=2;n<=edges;n++)b
   async function rest(){await until(()=>['rest','mercy'].includes(state.edge.phase),'Edge handoff/hold');}
   async function replayHold(){
    await until(()=>state.edge.phase==='hold','Edge hold');const count=(await snapshot()).edges;
-   await page.getByRole('button',{name:'Pause',exact:true}).click();const saved=await snapshot();
+   await page.locator('#stage').click();const saved=await snapshot();
    await page.reload();await page.waitForFunction(()=>!document.querySelector('#start').disabled);assert.deepEqual(await snapshot(),saved,'Persisted hold restores before Start');
    await page.getByRole('button',{name:'Start',exact:true}).click();assert.equal((await snapshot()).edges,count-1,'Resume rolls back only current Edge');
    await trigger();
