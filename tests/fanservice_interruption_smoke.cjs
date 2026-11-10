@@ -33,7 +33,7 @@ const manifest={protocol:1,library_id:'music-fixture',track_id:1,recording_id:'s
   await page.evaluate(()=>window.dispatchEvent(new PageTransitionEvent('pagehide')));
   await page.waitForFunction(()=>paused);
   const held=await page.evaluate(()=>({position:audio.currentTime,event:clock.event,next:clock.next,strokes:state.strokes}));
-  await page.locator('#pause').click();await page.waitForFunction(()=>!!run.returnEdge);
+  await page.locator('#resume-session').click();await page.waitForFunction(()=>!!run.returnEdge);
   await page.waitForTimeout(3200);
   const edge=await page.evaluate(()=>({position:audio.currentTime,event:clock.event,next:clock.next,strokes:state.strokes,paused:audio.paused}));
   assert.equal(edge.position,held.position);assert.equal(edge.event,held.event);assert.equal(edge.next,held.next);assert.equal(edge.paused,true);assert.ok(edge.strokes>held.strokes,'Real edge beats progress while the recording is paused');
@@ -56,7 +56,7 @@ const manifest={protocol:1,library_id:'music-fixture',track_id:1,recording_id:'s
   // Seed the fixture's starting inventory through its public API, then use the real controls.
   await page.evaluate(()=>{for(const [slot,type] of [7,11].entries()){run.inventory.grant(type,1,itemContext());run.inventory.equip(type,slot);}render();});
   await page.getByRole('button',{name:/Use Loot Rush/}).click();await page.getByRole('button',{name:/Use Resupply/}).click();
-  await page.evaluate(()=>window.dispatchEvent(new PageTransitionEvent('pagehide')));await page.locator('#pause').click();
+  await page.evaluate(()=>window.dispatchEvent(new PageTransitionEvent('pagehide')));await page.locator('#resume-session').click();
   const effects=await page.evaluate(()=>({rush:state.effects.lootRushRemaining,items:state.ItemsUsed,used:state.metrics.itemsUsed}));
   for(let attempt=0;attempt<2;attempt++){
    await page.waitForTimeout(2300);
@@ -64,7 +64,7 @@ const manifest={protocol:1,library_id:'music-fixture',track_id:1,recording_id:'s
    assert.ok(await page.evaluate(()=>state.effects.lootRushRemaining)<effects.rush-2);
    assert.equal(await page.evaluate(()=>run.inventory.state(7).charges),0);assert.equal(await page.evaluate(()=>state.ItemsUsed),effects.items+1);
    await page.getByRole('button',{name:'Close inventory',exact:true}).click();
-   await page.evaluate(()=>window.dispatchEvent(new PageTransitionEvent('pagehide')));await page.locator('#pause').click();
+   await page.evaluate(()=>window.dispatchEvent(new PageTransitionEvent('pagehide')));await page.locator('#resume-session').click();
    assert.equal(await page.evaluate(()=>run.inventory.state(7).charges),1);assert.equal(await page.evaluate(()=>state.ItemsUsed),effects.items);
    assert.equal(await page.evaluate(()=>state.metrics.itemsUsed),effects.used);
    assert.ok(await page.evaluate(()=>state.effects.lootRushRemaining)>=effects.rush-.2);

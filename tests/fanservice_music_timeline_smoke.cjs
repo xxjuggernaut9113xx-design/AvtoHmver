@@ -34,7 +34,7 @@ const manifest={protocol:1,library_id:'music-fixture',track_id:1,recording_id:'s
   const returned=await page.evaluate(()=>({strokes:state.strokes,seconds:state.seconds}));
   await page.waitForFunction(strokes=>state.strokes>strokes,returned.strokes);
   await page.locator('#pause').click();const stopped=await page.evaluate(()=>({seconds:state.seconds,strokes:state.strokes}));await page.waitForTimeout(250);assert.deepEqual(await page.evaluate(()=>({seconds:state.seconds,strokes:state.strokes})),stopped);
-  await page.locator('#pause').click();
+  await page.locator('#resume-session').click();
   await page.evaluate(()=>{audio.pause();audio.dispatchEvent(new Event('waiting'));});
   const buffered=await page.evaluate(()=>({seconds:state.seconds,strokes:state.strokes}));await page.waitForTimeout(250);assert.deepEqual(await page.evaluate(()=>({seconds:state.seconds,strokes:state.strokes})),buffered);
   await page.evaluate(async()=>{await audio.play();const until=performance.now()+4300;while(performance.now()<until){};});

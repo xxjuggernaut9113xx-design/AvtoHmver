@@ -16,7 +16,7 @@ const manifest={protocol:1,library_id:'music-fixture',track_id:1,recording_id:'s
   });
   await page.goto(origin+'/fanservice/play.html?library=music-fixture');await page.waitForFunction(()=>!document.querySelector('#start').disabled);await page.locator('#objective').selectOption('4');await page.locator('#start').click();
   await page.evaluate(()=>{window.voiceUnlockCalls=0;const unlock=FanserviceVoice.unlock;FanserviceVoice.unlock=function(...args){window.voiceUnlockCalls++;return unlock.apply(this,args);};});
-  await page.getByRole('button',{name:'Pause',exact:true}).click();await page.getByRole('button',{name:'Resume',exact:true}).click();assert.equal(await page.evaluate(()=>voiceUnlockCalls),1,'Resume click invokes voice unlock from its user activation handler');
+  await page.getByRole('button',{name:'Pause',exact:true}).click();await page.locator('#resume-session').click();assert.equal(await page.evaluate(()=>voiceUnlockCalls),1,'Resume click invokes voice unlock from its user activation handler');
   const finish=page.locator('#finish');
   const portrait=await finish.boundingBox();assert.ok(portrait.height>=44,'Portrait finish control meets touch target size');
   await page.mouse.move((await finish.boundingBox()).x+20,(await finish.boundingBox()).y+20);await page.mouse.down();await page.waitForTimeout(250);await page.setViewportSize({width:844,height:390});await page.mouse.up();await page.waitForTimeout(1100);assert.equal(await page.evaluate(()=>finished),false,'Rotation during hold cancels finish');

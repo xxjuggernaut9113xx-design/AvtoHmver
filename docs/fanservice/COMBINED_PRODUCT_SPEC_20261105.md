@@ -80,8 +80,8 @@ Combine the existing included AvtoHmver parity areas and all Fanservice delivera
 60. As a music player, I want beats and game events synchronized to actual playback, so that timing follows the recording.
 61. As a player, I want card, inventory, Edge and progression interactions verified together, so that a complete session behaves consistently.
 62. As a player, I want menus comfortable in portrait, so that browsing and setup fit normal phone use.
-63. As a player, I want portrait gameplay to show media above the beat indicator and large touch controls, so that I can see and operate the session.
-64. As a player, I want landscape gameplay to give media most of the screen with compact bottom controls, so that sideways play makes good use of the display.
+63. As a player, I want portrait gameplay to adapt the media-first session HUD with compact side controls and a transparent beatbar at the bottom, so that I can see and operate the session.
+64. As a player, I want landscape gameplay to resemble the original desktop session with mobile controls: media covering most of the screen above a background image or video, a transparent bottom beatbar, and only Pause, equipped item slots, Edge and contextual actions overlaid. Session rules belong before Start, while secondary controls and adjustable display settings belong in the pause menu. Named presets can save pre-session choices on the device. This layout clarification was requested during physical iPhone testing on 2026-11-09.
 65. As a player, I want rotation to preserve the active session, so that changing orientation does not restart or alter progress.
 66. As a player, I want full media visible, so that the layout preserves the selected image or video.
 67. As a player, I want detailed statistics expandable, so that I can inspect them when needed.

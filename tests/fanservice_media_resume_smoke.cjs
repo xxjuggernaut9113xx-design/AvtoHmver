@@ -20,7 +20,7 @@ async function check(engine,name){
   await page.locator('#start').click();const initial=await view();
   await page.evaluate(()=>window.dispatchEvent(new PageTransitionEvent('pagehide')));
   assert.equal(await page.evaluate(()=>paused),true,`${name}: pagehide pauses`);
-  await page.locator('#pause').click();assert.deepEqual((await view()).id,initial.id,`${name}: refocus preserved image`);
+  await page.locator('#pause-menu[open] #resume-session, body[data-session-state=playing] #pause').click();assert.deepEqual((await view()).id,initial.id,`${name}: refocus preserved image`);
   assert.equal(await page.evaluate(()=>paused),false,`${name}: Resume unpauses`);
   await page.locator('#status').filter({hasText:/Return Edge: follow the beats/}).waitFor();
   assert.match(await page.locator('#status').textContent(),/tap Edge \/ E to continue your session/,`${name}: visible status explains return Edge`);
@@ -29,7 +29,7 @@ async function check(engine,name){
   assert.notEqual(await page.locator('#beat').evaluate(element=>element.style.left),beat,`${name}: return Edge beat visibly advances`);
   await page.getByRole('button',{name:'Edge / E',exact:true}).click();await page.waitForFunction(()=>!run.returnEdge);
   assert.equal((await view()).id,initial.id,`${name}: completed return Edge retains media`);
-  await page.locator('#pause').click();const saved=await view();
+  await page.locator('#pause-menu[open] #resume-session, body[data-session-state=playing] #pause').click();const saved=await view();
   await page.reload();await page.waitForFunction(()=>!document.querySelector('#start').disabled);
   assert.equal((await view()).id,saved.id,`${name}: checkpoint preview preserved image`);
   await page.locator('#start').click();assert.equal((await view()).id,saved.id,`${name}: Start preserved image`);
@@ -56,9 +56,9 @@ async function checkVideo(){
   await page.goto(origin+'/fanservice/play.html?library=resume-fixture');await page.waitForFunction(()=>!document.querySelector('#start').disabled);await page.locator('#start').click();
   await page.locator('#video').evaluate(video=>new Promise(resolve=>video.readyState?resolve():video.addEventListener('loadedmetadata',resolve,{once:true})));
   await page.locator('#video').evaluate(video=>{video.pause();video.currentTime=1.4;});await page.waitForFunction(()=>document.querySelector('#video').currentTime>=1.39);
-  await page.locator('#draw').click();await page.waitForFunction(()=>document.querySelector('#video').currentTime<.5);
+  await page.locator('#pause').click();await page.locator('#draw').click();await page.locator('#resume-session').click();await page.waitForFunction(()=>document.querySelector('#video').currentTime<.5);
   await page.locator('#video').evaluate(video=>{video.currentTime=1.4;});await page.waitForFunction(()=>document.querySelector('#video').currentTime>=1.39);
-  await page.locator('#pause').click();await page.locator('#video').evaluate(video=>{video.currentTime=0;});await page.locator('#pause').click();
+  await page.locator('#pause-menu[open] #resume-session, body[data-session-state=playing] #pause').click();await page.locator('#video').evaluate(video=>{video.currentTime=0;});await page.locator('#pause-menu[open] #resume-session, body[data-session-state=playing] #pause').click();
   await page.waitForFunction(()=>document.querySelector('#video').currentTime>=1.35,{timeout:5000});
   assert.equal(await page.locator('#video').evaluate(video=>video.paused),false,'Video plays during return Edge');
   const resumedTime=await page.locator('#video').evaluate(video=>video.currentTime);await page.waitForTimeout(250);

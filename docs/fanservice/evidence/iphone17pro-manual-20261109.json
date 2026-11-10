@@ -7,7 +7,7 @@
   "origin": "https://bougoisie.tail16554f.ts.net",
   "path": "/fanservice/",
   "delivery": "Existing private Tailscale HTTPS static route to the AvtoHmver workspace",
-  "current_source_commit": "db51cb18",
+  "current_source_commit": "8e4aef3a",
   "resume_fix_play_js_sha256": "68633a8fb00bd2633939fa28a289b357a5e36baee243090653096b3faa3ac84d",
   "initial_reports": "Discarded at the user's request because Tailscale was disconnected.",
   "confirmed_after_connected_refresh": [
@@ -16,18 +16,19 @@
     "The user saved a pack named iPhone Test and confirmed it appeared in Unlocks.",
     "Enabling the pack and choosing Play enabled packs opened setup with Start.",
     "After Start, both the media and moving beat indicator were visible.",
-    "Portrait and landscape both showed the full media, beat indicator and controls without clipping."
+    "Portrait and landscape both showed the full media, beat indicator and controls without clipping.",
+    "After refreshing to the return-step presentation fix, Start and the Edge / E action returned to ordinary gameplay with the same file."
   ],
   "reported_issues": [
     {
       "area": "return from phone lock",
       "user_observation": "On resume it skips to next media",
-      "status": "Media identity and video-position fix passed Edge MP4 and WebKit image regressions; physical retest reported frozen gameplay"
+      "status": "Physical retest after the follow-up return-step presentation fix confirmed ordinary gameplay resumes with the same file; exact video position not separately confirmed"
     },
     {
       "area": "Resume after media-preservation fix",
       "user_observation": "Changes to Pause, but stays frozen",
-      "status": "Return-Edge moving-indicator and instruction fix passed iPhone-shaped WebKit and Edge resume/advance/return-action regressions; physical verification pending"
+      "status": "After refresh and the Edge / E action, user confirmed ordinary gameplay resumes with the same file"
     }
   ],
   "limits": [
