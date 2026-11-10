@@ -9,6 +9,12 @@
   "delivery": "Existing private Tailscale HTTPS static route to the AvtoHmver workspace",
   "current_source_commit": "8e4aef3a",
   "resume_fix_play_js_sha256": "68633a8fb00bd2633939fa28a289b357a5e36baee243090653096b3faa3ac84d",
+  "hud_review": {
+    "date": "2026-11-10",
+    "source_commit": "d1468623",
+    "user_observation": "closer but the icons and beatbar should over lay on the media",
+    "status": "HUD now tracks the actual contained-media rectangle; Edge/WebKit regression passes; physical retest pending"
+  },
   "initial_reports": "Discarded at the user's request because Tailscale was disconnected.",
   "confirmed_after_connected_refresh": [
     "Safari loads the page.",

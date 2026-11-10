@@ -205,6 +205,14 @@ function makeRun(){
 }
 function installRun(value){window.FanserviceVoice.stop();vibration.cancel();cancelFinishHold();run=value;state=run.state;decks=rules.mediaPools(media,FanserviceModifiers.options(state.modifiers));remaining={};}
 function pauseVisualMedia(){$('video').pause();$('background-video').pause();}
+function updateMediaBounds(){
+ const surface=$('stage'),visual=$($('video').hidden?'image':'video'),width=visual.videoWidth||visual.naturalWidth,height=visual.videoHeight||visual.naturalHeight;
+ if(!width||!height||!surface.clientWidth||!surface.clientHeight)return;
+ const scale=Math.min(surface.clientWidth/width,surface.clientHeight/height),w=width*scale,h=height*scale,hud=$('session-hud');
+ Object.assign(hud.style,{inset:'auto',left:(surface.clientWidth-w)/2+'px',top:(surface.clientHeight-h)/2+'px',width:w+'px',height:h+'px'});
+}
+new ResizeObserver(updateMediaBounds).observe($('stage'));
+$('image').addEventListener('load',updateMediaBounds);$('video').addEventListener('loadedmetadata',updateMediaBounds);
 function playVisualMedia(){
  if($('video').hidden)return;
  $('video').play().catch(error=>status('Video access failed: '+error.message));
@@ -225,6 +233,7 @@ function showMedia(item,position=0,{restart=false}={}){
   seekMedia(position);
   if(started&&!paused)playVisualMedia();
  }else if(!same){$('image').src=item.url;$('background-image').src=item.url;}
+ updateMediaBounds();
 }
 function mediaView(){if(!currentMedia)return null;const time=$('video').hidden?0:$('video').currentTime;return {id:currentMedia.id,position:paused||pendingMediaSeek!==null?mediaPosition:Number.isFinite(time)&&time>0?time:mediaPosition};}
 $('video').addEventListener('seeked',()=>{if(pendingMediaSeek!==null&&Math.abs($('video').currentTime-pendingMediaSeek)<.1)pendingMediaSeek=null;});
