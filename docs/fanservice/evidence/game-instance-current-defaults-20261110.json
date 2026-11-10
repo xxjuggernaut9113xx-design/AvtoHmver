@@ -1,0 +1,33 @@
+{
+  "evidence_kind": "static class-default-object decode; no runtime acceptance",
+  "asset": "CockHero/Content/NewSetup/BP_CHGameInstance.uasset",
+  "asset_sha256": "C3A9BA2C7FD2B4D429484D2E88CA89509BAC9AE45D3F6BEC42F15B90B7F3172F",
+  "uexp_sha256": "FCBF03402A25E3E57EB969198B0270F86B09AE56A0CCC9FC852A707BEA427CB7",
+  "metadata_sha256": "5A2229A1A4F78E32ADF784A8A15319A334CB5F2987A63C1A8BF5A74B86C56742",
+  "input_mapping_sha256": "ED51D6CEAFD0CD9BD623DABCEB4E71C9FDC3B121DEB87C4DD5DF5161F4FCD726",
+  "mapping_sha256": "643F52A32A475B89797EB13956F9D62D30C3528D9A83497339711D4FB6F935A2",
+  "api_sha256": "D7B9FD4341AC22DD9AB8D9F49455EA5EBCF571ABCED64313AB15EB1944DE07D9",
+  "local_fields": 49,
+  "inherited_fields": 6,
+  "serial_offset": 28558,
+  "serial_size": 566,
+  "final_reader_position": 29120,
+  "trailing_bytes_base64": "AAAAAA==",
+  "properties": {
+    "Objective_StrokesRequired": 500,
+    "Objective_EdgesRequired": 500,
+    "Objective_TimeRequired_Seconds": 10,
+    "Objective_PrejacTimeRequired_Seconds": 5,
+    "Objective_SuccubusRequired": 1,
+    "DoesNotCummingInWindowResetObjective?": true,
+    "Objective_RuinsRequired": 5,
+    "Objective_TributesRequired": 5,
+    "GameModeSelection": 1
+  },
+  "limits": [
+    "These are serialized class initialization values, not proven selection UI defaults or saved settings.",
+    "No original game session was run. Timer bounds, accounting, release-window duration and rewards remain unresolved.",
+    "CurrentSessionObjective was absent from the serialized property list; no value is inferred here.",
+    "The extracted asset is not cryptographically linked here to an executable."
+  ]
+}

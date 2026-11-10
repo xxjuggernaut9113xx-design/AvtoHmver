@@ -13,12 +13,30 @@
     "date": "2026-11-10",
     "source_commit": "d1468623",
     "user_observation": "closer but the icons and beatbar should over lay on the media",
-    "status": "User confirmed controls and beatbar overlay the media in both orientations; subsequent pattern/pool changes remain pending physical review"
+    "status": "Local handoff reports user confirmation that inventory and beatbar overlay visible media in both orientations; not independently re-observed in this continuation"
   },
   "pattern_review": {
     "date": "2026-11-10",
     "user_request": "Multiple balls before the center according to the pattern, and dynamic pools without a media speed selector",
-    "status": "Actual queue/beatmap projection and supported native-weighted media draws implemented; browser regressions pass; physical retest pending"
+    "source_commit": "9820b926",
+    "reported_user_response": "Yes, both look right",
+    "observation_source": "HANDOFF-LOCAL-20261110.md, Current physical iPhone test; reported prior observation, not a fresh device test",
+    "status": "Handoff reports physical confirmation of upcoming pattern balls and removal of the speed-pool selector; source commit is the handoff's recorded workspace identity, not an instrumented phone asset identity"
+  },
+  "finish_review": {
+    "observation_source": "HANDOFF-LOCAL-20261110.md, Current physical iPhone test",
+    "selected_objective": "Cum meter",
+    "status": "Pending physical acceptance: user had not seen Hold to finish; no verified brief-press cancellation or full one-second hold",
+    "last_instruction_in_handoff": "Hold to finish appears when the thin meter above the beatbar reaches 100%; complete a return Edge with Edge first if needed"
+  },
+  "multi_file_picker_review": {
+    "date": "2026-11-10",
+    "evidence_kind": "direct user report in continuation",
+    "initial_observation": "Both Photo Library and Choose Files closed immediately after the first item was tapped",
+    "action": "Refresh Safari on the import page and reopen Local phone media",
+    "user_response": "Now allows multiple selections",
+    "status": "Picker selection confirmed after refresh; cause not instrumented; batch import and saved-pack contents not yet confirmed",
+    "runtime_changes": "None"
   },
   "initial_reports": "Discarded at the user's request because Tailscale was disconnected.",
   "confirmed_after_connected_refresh": [
