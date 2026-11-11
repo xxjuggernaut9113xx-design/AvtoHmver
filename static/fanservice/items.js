@@ -31,11 +31,25 @@
   if(type===3&&(state.canUseSlowdown===false||state.canUseBonerPill===false)||type===5&&state.canUseBonerPill===false||type===11&&e.lootRushRemaining>0||type===12&&e.bountyRemaining>0||type===7&&e.resupplyRemaining>0)return fail('Cooldown active');
   if(type===1&&!Number.isFinite(state.heat)||type===13&&!(state.combo>0))return fail('Effect state unavailable');
   if(type===3&&(!requireHook('speed')||!Number.isFinite(state.beatInterval))||type===4&&!requireHook('beginBreak')||type===5&&(!requireHook('pill')||!Number.isFinite(state.strokeCount)||!Number.isFinite(state.beatInterval)||!Number.isFinite(context.minimumBeatInterval))||type===7&&!requireHook('openStore')||type===9&&!requireHook('spawnSuccubus')||type===10&&(!requireHook('escape')||!(state.beatsRemaining>0)||[5,6].includes(state.cardType))||type===12&&(!deps.random||typeof deps.random.range!=='function'||!Number.isFinite(state.strokes)))return fail('Effect prerequisite unavailable');
-  if([1,3,6,7].includes(type)&&context.punishmentEnabled&&!requireHook('punishment'))return fail('Punishment prerequisite unavailable');
-  if([1,3,6,7].includes(type)&&context.punishmentEnabled&&hooks.punishment(type,state)){if(type===1)state.heat=Math.min(100,state.heat+15);return fail('Punishment triggered');}
+  if([1,3].includes(type)&&context.punishmentEnabled&&!requireHook('punishment'))return fail('Punishment prerequisite unavailable');
+  // Hotbar stmt 183: Slowdown rolls after AoN/UpdateItemUses; a trigger spawns
+  // the punishment event and the ActivateItem continuation still runs, so the
+  // effect is never blocked. SuccuShield (6) and Resupply (7) have no roll
+  // site anywhere in the hotbar ubergraph (five sites total: Edge, type 0,
+  // type 1, type 3, Break tail), so they never roll.
+  if(type===3&&context.punishmentEnabled&&hooks.punishment(type,state)&&requireHook('spawnPunishment'))hooks.spawnPunishment(type,state);
   // ActivateItem applies this modifier after the effect, only on these branches.
   const applyAllOrNothing=()=>{if(context.allOrNothing&&[1,3,4,6,7,10].includes(type)){state.coins=0;if(requireHook('resetObjective'))hooks.resetObjective(state);else if((context.objectiveType??0)===0)state.cumMeter=0;}};
-  if(type===1){state.heat=Math.max(0,state.heat-[15,25,35,45,60][i]);state.cumMeter=Math.min(1,(state.cumMeter||0)+.01);}
+  if(type===1){
+   // Hotbar stmts 97-103: DecreaseHeat rolls after AoN/UpdateItemUses and
+   // before the widget effect (heat reduction, cum-meter add, count decrement
+   // at stmts 103-155); a trigger spawns the punishment event and skips that
+   // effect only. The use still succeeds and the charge is consumed (UseItem
+   // already ran in ActivateItem), and the punishment event changes no heat.
+   const punished=context.punishmentEnabled&&typeof hooks.punishment==='function'&&hooks.punishment(type,state);
+   if(punished&&requireHook('spawnPunishment'))hooks.spawnPunishment(type,state);
+   if(!punished){state.heat=Math.max(0,state.heat-[15,25,35,45,60][i]);state.cumMeter=Math.min(1,(state.cumMeter||0)+.01);}
+  }
   else if(type===3){if(hooks.speed(1/(i+2))===false)return fail('Timeline rejected');state.beatInterval*=i+2;state.canUseSlowdown=false;state.cumMeter=Math.min(1,(state.cumMeter||0)+.01);}
   else if(type===4){const duration=context.mode===2?context.breakDuration:[5,10,15,25,50][i];if(!Number.isFinite(duration)||hooks.beginBreak(duration)===false)return fail('Break unavailable');state.combo=0;state.cumMeter=Math.min(1,(state.cumMeter||0)+.01);}
   else if(type===5){const effect={strokeMultiplier:[2,2.5,3,3,4][i],intervalDivisor:[2,2,2,3,5][i],coinMultiplier:[2,2,2,3,3][i],speed:[2,2,3,5,6][i],timelineStrokes:[2,2,3,3,4][i]};if(hooks.pill(effect)===false)return fail('Timeline rejected');state.strokeCount=Math.trunc(state.strokeCount*effect.strokeMultiplier);state.beatInterval=Math.max(context.minimumBeatInterval||.05,Math.min(1,state.beatInterval/effect.intervalDivisor));state.coinMultiplier=effect.coinMultiplier;state.cardType=2;state.canUseBonerPill=false;e.temptationRemaining=60;}

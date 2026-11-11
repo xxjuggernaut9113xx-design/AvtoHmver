@@ -65,8 +65,40 @@ test('Break without a punishment hook still applies the effect',()=>{
  assert.equal(items.use(inv,4,state,{context:{punishmentEnabled:true},hooks:{beginBreak:()=>true}}).ok,true);
  assert.equal(state.combo,0);assert.equal(inv.state(4).charges,0);
 });
-test('DecreaseHeat punishment still pre-empts the effect (scope pin, hotbar stmt 99)',()=>{
- const inv=charged(1),state={heat:50};
- assert.deepEqual(items.use(inv,1,state,{context:{punishmentEnabled:true},hooks:{punishment:()=>true}}),{ok:false,reason:'Punishment triggered'});
- assert.equal(state.heat,65);assert.equal(inv.state(1).charges,1);
+test('DecreaseHeat punishment skips only the widget effect (hotbar stmts 97-103)',()=>{
+ // The roll sits after AoN/UpdateItemUses and before the widget effect (heat
+ // -15, cum-meter add, count decrement at stmts 103-155); a trigger spawns the
+ // punishment event and skips that effect, but the use still succeeds and the
+ // charge is consumed (UseItem already ran in ActivateItem). The punishment
+ // event itself changes no heat, so there is no +15.
+ const inv=charged(1),state={heat:50},spawned=[];
+ const deps={context:{punishmentEnabled:true},hooks:{punishment:()=>true,spawnPunishment:(...args)=>spawned.push(args)}};
+ assert.deepEqual(items.use(inv,1,state,deps),{ok:true,consumed:true});
+ assert.equal(state.heat,50);assert.equal(state.cumMeter,undefined);assert.equal(inv.state(1).charges,0);
+ assert.equal(spawned.length,1);assert.equal(spawned[0][0],1);
+});
+test('DecreaseHeat punishment miss applies the full effect',()=>{
+ const inv=charged(1),state={heat:50};let spawned=0;
+ const deps={context:{punishmentEnabled:true},hooks:{punishment:()=>false,spawnPunishment:()=>{spawned++;}}};
+ assert.deepEqual(items.use(inv,1,state,deps),{ok:true,consumed:true});
+ assert.equal(state.heat,35);assert.equal(state.cumMeter,.01);assert.equal(spawned,0);assert.equal(inv.state(1).charges,0);
+});
+test('Slowdown punishment never blocks the effect (hotbar stmt 183)',()=>{
+ // The roll sits after AoN/UpdateItemUses; a trigger spawns the punishment
+ // event and the ActivateItem continuation still runs.
+ const inv=charged(3),state={beatInterval:.5},spawned=[];
+ const deps={context:{punishmentEnabled:true},hooks:{speed:()=>true,punishment:()=>true,spawnPunishment:(...args)=>spawned.push(args)}};
+ assert.equal(items.use(inv,3,state,deps).ok,true);
+ assert.equal(state.beatInterval,1);assert.equal(state.canUseSlowdown,false);assert.equal(state.cumMeter,.01);
+ assert.equal(spawned.length,1);assert.equal(spawned[0][0],3);assert.equal(inv.state(3).charges,0);
+});
+test('SuccuShield and Resupply never roll punishment (no roll site in the hotbar ubergraph)',()=>{
+ // The hotbar ubergraph has exactly five RollPunishmentChance sites (Edge,
+ // type 0, type 1, type 3, Break tail); types 6 and 7 have none.
+ for(const type of [6,7]){
+  const inv=charged(type),state={combo:12};let rolled=false;
+  const deps={context:{punishmentEnabled:true},hooks:{punishment:()=>{rolled=true;return true;},openStore:()=>false}};
+  assert.equal(items.use(inv,type,state,deps).ok,true,`type ${type}`);
+  assert.equal(rolled,false,`type ${type}`);
+ }
 });
