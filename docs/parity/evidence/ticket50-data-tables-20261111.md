@@ -181,10 +181,86 @@ the usmap (`DifficultyCoinEarnMultiplier`, `DifficultyStrokeCounterMultiplier`,
 owning struct and values were not located in this pass; they are not fields
 of `DifficultyTierData` (its numeric fields are the integers in §2).
 
-## 6. Tier-mapping assessment (2026-11-11, implementation agent)
+## 6. Tier-mapping assessment — SETTLED 2026-11-11 (supersedes the open assessment below)
 
-No player code change follows — the mapping is **not** settled by these
-tables, and the assessment below is recorded so the decision stays explicit.
+**Decision: there is no session-difficulty → native-tier mapping, because
+the two scales are independent axes. No mapping change in the player.**
+
+- **Session difficulty is a 3-value Blueprint enum, not `EDifficultyTier`.**
+  `DifficultySelections_ENUM` (unpacked
+  `Widgets/DifficultySelections_ENUM.uasset`, name table):
+  `NewEnumerator0 = EasyMode`, `NewEnumerator1 = NormalMode`,
+  `NewEnumerator2 = InsaneMode`. `BP_GlobalManager.CurrentDifficulty` is
+  that enum (proven by `GetEnumeratorUserFriendlyName` on object −4140 =
+  `DifficultySelections_ENUM` in every setter). The
+  `DifficultySelectScreen_Widget` has `Easy/Normal/InsaneDifficultyButton`
+  with `ClickEasy/Normal/InsaneButton` functions, a `CurrentDifficulty`
+  reference, a `K2Node_DynamicCast_AsBP_Global_Manager`, and a call to
+  `InitializeDifficultyVariables`. The player's session scale (Easy 0 /
+  Normal 1 / Insane 2, validated 0–2 in `run.js:10` and
+  `session_presets.js:12`) is already that enum, 1:1.
+- **The "natural reading" in §5 is rejected.** Player Insane does NOT map
+  to native Tier5, and native Hard (Tier4) is not a missing session tier:
+  Tier5/Tier4 belong to the Tower/objective axis, not the session axis.
+  Do not add a 4th session tier or shift Insane to 3.
+- **§6 item (a) — the session-mode objective reader: none exists.**
+  `ObjectiveParamTable_DT` is read only by Tower:
+  `URoundManager::RollObjectiveParam(ESessionObjective, int)`
+  (`0x14830da40`) — sole call site `0x1482e2993`, inside
+  `URoundManager::GenerateRoundOptions` (`0x1482e1440`) — and
+  `GetOpeningCalibrationTier` (`0x1482f3bf0`, call sites `0x1482e1f05`,
+  `0x1482e2719`, also inside `GenerateRoundOptions`). `RollObjectiveParam`
+  scans the table's row map for the row whose `+0x8` byte is the objective
+  group and whose `+0xc` byte is the tier, and returns a uniform random
+  int in [`[+0x10]`, `[+0x14]`]. `BP_CHGameInstance` only hands the tables
+  to the RoundManager (`SetDifficultyDataTable` /
+  `SetObjectiveParamTable` in its ubergraph) and `SetCurrentSessionObjective`
+  is a bare assignment. Session (Classic) objectives never index the table.
+- **§6 item (b) — the four `Difficulty*Multiplier` values and owners:
+  settled.** Owners are `BP_GlobalManager` instance variables, set by the
+  five functions called from `InitializeDifficultyVariables` (8 stmts),
+  each switching on `CurrentDifficulty` with exactly 3 cases (0/1/2):
+
+  | variable | Easy (0) | Normal (1) | Insane (2) | consumer (evidence) |
+  | --- | --- | --- | --- | --- |
+  | `DifficultyCoinEarnMultiplier` | 2.0 | 1.0 | 0.5 | **none** — set and printed only; the name occurs in no other v0.05.1 package (legacy + Zen `.uasset` grep), so beat coins do not scale with difficulty |
+  | `DifficultyHeatGainMultiplier` | 0.75 | 1.0 | 2.0 | `AddHeat`: `HeatToAdd = HeatAdd * DifficultyHeatGainMultiplier` (unless `IgnoreHeatMultiplier?`), then Lube ×0.5, clamp to MaxHeat 100 (75 with Pot Lid) |
+  | `DifficultyStrokeCounterMultiplier` | 1.0 | 1.0 | 2.0 | `BP_DrawManager` — `Determine Time and Stroke Multiplier Basedon Combo` (8 reads) |
+  | `DifficultyStrokeSpeedMultiplier` | 1.25 | 1.0 | 0.6 | same `BP_DrawManager` function (7 reads) |
+
+  Player corrections, commit `cca2241` (tests first, new
+  `tests/fanservice_difficulty.test.js`): `card-rules.json`
+  `difficulty_count` 0.5 → 1.0 (Easy) and `difficulty_speed` 1.85 → 1.25
+  (Easy); `economy.js` `addHeat` `[.5,1,3]` → `[.75,1,2]`. The player's
+  `addHeat` shape already matched native (amount × Lube-halving ×
+  difficulty table); only the table values were wrong. Coin: no change —
+  the player already leaves beat coins unscaled by difficulty, matching
+  the original's observable behavior.
+- **§6 item (c) — native `EDifficultyTier` consumers: settled, Tower /
+  beatmap-library only.** `UBeatmapLibraryManager::GetEntriesByDifficulty`
+  / `TierToString` / `CalculateDifficulty` (beatmap difficulty info);
+  `URoundManager::RollAdaptiveDifficultyTier` (`0x14830cdb0`, 5-weight
+  roll returning 0–4) and `GetDifficultyForRound` (`0x1482ef920`, called
+  only from its Blueprint `exec` wrapper). No session-mode consumer.
+
+Still open (recorded, not guessed):
+- `SetCumMeterDifficultyModifier` (72 stmts): sets `BaseCumGain` per
+  difficulty but has a second multi-way switch inside; the six
+  `BaseCumGain` values seen (0.006667, 0.01, 0.004, 0.002857, 0.002,
+  0.001111) are not yet attributed to cases. Needs a per-case block walk.
+- `SetItemSpawnRatesBasedOnDifficulty` (94 stmts): per-case item spawn
+  chances not yet extracted.
+- `SetEdgingPaceModifier`: body not yet decoded.
+- `SetUserStrokeMultiplier`: a 5-case switch (values 1.0/2.0/3.0/4.0/8.0
+  into `UserStrokeCountMultiplier`) — not a difficulty switch; its
+  switched variable is not established here.
+- `DifficultySelectScreen_Widget` bytecode: Zen-only, not legacy-converted,
+  so the button → enum-value assignment is inferred from the button /
+  function / enum names, not parsed.
+- Producers-note §7 items 2–3 (`0x1482f4540` helper, `0x148311f70`
+  helper / reset zeroing) remain open as before.
+
+### The earlier open assessment (superseded — kept for the record)
 
 What is already aligned:
 - The table contents are identical to the player's `modes.json`
