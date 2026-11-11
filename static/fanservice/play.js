@@ -320,7 +320,8 @@ function draw(pool,{prepare=true,force=false,cardOptions={}}={}){
  pool??=music?category:automaticMediaPool();category=pool;
  let item=null;
  // Favorite injection (DrawNextCardForCategory 0x14826f430): for a non-9
- // category, a 0-99 roll against the threshold draws from the current
+ // category, a 1-100 roll against the threshold (success iff roll <=
+ // FavoritesLikelyhoodPercent) draws from the current
  // category's remaining-favorites deck instead of the normal deck. The
  // injected entry is pruned from the normal remaining deck: the native
  // enforces the same anti-repeat through its seen set, which does not

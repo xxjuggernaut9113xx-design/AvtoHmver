@@ -103,3 +103,55 @@ test('default injection threshold is the Blueprint-side 10',()=>{
  assert.equal(new Favorites({random:stubRandom([.5])}).threshold,10);
  assert.equal(new Favorites({random:stubRandom([.5]),threshold:25}).threshold,25);
 });
+test('the injection roll is 1-100, success iff roll <= FavoritesLikelyhoodPercent',()=>{
+ // RollFavoritesChance (BP_GlobalManager): RandomIntegerInRange(1, 100),
+ // success iff roll <= FavoritesLikelyhoodPercent. The roll itself is
+ // pinned (fraction 0 -> 1, 0.09 -> 10, 0.10 -> 11, 0.99 -> 100); the
+ // 0-99 form has the same hit probability but is not the pinned form.
+ const favorites=setup([.5]);
+ assert.equal(favorites.roll(stubRandom([0])),1);
+ assert.equal(favorites.roll(stubRandom([0.09])),10);
+ assert.equal(favorites.roll(stubRandom([0.10])),11);
+ assert.equal(favorites.roll(stubRandom([0.99])),100);
+ assert.equal(favorites.roll(stubRandom([1])),100);
+ const at=(fraction)=>{
+  const favorited=setup([fraction]);favorited.toggleFavorite(entry('a.png',0));
+  return favorited.injectFavorite(0);
+ };
+ assert.equal(at(0).filename,'a.png');
+ assert.equal(at(0.09).filename,'a.png');
+ assert.equal(at(0.10),null);
+ assert.equal(at(0.99),null);
+ const empty=new Favorites({random:stubRandom([0])});empty.register([entry('a.png',0)]);
+ assert.equal(empty.injectFavorite(0),null,'An empty favorite pool rolls nothing and fails');
+});
+test('Cum favorites live in the Cum registry and draw pool',()=>{
+ // CumFavoriteCards EXISTS Blueprint-side (DrawManager pool,
+ // CardManager Master_Favorite_Cum, SaveGame Saved_Cum_FavoriteCards).
+ const favorites=setup([.05]);
+ favorites.register([entry('cumfav.png',6)]);
+ const result=favorites.toggleFavorite(entry('cumfav.png',6));
+ assert.equal(result.isFavorite,true);
+ assert.equal(favorites.favoritesSource.get(6).some(e=>e.filename==='cumfav.png'&&e.isFavorite),true);
+ assert.equal(favorites.remainingFavorites.get(6).some(e=>e.filename==='cumfav.png'),true);
+ assert.equal(favorites.master.get(6).some(e=>e.filename==='cumfav.png'),false);
+ assert.equal(favorites.getFavoriteFrenzyCardCount(),1);
+ const drawn=favorites.drawForCategory(6);
+ assert.equal(drawn.filename,'cumfav.png');assert.equal(drawn.isFavorite,true);
+});
+test('Event/Edging/AssFrenzy/BoobFrenzy favorites dispatch to the Fast registry',()=>{
+ // AddFavoriteCardToArray (BP_DrawManager): N=4 (Event), N=5 (Edging),
+ // N=7 (AssFrenzy), N=8 (BoobFrenzy) all dispatch to the Fast block.
+ const favorites=new Favorites({random:stubRandom([.5])});
+ favorites.register([entry('ev.png',4),entry('ed.png',5),entry('ass.png',7),entry('boobs.png',8)]);
+ for(const [name,category] of [['ev.png',4],['ed.png',5],['ass.png',7],['boobs.png',8]])
+  assert.equal(favorites.toggleFavorite(entry(name,category)).isFavorite,true);
+ for(const category of [4,5,7,8])
+  assert.equal(favorites.favoritesSource.get(category)?.length||0,0);
+ assert.deepEqual([...favorites.favoritesSource.get(2).map(e=>e.filename)].sort(),['ass.png','boobs.png','ed.png','ev.png']);
+ assert.equal(favorites.getFavoriteFrenzyCardCount(),4);
+ const back=favorites.toggleFavorite(entry('ass.png',7));
+ assert.equal(back.isFavorite,false);
+ assert.equal(favorites.master.get(7).some(e=>e.filename==='ass.png'&&!e.isFavorite),true,'Unfavoriting restores the entry to its own category master');
+ assert.equal(favorites.favoritesSource.get(2).some(e=>e.filename==='ass.png'),false);
+});

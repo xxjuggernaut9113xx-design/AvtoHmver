@@ -8,10 +8,18 @@
  // the FavoriteFrenzy deck (category 9) from the favorites source registry,
  // deduped by anti-repeat key, and installs it (shuffled) as the key-9 deck
  // in the master and remaining-deck maps; DrawNextCardForCategory
- // (0x14826f430) draws from the remaining deck, with a 0-99 roll against the
+ // (0x14826f430) draws from the remaining deck, with a 1-100 roll against the
  // controller+0x30 threshold injecting a favorite from the current
- // category's remaining-favorites deck. There is no CumFavoriteCards
- // equivalent (PDB-wide zero hits).
+ // category's remaining-favorites deck (RollFavoritesChance, BP_GlobalManager:
+ // RandomIntegerInRange(1, 100), success iff roll <=
+ // FavoritesLikelyhoodPercent). CumFavoriteCards EXISTS Blueprint-side
+ // (DrawManager pool, CardManager Master_Favorite_Cum, SaveGame
+ // Saved_Cum_FavoriteCards) — the earlier native-only "no equivalent"
+ // finding stands only for native code (see
+ // docs/parity/evidence/ticket44-favorites-blueprint-20261111.md).
+ // AddFavoriteCardToArray (BP_DrawManager) is a per-category toggle over
+ // Slow/Medium/Fast/Succubus/Cum; Event/Edging/AssFrenzy/BoobFrenzy
+ // dispatch to the Fast block.
  //
  // Player deviations, recorded, not hidden:
  // - Anti-repeat key: the native MakeMediaAntiRepeatKey transform was not
@@ -46,6 +54,10 @@
   for(const name of poolNames)if(tags.includes(name))return categoryByPool[name];
   return 0;
  }
+ // AddFavoriteCardToArray (BP_DrawManager): Event (4), Edging (5),
+ // AssFrenzy (7) and BoobFrenzy (8) dispatch to the Fast block — their
+ // favorites live in the Fast registry, not their own category's.
+ function favoriteHomeCategory(category){return [4,5,7,8].includes(category)?2:category;}
  function normalize(entry){return {filename:filenameOf(entry),category:categoryOf(entry),isFavorite:entry?.isFavorite===true,item:entry?.item??entry??null};}
  class Favorites{
   constructor({random,threshold}={}){
@@ -91,8 +103,9 @@
    }
    if(found){
     const copy={...found,isFavorite:true};
-    this.arrayFor(this.favoritesSource,homeCategory).push(copy);
-    this.arrayFor(this.remainingFavorites,homeCategory).push({...copy});
+    const home=favoriteHomeCategory(homeCategory);
+    this.arrayFor(this.favoritesSource,home).push(copy);
+    this.arrayFor(this.remainingFavorites,home).push({...copy});
     this.removeByFilename(this.master.get(homeCategory),entry.filename);
    }else{
     for(const [category,array] of this.favoritesSource.entries()){
@@ -101,8 +114,8 @@
     }
     if(!found)return {...entry,isFavorite:false};
     const copy={...found,isFavorite:false};
-    this.arrayFor(this.master,homeCategory).push(copy);
-    this.arrayFor(this.remaining,homeCategory).push({...copy});
+    this.arrayFor(this.master,found.category).push(copy);
+    this.arrayFor(this.remaining,found.category).push({...copy});
     this.removeByFilename(this.favoritesSource.get(homeCategory),entry.filename);
     this.removeByFilename(this.remainingFavorites.get(homeCategory)||[],entry.filename);
    }
@@ -156,6 +169,12 @@
    return array.splice(index>=0?index:0,1)[0];
   }
   markSeen(entry){const key=keyOf(entry);if(key&&this.universe.has(key))this.seen.add(key);return this.seen;}
+  roll(random){
+   // RollFavoritesChance (BP_GlobalManager): RandomIntegerInRange(1, 100).
+   // The fraction source is [0, 1); the clamp covers a stub returning 1.
+   const source=random||this.random;
+   return Math.min(100,1+Math.floor(source.fraction()*100));
+  }
   drawForCategory(category,random){
    if(!this.ready)return null;
    this.setCurrentCategory(category);this.refreshCycleIfComplete();
@@ -164,8 +183,7 @@
    if(category!==9&&this.threshold>0){
     const favoritesDeck=this.remainingFavorites.get(category)||[];
     if(favoritesDeck.some(entry=>filenameOf(entry))){
-     const roll=Math.floor(source.fraction()*100);
-     if(roll<this.threshold)favoritesPath=true;
+     if(this.roll(source)<=this.threshold)favoritesPath=true;
     }
    }
    if(favoritesPath){
@@ -185,8 +203,7 @@
    const source=random||this.random;
    const deck=this.remainingFavorites.get(category)||[];
    if(!deck.some(entry=>filenameOf(entry)))return null;
-   const roll=Math.floor(source.fraction()*100);
-   if(roll>=this.threshold)return null;
+   if(this.roll(source)>this.threshold)return null;
    const entry=this.popAvoidingAntiRepeat(deck);
    if(!entry)return null;
    this.markSeen(entry);
