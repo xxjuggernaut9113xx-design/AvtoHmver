@@ -1,5 +1,20 @@
 apply plugin: 'com.android.application'
 
+// Release signing (#57): the release keystore is NOT in this repo and must
+// never be committed. Supply it via environment variables on the signing
+// machine (CI secret store or a local shell, never in a file in the repo):
+//   RELEASE_KEYSTORE_PATH, RELEASE_KEYSTORE_PASSWORD,
+//   RELEASE_KEY_ALIAS, RELEASE_KEY_PASSWORD
+// Without them the release build stays unsigned, exactly as before.
+// A debug APK can never prove a same-signature release upgrade; see
+// docs/fanservice/evidence/ticket57-toolchain-20261111.md.
+def releaseKeystorePath = System.getenv('RELEASE_KEYSTORE_PATH')
+def releaseKeystoreFile = releaseKeystorePath ? file(releaseKeystorePath) : null
+if (releaseKeystorePath && !(releaseKeystoreFile.exists())) {
+    throw new GradleException(
+        "RELEASE_KEYSTORE_PATH is set but the file does not exist: ${releaseKeystorePath}")
+}
+
 android {
     namespace = "org.fanservice.viewer"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -16,10 +31,25 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            // Only populated when the env vars above point at a real keystore;
+            // otherwise this config is inert and the build stays unsigned.
+            if (releaseKeystoreFile != null) {
+                storeFile releaseKeystoreFile
+                storePassword System.getenv('RELEASE_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('RELEASE_KEY_ALIAS')
+                keyPassword System.getenv('RELEASE_KEY_PASSWORD')
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (releaseKeystoreFile != null) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }
