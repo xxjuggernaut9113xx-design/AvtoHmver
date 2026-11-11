@@ -74,11 +74,68 @@ END:
   (`play.js:438`) is therefore harmless, not a bug: the media_change
   event does the real switch.
 - **In-window break behavior: NOT suppressed by the cum window.**
-  `HandleCumEvent` does not disable breaks; Tick case 3 only logs and
-  writes −1.0 to `+0x580` and r15 to `+0x588`. Breaks are disabled only
-  by `disable_break` events (type 8 → `HandleBreakDisable`). What
-  `+0x580`/`+0x588` mean is NOT pinned (their readers were not
-  identified; a raw disp32 scan is too noisy to attribute).
+  `HandleCumEvent` does not disable breaks; Tick case 3 (CumEvent)
+  only logs. Breaks are disabled only by `disable_break` events
+  (type 8 → `HandleBreakDisable`). Tick case 8 (DisableBreak) writes
+  −1.0 to `+0x580` and 0.0 to `+0x588` — see the `+0x580`/`+0x588`
+  settlement below. (Correction, 2026-11-11: the earlier note said
+  the case-8 write stored "r15" as the event value-string's data
+  pointer. Wrong: the event-loop prologue (`Tick.asm`
+  0x14831630c–0x148316348) loads the value-string data pointer into
+  r15, copies the string into a stack buffer, then `xor %r15d,%r15d`
+  on BOTH paths before the type switch — r15 is 0 at case 8, so the
+  write stores double 0.0.)
+- **`+0x580`/`+0x588` readers: SETTLED (2026-11-11).** They are
+  CUM-WINDOW WARNING fields, not break-disable fields
+  (`UMusicModeManager`, `this`-relative):
+  - `+0x570` = next upcoming cum window start (audio time);
+    `+0x578` = its end. Written by
+    `EvaluateNotificationWarnings` (0x1482decf0, called from Tick
+    every frame) when the next window falls inside the warning lead.
+  - `+0x580` = warning lead time = `max(+0x60, 0.0)` (a config
+    double at `+0x60`; its CDO default is NOT established).
+  - `+0x588` = latched announced upcoming window start; re-latched
+    only when `|new start − old| > 0.001` (epsilon const
+    0x14bf3cd30 = 0.001), so the warning broadcast fires once per
+    window.
+  - `+0x590`/`+0x598` = CURRENT (in-progress) window start/end, or
+    −1.0 when none; `+0x5a0` = latched announced current-window
+    start (same 0.001 epsilon).
+  - Readers: `GetCumWindowWarningRemainingSeconds` (0x1482e9570:
+    `max(+0x570 − audioTime, 0)`, else −1.0),
+    `GetCumWindowWarningProgress` (0x1482e94e0:
+    `clamp(1 − (+0x570 − now)/+0x580, 0, 1)`, 0 when `+0x570<=0`
+    or `+0x580<=0`), `GetCumWindowWarningText` (0x1482e95d0:
+    formats remaining until `+0x570` and until `+0x578`).
+  - Tick case 8 (DisableBreak) RESETS the latch: `+0x580 = −1.0`
+    (disables the progress getter until re-latched) and
+    `+0x588 = 0.0` (clears the announced-start latch so the next
+    window can re-announce).
+- **Break-disable warning readers: SETTLED (2026-11-11).**
+  - `+0x5a8` = start time (audio time) of the next upcoming
+    DisableBreak event; `+0x5b0` = warning window =
+    `max(+0x68, 0.0)` (a config double at `+0x68`; CDO default NOT
+    established). Written by `EvaluateNotificationWarnings`: it
+    scans the beatmap event array at `+0x2b0` (40-byte stride,
+    count `+0x2b8`) for type-8 events with `0 < time − now <=
+    +0x68`, skips indices already in the `TSet<int32>` dedup set
+    at `+0x5b8`, and latches the first one (`+0x5a8 = time`,
+    `+0x5b0 = +0x68` value) while broadcasting the warning via
+    the Blueprint exec delegates at `+0xd0`/`+0x118`. When the
+    `+0x56b` flag is set, `+0x5a8 = −1.0`, `+0x5b0 = 0.0`.
+  - Readers: `GetBreaksDisabledInRemainingSeconds` (0x1482e6fe0:
+    `max(+0x5a8 − audioTime, 0)` when `+0x5a8 > 0`, else −1.0 —
+    i.e. seconds UNTIL breaks are disabled),
+    `GetBreakDisableWarningRemainingSeconds` (0x1482e6e70, same
+    value, `max(..., 0)` form),
+    `GetBreakDisableWarningProgress` (0x1482e6de0:
+    `clamp(1 − (+0x5a8 − now)/+0x5b0, 0, 1)`),
+    `GetBreakDisableWarningText` (0x1482e6ed0: formats the
+    remaining seconds). The −1.0 sentinel const is at
+    0x14bf683b8; the audio clock is `GetCurrentAudioTime`
+    (0x1482e9b40). No native setter exists — the only writers are
+    Tick case 8 (the `+0x580`/`+0x588` reset) and
+    `EvaluateNotificationWarnings`.
 - **Release deadline: NONE.** No timer, countdown, or fixed duration in
   `HandleCumEvent` or Tick case 3. The window is exactly the map's
   `cum_event` [start, end] pair (14.9–52.8 s, one per map). The
@@ -88,12 +145,17 @@ END:
   `CumWithinStartOverlay(WindowStartTime, WindowEndTime,
   SecondsUntilWindowEnd)`. Those are DISPLAY countdowns to the map's
   end time, not a separate deadline mechanism.
-- **Event-vs-beat ordering:** Tick's structure is settled (beat loop
-  first, event loop second; beats are ENQUEUED via `EnqueueBeatEvent`,
-  not fired — see the Tick note). The player-visible order at equal
-  timestamps is NOT settled: it depends on the spawner dequeue, not
-  on Tick's internal order. Same-timestamp events are processed in
-  array order in both.
+- **Event-vs-beat ordering: SETTLED (2026-11-11).** Tick's structure
+  is settled (beat loop first, event loop second; beats are ENQUEUED
+  via `EnqueueBeatEvent`, not fired — see the Tick note). The
+  observable order at equal timestamps follows from that: the event
+  is handled in the same Tick the beat is enqueued, but the beat's
+  HIT happens only when it reaches center, travel-time later — so
+  the event's effect observably PRECEDES the beat's hit. The player
+  already matches: `rules.js` `schedule` fires the event first at
+  equal timestamps (`nextEvent.time <= nextBeat.time`), and its beat
+  callback IS the hit (`play.js` `scoreBeat`). No code change.
+  Same-timestamp events are processed in array order in both.
 - **Native Handle\* functions:** `HandleCumEvent` (0x1482f9a40) is a
   bool predicate (`+0x4e9==0 && +0x4eb==0 && +0x4f0>0 &&
   +0x4f0>=+0x4ec`); `HandleDialogueEvent` logs + broadcasts
@@ -205,10 +267,20 @@ not modeled: the player's release-window draw is a forced `'cum'` card.
   override's `releaseDeadline`): the "Cum Now!" / "Cum Window Closed"
   notifications; the `CumWithinXSec` countdown to the map's end time
   during the window; the CumButtonFlash green/red loop toggle.
-- Still open: `+0x580`/`+0x588` readers; the GM cum-window timer functions
+- Still open: the GM cum-window timer functions
   (`Start_Cum_Window_Timer` 48674, `Set_and_Display_Cum_Window_Timer`
-  49184) are now decoded (see above — 1 s tick, CumWindowTime = 60.0);
-  observable event-vs-beat order at equal timestamps (spawner dequeue).
+  49184) are now decoded (see above — 1 s tick, CumWindowTime = 60.0).
+  The warning getters are decoded but NOT modeled in the player: no
+  player UI seam exists for the break-disable warning (seconds-until-
+  disabled text + progress) or the cum-window warning (lead-time
+  countdown + progress), and the config defaults at `+0x60` (cum
+  warning lead) and `+0x68` (break-disable warning window) are NOT
+  established — pinning them needs the `UMusicModeManager` CDO
+  property values mapped to those member offsets, which the session
+  parser does not do. No player code change was made for Task 3:
+  the disable_break toggle (`play.js:439`) and the event-first
+  ordering in `rules.js` `schedule` already match the original's
+  observable behavior.
 - Decoded but not yet modeled in the player: the objective-0 card-type
   gate ({5, 6, 3} when not in Frenzy); the Timer objective's lack of an
   override path in the trigger function (player's Timer → release window
