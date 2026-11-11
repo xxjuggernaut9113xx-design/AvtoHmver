@@ -1,7 +1,7 @@
 (function(root){
  'use strict';
  const load=(name,global)=>typeof module!=='undefined'&&module.exports?require('./'+name+'.js'):root[global];
- const Rules=load('rules','FanserviceRules'),Modifiers=load('modifiers','FanserviceModifiers'),Economy=load('economy','FanserviceEconomy');
+ const Rules=load('rules','FanserviceRules'),Modifiers=load('modifiers','FanserviceModifiers'),Economy=load('economy','FanserviceEconomy'),Punishment=load('punishment','FanservicePunishment');
  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),limit=1000000;
  function timing(strokes,interval,count,userCount,time){
   if(![strokes,interval,count,userCount,time].every(Number.isFinite))throw Error('Card timing is invalid.');
@@ -31,7 +31,12 @@
   const difficulty=run.config.difficulty??1,multipliers=Rules.drawMultipliers(Rules.comboTier(s.combo),data.difficulty_count[difficulty],data.difficulty_speed[difficulty]);
   let count=multipliers.count,time=multipliers.time,travel=data.travel,bank=pool,min,max,low,high;
   if(card<=2){const row=data.heat[['SlowHeat','MediumHeat','HighHeat'][card]];min=row.MinStrokeCount;max=row.MaxStrokeCount;low=card===2?.15:row.MinIntervalSeconds;high=row.MaxIntervalSeconds;}
-  else if(card===3){min=30;max=50;low=.15;high=.33;time=1;travel=1.5;count=Modifiers.succubusCountMultiplier(count,run.effectiveStats?run.effectiveStats().succubi:s.succubi,s.modifiers,Economy.has(run,7)?.5:1);if(apexLure)count+=strokeAddend;}
+  else if(card===3){min=30;max=50;low=.15;high=.33;time=1;travel=1.5;count=Modifiers.succubusCountMultiplier(count,run.effectiveStats?run.effectiveStats().succubi:s.succubi,s.modifiers,Economy.has(run,7)?.5:1);if(apexLure)count+=strokeAddend;
+   // SpawnPunishmentEvent (GM ubergraph stmt 1446): SpawnCustomCardEvent
+   // (SuccubusCards, 30, 50, 0.28, 0.33, byte(3), 1.0, ...). The count range,
+   // travel 1.5 and time 1.0 already match the succubus branch; only the
+   // interval floor differs from an ordinary succubus card (.15).
+   if(options.punishment===true){low=Punishment.spawnParams.minInterval;high=Punishment.spawnParams.maxInterval;}}
   else if(card===5){
    const edge=s.edge;if(!edge)throw Error('Edge timing requires an active streak.');
    edge.strokeMultiplier+=.1+run.random.fraction()*.15;
@@ -47,7 +52,7 @@
   let pattern=[...patterns[run.random.range(0,patterns.length-1)]];
   const previous=current(run),previousInterval=previous?.queue[previous.nextFire]?.Interval??0;if(Math.fround(previousInterval)<=.2)pattern=pattern.map(value=>Math.fround(value)>=2?2.5:value);
   const baseInterval=result.interval*(Economy.has(run,6)?2:1),minimum=data.minimum_intervals[difficulty],entries=queue(pattern,baseInterval,Math.max(0,result.count),1,travel,minimum);
-  s.card=card;s.cardFlow={generation:(previous?.generation||0)+1,pool,card,started:options.at??s.seconds,pattern,interval:baseInterval,speed:1,travel,minimum,assigned:result.count,remaining:result.count,nextFire:0,nextHit:0,completed:0,queue:entries,ended:false};
+  s.card=card;s.cardFlow={generation:(previous?.generation||0)+1,pool,card,started:options.at??s.seconds,pattern,interval:baseInterval,speed:1,travel,minimum,assigned:result.count,remaining:result.count,nextFire:0,nextHit:0,completed:0,queue:entries,ended:false,punishment:options.punishment===true};
   return s.cardFlow;
  }
  function advance(run,at=run.state.seconds){

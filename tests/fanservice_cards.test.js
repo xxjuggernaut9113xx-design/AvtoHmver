@@ -146,3 +146,22 @@ test('original DetermineCardV2 draws CumEventOverride while IsAllowedToCum or Ha
  const tower=session({mode:1});tower.player.isAllowedToCum=true;assert.equal(tower.cumOverrideDue(),true);
  const playlist=session({mode:2});playlist.player.isAllowedToCum=true;assert.equal(playlist.cumOverrideDue(),false);
 });
+
+test('punishment card is a succubus card with the traced 0.28-0.33 interval',()=>{
+ const run=session(),flow=run.startCard('succubus',{punishment:true});
+ assert.equal(flow.punishment,true);
+ assert.equal(flow.pool,'succubus');assert.equal(flow.card,3);
+ assert.equal(flow.travel,1.5);
+ assert(flow.interval>=.28&&flow.interval<=.33);
+ assert(flow.assigned>=30&&flow.assigned<=50);
+ // Same seed, same stroke roll (31): the punishment interval is the
+ // unclamped [0.28,0.33] roll, while the ordinary succubus roll
+ // (0.15-0.33) clamps to the 0.28 floor.
+ assert.equal(flow.interval,0.28768044590950015);
+ assert.equal(flow.assigned,31);
+ const plain=session().startCard('succubus');
+ assert.equal(plain.punishment,false);
+ assert.equal(plain.card,3);assert.equal(plain.travel,1.5);
+ assert.equal(plain.interval,0.28);
+ assert.equal(plain.assigned,31);
+});
