@@ -1,0 +1,73 @@
+{
+  "authority": "Playwright player hotbar controls with virtual clock and synthetic neutral media/Server route; Hot Hands and the Resupply hotbar slot are seeded through the starting profile and the public grant API; combo and heat are built by delivered beats, no gameplay metrics are injected; reconstruction runtime only, not original-game execution or device acceptance",
+  "engine": "Playwright Chromium",
+  "playwrightVersion": "1.64.1",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "cases": [
+    {
+      "before": {
+        "seconds": 12,
+        "strokes": 10,
+        "combo": 10,
+        "heat": 1.9999999999999998,
+        "coins": 10,
+        "charges": 1,
+        "itemsUsed": 0,
+        "defensiveUsed": 0,
+        "modifiers": [
+          "Hot Hands"
+        ],
+        "heatCap": 100
+      },
+      "atActivation": {
+        "itemsUsed": 1,
+        "defensiveUsed": 1,
+        "heat": 12,
+        "combo": 0,
+        "charges": 1,
+        "resupplyRemaining": 2,
+        "storeOpen": false,
+        "metricsItemsUsed": 0
+      },
+      "midDelay": {
+        "charges": 1,
+        "resupplyRemaining": 1,
+        "itemsUsed": 1,
+        "storeOpen": false
+      },
+      "afterStore": {
+        "itemsUsed": 1,
+        "defensiveUsed": 1,
+        "charges": 0,
+        "resupplyRemaining": 0,
+        "storeOpen": true,
+        "metricsItemsUsed": 1
+      },
+      "savedCheckpoint": {
+        "itemsUsed": 1,
+        "defensiveUsed": 1,
+        "charges": 0,
+        "resupplyRemaining": 0
+      },
+      "restored": {
+        "itemsUsed": 1,
+        "defensiveUsed": 1,
+        "charges": 0,
+        "resupplyRemaining": 0,
+        "combo": 2,
+        "seconds": 15
+      }
+    }
+  ],
+  "sourceHashes": {
+    "play.js": "450efcc3e6b5b4771b05f77d840fb3fba65af986b084cc495ac2f21836ab0ddc",
+    "run.js": "9408d5deb42119d4e37676cea880685bc1c1f0da45d42656e91dd9adc70ee0fa",
+    "session_metrics.js": "d156a5668a6343e90d2f16e08ded38eff4bd71ce002c69d457727eed93566fc3",
+    "economy.js": "d7d9b9c84717558f0928d12288e0f7de06aa2a489a8bc2552ff72f8b27768b2d",
+    "cards.js": "08c4dc3e4ff409b50d88bb21a040f59e1785489bd0adeda3a5f69e59a4583f37",
+    "items.js": "d48ad92727cacaf3855ecb5686a5d11d65c145db429a7f73acfc5686141d9f36"
+  }
+}
