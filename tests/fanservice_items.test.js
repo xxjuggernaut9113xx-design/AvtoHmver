@@ -104,8 +104,8 @@ test('SuccuShield and Resupply never roll punishment (no roll site in the hotbar
 });
 test('real punishment roll drives DecreaseHeat spawn and skips only the heat effect',()=>{
  const Punishment=require('../static/fanservice/punishment');
- const inv=charged(1),state={heat:50,TimesTaunted:5},spawned=[];
- const deps={context:{punishmentEnabled:true},hooks:{punishment:(type,s)=>Punishment.roll(s.TimesTaunted||0,{fraction:()=>0.19}),spawnPunishment:(...args)=>spawned.push(args)}};
+ const inv=charged(1),state={heat:50,TotalTauntsUsed:5},spawned=[];
+ const deps={context:{punishmentEnabled:true},hooks:{punishment:(type,s)=>Punishment.roll(s.TotalTauntsUsed||0,{fraction:()=>0.19}),spawnPunishment:(...args)=>spawned.push(args)}};
  assert.equal(items.use(inv,1,state,deps).ok,true);
  assert.deepEqual(spawned,[[1,state]]);
  assert.equal(state.heat,50);
@@ -114,8 +114,8 @@ test('real punishment roll drives DecreaseHeat spawn and skips only the heat eff
 });
 test('real punishment roll below the taunt threshold never spawns',()=>{
  const Punishment=require('../static/fanservice/punishment');
- const inv=charged(1),state={heat:50,TimesTaunted:0},spawned=[];
- const deps={context:{punishmentEnabled:true},hooks:{punishment:(type,s)=>Punishment.roll(s.TimesTaunted||0,{fraction:()=>0}),spawnPunishment:()=>{spawned++;}}};
+ const inv=charged(1),state={heat:50,TotalTauntsUsed:0},spawned=[];
+ const deps={context:{punishmentEnabled:true},hooks:{punishment:(type,s)=>Punishment.roll(s.TotalTauntsUsed||0,{fraction:()=>0}),spawnPunishment:()=>{spawned++;}}};
  assert.equal(items.use(inv,1,state,deps).ok,true);
  assert.equal(spawned.length,0);
  assert.equal(state.heat,35);
@@ -123,8 +123,8 @@ test('real punishment roll below the taunt threshold never spawns',()=>{
 });
 test('real punishment roll at 25 taunts always spawns for Slowdown without blocking it',()=>{
  const Punishment=require('../static/fanservice/punishment');
- const inv=charged(3),state={beatInterval:.5,TimesTaunted:25},spawned=[];
- const deps={context:{punishmentEnabled:true},hooks:{speed:()=>true,punishment:(type,s)=>Punishment.roll(s.TimesTaunted||0,{fraction:()=>0.99}),spawnPunishment:(...args)=>spawned.push(args)}};
+ const inv=charged(3),state={beatInterval:.5,TotalTauntsUsed:25},spawned=[];
+ const deps={context:{punishmentEnabled:true},hooks:{speed:()=>true,punishment:(type,s)=>Punishment.roll(s.TotalTauntsUsed||0,{fraction:()=>0.99}),spawnPunishment:(...args)=>spawned.push(args)}};
  assert.equal(items.use(inv,3,state,deps).ok,true);
  assert.deepEqual(spawned,[[3,state]]);
  assert.equal(state.beatInterval,1);

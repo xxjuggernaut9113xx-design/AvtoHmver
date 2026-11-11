@@ -186,6 +186,8 @@ function renderItemControls(){
  itemControls.hidden=!started||finished;
 }
 const edgePanel=element('section'),edgeButton=action('Edge / E',()=>triggerEdge());edgePanel.id='edge-panel';edgeButton.id='edge-action';edgeButton.setAttribute('aria-label','Edge / E');edgePanel.setAttribute('aria-live','polite');objectiveStatus.after(edgePanel);$('controls').append(edgeButton);
+const tauntButton=action('Taunt',()=>triggerTaunt());tauntButton.id='taunt-action';tauntButton.setAttribute('aria-label','Taunt');$('controls').append(tauntButton);
+function renderTaunt(){tauntButton.hidden=!started||finished||!!music;}
 let edgeView='';
 function triggerEdge(){if(!started||paused||finished||!FanserviceEdge.allowed(run))return;objectiveEvents(run.edge());checkpoint(true);render();}
 function edgeAction(events){objectiveEvents(events);checkpoint(true);render();}
@@ -300,6 +302,41 @@ function spawnPunishment(){
  status('Punishment: Your boasts have consequences.');
  return true;
 }
+function triggerTaunt(){
+ // UI_Manager TauntButton click (entry 21921 -> stmt 609 -> stmt 328): the
+ // guards run first, then the branch notification, then Taunt() /
+ // Firemouth Taunt(), StartTauntCooldown(), and the Tempting Fate check at
+ // five taunts. The media for the spawned card is picked here, mirroring
+ // spawnPunishment; run.taunt() does the guards, heat, counters, cooldown,
+ // and card spawn. The cum-meter add (TauntCumAdd) is not modeled — its
+ // value is not in the retained evidence. No T-key shortcut: the original's
+ // T-key entry (8529 -> UI stmt 236) lands in a widget-create flow, not
+ // the taunt handler, so it was not established as the taunt key.
+ if(!started||paused||finished||run.phase!=='playing'||music)return;
+ const pool=state.card===3?null:(FanserviceTaunts.isFiremouth(run)?'succubus':'fast');
+ if(pool){
+  decks??=rules.mediaPools(media,FanserviceModifiers.options(state.modifiers));
+  if(!decks[pool]?.length){status(`No ${pool} media in the frozen selection. Taunt could not start.`);return;}
+ }
+ const result=run.taunt();
+ if(!result.ok){
+  status({cum:'Cannot Taunt: Cannot taunt during cum events.',edge:'Cannot Taunt: Cannot taunt during edging events.',cooldown:`Taunt on Cooldown: Try again in ${result.seconds} seconds.`,already:'Already Taunted: Wait until the next task to taunt.'}[result.reason]||'Taunt is unavailable.');
+  render();return;
+ }
+ if(result.branch==='normal'||result.branch==='firemouth'){
+  const wanted=result.branch==='normal'?'fast':'succubus';
+  if(!remaining[wanted]?.length)remaining[wanted]=[...decks[wanted]];
+  const index=Math.floor(Math.random()*remaining[wanted].length),item=remaining[wanted].splice(index,1)[0];
+  showMedia(item,0,{restart:true});
+  category=wanted;speed=1;
+ }
+ if(result.branch==='normal'){
+  FanserviceBackground.apply($('session-background'),'tauntbackground',$('background-status'));
+  status(result.temptingFate?'Tempting Fate: Your taunts drew her ire. Items may trigger punishment.':'Taunt! Increased Stroke Speed & Count.');
+ }else if(result.branch==='succubus')status('Succubus Taunt! Succubi Spawn Chance Permanently Increased.');
+ else status('Firemouth Taunt! Your Trash Talk has Summoned a Succubus!');
+ checkpoint(true);render();
+}
 function pulseBeat(){lastBeat=position();$('center').style.boxShadow='0 0 18px #fff';setTimeout(()=>$('center').style.boxShadow='',80);}
 let laneSource,laneQueue,laneStarted,laneTimes=[],laneNodes=[$('beat')];
 function renderBeatLane(){
@@ -384,7 +421,7 @@ function render(){
  finishButton.setAttribute('aria-label',finishButton.textContent);
  $('controls').dataset.finishReady=String(!finishButton.disabled);
  if(finishButton.disabled)cancelFinishHold();
- $('draw').disabled=!started||finished||run.phase!=='playing'||FanserviceEdge.active(run);$('tap').disabled=$('draw').disabled||paused;renderEdge();
+ $('draw').disabled=!started||finished||run.phase!=='playing'||FanserviceEdge.active(run);$('tap').disabled=$('draw').disabled||paused;renderEdge();renderTaunt();
 }
 function objectiveEvents(events){
  const beats=events.filter(e=>e.type==='card-beat');
@@ -478,7 +515,10 @@ function itemDependencies(){return {context:itemContext(),random:run.random,hook
  pill:effect=>{if(music)return false;const next=Math.max(.1,Math.min(5,speed*effect.speed));if(state.cardFlow&&!run.modifyCard(next,effect.timelineStrokes))return false;speed=next;return true;},
  openStore:()=>{if(run.tower&&run.phase==='playing')return false;renderInventory(true);if(!inventoryDialog.open)inventoryDialog.showModal();return true;},
  spawnSuccubus:({strokeAddend}={})=>FanserviceModifiers.options(state.modifiers).canSpawnSuccubi&&draw('succubus',{cardOptions:{apexLure:true,strokeAddend}}),
- punishment:(type,s)=>FanservicePunishment.roll(s.TimesTaunted||0,run.random),
+ // RollPunishmentChance reads TotalTauntsUsed (LegacyStats), not the
+ // EMetricType::TimesTaunted challenge metric — Firemouth taunts count
+ // toward the metric but not toward the punishment roll.
+ punishment:(type,s)=>FanservicePunishment.roll(s.TotalTauntsUsed||0,run.random),
  spawnPunishment:()=>spawnPunishment(),
  escape:()=>{if(music)return false;return draw(undefined,{force:true});}
  }};}

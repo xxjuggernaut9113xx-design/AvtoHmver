@@ -33,10 +33,10 @@ const root=path.resolve(__dirname,'../static/fanservice');let origin;const fixtu
     if(!run.inventory.hotbarItems.includes(1))throw Error('DecreaseHeat was not in the hotbar from the seeded loadout.');
     if(!run.inventory.grant(1,1,{mode:0}))throw Error('Could not seed the single DecreaseHeat charge.');
     if(state.card===3)draw('slow',{force:true});
-    state.heat=50;run.state.TimesTaunted=25;checkpoint(true);renderItemControls();
+    state.heat=50;run.state.TotalTauntsUsed=25;checkpoint(true);renderItemControls();
    });
    await page.clock.fastForward(2000);
-   const before=await page.evaluate(()=>({seconds:state.seconds,strokes:state.strokes,heat:state.heat,meter:state.meter,card:state.card,canUseItems:state.canUseItems,charges:run.inventory.state(1).charges,itemsUsed:run.state.ItemsUsed||0,generation:state.cardFlow?.generation}));
+   const before=await page.evaluate(()=>({seconds:state.seconds,strokes:state.strokes,heat:state.heat,meter:state.meter,card:state.card,canUseItems:state.canUseItems,charges:run.inventory.state(1).charges,itemsUsed:run.state.ItemsUsed||0,generation:state.cardFlow?.generation,countMultiplier:FanserviceRules.drawMultipliers(FanserviceRules.comboTier(state.combo),1,1).count}));
    assert(before.seconds>0&&before.strokes>0,'Normal controls must advance gameplay time and deliver strokes before the DecreaseHeat use');
    assert.equal(before.card===3,false,'The current card must not be a succubus card, so items are usable before the use');
    assert.equal(before.canUseItems,true,'Items must be usable before the use');
@@ -51,7 +51,7 @@ const root=path.resolve(__dirname,'../static/fanservice');let origin;const fixtu
    assert.equal(punished.punishment,true,'The spawned card must be stamped as the punishment card, not an Apex Lure draw');
    assert.equal(punished.travel,1.5);
    assert(punished.interval>=.28&&punished.interval<=.33,`Punishment interval must be the traced [0.28,0.33] roll, got ${punished.interval}`);
-   assert(punished.assigned>=30&&punished.assigned<=50,`Punishment strokes must be the traced [30,50] roll, got ${punished.assigned}`);
+   assert(punished.assigned>=Math.trunc(30*before.countMultiplier)&&punished.assigned<=Math.trunc(50*before.countMultiplier),`Punishment strokes must be the traced [30,50] roll times the combo count multiplier ${before.countMultiplier}, got ${punished.assigned}`);
    assert.equal(punished.heat,before.heat,'The punishment changes no heat: the DecreaseHeat effect is skipped');
    assert.equal(punished.meter,before.meter,'The punishment adds no cum meter: the DecreaseHeat effect is skipped');
    assert.equal(punished.canUseItems,false,'Items must be locked during the punishment event');
