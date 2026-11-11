@@ -94,7 +94,14 @@
   if(has(run,19)){e.tycoonElapsed+=seconds;const reward=Math.trunc(e.tycoonElapsed/60);if(reward>0){addSuccuCoins(run,reward);e.tycoonElapsed-=60*reward;}}
  }
  const sourceLedger=['RecoveredRules.cpp: BeatComplete, AddBeatLootReward, AddToLootBar, PrepareDrawState','RecoveredSession.cpp: GetLootIncrement','RecoveredCardDispatch.cpp: RollAndGiveLootDropsV2','RecoveredSuccuEconomy.cpp: catalog, currency, metric/action handlers, timers','RecoveredNewerItemRuntime.cpp: item-use metrics'];
+ // Native EMetricType ordinals for the counters itemUsed increments, from reJOIce
+ // Analysis/ReferenceBuilds/newer-20261017/native-reflection-enums.json (47 values;
+ // the older Analysis/native-reflection-enums.json has only 30, 0-29, which is why
+ // 30/31/35 looked unresolved): 8 ItemsUsed, 27 BonerPillsUsed,
+ // 30 DefensiveItemsUsed, 31 OffensiveItemsUsed, 34 LootRushesUsed,
+ // 35 EscapeRopesUsed, 39 ComboCrunchersUsed.
+ const metricIds={8:'ItemsUsed',27:'BonerPillsUsed',30:'DefensiveItemsUsed',31:'OffensiveItemsUsed',34:'LootRushesUsed',35:'EscapeRopesUsed',39:'ComboCrunchersUsed'};
  const shopIds=[0,1,2,3,4,5,6,7,9,10,11,12,13,16,17,18,19,20,21];
- const api={catalog,shopIds,initialize,has,fraction,heatCap,addHeat,addSuccuCoins,purchase,addBeatCoins,loot,beat,draw,succubusDefeated,itemUsed,recycler,advance,sourceLedger};
+ const api={catalog,shopIds,initialize,has,fraction,heatCap,addHeat,addSuccuCoins,purchase,addBeatCoins,loot,beat,draw,succubusDefeated,itemUsed,recycler,advance,sourceLedger,metricIds};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.FanserviceEconomy=api;
 })(globalThis);

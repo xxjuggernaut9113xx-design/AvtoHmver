@@ -241,3 +241,67 @@ it would conflate it with ApexLure's `spawnSuccubus`.
 - Type-0 (CumChance) punishment roll — no player item; nothing to wire.
 - Edge punishment roll (hotbar stmt 32) — lives in the edge system, not
   `items.js`; not touched in this slice.
+
+## Follow-up: enum file pinned by test; v004 native slice confirms Blueprint bodies are not native (2026-11-11)
+
+### UpdateMetric names — pinned by test, with the file citation
+The §2 resolution is now pinned in the repo, not just recorded here:
+`static/fanservice/economy.js` exports `metricIds`
+(`{8:'ItemsUsed', 27:'BonerPillsUsed', 30:'DefensiveItemsUsed',
+31:'OffensiveItemsUsed', 34:'LootRushesUsed', 35:'EscapeRopesUsed',
+39:'ComboCrunchersUsed'}`), and
+`tests/fanservice_economy.test.js` ("item-use counters use the native
+EMetricType names for ordinals 30/31/35") asserts the 30/31/35 entries and
+drives `economy.itemUsed` for types 10/13/5/11/9/12, asserting the counters
+incremented are exactly the resolved names. Correction to the §2 framing:
+the names were found in
+`Analysis/ReferenceBuilds/newer-20261017/native-reflection-enums.json`,
+whose `EMetricType` has **47** values — verified directly (entries 30/31/35
+read back as `DefensiveItemsUsed`/`OffensiveItemsUsed`/`EscapeRopesUsed`
+with matching `value` fields). The reason they looked unresolved earlier is
+the older `Analysis/native-reflection-enums.json`, whose `EMetricType` has
+only **30** values (0–29, last `CameDuringTaunt`), so 30/31/35 are absent
+there. Both files were re-read to confirm this; the newer file is the
+authority for ordinals ≥ 30.
+
+### reJOIce materials-v004: Blueprint functions are not in the native PDB
+The v004 release assets at `~/workspace/rejoice-evidence/materials-v004/`
+were checked: `completed-native-slice-v004.zip` (Ghidra project, extracted
+to `slice/`) and `shipping-native-v004.zip` (v004 shipping `CockHero.exe`
+259 MB + `CockHero.pdb` 310 MB, extracted to
+`shipping/CockHero/Binaries/Win64/`). The repo's PDB-scan approach (adapted
+copy at `work/sym_scan.py`) was run against the v004 PDB: its public-symbol
+stream (43 hits) has **zero** symbols for `StartFromBeatmap`,
+`UseEscapeRope`, `Favorite`, `RollFavorites`, `AllowedtoCum`, or
+`CumButtonFlash` — those are Blueprint functions, not native C++ exports,
+so their bodies are **not** in the exe. Present as native exports:
+`UpdateMetric` (2 hits, incl. `UpdateMetricWithConditions`) and
+`RecordSessionMetric` (1 hit) on `UProgressionManager` — consistent with
+the #50 trace (the native routines exist; the in-session producer call
+bodies are Blueprint/not retained). Consequence for the blocked items:
+- #51 (offset): the blocker is unchanged — `StartFromBeatmap` /
+  `StartFromBeatmapWithMediaSync` bodies are not in the native slice and
+  were never going to be; they live in the cooked Blueprint packages.
+- #44 favorites: unchanged — no retained caller for
+  `AddFavoriteCardToArray` in the retained ASTs, and the PDB confirms the
+  favorites functions are not native exports either.
+- #44 loops/overlay (widget animations, CumButtonFlash loops): unchanged —
+  no widget animation data in the retained ASTs, and the PDB has no
+  `CumButtonFlash` symbol; the animations live in the cooked packages.
+- Do **not** install Ghidra/Java for the slice project unless the cooked
+  packages fail to answer a question — the slice is native-only and will
+  not contain Blueprint bodies.
+
+### Cooked packages — now present, not yet read
+`original-cooked-packages-v004.zip` (863 MB) is downloaded and extracted to
+`cooked/CockHero/Content/Paks/` (IoStore format:
+`CockHero-Windows.pak` 19 MB + `CockHero-Windows.ucas` 801 MB +
+`CockHero-Windows.utoc` 2.4 MB, plus `global.ucas`/`global.utoc`). The
+packages have **not** been unpacked or parsed, so no new Blueprint
+conclusion is drawn from them here. They are the named next evidence source
+for #51's `StartFromBeatmap` bodies and #44's widget animations — both stay
+blocked until the relevant Blueprint function/animation data is read out of
+them. Note the build difference: the cooked packages are v004, while the
+reference-build ASTs/enums used elsewhere in this note are
+newer-20261017 — any evidence taken from v004 needs its build
+correspondence stated, as was done for the card-rules hash.

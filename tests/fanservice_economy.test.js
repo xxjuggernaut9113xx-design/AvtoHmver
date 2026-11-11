@@ -44,6 +44,22 @@ test('item use records the native specific metrics',()=>{
  const run=session({modifiers:['Hot Hands']});run.ownedModifiers=[4,0];run.state.heat=74;economy.itemUsed(run,10,'Defensive');assert.equal(run.state.heat,75);assert.equal(run.state.ItemsUsed,1);assert.equal(run.state.DefensiveItemsUsed,1);assert.equal(run.state.EscapeRopesUsed,1);
  economy.itemUsed(run,5,'Offensive');assert.equal(run.state.heat,75);assert.equal(run.state.BonerPillsUsed,1);economy.itemUsed(run,11,'Offensive');assert.equal(run.state.LootRushesUsed,1);economy.itemUsed(run,13,'Defensive');assert.equal(run.state.ComboCrunchersUsed,1);
 });
+test('item-use counters use the native EMetricType names for ordinals 30/31/35',()=>{
+ // reJOIce Analysis/ReferenceBuilds/newer-20261017/native-reflection-enums.json
+ // lists EMetricType with 47 values (30 DefensiveItemsUsed, 31 OffensiveItemsUsed,
+ // 35 EscapeRopesUsed); the older Analysis/native-reflection-enums.json has only
+ // 30 values (0-29), which is why those ordinals looked unresolved.
+ assert.deepEqual([economy.metricIds[30],economy.metricIds[31],economy.metricIds[35]],['DefensiveItemsUsed','OffensiveItemsUsed','EscapeRopesUsed']);
+ assert.equal(economy.metricIds[8],'ItemsUsed');assert.equal(economy.metricIds[27],'BonerPillsUsed');assert.equal(economy.metricIds[34],'LootRushesUsed');assert.equal(economy.metricIds[39],'ComboCrunchersUsed');
+ // Each counter itemUsed increments is one of the resolved names: Escape Rope
+ // (10) touches 8, 30 and 35; Combo Cruncher (13) 8, 30 and 39; Boner Pill (5)
+ // 8, 31 and 27; Loot Rush (11) 8, 31 and 34; types 9/12 touch 8 and 31 only.
+ const rope=session();economy.itemUsed(rope,10,'Defensive');assert.equal(rope.state[economy.metricIds[8]],1);assert.equal(rope.state[economy.metricIds[30]],1);assert.equal(rope.state[economy.metricIds[35]],1);
+ const cruncher=session();economy.itemUsed(cruncher,13,'Defensive');assert.equal(cruncher.state[economy.metricIds[8]],1);assert.equal(cruncher.state[economy.metricIds[30]],1);assert.equal(cruncher.state[economy.metricIds[39]],1);
+ const pill=session();economy.itemUsed(pill,5,'Offensive');assert.equal(pill.state[economy.metricIds[8]],1);assert.equal(pill.state[economy.metricIds[31]],1);assert.equal(pill.state[economy.metricIds[27]],1);
+ const rush=session();economy.itemUsed(rush,11,'Offensive');assert.equal(rush.state[economy.metricIds[8]],1);assert.equal(rush.state[economy.metricIds[31]],1);assert.equal(rush.state[economy.metricIds[34]],1);
+ for(const type of [9,12]){const run=session();economy.itemUsed(run,type,'Offensive');assert.equal(run.state[economy.metricIds[8]],1);assert.equal(run.state[economy.metricIds[31]],1);assert.equal(run.state[economy.metricIds[30]],undefined);}
+});
 test('Heat Spell reduces heat only on the ActivateItem branches that call ApplyHeatSpellEffect',()=>{
  // ActivateItem stmts 30, 42, 53, 74, 91, 102 call ApplyHeatSpellEffect for
  // types 0, 1, 3, 6, 7 and for Break outside Playlist mode; Escape Rope (10)
