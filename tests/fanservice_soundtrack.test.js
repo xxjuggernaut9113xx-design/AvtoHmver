@@ -14,9 +14,23 @@ test('recording, library, selected track and stream mismatches fail before playb
  }
 });
 
-test('recording-bound map rejects duration mismatch, invalid BPM, empty beats and unapplied offsets',()=>{
- for(const change of [m=>m.beatmap.meta.duration=12,m=>m.beatmap.meta.bpm=0,m=>m.beatmap.meta.bpm=401,m=>m.beatmap.meta.offset=.25,m=>m.beatmap.beats=[],m=>m.beatmap.events={}]){
+test('recording-bound map rejects duration mismatch, invalid BPM and empty beats',()=>{
+ for(const change of [m=>m.beatmap.meta.duration=12,m=>m.beatmap.meta.bpm=0,m=>m.beatmap.meta.bpm=401,m=>m.beatmap.meta.offset=NaN,m=>m.beatmap.beats=[],m=>m.beatmap.events={}]){
   const music=fixture();change(music);assert.throws(()=>validate(music),/metadata/);
+ }
+});
+
+test('nonzero beatmap offsets from the official maps are accepted and ignored, never applied',()=>{
+ // v0.05.1 official maps: Instructions_Unclear +0.004, Lil_Brat -0.013,
+ // Pleasure_Place +0.016. ParseBeatmapJson stores FBeatmapMeta.Offset once
+ // and no code reads it (ticket51-startfrombeatmap-disassembly-20261111);
+ // the player accepts the field and plays the authored times as-is.
+ for(const offset of [.004,-.013,.016]){
+  const music=fixture();music.beatmap.meta.offset=offset;
+  assert.equal(validate(music),music);
+  assert.equal(music.beatmap.meta.offset,offset);
+  assert.equal(music.beatmap.beats[0].time,.25);
+  assert.equal(music.beatmap.events[0].time,.25);
  }
 });
 

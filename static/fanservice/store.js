@@ -49,7 +49,14 @@
   const object=item=>item!==null&&typeof item==='object'&&!Array.isArray(item),finite=Number.isFinite;
   if(!object(value)||value.protocol!==1||typeof value.library_id!=='string'||!value.library_id||libraryId!==undefined&&value.library_id!==libraryId||!Number.isSafeInteger(value.track_id)||value.track_id<1||trackId!==undefined&&value.track_id!==trackId||!/^sha1:[a-f0-9]{40}$/.test(value.recording_id)||!finite(value.duration)||value.duration<=0||value.stream_url!==`/api/music/tracks/${value.track_id}/stream?browser=true`||value.native_stream_url!==undefined&&value.native_stream_url!==`/api/music/tracks/${value.track_id}/stream?native=true`||value.offset!==undefined&&(!finite(value.offset)||Math.abs(value.offset)>60))throw Error('Soundtrack identity or stream does not match its confirmed recording.');
   const map=value.beatmap;
-  if(!object(map)||!object(map.meta)||!finite(map.meta.duration)||Math.abs(map.meta.duration-value.duration)>.1||!finite(map.meta.bpm)||map.meta.bpm<20||map.meta.bpm>400||map.meta.offset!==undefined&&map.meta.offset!==0||!Array.isArray(map.beats)||!map.beats.length||map.beats.length>100000||!Array.isArray(map.events)||map.events.length>10000)throw Error('Soundtrack beatmap metadata does not match its recording.');
+  // meta.offset is accepted and ignored: the original's ParseBeatmapJson
+  // stores FBeatmapMeta.Offset once and no code reads it
+  // (ticket51-startfrombeatmap-disassembly-20261111), so the three official
+  // maps with nonzero offsets (Instructions_Unclear +0.004, Lil_Brat
+  // -0.013, Pleasure_Place +0.016) play at their authored times. The
+  // value-level offset above (the recording's stream offset) is a
+  // different field and keeps its |offset| <= 60 bound.
+  if(!object(map)||!object(map.meta)||!finite(map.meta.duration)||Math.abs(map.meta.duration-value.duration)>.1||!finite(map.meta.bpm)||map.meta.bpm<20||map.meta.bpm>400||map.meta.offset!==undefined&&!finite(map.meta.offset)||!Array.isArray(map.beats)||!map.beats.length||map.beats.length>100000||!Array.isArray(map.events)||map.events.length>10000)throw Error('Soundtrack beatmap metadata does not match its recording.');
   let previous=-1;
   for(const beat of map.beats){if(!object(beat)||!finite(beat.time)||beat.time<previous||beat.time<0||beat.time>value.duration||!['stroke','rest','accent'].includes(beat.type))throw Error('Soundtrack beats must be sorted and remain inside the recording.');previous=beat.time;}
   const supported=new Set(['media_change','cycle_media','speed_change','background','text','disable_break','restore_break','grant_break','dialogue','edge','cum_event']);previous=-1;
