@@ -1,0 +1,78 @@
+{
+  "ticket": 57,
+  "sourceCommit": "164a5743",
+  "package": "org.fanservice.viewer",
+  "versionName": "0.3.11",
+  "versionCode": 311,
+  "versionBumped": false,
+  "apkSha256": "255e8bab33c19ce0c25d8dd5b88d8bfc8b58a7d89759312d35277add545c6583",
+  "signerCertificateSha256": "60b891b9af05e07549b69fd7f1f114774366a86e338555b869f68f6a3b40c7ac",
+  "build": "offline assembleDebug succeeded after npm run sync; one worker; heap 1536 MiB; Gradle home and Java temp on E:",
+  "upgrade": {
+    "action": "adb install -r",
+    "result": "success",
+    "uninstallOrDataClear": false,
+    "emulator": "dedicated retry-check Android 35 AVD via ADB server 5038",
+    "firstInstallTimePreserved": true
+  },
+  "preservedData": {
+    "origin": "http://localhost",
+    "activeServer": "http://127.0.0.1:42178",
+    "profileMarker": "{\"migrationMarker\":\"retry-profile\"}",
+    "settingsMarker": "retry-old-origin",
+    "deviceMarker": "retry-test-device",
+    "observedFileRecords": 22,
+    "snapshots": 8,
+    "mediaBytes": 8388608,
+    "mediaSha256": "6ae9b6804f4e5b3fa5fd1d0bcb6ceb14aea5bd149f0e183da1b65b4207e5eb8b",
+    "sessionPinAndCompoundSnapshot": "verified in ticket57-android-upgrade-f9c7a9a2-20261108.json before this upgrade; file/snapshot counts and markers remained present after this upgrade",
+    "syntheticPack": {
+      "name": "Android Acceptance Retry 20261109",
+      "libraryId": "test-instance",
+      "selectedServerIds": [1, 2, 3],
+      "owned": true,
+      "enabled": true
+    }
+  },
+  "nativeConnection": {
+    "selectedServerThroughConnectionUi": "http://127.0.0.1:42178",
+    "webViewOriginAfterConnect": "http://localhost",
+    "remoteLibraryLoaded": true,
+    "trackListLoaded": true
+  },
+  "classicPlayback": {
+    "startedInNativeWebView": true,
+    "beatsDelivered": 43,
+    "pauseResumeVerified": true
+  },
+  "musicPlayback": {
+    "trackId": 1,
+    "title": "synthetic-tone.m4a",
+    "codec": "AAC",
+    "durationSeconds": 12.004717,
+    "readyState": 4,
+    "beatsDelivered": 24,
+    "beatCursor": "24/24",
+    "eventCursor": "5/5",
+    "pauseHeldAudioAndEventClock": true,
+    "resumeAdvancedAudioAndEventClock": true,
+    "naturalCompletion": true,
+    "settlementOnce": {
+      "xp": 66,
+      "unlockPoints": 10,
+      "checkpointRemoved": true,
+      "packOwnershipRetained": true
+    }
+  },
+  "singleRefocusEdge": {
+    "pagehidePageshowSimulated": true,
+    "preInterruptionEdgeActive": false,
+    "resumeTaskFlag": true,
+    "returnEdgeCompleted": true,
+    "ordinaryPoolRestored": "slow",
+    "returnEdgeCleared": true,
+    "edgePhaseAfterReturn": "idle",
+    "canUseItemsAfterReturn": true
+  },
+  "activeEdgeRefocus": "A separate test interrupted after triggering an Edge; the in-progress Edge card resumed with its ordinary task retained in returnEdge."
+}

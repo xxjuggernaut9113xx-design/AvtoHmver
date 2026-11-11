@@ -1,0 +1,22 @@
+{
+  "ticket": 57,
+  "package": "org.fanservice.viewer",
+  "baselineVersion": "0.3.11",
+  "baselineVersionCode": 311,
+  "baselineApkSha256": "feeea0837036a0c39859d8854ff19f6578906f8170aac57b1ee0d68b63e2c038",
+  "signerCertificateSha256": "60b891b9af05e07549b69fd7f1f114774366a86e338555b869f68f6a3b40c7ac",
+  "emulator": "dedicated retry-check Android 35 AVD",
+  "install": "baseline package installed; no uninstall or data clear",
+  "seedOrigin": "http://localhost",
+  "seededProfile": true,
+  "seededSettingsMarker": "retry-old-origin",
+  "seededDeviceMarker": "retry-test-device",
+  "seedScriptFileRecords": 6,
+  "observedFileRecordsAfterSeed": 22,
+  "observedSnapshots": 8,
+  "mediaBytes": 8388608,
+  "mediaSha256": "6ae9b6804f4e5b3fa5fd1d0bcb6ceb14aea5bd149f0e183da1b65b4207e5eb8b",
+  "sessionPinVerified": true,
+  "compoundSnapshotVerified": true,
+  "postSeedVerification": "passed"
+}

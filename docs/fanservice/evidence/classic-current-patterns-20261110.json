@@ -1,0 +1,59 @@
+{
+  "authority": "Selected installed asset class defaults and executable Blueprint bytecode",
+  "installed_exe_sha256": "a8f46896593d8724cefb9a232db5772df48ae5731da78cfacbec82e98d040c10",
+  "installed_utoc_sha256": "6b529fc3023c8e4d0a0781a8660a1c134da811a7e702f00693c872cbcb0eafef",
+  "uasset_sha256": "b5b2263b3b72a891dbd9a50d4e17f56800c78628a99ce175dae4e731c0ce278c",
+  "uexp_sha256": "afa93bef1b33b73c3b6d6eca7b088e952ad67647252ea1227dcf9586ed09396d",
+  "partial_cdo_json_sha256": "af81369b98a00658012eba800fbd5d43c257e4be9dd9bcb35d1d9ef45b4ed48f",
+  "bytecode_json_sha256": "1f6afef3bed97469047b5f37de49d79b04ab70239766b8c6e9419aadae18862b",
+  "mapping_sha256": "ed51d6ceafd0cd9bd623dabceb4e71c9fdc3b121deb87c4dd5df5161f4fcd726",
+  "uassetapi_sha256": "d7b9fd4341ac22dd9ab8d9f49455ea5ebcf571abced64313ab15eb1944de07d9",
+  "compared_card_rules_sha256": "4fc26316d9522d3429c0532427485bf857fc03c5d82731d6721cb075b5281bf4",
+  "defaults": {
+    "Beat Travel Time": 1.75,
+    "LowestBeatIntervalClamp": 0.28
+  },
+  "matching_runtime_banks": {
+    "slow": ["1-1", "Rising 0-10", "12-Rest", "123 (ascend) - 321 (descend)", "1-1-1-rest", "1-12-rest-12-1", "987654321-123456789 (ascend descend)", "1-1-12-1-123"],
+    "medium": ["1-1", "123456-Rest", "12-12", "123-123", "1234-1-1", "123-1-1", "1-1-1-1-1234", "1-12-1-12", "12-1-123"],
+    "fast": ["1-1", "1-1-123", "12345678-Rest", "123456-1", "1-1-1-123456-1-1-1-123", "123-123", "1234-1234", "12345-12345", "123456-123456", "1234567-1234567", "1-1-1234", "123-1-1-1", "1-1-1-1-1234567", "1234-rest-12345-rest-123456-rest-1234567"],
+    "succubus": ["0.5-Loop", "1-1", "12-12-123", "123456-123", "0.5-1", "123456789-1", "1234-1234", "12345-12345", "123456-123456", "123456789(10)"],
+    "frenzy": ["12345-12345", "HyperSpeed 1-1", "Hyper Speed Bursts"]
+  },
+  "additional_original_banks": {
+    "cum": [
+      {"name": "1-1", "intervals": [1]},
+      {"name": "1-1-1-1-123456", "intervals": [1,1,1,1,0.5,0.5,0.5,0.5,0.5,0.5]},
+      {"name": "1-1-12345", "intervals": [1,1,0.5,0.5,0.5,0.5,-1]},
+      {"name": "123456789-rest", "intervals": [0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,1.5]},
+      {"name": "1234-1234", "intervals": [1,1,1,1.5]}
+    ],
+    "edging": [
+      {"name": "1-1", "intervals": [1]},
+      {"name": "12-12", "intervals": [1,1.5]},
+      {"name": "1-1-123", "intervals": [1,1,0.75,0.75,0.75]},
+      {"name": "1-12-1-12", "intervals": [1.5,0.75,0.75]},
+      {"name": "12-1-123-1", "intervals": [0.75,1.5,0.75,0.75,0.75,1.5]},
+      {"name": "1234-1-1", "intervals": [1,1,1,1,1.5,1.5]},
+      {"name": "1234567-1-1", "intervals": [0.75,0.75,0.75,0.75,0.75,0.75,0.75,2,2]},
+      {"name": "123-123", "intervals": [1,1,1.5]},
+      {"name": "12-12-12-123456", "intervals": [1,1.5,1,1.5,1,1.5,0.75,0.75,0.75,0.75,0.75,0.75]}
+    ]
+  },
+  "array_random_and_start_pattern_statement_pairs": {
+    "slow": [[1154,1155], [2241,2243]],
+    "medium": [[1112,1114], [2259,2261]],
+    "fast": [[841,843], [2304,2306]],
+    "cum": [[1782,1783]],
+    "full_meter_override_fast": [[1604,1606]]
+  },
+  "release_paths": {
+    "CumEventOverride": {"entry_offset": 73198, "entry_statement": 1776, "bank": "cum", "travel_field": "Beat Travel Time"},
+    "Spawn100PercentCumMeterOverrideEvent": {"entry_offset": 66033, "entry_statement": 1598, "bank": "fast", "travel_seconds": 1.5}
+  },
+  "limits": [
+    "Partial CDO decoder stops after 115 parsed properties at CHPackMediaEntry schema index 4.",
+    "Asset-to-executable linkage is based on the selected installed build, with individual hashes retained.",
+    "Class defaults and static call sites do not establish runtime widget delivery, cue timing or every difficulty override."
+  ]
+}

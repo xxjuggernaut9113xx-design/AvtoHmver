@@ -1,0 +1,45 @@
+{
+  "ticket": 57,
+  "sourceCommit": "f9c7a9a2",
+  "package": "org.fanservice.viewer",
+  "versionName": "0.3.11",
+  "versionCode": 311,
+  "versionBumped": false,
+  "apkSha256": "2b6327cc58a0a8ff80027b983af0458f199a4783d13335d5b742d1847707b70d",
+  "signerCertificateSha256": "60b891b9af05e07549b69fd7f1f114774366a86e338555b869f68f6a3b40c7ac",
+  "build": "offline assembleDebug succeeded; one worker; heap 1536 MiB; Gradle and Java temp/cache on E",
+  "upgrade": {
+    "action": "adb install -r",
+    "result": "success",
+    "uninstallOrDataClear": false,
+    "emulator": "dedicated retry-check Android 35 AVD"
+  },
+  "preservedData": {
+    "origin": "http://localhost",
+    "profileMarker": "{\"migrationMarker\":\"retry-profile\"}",
+    "settingsMarker": "retry-old-origin",
+    "deviceMarker": "retry-test-device",
+    "observedFileRecords": 22,
+    "snapshots": 8,
+    "mediaBytes": 8388608,
+    "mediaSha256": "6ae9b6804f4e5b3fa5fd1d0bcb6ceb14aea5bd149f0e183da1b65b4207e5eb8b",
+    "sessionPin": true,
+    "compoundSnapshot": true
+  },
+  "remoteFixture": {
+    "neutral": true,
+    "capabilitiesStatus": 200,
+    "webviewOrigin": "http://localhost",
+    "apiOrigin": "http://127.0.0.1:42178",
+    "fetchType": "cors",
+    "musicStreamingCapability": true,
+    "trackListStatus": 200,
+    "trackCount": 1,
+    "manifestStatus": 200,
+    "audioPlayback": "muted 12-second AAC decoded in installed WebView",
+    "durationSeconds": 12,
+    "readyState": 4,
+    "playbackClockSeconds": 1.002
+  },
+  "integrationLimit": "Native Connection handoff still opens Chrome instead of retaining the app WebView; full gameplay session controls not yet exercised."
+}
