@@ -40,7 +40,7 @@
   else if(type===4){const duration=context.mode===2?context.breakDuration:[5,10,15,25,50][i];if(!Number.isFinite(duration)||hooks.beginBreak(duration)===false)return fail('Break unavailable');state.combo=0;state.cumMeter=Math.min(1,(state.cumMeter||0)+.01);}
   else if(type===5){const effect={strokeMultiplier:[2,2.5,3,3,4][i],intervalDivisor:[2,2,2,3,5][i],coinMultiplier:[2,2,2,3,3][i],speed:[2,2,3,5,6][i],timelineStrokes:[2,2,3,3,4][i]};if(hooks.pill(effect)===false)return fail('Timeline rejected');state.strokeCount=Math.trunc(state.strokeCount*effect.strokeMultiplier);state.beatInterval=Math.max(context.minimumBeatInterval||.05,Math.min(1,state.beatInterval/effect.intervalDivisor));state.coinMultiplier=effect.coinMultiplier;state.cardType=2;state.canUseBonerPill=false;e.temptationRemaining=60;}
   else if(type===6){state.shieldToggled=!state.shieldToggled;applyAllOrNothing();return {ok:true,consumed:false};}
-  else if(type===7){e.resupplyRemaining=2;applyAllOrNothing();if(requireHook('itemUsed'))hooks.itemUsed(type,state);return {ok:true,pending:true};}
+  else if(type===7){e.resupplyRemaining=2;state.combo=0;applyAllOrNothing();if(requireHook('itemUsed'))hooks.itemUsed(type);return {ok:true,pending:true};}
   else if(type===9){if(hooks.spawnSuccubus({strokeAddend:[2,1.5,1,.5,0][i]})===false)return fail('Succubus unavailable');}
   else if(type===10){if(hooks.escape()===false)return fail('Escape unavailable');state.combo=0;}
   else if(type===11){e.lootRushRemaining=[15,20,30,40,50][i];e.lootRushBonus=[.5,.75,1,1.25,1.5][i];state.lootBarMultiplier=(state.lootBarMultiplier===undefined?1:state.lootBarMultiplier)+e.lootRushBonus;}
