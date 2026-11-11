@@ -144,18 +144,28 @@ The CDO also holds the **15 taunt/succubus dialogue lines**, each with a
 voicelines the taunt system draws from; the selection/weighting logic was not
 decoded in this pass.
 
-## Parser gap (blocks full ubergraph parse)
+## Parser gap — RESOLVED (2026-11-11, Task 3)
 
 The UI_Manager ubergraph script (export offset 13633, icode 25010, storage
-34198) does **not** parse end-to-end with the session's kismet2 parser: it
-fails at storage offset 53 with unhandled token **0x91 (145)**. The token
-appears as the first operand of an `EX_BindDelegate` (0x61) at storage 52.
-0x91 is not a standard EExprToken (named tokens stop at 0x6D = 109), so this
-is either a parser misalignment just before that point or a newer token.
-The `TauntCumAdd` reference above was found by targeted byte search instead
-of a full parse. The GM ubergraph (187,685 bytes) is likewise unparsed.
-Resolving the 0x91 token would unblock full ubergraph parsing for both
-packages (and the frenzy-trigger bodies in the GM ubergraph).
+34198) and the GM ubergraph (187,685-byte export; script icode 99921,
+storage 138381) now parse end-to-end with the fixed session parser
+(`work/kismet2.py`): UI_Manager 704 stmts, 0 errors, icode 25009/25010;
+GM 2569 stmts, 0 errors, icode 99920/99921 (each off by 1 = the EndOfScript
+byte). **0x91 was NOT a new token.** It was a parser misalignment:
+`EX_BindDelegate` (0x61) is `FName FunctionName + Delegate expr +
+ObjectTerm expr` (UAssetAPI `EX_BindDelegate.cs`), but the parser read it
+as two bare expressions, so the FName's first byte (name index 657 = 0x91)
+was mistaken for a token. Four more UAssetAPI-verified layouts were fixed
+in the same pass (`EX_ClearMulticastDelegate` 0x5d = one expr;
+`EX_CallMulticastDelegate` 0x63 = FPackageIndex + Delegate expr + params;
+`EX_TextConst` 0x29 = FScriptText with a TextLiteralType byte and nested
+string expressions, not raw FStrings; `EX_InterfaceContext` 0x51 = one expr
+only) plus large-world vector sizes (`EX_VectorConst`/`EX_RotationConst` =
+3 doubles, 24 B; `EX_TransformConst` = 80 B). The fix lives in the evidence
+work dir, not in this repo. The `TauntCumAdd` reference above was found by
+targeted byte search; the full ubergraph parse is now unblocked, and the
+frenzy-event bodies and `AddFavoriteMedia` / `InitializeFavoriteLikelihood`
+were decoded with it (see `ticket44-favorites-blueprint-20261111.md`).
 
 ## What this settles / leaves open for #48 (taunt)
 

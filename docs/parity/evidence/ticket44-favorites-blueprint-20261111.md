@@ -103,18 +103,37 @@ param.
 So the injection roll is a **1–100 roll, success iff roll ≤
 FavoritesLikelyhoodPercent**. This refines the implementation agent's "0–99
 roll" (a 1–100 roll with `<=` is equivalent in probability to 0–99 with `<`,
-but the exact form is now pinned). The player's favorites.js default threshold
-10 is recorded as the Blueprint-side FavoritesLikelyhoodPercent, not a native
-fact; the default value itself was NOT re-verified in this pass
-(`InitializeFavoriteLikelihood`, UI_Manager, 2,079 bytes, resisted the script
-scan — likely an unhandled token in its script).
+but the exact form is now pinned). The threshold default is **PINNED to 10**
+(2026-11-11, Task 3): `FavoritesLikelyhoodPercent` is GM class property
+#243 (IntProperty, 4 B) and its CDO default is 10 (reJOIce
+`blueprint-class-defaults.json`, `BP_GlobalManager_C` defaults, verified
+`byte_identical_roundtrip: True`, `failures: []`). The player's favorites.js
+default threshold 10 is therefore correct as a Blueprint fact; only the
+native controller+0x30 provenance (own CDO vs Blueprint-set) remains
+unestablished — do not treat 10 as a native fact.
 
 ## Frenzy trigger gate — `FavoriteFrenzyEligibilityCheck`
 
 Export 596 bytes. Script at export offset 291, icode 193, storage 293,
-11 stmts. Calls native `HasEnoughFavoriteFrenzyCards(3)` and checks
-`IsFavoriteFrenzyOnCooldown?`. The frenzy trigger gate is **≥3 favorite cards
-AND not on cooldown**.
+11 stmts (parsed end-to-end with the fixed kismet2 parser, 2026-11-11).
+Exact logic:
+```
+IsEligible = true
+NOT_OnCooldown = NOT(IsFavoriteFrenzyOnCooldown?)          // Not_PreBool
+HasEnough = MediaPlaybackManager.HasEnoughFavoriteFrenzyCards(3)
+Eligible = HasEnough AND NOT_OnCooldown                     // BooleanAND
+if (Eligible) IsEligible = true; else IsEligible = false;
+return Eligible? = IsEligible
+```
+The frenzy trigger gate is **≥3 favorite cards AND not on cooldown**
+(a BooleanAND of the two). The cooldown duration is **120 s**:
+`Master_FavoriteFrenzyCooldownSeconds = 120.0` (GM CDO, property #302,
+DoubleProperty; `Current_FavoriteFrenzyCooldownSeconds` #303,
+`IsFavoriteFrenzyOnCooldown?` #301, `FavoriteFrenzyTimerHandle` #304).
+The GM ubergraph carries the matching debug strings "Favorite Frenzy On
+Cooldown" and "Favorite Frenzy Off Cooldown, Eligible for Draw" plus
+"Timer Cooldown Over". The player's favorites.js does not yet model the
+frenzy trigger/cooldown (120 s) or the frenzy event itself.
 
 `CheckAndUpdateFavoriteUI` (699 bytes; script at 183, icode 408, storage 504,
 11 stmts) references `FavoritesIcon`, `GameModeSelection`,
@@ -130,14 +149,61 @@ Return). Whatever they were for, they do nothing in this build.
 `StartFavoriteFrenzyCooldown` are 52-byte stubs → GM ubergraph entries 81592 /
 78910 / 79218 (bodies live in the 187,685-byte GM ubergraph, not yet parsed).
 
-## Parse gaps
+## `AddFavoriteMedia` — decoded (GM, toggle on the save array)
 
-- `AddFavoriteMedia` (GM, 2,349 bytes): script NOT found — best scan candidate
-  at export offset 512 (icode 1341, storage 1817) parses only 14 statements
-  before failing at script offset 1070 with 'fstring past end' (unhandled
-  construct in the parser); its body is undecoded.
-- `InitializeFavoriteLikelihood` (UI_Manager, 2,079 bytes): resisted the
-  script scan.
+Export 2,349 bytes. Script at export offset 520, icode 1341, storage 1817,
+24 stmts (parsed end-to-end with the fixed kismet2 parser, 2026-11-11).
+It toggles `SelectedRandomCard` in
+`GameInstance.CurrentSave.AllFavoritedCards_Array`:
+```
+if (AllFavoritedCards_Array.Contains(SelectedRandomCard)):
+    AllFavoritedCards_Array.RemoveItem(SelectedRandomCard)
+    UIManager.CreateNotificationBox("Removed Favorite", "Media has been removed from favorites", ...)
+    GameInstance.SaveAllData()
+    (debug-print the card name, 2.0 s)
+    MediaPlaybackManager.ToggleFavorite(SelectedRandomCard)   // native
+    CheckAndUpdateFavoriteUI(ToggleFavorite_ReturnValue, true)
+    return
+else:
+    AllFavoritedCards_Array.Add(SelectedRandomCard)
+    UIManager.CreateNotificationBox("Added Favorite", "Media has been added to favorties", ...)  // sic: "favorties" in the original
+    return
+```
+Note the asymmetry: the native `ToggleFavorite` (registry sync) and the
+UI refresh run only on the remove path; the add path only appends to the
+save array and notifies. No Blueprint caller of `AddFavoriteMedia` was
+found in this pass.
+
+## `InitializeFavoriteLikelihood` — decoded (UI_Manager)
+
+Export 2,079 bytes. Script at export offset 565, icode 942, storage 1502,
+22 stmts (parsed end-to-end with the fixed kismet2 parser, 2026-11-11).
+It READS `GlobalManagerRef.FavoritesLikelyhoodPercent` (a GM property, not
+a UI_Manager one) and `FavoritePercentage`, formats them into a
+`FormatArgumentData` struct (`ArgumentName`/`ArgumentValue`/`ArgumentValueInt`
+etc.), and sets `FavoritesFrequencyText` / `FavoritesFrequencySlider`. It
+does not set the default — the default (10) lives in the GM CDO (see the
+`RollFavoritesChance` section above).
+
+## Parser fix (2026-11-11, Task 3) — the 0x91 token is resolved
+
+0x91 was NOT a new token. It was a parser misalignment: `EX_BindDelegate`
+(0x61) is `FName FunctionName + Delegate expr + ObjectTerm expr`
+(UAssetAPI `EX_BindDelegate.cs`), but the session parser read it as two
+bare expressions, so the FName's first byte (a name index, e.g. 0x91) was
+mistaken for a token. Fixing that plus four more UAssetAPI-verified layouts
+(`EX_ClearMulticastDelegate` 0x5d = one expr; `EX_CallMulticastDelegate`
+0x63 = FPackageIndex + Delegate expr + params; `EX_TextConst` 0x29 =
+FScriptText with a TextLiteralType byte and nested string expressions, not
+raw FStrings; `EX_InterfaceContext` 0x51 = one expr only, not the Context
+layout) and the large-world vector sizes (`EX_VectorConst`/`EX_RotationConst`
+0x22/0x23 = 3 doubles, 24 B; `EX_TransformConst` 0x2b = 80 B) in
+`work/kismet2.py` makes BOTH ubergraphs parse end-to-end: UI_Manager
+(704 stmts, 0 errors, icode 25009/25010) and GM (2569 stmts, 0 errors,
+icode 99920/99921). The 0x91 gap in `ticket48-taunt-cumadd-20261111.md` is
+therefore closed; the parser fix itself lives in the evidence work dir
+(`~/workspace/rejoice-evidence/cockhero-itch/work/kismet2.py`), not in
+this repo.
 
 ## GM name-map extras relevant to #44
 
@@ -169,8 +235,9 @@ Return). Whatever they were for, they do nothing in this build.
   The player's Favorite button is wired to its own favorites.js toggle; that
   matches the toggle semantics above, but the original's exact call path is
   unconfirmed.
-- `AddFavoriteMedia` body undecoded; `InitializeFavoriteLikelihood`
-  (the FavoritesLikelyhoodPercent default) undecoded.
+- No Blueprint caller of `AddFavoriteMedia` found in this pass.
 - Frenzy trigger bodies (`FavoriteFrenzyEvent`, cooldown progress/start) live
-  in the unparsed GM ubergraph.
+  in the GM ubergraph (now parseable end-to-end with the fixed parser); the
+  trigger gate and 120 s cooldown are decoded above, but the frenzy event
+  itself and its overlay are not yet modeled in the player.
 - The loops/overlay half of #44 is in `ticket44-loops-overlay-20261111.md`.
