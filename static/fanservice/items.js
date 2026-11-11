@@ -31,8 +31,8 @@
   if(type===3&&(state.canUseSlowdown===false||state.canUseBonerPill===false)||type===5&&state.canUseBonerPill===false||type===11&&e.lootRushRemaining>0||type===12&&e.bountyRemaining>0||type===7&&e.resupplyRemaining>0)return fail('Cooldown active');
   if(type===1&&!Number.isFinite(state.heat)||type===13&&!(state.combo>0))return fail('Effect state unavailable');
   if(type===3&&(!requireHook('speed')||!Number.isFinite(state.beatInterval))||type===4&&!requireHook('beginBreak')||type===5&&(!requireHook('pill')||!Number.isFinite(state.strokeCount)||!Number.isFinite(state.beatInterval)||!Number.isFinite(context.minimumBeatInterval))||type===7&&!requireHook('openStore')||type===9&&!requireHook('spawnSuccubus')||type===10&&(!requireHook('escape')||!(state.beatsRemaining>0)||[5,6].includes(state.cardType))||type===12&&(!deps.random||typeof deps.random.range!=='function'||!Number.isFinite(state.strokes)))return fail('Effect prerequisite unavailable');
-  if([1,3,4,6,7].includes(type)&&context.punishmentEnabled&&!requireHook('punishment'))return fail('Punishment prerequisite unavailable');
-  if([1,3,4,6,7].includes(type)&&context.punishmentEnabled&&hooks.punishment(type,state)){if(type===1)state.heat=Math.min(100,state.heat+15);return fail('Punishment triggered');}
+  if([1,3,6,7].includes(type)&&context.punishmentEnabled&&!requireHook('punishment'))return fail('Punishment prerequisite unavailable');
+  if([1,3,6,7].includes(type)&&context.punishmentEnabled&&hooks.punishment(type,state)){if(type===1)state.heat=Math.min(100,state.heat+15);return fail('Punishment triggered');}
   // ActivateItem applies this modifier after the effect, only on these branches.
   const applyAllOrNothing=()=>{if(context.allOrNothing&&[1,3,4,6,7,10].includes(type)){state.coins=0;if(requireHook('resetObjective'))hooks.resetObjective(state);else if((context.objectiveType??0)===0)state.cumMeter=0;}};
   if(type===1){state.heat=Math.max(0,state.heat-[15,25,35,45,60][i]);state.cumMeter=Math.min(1,(state.cumMeter||0)+.01);}
@@ -46,7 +46,13 @@
   else if(type===11){e.lootRushRemaining=[15,20,30,40,50][i];e.lootRushBonus=[.5,.75,1,1.25,1.5][i];state.lootBarMultiplier=(state.lootBarMultiplier===undefined?1:state.lootBarMultiplier)+e.lootRushBonus;}
   else if(type===12){e.bountyLevel=i+1;e.bountyStartStrokes=state.strokes;e.bountyRequiredStrokes=deps.random.range([38,38,36,34,32][i],[48,48,46,44,42][i]);e.bountyRemaining=deps.random.range([14,17,20,23,26][i],[17,20,23,26,30][i]);}
   else if(type===13){state.cumMeter=Math.min(1,(state.cumMeter||0)+state.combo/5000);state.combo=Math.trunc(state.combo*[0,.05,.1,.15,.2][i]);}
-  applyAllOrNothing();consume(inventory,type,state,hooks);return {ok:true,consumed:true};
+  applyAllOrNothing();consume(inventory,type,state,hooks);
+  // Hotbar tail (stmt 167, reached from the non-Playlist Break tail at stmts 171-177):
+  // Break rolls punishment after the effect, All-or-Nothing and UpdateItemUses, and a
+  // trigger spawns the punishment event without failing the use. Playlist (mode 2)
+  // takes the StartRhythmModeBreak branch (ActivateItem stmts 62-71) and never rolls.
+  if(type===4&&context.mode!==2&&context.punishmentEnabled&&typeof hooks.punishment==='function'&&hooks.punishment(type,state)&&requireHook('spawnPunishment'))hooks.spawnPunishment(type,state);
+  return {ok:true,consumed:true};
  }
  function tick(inventory,state,seconds,deps={}){
   if(!Number.isFinite(seconds)||seconds<0)return [];const e=state.effects||{},events=[],hooks=deps.hooks||{},context=deps.context||{};

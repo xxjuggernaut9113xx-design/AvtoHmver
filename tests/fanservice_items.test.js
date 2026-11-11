@@ -40,3 +40,33 @@ test('resupply consumes only after delayed store success',()=>{const inv=charged
 test('resupply applies itemUsed at activation exactly once while the charge stays delayed',()=>{const inv=charged(7),state={combo:12},calls=[];const hooks={openStore:()=>false,itemUsed:(...args)=>calls.push(args)};assert.equal(items.use(inv,7,state,{hooks}).pending,true);assert.deepEqual(calls,[[7]]);assert.equal(state.combo,0);assert.equal(inv.state(7).charges,1);assert.deepEqual(items.tick(inv,state,2,{hooks}),['StoreUnavailable']);assert.deepEqual(calls,[[7]]);assert.equal(state.combo,0);assert.equal(inv.state(7).charges,1);hooks.openStore=()=>true;assert.deepEqual(items.tick(inv,state,1,{hooks}),['StoreOpened']);assert.deepEqual(calls,[[7]]);assert.equal(state.combo,0);assert.equal(inv.state(7).charges,0);});
 test('combo conversion uses recovered fraction and truncation',()=>{const inv=charged(13,5),state={combo:501,cumMeter:0};assert.equal(items.use(inv,13,state).ok,true);assert.equal(state.combo,100);assert.equal(state.cumMeter,501/5000);});
 test('shield toggle and recycler preserve charges',()=>{const inv=charged(6),state={};assert.equal(items.use(inv,6,state).consumed,false);assert.equal(inv.state(6).charges,1);const heat=charged(1);assert.equal(items.use(heat,1,{heat:50},{hooks:{recycler:()=>true}}).ok,true);assert.equal(heat.state(1).charges,1);});
+test('Break punishment rolls after the effect and never pre-empts it (hotbar stmt 167)',()=>{
+ const inv=charged(4,1),state={combo:20},order=[],spawned=[];
+ const deps={context:{punishmentEnabled:true},hooks:{beginBreak:()=>{order.push('break');return true;},punishment:()=>{order.push('roll');return true;},spawnPunishment:(...args)=>spawned.push(args)}};
+ assert.deepEqual(items.use(inv,4,state,deps),{ok:true,consumed:true});
+ assert.deepEqual(order,['break','roll']);
+ assert.equal(state.combo,0);assert.equal(inv.state(4).charges,0);
+ assert.equal(spawned.length,1);assert.equal(spawned[0][0],4);
+});
+test('Break punishment miss still applies the effect and spawns nothing',()=>{
+ const inv=charged(4,1),state={combo:20};let rolled=false,spawned=0;
+ const deps={context:{punishmentEnabled:true},hooks:{beginBreak:()=>true,punishment:()=>{rolled=true;return false;},spawnPunishment:()=>{spawned++;}}};
+ assert.equal(items.use(inv,4,state,deps).ok,true);
+ assert.equal(rolled,true);assert.equal(spawned,0);assert.equal(state.combo,0);assert.equal(inv.state(4).charges,0);
+});
+test('Playlist Break never rolls punishment (ActivateItem stmts 62-71)',()=>{
+ const inv=charged(4,1),state={combo:20};let rolled=false;
+ const deps={context:{mode:2,breakDuration:10,punishmentEnabled:true},hooks:{beginBreak:()=>true,punishment:()=>{rolled=true;return true;}}};
+ assert.equal(items.use(inv,4,state,deps).ok,true);
+ assert.equal(rolled,false);assert.equal(state.combo,0);assert.equal(inv.state(4).charges,0);
+});
+test('Break without a punishment hook still applies the effect',()=>{
+ const inv=charged(4,1),state={combo:20};
+ assert.equal(items.use(inv,4,state,{context:{punishmentEnabled:true},hooks:{beginBreak:()=>true}}).ok,true);
+ assert.equal(state.combo,0);assert.equal(inv.state(4).charges,0);
+});
+test('DecreaseHeat punishment still pre-empts the effect (scope pin, hotbar stmt 99)',()=>{
+ const inv=charged(1),state={heat:50};
+ assert.deepEqual(items.use(inv,1,state,{context:{punishmentEnabled:true},hooks:{punishment:()=>true}}),{ok:false,reason:'Punishment triggered'});
+ assert.equal(state.heat,65);assert.equal(inv.state(1).charges,1);
+});
