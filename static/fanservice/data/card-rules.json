@@ -1,8 +1,8 @@
 {
   "version": 1,
   "source": {
-    "build": "v004-exclusive-c645757d",
-    "defaults_sha256": "05d48496e9dda9c1e8d556eca52fc039c74d768b9773e6648863001b8985b228",
+    "build": "v0051-hotfix-public-a8f46896",
+    "defaults_sha256": "2e54a9da90cdc07f94e30c45953587f94bef5f98d1d5733c616023f615caf3b7",
     "authority": "retained shipped defaults, numeric Blueprint traces and native queue analysis; not original-game runtime acceptance"
   },
   "patterns": {

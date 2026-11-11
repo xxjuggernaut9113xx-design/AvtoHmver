@@ -119,6 +119,11 @@ test('CumBeatPatterns bank matches the newer-build BP_GlobalManager class defaul
  assert.deepEqual(cardRules.patterns.cum,cumBank);
 });
 
+test('card-rules source records the verified newer-build defaults payload (reJOIce newer-20261017, v0051-hotfix-public-a8f46896)',()=>{
+ assert.equal(cardRules.source.build,'v0051-hotfix-public-a8f46896');
+ assert.equal(cardRules.source.defaults_sha256,'2e54a9da90cdc07f94e30c45953587f94bef5f98d1d5733c616023f615caf3b7');
+});
+
 test('ordinary CumEventOverride card is 25-50 strokes at 0.28-0.30 s from CumBeatPatterns with Beat Travel Time; the 100 percent card is unchanged',()=>{
  for(let seed=1;seed<40;seed++){
   const run=session({seed}),flow=run.startCard('cum',{override:true});
