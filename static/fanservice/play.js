@@ -485,7 +485,23 @@ function render(){
  finishButton.setAttribute('aria-label',finishButton.textContent);
  $('controls').dataset.finishReady=String(!finishButton.disabled);
  if(finishButton.disabled)cancelFinishHold();
- $('draw').disabled=!started||finished||run.phase!=='playing'||FanserviceEdge.active(run);$('tap').disabled=$('draw').disabled||paused;renderEdge();renderTaunt();renderFavorite();
+ $('draw').disabled=!started||finished||run.phase!=='playing'||FanserviceEdge.active(run);$('tap').disabled=$('draw').disabled||paused;renderEdge();renderTaunt();renderFavorite();renderOverlays();
+}
+function renderOverlays(){
+ // Cum overlays (v0.05.1 decoded animations — see
+ // docs/parity/evidence/ticket44-loops-overlay-20261111.md): the allowed
+ // overlay breathes with the 1 s SpawnOverlay pulse while cum is allowed;
+ // the countdown overlay plays the 0.5 s SpawnAnim entrance then the Idle
+ // loop while the release window is open, with its progress bar bound to
+ // the window remainder. The 60 s window itself is untouched.
+ if(!run||!state||!window.FanserviceOverlays)return;
+ const overlay=FanserviceOverlays.overlayState({isAllowedToCum:run.player.isAllowedToCum,releaseDeadline:run.objective.releaseDeadline,now:state.seconds,windowSeconds:60,hasCame:run.player.hasCame});
+ $('cum-overlay').hidden=!overlay.allowed;
+ $('cum-countdown-overlay').hidden=!overlay.countdown;
+ if(overlay.countdown){
+  $('cum-countdown-progress').value=overlay.progress;
+  $('cum-countdown-text').textContent=`Release window: ${overlay.seconds} seconds.`;
+ }
 }
 function objectiveEvents(events){
  const beats=events.filter(e=>e.type==='card-beat');

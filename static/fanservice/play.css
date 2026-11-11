@@ -25,6 +25,23 @@ main { padding-left: max(12px, var(--safe-left)); padding-right: max(12px, var(-
 @keyframes finish-progress { to { stroke-dashoffset: 0; } }
 #meter-value { font-size: 13px; color: #f3f8fa; text-shadow: 0 1px 4px #000; }
 #stage img, #stage video { display: block; width: 100%; height: 100%; object-fit: contain; }
+/* Cum overlays (v0.05.1 decoded animations — see
+   docs/parity/evidence/ticket44-loops-overlay-20261111.md). SpawnOverlay:
+   1.0 s loop, scale 1.0→1.1→1.0 and opacity 1.0→0.5→1.0, peak/trough at
+   tick 30041 of 60000 (50.07%). CumInXSec/CumWithinXSec: 0.5 s entrance
+   (SpawnAnim, once) then the ~1.004 s Idle loop (60233 ticks, vertical-only
+   5% ScaleY pulse). AllowedToCumLoopBackground is a Texture2D image, not
+   an animation, so the overlay is a translucent panel, not the image. */
+#cum-overlay, #cum-countdown-overlay { position: absolute; z-index: 3; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; pointer-events: none; text-align: center; color: #f3f8fa; text-shadow: 0 1px 6px #000, 0 1px 12px #000; }
+#cum-overlay[hidden], #cum-countdown-overlay[hidden] { display: none; }
+#cum-overlay { animation: cum-spawn-overlay 1s linear infinite; }
+#cum-overlay p { margin: 0; font-size: clamp(18px, 3vw, 28px); }
+#cum-countdown-overlay { animation: cum-spawn-anim .5s linear 1, cum-idle 1.003883s linear .5s infinite; }
+#cum-countdown-overlay p { margin: 0; font-size: clamp(14px, 2.4vw, 20px); }
+#cum-countdown-progress { width: min(70%, 420px); height: 10px; accent-color: #c8ef97; }
+@keyframes cum-spawn-overlay { 0% { transform: scale(1); opacity: 1; } 50.07% { transform: scale(1.1); opacity: .5; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes cum-spawn-anim { 0% { transform: scale(1); opacity: 0; } 50% { transform: scale(1.05); opacity: .5; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes cum-idle { 0% { transform: scaleY(1); } 50% { transform: scaleY(1.05); } 100% { transform: scaleY(1); } }
 #session-hud { position: absolute; z-index: 2; inset: 0; display: flex; flex-direction: column; justify-content: space-between; pointer-events: none; container-type: size; }
 #hud-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; padding: max(10px, var(--safe-top)) max(10px, var(--safe-right)) 0 max(10px, var(--safe-left)); }
 #gameplay-stage[data-holding-hand="left"] #hud-top { flex-direction: row-reverse; }
