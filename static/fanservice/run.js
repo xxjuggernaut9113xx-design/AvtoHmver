@@ -1,7 +1,7 @@
 (function(root){
  'use strict';
  const load=(name,global)=>typeof module!=='undefined'&&module.exports?require('./'+name+'.js'):root[global];
- const Objectives=load('objectives','FanserviceObjectives'),Tower=load('tower','FanserviceTower'),Inventory=load('inventory','FanserviceInventory'),Items=load('items','FanserviceItems'),Economy=load('economy','FanserviceEconomy'),Cards=load('cards','FanserviceCards'),Edge=load('edge','FanserviceEdge'),SessionMetrics=load('session_metrics','FanserviceSessionMetrics');
+ const Objectives=load('objectives','FanserviceObjectives'),Tower=load('tower','FanserviceTower'),Inventory=load('inventory','FanserviceInventory'),Items=load('items','FanserviceItems'),Economy=load('economy','FanserviceEconomy'),Cards=load('cards','FanserviceCards'),Edge=load('edge','FanserviceEdge'),SessionMetrics=load('session_metrics','FanserviceSessionMetrics'),Taunts=load('taunts','FanserviceTaunts');
  const copy=value=>JSON.parse(JSON.stringify(value));
  class Run {
   constructor(catalog,config={}){
@@ -12,7 +12,7 @@
    this.random=new Tower.Random(this.config.seed);
    this.inventory=Items.prepare(catalog,this.config.mode,this.random,{hotbar:this.config.hotbar});
    this.ownedModifiers=[];this.redeemedRounds=[];
-   this.state={strokes:0,combo:0,maxCombo:0,coins:0,succuCoins:0,heat:0,meter:0,baseGain:.00025,meterMultiplier:1,seconds:0,edges:0,succubi:0,milkingCount:0,card:0,modifiers:[...(this.config.modifiers||[])],finished:false,canUseItems:true,canUseSlowdown:true,canUseBonerPill:true,coinMultiplier:1,lootBarMultiplier:1,metrics:{},effects:{}};
+   this.state={strokes:0,combo:0,maxCombo:0,coins:0,succuCoins:0,heat:0,meter:0,baseGain:.00025,meterMultiplier:1,seconds:0,edges:0,succubi:0,milkingCount:0,card:0,modifiers:[...(this.config.modifiers||[])],finished:false,canUseItems:true,canUseSlowdown:true,canUseBonerPill:true,coinMultiplier:1,lootBarMultiplier:1,metrics:{},effects:{},TimesTaunted:0,TotalTauntsUsed:0,hasTaunted:false,tauntCooldownUntil:0};
    this.player={sessionLength:0,hasCame:false,isAllowedToCum:false};
    this.objective=new Objectives.Runtime(this.config.settings,this.player,this.objectiveStats());
    this.phase=this.config.mode===1?'selection':'playing';
@@ -66,9 +66,14 @@
   cancelEdge(){return Edge.cancel(this);}
   startCard(pool,options={}){
    const flow=Cards.start(this,pool,options);
+   // DetermineCardV2 stmt 15 resets HasTaunted? on each new card determination
+   // unless the player has already came; custom spawns (taunt, punishment) and
+   // edge/cum cards are not determinations, so they do not reset it.
+   if(flow&&!['edge','cum'].includes(pool)&&!options.taunt&&!options.punishment&&!this.player.hasCame)this.state.hasTaunted=false;
    if(flow&&!['edge','cum'].includes(pool))Edge.ordinaryCardStarted(this);
    return flow;
   }
+  taunt(){return Taunts.taunt(this);}
   cumOverrideDue(){return (this.config.mode===0||this.config.mode===1)&&(this.player.isAllowedToCum||this.player.hasCame)&&!Edge.active(this);}
   delayCard(seconds){return Cards.delay(this,seconds);}
   modifyCard(speed,factor=1){return Cards.rebuild(this,speed,factor);}

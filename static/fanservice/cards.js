@@ -1,7 +1,7 @@
 (function(root){
  'use strict';
  const load=(name,global)=>typeof module!=='undefined'&&module.exports?require('./'+name+'.js'):root[global];
- const Rules=load('rules','FanserviceRules'),Modifiers=load('modifiers','FanserviceModifiers'),Economy=load('economy','FanserviceEconomy'),Punishment=load('punishment','FanservicePunishment');
+ const Rules=load('rules','FanserviceRules'),Modifiers=load('modifiers','FanserviceModifiers'),Economy=load('economy','FanserviceEconomy'),Punishment=load('punishment','FanservicePunishment'),Taunts=load('taunts','FanserviceTaunts');
  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),limit=1000000;
  function timing(strokes,interval,count,userCount,time){
   if(![strokes,interval,count,userCount,time].every(Number.isFinite))throw Error('Card timing is invalid.');
@@ -30,7 +30,13 @@
   if(apexLure&&(!Number.isFinite(strokeAddend)||strokeAddend<0))throw Error('Apex Lure stroke modifier is invalid.');
   const difficulty=run.config.difficulty??1,multipliers=Rules.drawMultipliers(Rules.comboTier(s.combo),data.difficulty_count[difficulty],data.difficulty_speed[difficulty]);
   let count=multipliers.count,time=multipliers.time,travel=data.travel,bank=pool,min,max,low,high;
-  if(card<=2){const row=data.heat[['SlowHeat','MediumHeat','HighHeat'][card]];min=row.MinStrokeCount;max=row.MaxStrokeCount;low=card===2?.15:row.MinIntervalSeconds;high=row.MaxIntervalSeconds;}
+  if(card<=2){const row=data.heat[['SlowHeat','MediumHeat','HighHeat'][card]];min=row.MinStrokeCount;max=row.MaxStrokeCount;low=card===2?.15:row.MinIntervalSeconds;high=row.MaxIntervalSeconds;
+   // Taunt (GM ubergraph stmts 2124-2129): SpawnCustomCardEvent(FastCards,
+   // HighHeat.MinStrokeCount, HighHeat.MaxStrokeCount, 0.18, 0.23, byte(2),
+   // 0.5, ...). The count range already matches the fast branch; only the
+   // interval differs from an ordinary fast card (.15-.35). The rolled
+   // interval still passes through timing(), whose 0.28 floor applies.
+   if(card===2&&options.taunt===true){low=Taunts.spawnParams.minInterval;high=Taunts.spawnParams.maxInterval;}}
   else if(card===3){min=30;max=50;low=.15;high=.33;time=1;travel=1.5;count=Modifiers.succubusCountMultiplier(count,run.effectiveStats?run.effectiveStats().succubi:s.succubi,s.modifiers,Economy.has(run,7)?.5:1);if(apexLure)count+=strokeAddend;
    // SpawnPunishmentEvent (GM ubergraph stmt 1446): SpawnCustomCardEvent
    // (SuccubusCards, 30, 50, 0.28, 0.33, byte(3), 1.0, ...). The count range,
@@ -52,7 +58,7 @@
   let pattern=[...patterns[run.random.range(0,patterns.length-1)]];
   const previous=current(run),previousInterval=previous?.queue[previous.nextFire]?.Interval??0;if(Math.fround(previousInterval)<=.2)pattern=pattern.map(value=>Math.fround(value)>=2?2.5:value);
   const baseInterval=result.interval*(Economy.has(run,6)?2:1),minimum=data.minimum_intervals[difficulty],entries=queue(pattern,baseInterval,Math.max(0,result.count),1,travel,minimum);
-  s.card=card;s.cardFlow={generation:(previous?.generation||0)+1,pool,card,started:options.at??s.seconds,pattern,interval:baseInterval,speed:1,travel,minimum,assigned:result.count,remaining:result.count,nextFire:0,nextHit:0,completed:0,queue:entries,ended:false,punishment:options.punishment===true};
+  s.card=card;s.cardFlow={generation:(previous?.generation||0)+1,pool,card,started:options.at??s.seconds,pattern,interval:baseInterval,speed:1,travel,minimum,assigned:result.count,remaining:result.count,nextFire:0,nextHit:0,completed:0,queue:entries,ended:false,punishment:options.punishment===true,taunt:options.taunt===true};
   return s.cardFlow;
  }
  function advance(run,at=run.state.seconds){
