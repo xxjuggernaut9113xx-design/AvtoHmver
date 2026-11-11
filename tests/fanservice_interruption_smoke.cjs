@@ -41,7 +41,9 @@ const manifest={protocol:1,library_id:'music-fixture',track_id:1,recording_id:'s
   await page.evaluate(()=>window.dispatchEvent(new PageTransitionEvent('pagehide')));
   await page.reload();await page.waitForFunction(()=>!document.querySelector('#start').disabled);await page.locator('#start').click();
   await page.waitForFunction(()=>!!run.returnEdge);
-  assert.equal(await page.evaluate(()=>audio.paused),true);
+  // The async Start handler pauses audio in its finally; wait for it instead
+  // of asserting before it runs.
+  await page.waitForFunction(()=>audio.paused);
   assert.equal(await page.evaluate(()=>state.edges),0);
   assert.equal(await page.evaluate(()=>audio.currentTime),held.position);
   assert.deepEqual(await page.evaluate(()=>({event:clock.event,next:clock.next})),{event:held.event,next:held.next});
@@ -62,7 +64,7 @@ const manifest={protocol:1,library_id:'music-fixture',track_id:1,recording_id:'s
    await page.waitForTimeout(2300);
    assert.equal(await page.evaluate(()=>state.effects.resupplyRemaining),0,'Pending item effects use active return timing');
    assert.ok(await page.evaluate(()=>state.effects.lootRushRemaining)<effects.rush-2);
-   assert.equal(await page.evaluate(()=>run.inventory.state(7).charges),0);assert.equal(await page.evaluate(()=>state.ItemsUsed),effects.items+1);
+   assert.equal(await page.evaluate(()=>run.inventory.state(7).charges),0);assert.equal(await page.evaluate(()=>state.ItemsUsed),effects.items); // #48: Resupply itemUsed fires at activation (6ebc552), so the count is already in effects.items; store-open only consumes.
    await page.getByRole('button',{name:'Close inventory',exact:true}).click();
    await page.evaluate(()=>window.dispatchEvent(new PageTransitionEvent('pagehide')));await page.locator('#resume-session').click();
    assert.equal(await page.evaluate(()=>run.inventory.state(7).charges),1);assert.equal(await page.evaluate(()=>state.ItemsUsed),effects.items);
