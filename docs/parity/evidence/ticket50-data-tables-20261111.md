@@ -180,3 +180,47 @@ the usmap (`DifficultyCoinEarnMultiplier`, `DifficultyStrokeCounterMultiplier`,
 `~/workspace/reJOIce/Materials/Mappings/CockHeroProgression.usmap`) — their
 owning struct and values were not located in this pass; they are not fields
 of `DifficultyTierData` (its numeric fields are the integers in §2).
+
+## 6. Tier-mapping assessment (2026-11-11, implementation agent)
+
+No player code change follows — the mapping is **not** settled by these
+tables, and the assessment below is recorded so the decision stays explicit.
+
+What is already aligned:
+- The table contents are identical to the player's `modes.json`
+  (0 mismatches across all three tables, §0).
+- Tower consumes the 6-tier catalog natively: `tower.js:26` looks up
+  `catalog.objectives` and `catalog.tiers` by `Tier` 1–6 (final round = 6,
+  Boss), so Tower's tier mapping is the native one by construction.
+- Music Mode consumes `catalog.music_upgrades` (the 3 decoded rows).
+
+What does not exist anywhere in the player:
+- Any mapping from the **session** difficulty scale (0/1/2 — Easy/Normal/
+  Insane, `play.html` select) to a native tier. Session difficulty is used
+  only for the beat-interval table `[.7, .5, .35]` (`play.js`), the 0–2
+  validation (`run.js:10`, `session_presets.js:12`), and the
+  `SessionsWonAtMaxDifficulty` gate at difficulty 2 (`progression.js:15`).
+  It never indexes the tier tables or the objectives table.
+- Any session-scale field in the native tables themselves — the tables are
+  keyed by tier 1–6 (and the objective difficulty byte 1–6), not by a
+  3-value session scale.
+
+The open decision, unchanged from §5: the "natural reading" (player Easy →
+native Easy, player Normal/Medium → native Medium, player Insane → native
+Insane/Tier5, with native Hard/Tier4, Very Easy/Tier1 and Boss/Tier6 having
+no session-scale counterpart) is an interpretation, not evidence. The
+player's 3-tier session scale is left unchanged; do not add a 4th session
+tier or shift Insane to 3 on assumption — that would change the
+beat-interval table, the 0–2 validation, the preset schema, and the
+`SessionsWonAtMaxDifficulty` gate.
+
+What would settle it:
+- (a) The session-mode objective reader: which `ObjectiveParamTable_DT`
+  rows session mode reads for a given `EDifficultyTier` (0–3), i.e. how
+  the native session difficulty byte relates to the table's 1–6 bytes.
+- (b) The four `Difficulty*Multiplier` values and their owning struct
+  (usmap-named, not located — see above).
+- (c) Any native `EDifficultyTier` → session-parameter consumer found by
+  disassembly (the #50 producers work in
+  `ticket50-producers-native-20261111.md` covers the record functions, not
+  this mapping).
