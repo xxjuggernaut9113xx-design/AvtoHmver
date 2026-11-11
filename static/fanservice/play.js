@@ -507,7 +507,8 @@ function renderOverlays(){
 function objectiveEvents(events){
  const beats=events.filter(e=>e.type==='card-beat');
  if(beats.length){pulseBeat();beats.forEach(()=>vibration.beat());}
- if(events.some(e=>e.type==='release-window-opened')){run.cancelEdge();draw('cum',{force:true});status('Objective complete. 60 second release window.');}
+ const opened=events.find(e=>e.type==='release-window-opened');
+ if(opened){run.cancelEdge();draw('cum',{force:true});status(opened.notification||'Objective complete. 60 second release window.');}
  else if(events.some(e=>e.type==='card-complete'&&e.requestNextCard)&&run.phase==='playing'&&!FanserviceEdge.active(run))draw(undefined,{force:true});
  if(events.some(e=>e.type==='edge-card-started')&&!keepMediaOnReplay)draw('fast',{prepare:false,force:true});
  if(events.some(e=>e.type==='edge-streak-ended'&&e.requestNextCard)&&run.phase==='playing')draw(undefined,{force:true});

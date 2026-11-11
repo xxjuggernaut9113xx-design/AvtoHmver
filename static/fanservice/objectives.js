@@ -10,6 +10,15 @@
   [8,'Succu Slayer','LastObjective_SuccuSlayer',5,5,5,100]
  ].map(([objective,title,saveKey,defaultTarget,sliderStep,min,max])=>Object.freeze({objective,title,saveKey,defaultTarget,sliderStep,min,max})));
  const round=value=>Math.floor(value+.5),clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+ // Release-window duration (GM ubergraph, CumEventOverride decode,
+ // 2026-11-11): Start Cum Window Timer notifies 'Cum Meter Filled' /
+ // '60s Release Window\r\nFinish to Win' and Set and Display Cum Window
+ // Timer (re)initializes CumWindowTime = 60.0. The 60 s is a constant in
+ // the original, not the map's cum_event window (14.9–52.8 s) and not a
+ // computed value; the override body itself (CumEventOverride, entry
+ // 73198) spawns a Cum card and starts a beat pattern and carries no
+ // duration or timer of its own.
+ const RELEASE_WINDOW_SECONDS=60;
  function getSelectedIndex(settings={}){const v=settings.LastObjectiveIndex_Classic??0;return Number.isFinite(v)?round(clamp(v,0,specs.length-1)):0;}
  function getSavedTarget(settings={},index){const s=specs[index];if(!s)return 0;if(s.objective===0)return 1;const v=settings[s.saveKey]??s.defaultTarget;return Number.isFinite(v)?round(clamp(v,s.min,s.max)):s.defaultTarget;}
  function baselines(player={},stats={}){return {baselineDuration:player.sessionLength??0,baselineStrokes:stats.strokes??0,baselineEdges:stats.edges??0,baselineSuccubi:stats.succubiDefeated??0,baselineMilking:stats.milkingCount??0};}
@@ -49,7 +58,7 @@
    if(context.cardType===5)return [{type:'premature-cum'}];
    return player.hasCame?[]:[{type:player.isAllowedToCum?'successful-cum':'premature-cum'}];
   }
-  openReleaseWindow(player,stats,now){if(player.isAllowedToCum||player.hasCame)return [];player.isAllowedToCum=true;stats.cumWindowsHit=((stats.cumWindowsHit??0)+1)|0;this.releaseDeadline=now+60;return [{type:'release-window-opened',seconds:60,card:'CumEventOverride',notification:'Objective complete. 60 second release window.'}];}
+  openReleaseWindow(player,stats,now){if(player.isAllowedToCum||player.hasCame)return [];player.isAllowedToCum=true;stats.cumWindowsHit=((stats.cumWindowsHit??0)+1)|0;this.releaseDeadline=now+RELEASE_WINDOW_SECONDS;return [{type:'release-window-opened',seconds:RELEASE_WINDOW_SECONDS,card:'CumEventOverride',notification:'60s Release Window\nFinish to Win'}];}
   tick(player,stats,meter,now,context={}){
    if(player.hasCame)return [];
    const tower=context.mode===1,eligible=tower?['playing','bossRound'].includes(context.phase):context.mode===undefined||context.mode===0;

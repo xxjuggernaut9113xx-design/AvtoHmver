@@ -40,6 +40,18 @@ test('release window opens once, expires at 60 seconds, revokes permission and r
  assert.deepEqual(r.expireReleaseWindow(p,s,1,161).events,[]);
  r.tick(p,s,1,200);r.reset();assert.equal(r.releaseDeadline,null);
 });
+test('release window carries the original 60 s CumWindowTime and notification text',()=>{
+ // CumEventOverride decode (GM ubergraph, 2026-11-11): Start Cum Window
+ // Timer notifies 'Cum Meter Filled' / '60s Release Window\r\nFinish to
+ // Win' and Set and Display Cum Window Timer (re)initializes CumWindowTime
+ // = 60.0. The 60 s is a constant in the original, not a per-map window.
+ const p=player(),s=stats(),r=new O.Runtime({},p,s);
+ const event=r.tick(p,s,1,100)[0];
+ assert.equal(event.type,'release-window-opened');
+ assert.equal(event.seconds,60);
+ assert.equal(event.notification,'60s Release Window\nFinish to Win');
+ assert.equal(r.releaseDeadline,160);
+});
 test('Prejac tick expires at deadline while explicit confirmation at deadline wins',()=>{
  const p=player(),s=stats(),r=new O.Runtime({LastObjectiveIndex_Classic:4,LastObjective_Prejac:30},p,s);
  assert.equal(p.isAllowedToCum,true);p.sessionLength=50;

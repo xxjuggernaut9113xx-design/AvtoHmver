@@ -107,17 +107,93 @@ END:
   `StopPlayback`, `FOnBeatmapPlaybackComplete` (+0x170, +0x1d0),
   `EndRoundSession`).
 
-## The 60 s hard-code: NOT replaced
+## The 60 s hard-code: SETTLED as a constant (2026-11-11)
 
-`objectives.js:52` `openReleaseWindow` (60 s) is the **objective-
+`objectives.js` `openReleaseWindow` (60 s) is the **objective-
 completion override** (`CumEventOverride` /
 `Determine_And_Trigger_Cum_Meter_Override_Event`: fires when the
 objective completes AND cum meter ≥ 1.0, unless Succu Frenzy is active
-or it already triggered), NOT the map's cum_event window. It is a
-different mechanism from the map window, so the map evidence does not
-replace it. Its 60 s duration is itself UNEVIDENCED — the
-`CumEventOverride` body lives in the ubergraph (EntryPoint 73198) and
-is not decoded — but it is not contradicted either. Leave it untouched.
+or it already triggered), NOT the map's cum_event window. The
+`CumEventOverride` body is now decoded (GM ubergraph EntryPoint 73198,
+fixed kismet2 parser) and the 60 s is **evidenced as a constant**:
+
+- `Start Cum Window Timer` (stub → entry 48674): binds a 1.0 s looping
+  `K2_SetTimerDelegate` (rate 1.0, True, 0.0, 0.0) calling `Set and
+  Display Cum Window Timer`, stops the red flash, plays the green flash
+  loop, notifies `CreateNotificationBox('Cum Meter Filled', '60s Release
+  Window\r\nFinish to Win')`, and `UpdateMetric(19, 1)` (metric 19 =
+  CumWindowsHit — the player already records it).
+- `Set and Display Cum Window Timer` (stub → entry 49184, the 1 s tick):
+  if `CumWindowTime <= 0.0` → expiry handling per objective (reset logic,
+  see below); else `CumWindowTime -= 1` and display `'Cum Window Timer
+  Activated!: Time Left: ' + CumWindowTime`. The five `FloatConst 60.0`
+  assignments in this function are `CumWindowTime = 60.0` resets, one
+  per objective case.
+- The player's 60 s is therefore correct as a constant and is now named
+  `RELEASE_WINDOW_SECONDS` in objectives.js with the source cited; the
+  event notification carries the original's exact body text (`'60s
+  Release Window\nFinish to Win'`), and play.js renders the event's
+  notification instead of its own hard-coded string. No numeric change.
+
+## `CumEventOverride` body — decoded (GM ubergraph EntryPoint 73198)
+
+```
+if (!PlayerVariablesStruct.CanDraw?) return;
+if (!PlayerVariablesStruct.IsAllowedToCum?) goto ROLL;
+if (!DoesCumOverlayLoopExist?) {
+  AllowedToCumOverlayLoopWidgetRef = Create(AllowedToCumOverlayLoop_Widget); AddToViewport(0);
+  DoesCumOverlayLoopExist? = true;
+}
+ROLL:
+if (RollFavoritesChance(6)) SpawnCustomCardEvent(CumFavoriteCards, 25, 50, 0.28, 0.30, byte 6, Stroke Time Speed Multiplier, Stroke Count Multiplier, ...);
+else                        SpawnCustomCardEvent(CumCards,        25, 50, 0.28, 0.30, byte 6, Stroke Time Speed Multiplier, Stroke Count Multiplier, ...);
+StartPatternWithMediaSync(Array_Random(CumBeatPatterns), BeatSpawnInterval, CurrentStrokeCount, MediaPlaybackManager, 1.0, 0.0, Beat Travel Time);
+return;
+```
+
+The body carries **no duration, no timer, and no 60** — the window's
+duration comes from `CumWindowTime = 60.0`, not from this body. No
+Blueprint caller of `CumEventOverride` was found in the GM ubergraph
+(same pattern as `AddFavoriteCardToArray` — native-by-name or dead code).
+
+## Trigger function — decoded (`Determine And Trigger Cum Meter Override Event`, 4000-byte export)
+
+Switch on `GameInstance.CurrentSessionObjective`; only cases 0, 2, 3, 8
+have an override path (Timer 1, Prejac 6, Tribute 7 return without one):
+
+- Case 0 (Cum meter): if NOT Frenzy, require `CurrentCardTypeEnum` ∈
+  {5 Edging, 6 Cum, 3 Succubus}; then `CumMeterPercentage >= 1.0`.
+- Case 2 (Strokes): `CurrentSessionStats.Strokes >=
+  Objective_StrokesRequired`. Case 3 (Edges): `Edges >=
+  Objective_EdgesRequired`. Case 8 (Succubus):
+  `SuccubiDefeated >= Objective_SuccubusRequired`.
+- Then: if `HasCumMeterOverideTriggered?` → return; if `IsCumRound?` →
+  `Spawn100PercentCumMeterOverrideEvent` + `Start Cum Window Timer` +
+  set the flag; else `RoundWinOverride` + set the flag.
+
+`Spawn100PercentCumMeterOverrideEvent` (stub → entry 66033, decoded)
+is separate from `CumEventOverride`: it updates the objective title,
+creates a SpawnOverlay widget with an AnimationFinished binding, spawns
+`SpawnCustomCardEvent(CumCards, 75, 100, ..., byte 6, ...)` (75–100
+strokes, vs the override's 25–50), random `FastBeatPatterns`,
+`StartPatternWithMediaSync`, and `PlaySpecialEventDialogue(4)`. The
+trigger's other call site in the ubergraph (shared block at 92486)
+re-checks `CurrentCardTypeEnum == 3` and `IsCumRound?` before firing
+the same two calls. No Blueprint caller of the trigger function itself
+was found in the GM ubergraph.
+
+The player's `tick()` opens the release window for any objective on
+completion (except Tower non-boss and Tribute, which complete directly).
+Two decoded details are NOT yet modeled in the player and are recorded
+here, not silently assumed: (a) the objective-0 card-type gate ({5, 6,
+3} when not in Frenzy) — the player's tick has no such gate, and the
+trigger's call cadence (which beat/card event invokes it) is not
+established, so wiring the gate into the player's tick loop would invent
+behavior; (b) the Timer objective has no override path in the trigger
+function — the player's Timer → release window is unconfirmed by this
+decode (the Timer objective may complete through a different path).
+The 75–100-stroke 100%-meter card (vs the override's 25–50) is likewise
+not modeled: the player's release-window draw is a forced `'cum'` card.
 
 ## Player alignment / open items
 
@@ -129,9 +205,12 @@ is not decoded — but it is not contradicted either. Leave it untouched.
   override's `releaseDeadline`): the "Cum Now!" / "Cum Window Closed"
   notifications; the `CumWithinXSec` countdown to the map's end time
   during the window; the CumButtonFlash green/red loop toggle.
-- Still open: `+0x580`/`+0x588` readers; `CumEventOverride` body
-  (ubergraph EntryPoint 73198) and the override window's duration;
-  the GM cum-window timer functions (`Start_Cum_Window_Timer` 48674,
-  `Set_and_Display_Cum_Window_Timer` 49184 — bodies not decoded,
-  likely display); observable event-vs-beat order at equal timestamps
-  (spawner dequeue).
+- Still open: `+0x580`/`+0x588` readers; the GM cum-window timer functions
+  (`Start_Cum_Window_Timer` 48674, `Set_and_Display_Cum_Window_Timer`
+  49184) are now decoded (see above — 1 s tick, CumWindowTime = 60.0);
+  observable event-vs-beat order at equal timestamps (spawner dequeue).
+- Decoded but not yet modeled in the player: the objective-0 card-type
+  gate ({5, 6, 3} when not in Frenzy); the Timer objective's lack of an
+  override path in the trigger function (player's Timer → release window
+  unconfirmed); the 75–100-stroke 100%-meter card vs the override's
+  25–50; the `CumEventOverride` caller (none found in the ubergraph).
