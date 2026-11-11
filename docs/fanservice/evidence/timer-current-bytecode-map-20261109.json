@@ -6,6 +6,27 @@
   "unicode_string_adjustment_bytes_each": -4,
   "unicode_string_count": 7,
   "direct_target_count": 299,
+  "entry_offsets": {
+    "source": "local full offset map (untracked .test-tmp/timer-current-offset-map.json); not recomputed from this compact map, which records direct jump/push targets only",
+    "checked_here": "each pair lies strictly between its neighbouring recorded targets in both offset and statement index",
+    "entries": [
+      {
+        "function_entry": "Spawn100PercentCumMeterOverrideEvent",
+        "entry_offset": 66033,
+        "entry_index": 1598
+      },
+      {
+        "function_entry": "CumEventOverride",
+        "entry_offset": 73198,
+        "entry_index": 1776
+      },
+      {
+        "function_entry": "RoundWinOverride wrapper (Timer note: jumps to statement 1367, offset 56800)",
+        "entry_offset": 79488,
+        "entry_index": 1947
+      }
+    ]
+  },
   "targets": [
     {
       "from_index": 0,
