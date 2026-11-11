@@ -43,14 +43,14 @@
  //   startFavoriteFrenzyCooldown / triggerFavoriteFrenzy — see below).
  //   The frenzy event's presentation (FastPaceAnim, dialogue 0, background
  //   3, music 2, FavoriteFrenzySpawnOverlay_Widget) is carried in the
- //   trigger's spawn spec but play.js does not act on it yet, and the
- //   trigger's CALL SITE is unestablished: no caller of
- //   FavoriteFrenzyEvent or FavoriteFrenzyEligibilityCheck exists in the
- //   DrawManager, GlobalManager, or UI_Manager ubergraphs (native-by-name
- //   or dead code in this build, same as AddFavoriteCardToArray), so no
- //   draw-flow wiring is added. The registry is session state; the
- //   original persists bIsFavorite on the saved entry, the player does not
- //   persist favorites yet.
+ //   trigger's spawn spec but play.js does not act on it yet. The trigger's
+ //   CALL SITE is settled (BP_DrawManager TriggerSelectedEvent stmt 62 @2142,
+ //   event code 12, gated at filter time by
+ //   BP_GlobalManager CheckEventConditions&ReturnArray stmt 82 @2363 via
+ //   FavoriteFrenzyEligibilityCheck); play.js wires it through
+ //   automaticMediaPool. The registry is session state; the original
+ //   persists bIsFavorite on the saved entry, the player does not persist
+ //   favorites yet.
  const categories=Object.freeze({slow:0,medium:1,fast:2,succubus:3,event:4,edge:5,cum:6,ass:7,boobs:8,favorite:9});
  const FRENZY_MIN_CARDS=3,FRENZY_COOLDOWN_SECONDS=120;
  const poolNames=['slow','medium','fast','succubus','cum','ass','boobs'];
@@ -238,10 +238,10 @@
   // derived FavoriteFrenzy deck but the event spawns from SlowCards with
   // card type 9 — then FastPaceAnim, PlaySpecialEventDialogue(0), Change
   // Beat Background(3), PlayMusic(2), and creates
-  // FavoriteFrenzySpawnOverlay_Widget. No caller of the event or the
-  // eligibility check exists in any ubergraph, so triggerFavoriteFrenzy
-  // returns the decoded spawn spec for the call site to act on; it does
-  // not draw a card itself.
+  // FavoriteFrenzySpawnOverlay_Widget. The call site is
+  // TriggerSelectedEvent (BP_DrawManager, event code 12); triggerFavoriteFrenzy
+  // starts the 120 s cooldown and returns the decoded spawn spec, and
+  // play.js draws the frenzy card through Cards.start with {frenzy:true}.
   isFavoriteFrenzyOnCooldown(now=0){return this.frenzyCooldownEndsAt!==null&&now<this.frenzyCooldownEndsAt;}
   isFavoriteFrenzyEligible(now=0){return this.hasEnoughFavoriteFrenzyCards(FRENZY_MIN_CARDS)&&!this.isFavoriteFrenzyOnCooldown(now);}
   startFavoriteFrenzyCooldown(now=0){this.frenzyCooldownEndsAt=now+FRENZY_COOLDOWN_SECONDS;return this.frenzyCooldownEndsAt;}

@@ -302,19 +302,26 @@ function automaticMediaPool(){
  const gate=FanserviceSpawnEligibility.check({heatCategory,combo:state.combo,canSuccubiSpawn:state.canSuccubiSpawn??false,shieldToggled:!!state.shieldToggled,shieldCharges:shield?.charges||0,shieldBlockCount:state.shieldBlockCount??0,enhancedPlating:FanserviceEconomy.has(run,14),demonProof:!options.canSpawnSuccubi,exorcistRemaining:state.economy?.exorcistRemaining||0});
  if(shield)shield.charges=gate.shieldCharges;
  state.shieldBlockCount=gate.shieldBlockCount;state.shieldToggled=gate.shieldToggled;
- const pools={0:'slow',1:'medium',2:'fast',5:'succubus',7:'ass',8:'boobs'};
+ const pools={0:'slow',1:'medium',2:'fast',5:'succubus',7:'ass',8:'boobs',12:'slow'};
  const rows=specialEvents.rows.filter(row=>{
   const pool=pools[row.eventCode];if(!pool||!decks[pool]?.length)return false;
   if(row.eventCode===5)return gate.eligible;
   if(row.eventCode===7||row.eventCode===8)return run.config.settings['IsBrainMelterEnabled?']===true&&heatCategory===0;
+  // Favorite Frenzy (TriggerSelectedEvent, BP_DrawManager stmt 62 @2142,
+  // event code 12; gated at filter time by CheckEventConditions&ReturnArray
+  // stmt 82 @2363 via FavoriteFrenzyEligibilityCheck): the gate counts the
+  // derived FavoriteFrenzy deck (>=3) and the 120 s cooldown; the spawn
+  // itself draws from the slow deck as a type-9 card (see draw()).
+  if(row.eventCode===12)return favorites&&favorites.isFavoriteFrenzyEligible(state.seconds);
   return true;
  });
  const selected=FanserviceMediaSelection.weightedEvents(rows,{heat:state.heat,comboTier:rules.comboTier(state.combo)},run.random.fraction());
- state.mediaEvent=selected?.name||'SlowStrokeEvent';return selected?pools[selected.eventCode]:'slow';
+ state.mediaEvent=selected?.name||'SlowStrokeEvent';state.frenzyPending=selected?.eventCode===12;return selected?pools[selected.eventCode]:'slow';
 }
 function draw(pool,{prepare=true,force=false,cardOptions={}}={}){
  if(prepare&&!force&&started&&FanserviceEdge.active(run)){status('Finish the active edge stage before drawing another card.');return false;}
  if(prepare&&!force&&started&&!music&&state.card===3&&FanserviceCards.remaining(run)>0){status('Finish the active encounter before drawing another card.');return false;}
+ state.frenzyPending=false;
  decks??=rules.mediaPools(media,FanserviceModifiers.options(state.modifiers));
  if(pool===undefined&&!music&&started&&!finished&&run.phase==='playing'&&run.cumOverrideDue()){pool='cum';cardOptions={...cardOptions,override:true};}
  pool??=music?category:automaticMediaPool();category=pool;
@@ -337,7 +344,11 @@ function draw(pool,{prepare=true,force=false,cardOptions={}}={}){
   const index=Math.floor(Math.random()*remaining[pool].length);item=remaining[pool].splice(index,1)[0];
  }
  showMedia(item,0,{restart:true});
- if(prepare){state.card={slow:0,medium:1,fast:2,succubus:3,cum:6,ass:7,boobs:8}[pool];state.canUseSlowdown=true;state.canUseBonerPill=true;if(started&&!finished&&run.phase==='playing'){FanserviceEconomy.draw(run);if(!music){run.startCard(pool,cardOptions);speed=1;}}}
+ // The frenzy pick (automaticMediaPool, event code 12) spawns through the
+ // slow deck as a type-9 card and starts the 120 s cooldown here, at the
+ // spawn — the original starts it inside FavoriteFrenzyEvent.
+ const frenzy=state.frenzyPending&&!music;
+ if(prepare){state.card=frenzy?9:{slow:0,medium:1,fast:2,succubus:3,cum:6,ass:7,boobs:8}[pool];state.canUseSlowdown=true;state.canUseBonerPill=true;if(started&&!finished&&run.phase==='playing'){FanserviceEconomy.draw(run);if(!music){if(frenzy&&favorites)favorites.triggerFavoriteFrenzy(state.seconds);run.startCard(pool,frenzy?{...cardOptions,frenzy:true}:cardOptions);speed=1;}}}
  return true;
 }
 function spawnPunishment(){
