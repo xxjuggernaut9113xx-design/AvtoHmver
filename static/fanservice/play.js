@@ -636,6 +636,12 @@ function renderSessionShell(){
   pauseBody.append(inventoryAction,challengeAction,$('draw'),holdingLabel,wakeLabel,wakeStatus,vibrationLabel,vibrationStatus,lockedSettings,$('session-statistics'),$('end'));
   const libraryLink=element('a','Return to library');libraryLink.href='index.html';pauseBody.append(libraryLink);shellMounted=true;
  }
+ // d146862 moved Inventory/Challenges into the pause menu, which only opens
+ // while the session is playing and paused; after finish the menu stays
+ // closed, so the post-settlement claim flow lost its entry point. Before
+ // d146862 both actions lived in #controls and stayed visible after finish,
+ // so move them back there once the session is finished.
+ if(finished&&shellMounted)$('controls').append(inventoryAction,challengeAction);
  presetPanel.disabled=started||restoring;
  if(started&&paused){if($('status').parentNode!==pauseBody)pauseBody.prepend($('status'));}
  else if($('status').parentNode!==$('voice-status').parentNode)$('voice-status').after($('status'));
