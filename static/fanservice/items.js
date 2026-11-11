@@ -38,8 +38,11 @@
   // site anywhere in the hotbar ubergraph (five sites total: Edge, type 0,
   // type 1, type 3, Break tail), so they never roll.
   if(type===3&&context.punishmentEnabled&&hooks.punishment(type,state)&&requireHook('spawnPunishment'))hooks.spawnPunishment(type,state);
-  // ActivateItem applies this modifier after the effect, only on these branches.
-  const applyAllOrNothing=()=>{if(context.allOrNothing&&[1,3,4,6,7,10].includes(type)){state.coins=0;if(requireHook('resetObjective'))hooks.resetObjective(state);else if((context.objectiveType??0)===0)state.cumMeter=0;}};
+  // ActivateItem calls ApplyAllOrNothingModifierEffects for Break only on its
+  // Playlist (mode 2) branch (stmt 70); the non-Playlist branch (stmts 72-75)
+  // has no call. The other types in the set match the retained call sites
+  // (stmts 45, 56, 94, 106, 129).
+  const applyAllOrNothing=()=>{if(context.allOrNothing&&([1,3,6,7,10].includes(type)||(type===4&&context.mode===2))){state.coins=0;if(requireHook('resetObjective'))hooks.resetObjective(state);else if((context.objectiveType??0)===0)state.cumMeter=0;}};
   if(type===1){
    // Hotbar stmts 97-103: DecreaseHeat rolls after AoN/UpdateItemUses and
    // before the widget effect (heat reduction, cum-meter add, count decrement

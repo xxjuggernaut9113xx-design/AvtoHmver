@@ -123,11 +123,16 @@ checked (or the pattern is confirmed another way). Note the challenge
 contract references `OffensiveItemsUsed` once and `DefensiveItemsUsed`
 never, so the practical effect today is limited to the Offensive counter.
 
-**Side observation, NOT changed (out of scope, needs Kevin's decision):**
+**Side observation — decided from the evidence and fixed (2026-11-11):**
 the non-Playlist Break branch (`ActivateItem` stmts 72-75) contains no
 `ApplyAllOrNothingModifierEffects_IfToggled` call, while the Playlist branch
-does (stmt 70). The player's `applyAllOrNothing` still applies to Break in
-both modes; left untouched per the final-push scope.
+does (stmt 70). The player's `applyAllOrNothing` used to apply to Break in
+both modes; it now applies to Break only in Playlist mode (mode 2) — see
+the All-or-Nothing follow-up at the end of this note. Kevin directed
+(2026-11-11) that this scope be decided from the evidence rather than
+waiting on him, and the evidence is unambiguous: the two branches differ
+only in the modifier calls, and the same branch split already governs
+Hot Hands and Heat Spell for Break in the player.
 
 ## 3. Types 1/3/6/7 hook correction — established, fixed
 
@@ -235,8 +240,9 @@ it would conflate it with ApexLure's `spawnSuccubus`.
   and the taunt-count input is wired (edec337, 6f27747); the Edge roll is
   wired in this follow-up; the type-0 roll is blocked (no player
   counterpart), see below.
-- #48 All-or-Nothing scope for non-Playlist Break — see §2 side
-  observation; needs Kevin's decision.
+- #48 All-or-Nothing scope for non-Playlist Break — **decided and
+  implemented** (see the All-or-Nothing follow-up at the end of this note):
+  Break gets All-or-Nothing only in Playlist mode.
 - #48 Defensive/Offensive `ItemsUsed` counting correction — see §2; needs
   the three non-retained callees checked first.
 - #48 `DetermineShouldHotHandsModifierApply` internals — surveyed in this
@@ -566,3 +572,49 @@ item use (no "Hot Hands" or "Heat Spell" string anywhere in
 would need a notification channel through `itemUsed` for both modifiers
 alike; that is a presentation gap, not a Hot Hands correction, and it is
 recorded here rather than implemented.
+
+## Follow-up: All-or-Nothing scope for Break decided from the evidence — Playlist only (2026-11-11)
+
+**Decision.** All-or-Nothing applies to Break only in Playlist mode
+(mode 2), not in Classic or Tower. Kevin directed on 2026-11-11 that this
+be decided from the evidence (he has everything he needs and wants only
+the final patch, no more questions) instead of waiting on his earlier
+parked decision — and the evidence decides it on its own.
+
+**Evidence.** `ActivateItem` has two Break branches, split on the same
+`IsRhythmMode?` test that splits Hot Hands and Heat Spell:
+
+- Playlist branch (stmts 62-71): `StartRhythmModeBreak` (66),
+  `DetermineShouldHotHandsModifierApply` (69),
+  `ApplyAllOrNothingModifierEffects_IfToggled` (70).
+- Non-Playlist branch (stmts 72-75): `Use Break Item` (72),
+  `PlayUseItemAnim` (73), `ApplyHeatSpellEffect` (74), `EX_Jump` (75) —
+  no All-or-Nothing call, no Hot Hands call.
+
+The retained call sites for All-or-Nothing are exactly [45, 56, 70, 94,
+106, 129] (types 1, 3, 4-Playlist, 6, 7, 10); no other type's branch
+calls it (types 5, 9, 11, 12, 13 have a Hot Hands call but no
+All-or-Nothing call). The three Break modifiers are now symmetric in the
+player with their branch: Heat Spell non-Playlist only (stmt 74), Hot
+Hands Playlist only (stmt 69), All-or-Nothing Playlist only (stmt 70).
+The alternative reading — All-or-Nothing applying to Break in all modes
+— would require the non-Playlist branch to call it, and it does not.
+
+**Change.** One line in `items.js` `applyAllOrNothing`: type 4 is now
+gated on `context.mode === 2`; the other types in the set are unchanged.
+`play.js` `itemContext()` already passes `mode: run.config.mode`
+(0 Classic, 1 Tower, 2 Playlist), so no plumbing was needed. The change
+is small and reversible (revert the one condition).
+
+**Tests (TDD red-first).** `tests/fanservice_item_interactions.test.js`
+gained two tests: a fixture-level pin mirroring the Hot Hands test
+("retained ActivateItem applies All or Nothing to Break only on the
+Playlist branch" — AoN call 70 between `StartRhythmModeBreak` (66) and
+`Use Break Item` (72), and stmts 72-75 contain no AoN call), and a
+behaviour test ("All or Nothing applies to Break only in Playlist mode"
+— Break in modes 0 and 1 keeps coins and the +0.01 cum-meter add; Break
+in mode 2 zeroes coins and the cum meter). The red run failed exactly on
+"Break in mode 0 must not wipe coins: 0 !== 75". The pre-existing
+mode-less AoN loop test dropped type 4 (Break is now covered by the
+mode test, not that loop). Full suite 310/310; Python schema 12 pass;
+punishment and edge-punishment smokes pass.

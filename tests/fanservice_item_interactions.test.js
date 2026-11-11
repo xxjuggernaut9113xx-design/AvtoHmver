@@ -27,6 +27,35 @@ test('retained ActivateItem applies Hot Hands to Break only on the Playlist bran
  assert.equal(afterWidget.at(-1).op,'EX_Jump');
 });
 
+test('retained ActivateItem applies All or Nothing to Break only on the Playlist branch',()=>{
+ const statements=evidence.records.find(r=>r.function==='ActivateItem').statements;
+ const calls=statements.filter(({statement:s})=>s.ContextExpression?.VirtualFunctionName==='ApplyAllOrNothingModifierEffects_IfToggled');
+ const byIndex=new Map(statements.map(({index,statement})=>[index,statement]));
+ const rhythm=statements.find(({statement:s})=>s.ContextExpression?.VirtualFunctionName==='StartRhythmModeBreak').index;
+ const widget=statements.find(({statement:s})=>s.ContextExpression?.VirtualFunctionName==='Use Break Item').index;
+ const breakAoN=calls.find(({index})=>index>rhythm&&index<widget);
+ assert.ok(breakAoN,'The Playlist Break branch has an All or Nothing call');
+ assert.equal(breakAoN.index,70);
+ const afterWidget=[widget,widget+1,widget+2,widget+3].map(i=>byIndex.get(i));
+ assert.ok(afterWidget.every(s=>s&&s.ContextExpression?.VirtualFunctionName!=='ApplyAllOrNothingModifierEffects_IfToggled'),'non-Playlist Break branch has no All or Nothing call');
+ assert.equal(afterWidget.at(-1).op,'EX_Jump');
+});
+
+test('All or Nothing applies to Break only in Playlist mode',()=>{
+ for(const mode of [0,1]){
+  const inv=inventory(4),state={coins:75,cumMeter:.4,heat:50,combo:30,beatInterval:.5,strokeCount:30,beatsRemaining:30,cardType:1};
+  const result=Items.use(inv,4,state,{context:{allOrNothing:true,mode,minimumBeatInterval:.05,breakDuration:10},hooks:{beginBreak:()=>true}});
+  assert.equal(result.ok,true,`Break must succeed in mode ${mode}`);
+  assert.equal(state.coins,75,`Break in mode ${mode} must not wipe coins`);
+  assert.ok(Math.abs(state.cumMeter-.41)<1e-9,`Break in mode ${mode} must keep the cum-meter add`);
+ }
+ const inv=inventory(4),state={coins:75,cumMeter:.4,heat:50,combo:30,beatInterval:.5,strokeCount:30,beatsRemaining:30,cardType:1};
+ const result=Items.use(inv,4,state,{context:{allOrNothing:true,mode:2,minimumBeatInterval:.05,breakDuration:10},hooks:{beginBreak:()=>true}});
+ assert.equal(result.ok,true,'Break must succeed in Playlist mode');
+ assert.equal(state.coins,0,'Break in Playlist mode must wipe coins');
+ assert.equal(state.cumMeter,0,'Break in Playlist mode must reset the cum meter');
+});
+
 test('original item lock permits only Escape Rope and excludes both edge and release cards',()=>{
  for(const type of [1,3,4,5,6,7,9,11,12,13]){
   const inv=inventory(type),state={canUseItems:false,cardType:3,combo:20,strokes:0};
@@ -51,11 +80,13 @@ test('rejected timeline mutation preserves All or Nothing coins and objective pr
 });
 
 test('All or Nothing applies after supported successful effects, never Boner Pill',()=>{
- for(const type of [1,3,4,5,6,7,10]){
+ for(const type of [1,3,5,6,7,10]){
   const inv=inventory(type),state={coins:75,cumMeter:.4,heat:50,combo:30,beatInterval:.5,strokeCount:30,beatsRemaining:30,cardType:1};
   const result=Items.use(inv,type,state,{context:{allOrNothing:true,minimumBeatInterval:.05},hooks:{speed:()=>true,beginBreak:()=>true,pill:()=>true,openStore:()=>true,escape:()=>true}});
   assert.equal(result.ok,true);assert.equal(state.coins,type===5?75:0,`coins on type ${type}`);assert.equal(state.cumMeter,type===5?.4:0,`meter on type ${type}`);
  }
+ // Break (4) is mode-dependent — Playlist only — and is pinned by the
+ // Playlist-only test above, not this mode-less loop.
 });
 
 test('objective-specific All or Nothing reset hook runs only after an accepted effect',()=>{
