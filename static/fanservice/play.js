@@ -380,7 +380,6 @@ function tickItems(elapsed){
  const itemState=readItemState();for(const result of FanserviceItems.tick(run.inventory,itemState,elapsed,itemDependencies())){
   if(result==='BountyClaimed')state.BountiesCollected=(state.BountiesCollected||0)+1;
   if(result==='BountyFailed')state.BountyCollectionFailures=(state.BountyCollectionFailures||0)+1;
-  if(result==='StoreOpened')FanserviceEconomy.itemUsed(run,7,run.inventory.catalog.find(r=>r.type===7)?.classification);
  }writeItemState(itemState);
 }
 function tick(now){
@@ -444,6 +443,7 @@ function readItemState(){return {...state,_baseline:{...state},strokes:run.effec
 function writeItemState(value){for(const key of ['heat','combo','coins','effects','metrics','canUseSlowdown','canUseBonerPill','coinMultiplier','lootBarMultiplier','shieldToggled'])if(value[key]!==value._baseline[key])state[key]=value[key];if(value.cumMeter!==value._baseline.meter)state.meter=value.cumMeter;if(value.cardType!==value._baseline.card){state.card=value.cardType;if(state.cardFlow)state.cardFlow.card=value.cardType;}}
 function itemDependencies(){return {context:itemContext(),random:run.random,hooks:{
  recycler:()=>FanserviceEconomy.recycler(run),
+ itemUsed:type=>FanserviceEconomy.itemUsed(run,type,run.inventory.catalog.find(r=>r.type===type)?.classification),
  resetObjective:value=>{run.resetObjective();value.coins=0;value.cumMeter=state.meter;value.strokes=run.effectiveStats().strokes;},
  panicBlocked:(type,s)=>FanserviceModifiers.panicBlocked(run.inventory.catalog.find(r=>r.type===type)?.id,s.heat,state.modifiers),
  speed:multiplier=>{if(music)return false;const next=Math.max(.1,Math.min(5,speed*multiplier));if(state.cardFlow&&!run.modifyCard(next))return false;speed=next;return true;},
