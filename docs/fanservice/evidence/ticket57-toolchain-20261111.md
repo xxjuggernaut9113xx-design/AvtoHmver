@@ -12,8 +12,10 @@ built and tested, and what is still blocked. Nothing was pushed.
   type had no `signingConfig` until the scaffold below. A debug APK cannot
   prove a same-signature release upgrade.
 - Emulator verification of the upgrade / gameplay / migration: **not done** —
-  the x86_64 emulator refuses to run without KVM (see §4); an ARM64 image
-  is being tried instead.
+  no emulator can boot in this VM (x86_64 needs KVM, which the host does
+  not expose; arm64 is refused by the emulator on an x86_64 host;
+  no binder/ashmem for Waydroid/Anbox). The manually built debug APK
+  (§3) is ready to install wherever an emulator or device exists.
 - Kill-mid-migration and low-storage-migration runs: **not done** — no
   running emulator yet. The migration code paths were re-read (see §5);
   nothing in them was changed.
@@ -151,11 +153,17 @@ present (53,118 bytes). Not yet installed or launched anywhere
   `ERROR: x86_64 emulation currently requires hardware acceleration!`
   No `/dev/kvm`, and the CPU exposes no vmx/svm flags (no nested
   virtualization in this VM). There is no software fallback for x86_64.
-- ARM64 image (`arm64-v8a` r09): downloading at time of writing; the
-  emulator can run ARM images under full (TCG) emulation without KVM,
-  but it will be very slow. Boot + install + migration tests are the
-  next step if it boots. `adb` itself works (native binary; the adb
-  server started on tcp:5037).
+- ARM64 image (`arm64-v8a` r09): downloaded and SHA-1 verified
+  (`16f5bceca236b2737008977c4aaf826e46a8de7d`, 1,778,933,980 bytes);
+  AVD `fanservice35arm` created — but the emulator refuses it too:
+  `FATAL: Avd's CPU Architecture 'arm64' is not supported by the QEMU2
+  emulator on x86_64 host. System image must match the host architecture.`
+  Emulator 37.3.9 on an x86_64 host runs x86_64 images only, and those
+  need KVM. **No emulator can boot in this VM.**
+- Waydroid/Anbox alternative checked: no `/dev/binder`, no
+  `/dev/ashmem`, no binder/ashmem kernel modules, no waydroid/anbox
+  binaries. Dead end in this VM.
+- `adb` itself works (native binary; the adb server started on tcp:5037).
 
 ## 5. Migration code re-read (no changes)
 
@@ -206,7 +214,11 @@ present (53,118 bytes). Not yet installed or launched anywhere
    build on an unrestricted machine. (The manual build in §3 is a
    valid substitute for producing a debug APK, but it is not a
    substitute for a Gradle release build.)
-3. A booting emulator (ARM64 image, in progress) or a physical device,
-   for: `adb install -r` upgrade over existing data, preserved
+3. A booting emulator (needs a host with KVM for the x86_64 image, or an
+   ARM host for the arm64 image) or a physical device, for:
+   `adb install -r` upgrade over existing data, preserved
    profile/settings/media/snapshots/pins, kill-mid-migration and
    low-storage-migration runs showing a usable prior state + retry.
+   The APK to install is `~/android/manual-build/work/app-debug.apk`
+   (SHA-256 `4861c194…84a3`, debug-signed — see §3); a same-signature
+   release upgrade still needs item 1 first.
