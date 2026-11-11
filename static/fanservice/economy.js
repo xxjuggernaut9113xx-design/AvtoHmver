@@ -20,7 +20,7 @@
  function initialize(run){const s=run.state;s.economy??={seed:173203,tycoonElapsed:0,exorcistRemaining:0,coinverterStrokes:0};s.lootBar??=0;s.lootRolls??=0;return s.economy;}
  function fraction(run){const e=initialize(run);e.seed=(Math.imul(e.seed,196314165)+907633515)|0;return (e.seed>>>9)/8388608;}
  function heatCap(run){return has(run,0)?75:100;}
- function addHeat(run,amount){const s=run.state;s.heat=clamp(s.heat+amount*(has(run,2)?.5:1)*[.5,1,3][run.config.difficulty??1],0,100);s.heat=Math.min(s.heat,heatCap(run));}
+ function addHeat(run,amount){const s=run.state;s.heat=clamp(s.heat+amount*(has(run,2)?.5:1)*[.75,1,2][run.config.difficulty??1],0,100);s.heat=Math.min(s.heat,heatCap(run));}
  function addSuccuCoins(run,amount){if(!Number.isSafeInteger(amount)||amount<0||run.state.succuCoins+amount>2147483647)return false;run.state.succuCoins+=amount;return true;}
  function purchase(run,id){const row=catalog.find(r=>r.id===id);if(!row)return {ok:false,reason:'Unknown Succu shop modifier.'};if(has(run,id))return {ok:false,reason:'Modifier already owned for this run.'};if(run.state.succuCoins<row.cost)return {ok:false,reason:'Insufficient SuccuCoins.'};run.state.succuCoins-=row.cost;run.ownedModifiers.push(id);run.state.SuccuCoinsSpent=add(run.state.SuccuCoinsSpent,row.cost);return {ok:true,cost:row.cost};}
  function addBeatCoins(run,amount){const s=run.state;if(has(run,11)&&fraction(run)<Math.fround(.2))amount=add(amount,amount);const earned=Math.trunc(amount*(s.coinMultiplier??1));s.coins=add(s.coins,earned);if(earned>0)s.SessionCoinsEarned=add(s.SessionCoinsEarned,earned);return earned;}

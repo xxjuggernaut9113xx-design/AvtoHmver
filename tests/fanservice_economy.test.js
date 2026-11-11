@@ -3,7 +3,7 @@ const {Run}=require('../static/fanservice/run'),economy=require('../static/fanse
 const catalog=require('../static/fanservice/data/modes.json');
 function session(config={}){const run=new Run(catalog,{seed:137,...config});economy.draw(run);return run;}
 test('beat heat uses draw heat category and difficulty; beat coins truncate and wrap',()=>{
- for(const [difficulty,heat] of [[0,.1],[1,.2],[2,.6]]){const run=session({difficulty});run.beat();assert(Math.abs(run.state.heat-heat)<1e-12);assert.equal(run.state.coins,1);assert.equal(run.state.strokes,1);}
+ for(const [difficulty,heat] of [[0,.15],[1,.2],[2,.4]]){const run=session({difficulty});run.beat();assert(Math.abs(run.state.heat-heat)<1e-12);assert.equal(run.state.coins,1);assert.equal(run.state.strokes,1);}
  const run=session();run.state.coinMultiplier=1.9;run.state.coins=2147483647;run.beat();assert.equal(run.state.coins,-2147483648);assert.equal(run.state.SessionCoinsEarned,1);
  run.state.card=3;run.state.modifiers=['Avarice'];run.beat();assert.equal(run.state.coins,2147483647);assert.equal(run.state.SessionCoinsEarned,1);
 });
