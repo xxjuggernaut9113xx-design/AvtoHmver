@@ -79,7 +79,8 @@
   const metric=classification==='Offensive'?'OffensiveItemsUsed':'DefensiveItemsUsed';s[metric]=add(s[metric],1);
   const specific={5:'BonerPillsUsed',10:'EscapeRopesUsed',11:'LootRushesUsed',13:'ComboCrunchersUsed'}[type];if(specific)s[specific]=add(s[specific],1);
   if(metric==='DefensiveItemsUsed'&&has(run,4))s.heat=clamp(s.heat-10,0,100);
-  if(type!==1&&s.modifiers.includes('Hot Hands'))s.heat=clamp(s.heat+10,0,heatCap(run));
+  // Original ActivateItem calls DetermineShouldHotHandsModifierApply for Break only on its Playlist (mode 2) branch.
+  if(type!==1&&!(type===4&&run.config.mode!==2)&&s.modifiers.includes('Hot Hands'))s.heat=clamp(s.heat+10,0,heatCap(run));
  }
  function recycler(run){return has(run,17)&&fraction(run)<.25;}
  function advance(run,seconds){

@@ -13,6 +13,20 @@ test('retained ActivateItem calls All or Nothing only after successful supported
  for(const call of calls){const priorUse=uses.filter(use=>use.index<call.index).at(-1);assert.ok(priorUse);const branch=statements.find(({index})=>index===priorUse.index+1);assert.equal(branch.statement.op,'EX_JumpIfNot');}
 });
 
+test('retained ActivateItem applies Hot Hands to Break only on the Playlist branch',()=>{
+ const statements=evidence.records.find(r=>r.function==='ActivateItem').statements;
+ const hot=statements.filter(({statement:s})=>s.VirtualFunctionName==='DetermineShouldHotHandsModifierApply');
+ assert.deepEqual(hot.map(({statement:s})=>s.Parameters[0].Value),[1,3,4,5,6,7,9,10,11,12,13]);
+ const byIndex=new Map(statements.map(({index,statement})=>[index,statement]));
+ const rhythm=statements.find(({statement:s})=>s.ContextExpression?.VirtualFunctionName==='StartRhythmModeBreak').index;
+ const widget=statements.find(({statement:s})=>s.ContextExpression?.VirtualFunctionName==='Use Break Item').index;
+ const breakHot=hot.find(({statement:s})=>s.Parameters[0].Value===4).index;
+ assert.ok(rhythm<breakHot&&breakHot<widget,'Break Hot Hands belongs to the Playlist branch');
+ const afterWidget=[widget,widget+1,widget+2,widget+3].map(i=>byIndex.get(i));
+ assert.ok(afterWidget.every(s=>s&&s.VirtualFunctionName!=='DetermineShouldHotHandsModifierApply'),'non-Playlist Break branch has no Hot Hands call');
+ assert.equal(afterWidget.at(-1).op,'EX_Jump');
+});
+
 test('original item lock permits only Escape Rope and excludes both edge and release cards',()=>{
  for(const type of [1,3,4,5,6,7,9,11,12,13]){
   const inv=inventory(type),state={canUseItems:false,cardType:3,combo:20,strokes:0};

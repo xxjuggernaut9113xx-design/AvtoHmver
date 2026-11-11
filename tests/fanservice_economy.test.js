@@ -41,6 +41,15 @@ test('item use records the native specific metrics and source heat ordering',()=
  const run=session({modifiers:['Hot Hands']});run.ownedModifiers=[4,0];run.state.heat=74;economy.itemUsed(run,10,'Defensive');assert.equal(run.state.heat,74);assert.equal(run.state.ItemsUsed,1);assert.equal(run.state.DefensiveItemsUsed,1);assert.equal(run.state.EscapeRopesUsed,1);
  economy.itemUsed(run,5,'Offensive');assert.equal(run.state.heat,75);assert.equal(run.state.BonerPillsUsed,1);economy.itemUsed(run,11,'Offensive');assert.equal(run.state.LootRushesUsed,1);economy.itemUsed(run,13,'Defensive');assert.equal(run.state.ComboCrunchersUsed,1);
 });
+test('Hot Hands heats Break only in Playlist mode, as the retained ActivateItem branches do',()=>{
+ for(const [mode,heat] of [[0,50],[1,50],[2,60]]){
+  const run=session({mode,modifiers:['Hot Hands']});run.state.heat=50;
+  economy.itemUsed(run,4,'Defensive');
+  assert.equal(run.state.heat,heat,`Break in mode ${mode}`);assert.equal(run.state.ItemsUsed,1);assert.equal(run.state.DefensiveItemsUsed,1);
+ }
+ for(const type of [3,5,6,7,9,10,11,12,13]){const run=session({modifiers:['Hot Hands']});run.state.heat=50;economy.itemUsed(run,type,'Offensive');assert.equal(run.state.heat,60,`type ${type}`);}
+ const decrease=session({modifiers:['Hot Hands']});decrease.state.heat=50;economy.itemUsed(decrease,1,'Defensive');assert.equal(decrease.state.heat,50);
+});
 test('active time metrics and run currency stop outside playing phases',()=>{
  const run=session();run.state.heat=70;run.advance(.6);run.advance(.6);assert.equal(run.state.TimeAtHighHeat,1);run.advance(1.9);assert.equal(run.state.TimeAtHighHeat,3);run.phase='shop';const before=run.export();run.advance(60);run.beat();assert.deepEqual(run.export(),before);
 });
