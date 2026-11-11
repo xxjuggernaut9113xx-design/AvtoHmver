@@ -53,12 +53,22 @@ test('item-use counters use the native EMetricType names for ordinals 30/31/35',
  assert.equal(economy.metricIds[8],'ItemsUsed');assert.equal(economy.metricIds[27],'BonerPillsUsed');assert.equal(economy.metricIds[34],'LootRushesUsed');assert.equal(economy.metricIds[39],'ComboCrunchersUsed');
  // Each counter itemUsed increments is one of the resolved names: Escape Rope
  // (10) touches 8, 30 and 35; Combo Cruncher (13) 8, 30 and 39; Boner Pill (5)
- // 8, 31 and 27; Loot Rush (11) 8, 31 and 34; types 9/12 touch 8 and 31 only.
+ // 8 and 27 only (no 31 — its callee UseBonerPill is retained and calls
+ // neither UpdateMetric); Loot Rush (11) 8, 31 and 34; types 9/12 touch 8
+ // and 31 only. #48 counting correction (unpacked v0.05.1, 2026-11-11):
+ // DefensiveItemsUsed (30) only for types 4/6/7/10/13 and OffensiveItemsUsed
+ // (31) only for types 9/11/12; types 1/3 increment neither 30 nor 31
+ // (their callees UseReduceHeatItem/UseSlowdownItem are retained and call
+ // neither), and types 4/6/7 increment 30 (their callees Use Break Item /
+ // ToggleSuccuShields / TabbedInventoryResupplyTrigger reach UpdateMetric
+ // (30,1) in the unpacked widget ubergraphs).
  const rope=session();economy.itemUsed(rope,10,'Defensive');assert.equal(rope.state[economy.metricIds[8]],1);assert.equal(rope.state[economy.metricIds[30]],1);assert.equal(rope.state[economy.metricIds[35]],1);
  const cruncher=session();economy.itemUsed(cruncher,13,'Defensive');assert.equal(cruncher.state[economy.metricIds[8]],1);assert.equal(cruncher.state[economy.metricIds[30]],1);assert.equal(cruncher.state[economy.metricIds[39]],1);
- const pill=session();economy.itemUsed(pill,5,'Offensive');assert.equal(pill.state[economy.metricIds[8]],1);assert.equal(pill.state[economy.metricIds[31]],1);assert.equal(pill.state[economy.metricIds[27]],1);
+ const pill=session();economy.itemUsed(pill,5,'Offensive');assert.equal(pill.state[economy.metricIds[8]],1);assert.equal(pill.state[economy.metricIds[31]],undefined);assert.equal(pill.state[economy.metricIds[27]],1);
  const rush=session();economy.itemUsed(rush,11,'Offensive');assert.equal(rush.state[economy.metricIds[8]],1);assert.equal(rush.state[economy.metricIds[31]],1);assert.equal(rush.state[economy.metricIds[34]],1);
  for(const type of [9,12]){const run=session();economy.itemUsed(run,type,'Offensive');assert.equal(run.state[economy.metricIds[8]],1);assert.equal(run.state[economy.metricIds[31]],1);assert.equal(run.state[economy.metricIds[30]],undefined);}
+ for(const type of [4,6,7]){const run=session();economy.itemUsed(run,type,'Defensive');assert.equal(run.state[economy.metricIds[8]],1);assert.equal(run.state[economy.metricIds[30]],1);assert.equal(run.state[economy.metricIds[31]],undefined);}
+ for(const type of [1,3]){const run=session();economy.itemUsed(run,type,'Defensive');assert.equal(run.state[economy.metricIds[8]],1);assert.equal(run.state[economy.metricIds[30]],undefined);assert.equal(run.state[economy.metricIds[31]],undefined);}
 });
 test('Heat Spell reduces heat only on the ActivateItem branches that call ApplyHeatSpellEffect',()=>{
  // ActivateItem stmts 30, 42, 53, 74, 91, 102 call ApplyHeatSpellEffect for

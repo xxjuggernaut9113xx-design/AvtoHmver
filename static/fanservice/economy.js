@@ -76,7 +76,17 @@
  }
  function itemUsed(run,type,classification){
   const s=run.state;applySessionMetric(run,8,1);
-  const metric=classification==='Offensive'?31:30;applySessionMetric(run,metric,1);
+  // #48 counting correction (unpacked v0.05.1 widget ubergraphs, 2026-11-11):
+  // the original increments DefensiveItemsUsed (30) only for types 4/6/7/10/13
+  // and OffensiveItemsUsed (31) only for types 9/11/12 — NOT for every item
+  // of that classification. Types 1/3/5 increment neither 30 nor 31 (their
+  // callees UseReduceHeatItem / UseSlowdownItem / UseBonerPill are retained
+  // and call neither UpdateMetric); types 4/6/7 increment 30 (their callees
+  // Use Break Item / ToggleSuccuShields / TabbedInventoryResupplyTrigger
+  // reach UpdateMetric(30,1) in the unpacked PG1/PG2 ubergraphs). The
+  // classification argument is therefore not used for the 30/31 decision.
+  if([4,6,7,10,13].includes(type))applySessionMetric(run,30,1);
+  else if([9,11,12].includes(type))applySessionMetric(run,31,1);
   const specific={5:27,10:35,11:34,13:39}[type];if(specific)applySessionMetric(run,specific,1);
   // ActivateItem calls ApplyHeatSpellEffect only for types 0, 1, 3, 6, 7 and
   // for Break outside Playlist mode (stmts 30, 42, 53, 74, 91, 102). Escape
