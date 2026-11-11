@@ -507,7 +507,7 @@ function objectiveEvents(events){
 function tickItems(elapsed){
  const itemState=readItemState();for(const result of FanserviceItems.tick(run.inventory,itemState,elapsed,itemDependencies())){
   if(result==='BountyClaimed')state.BountiesCollected=(state.BountiesCollected||0)+1;
-  if(result==='BountyFailed')state.BountyCollectionFailures=(state.BountyCollectionFailures||0)+1;
+  if(result==='BountyFailed')FanserviceEconomy.recordBountyCollectionFailure(run);
  }writeItemState(itemState);
 }
 function tick(now){
@@ -575,7 +575,7 @@ function itemDependencies(){return {context:itemContext(),random:run.random,hook
  resetObjective:value=>{run.resetObjective();value.coins=0;value.cumMeter=state.meter;value.strokes=run.effectiveStats().strokes;},
  panicBlocked:(type,s)=>FanserviceModifiers.panicBlocked(run.inventory.catalog.find(r=>r.type===type)?.id,s.heat,state.modifiers),
  speed:multiplier=>{if(music)return false;const next=Math.max(.1,Math.min(5,speed*multiplier));if(state.cardFlow&&!run.modifyCard(next))return false;speed=next;return true;},
- beginBreak:duration=>{if(state.breakSectionDisabled||state.seconds<breakUntil)return false;breakUntil=state.seconds+duration;if(!music&&state.cardFlow)run.delayCard(duration);if(music){state.MusicBreaksUsed=(state.MusicBreaksUsed||0)+1;}return true;},
+ beginBreak:duration=>{if(state.breakSectionDisabled){FanserviceEconomy.recordDisabledBreakSectionFailure(run);return false;}if(state.seconds<breakUntil)return false;breakUntil=state.seconds+duration;if(!music&&state.cardFlow)run.delayCard(duration);if(music)FanserviceEconomy.recordMusicBreakUsed(run);return true;},
  pill:effect=>{if(music)return false;const next=Math.max(.1,Math.min(5,speed*effect.speed));if(state.cardFlow&&!run.modifyCard(next,effect.timelineStrokes))return false;speed=next;return true;},
  openStore:()=>{if(run.tower&&run.phase==='playing')return false;renderInventory(true);if(!inventoryDialog.open)inventoryDialog.showModal();return true;},
  spawnSuccubus:({strokeAddend}={})=>FanserviceModifiers.options(state.modifiers).canSpawnSuccubi&&draw('succubus',{cardOptions:{apexLure:true,strokeAddend}}),
@@ -719,7 +719,7 @@ if(navigator.mediaSession){
  }
 }
 audio.addEventListener('waiting',()=>{musicBuffering=true;window.FanserviceVoice.stop();vibration.cancel();status('Buffering: rhythm clock is held at the actual playback position.');});audio.addEventListener('playing',()=>{musicBuffering=false;status('Playing from the client audio clock.');});
-audio.addEventListener('ended',()=>{if(!music||!started||paused||run.returnEdge||finished||settling||musicLeadIn||audio.seeking)return;const final=sampleMusic(true);if(!final?.complete){status('Recording ended before the confirmed song boundary. No completion rewards were granted.');return;}state.BestMusicModeWinRounds=1;void end(true);});audio.addEventListener('error',()=>status('Soundtrack access failed. Reconnect or use an explicitly saved snapshot.'));
+audio.addEventListener('ended',()=>{if(!music||!started||paused||run.returnEdge||finished||settling||musicLeadIn||audio.seeking)return;const final=sampleMusic(true);if(!final?.complete){status('Recording ended before the confirmed song boundary. No completion rewards were granted.');return;}FanserviceEconomy.recordMusicModeWinRounds(run,1);void end(true);});audio.addEventListener('error',()=>status('Soundtrack access failed. Reconnect or use an explicitly saved snapshot.'));
 audio.addEventListener('seeked',()=>{window.FanserviceVoice.stop();vibration.cancel();if(started&&!run.returnEdge&&!run.interrupted&&!musicLeadIn&&map&&state){rules.seek(map,audio.currentTime,clock,timelineCallbacks());checkpoint(true);render();}});
 function interruptSession(){if(!started||finished)return;run.interrupt();if(!paused)$('pause').click();else checkpoint(true);}
 document.addEventListener('visibilitychange',()=>{if(document.hidden){cancelFinishHold();interruptSession();}updateScreenWake();});

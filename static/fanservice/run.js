@@ -111,7 +111,7 @@
     this.redeemedRounds.push(this.tower.round);
    }
    if(this.tower.phase==='complete'){
-    s.won=this.tower.failed===0;if(s.won)s.BestTowerWinRounds=this.tower.completed;this.phase='complete';
+    s.won=this.tower.failed===0;if(s.won)Economy.recordTowerWinRounds(this,this.tower.completed);this.phase='complete';
    }else this.phase=this.tower.round%this.shopEvery===0?'shop':'round-complete';
    return true;
   }

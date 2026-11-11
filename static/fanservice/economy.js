@@ -75,9 +75,9 @@
   return {succuCoins:reward,coins,item};
  }
  function itemUsed(run,type,classification){
-  const s=run.state;s.ItemsUsed=add(s.ItemsUsed,1);
-  const metric=classification==='Offensive'?'OffensiveItemsUsed':'DefensiveItemsUsed';s[metric]=add(s[metric],1);
-  const specific={5:'BonerPillsUsed',10:'EscapeRopesUsed',11:'LootRushesUsed',13:'ComboCrunchersUsed'}[type];if(specific)s[specific]=add(s[specific],1);
+  const s=run.state;applySessionMetric(run,8,1);
+  const metric=classification==='Offensive'?31:30;applySessionMetric(run,metric,1);
+  const specific={5:27,10:35,11:34,13:39}[type];if(specific)applySessionMetric(run,specific,1);
   // ActivateItem calls ApplyHeatSpellEffect only for types 0, 1, 3, 6, 7 and
   // for Break outside Playlist mode (stmts 30, 42, 53, 74, 91, 102). Escape
   // Rope (10) and Combo Cruncher (13) never call it, and UseEscapeRopeItem's
@@ -93,15 +93,45 @@
   const ticks=Math.floor(s.seconds+seconds)-Math.floor(s.seconds);if(ticks>0&&s.heat>=70)s.TimeAtHighHeat=add(s.TimeAtHighHeat,ticks);
   if(has(run,19)){e.tycoonElapsed+=seconds;const reward=Math.trunc(e.tycoonElapsed/60);if(reward>0){addSuccuCoins(run,reward);e.tycoonElapsed-=60*reward;}}
  }
+ // Native RecordSessionMetric jump table (0x1483070c0, v0.05.1 — see
+ // docs/parity/evidence/ticket50-producers-native-20261111.md §3): add for
+ // most metrics; max for 4/17/18/42/43 (which then tail-call
+ // UpdateLifetimeBest — mirrored in progression.js updateChallenges);
+ // set for 24 PercentAtHighHeat; no-op for 5/9/15/20/21 (live counters,
+ // derived values, or handled by another system — do not invent a session
+ // increment for them). Out-of-range ids return.
+ const sessionMetricModes={4:'max',5:'noop',9:'noop',15:'noop',17:'max',18:'max',20:'noop',21:'noop',24:'set',42:'max',43:'max'};
+ function applySessionMetric(run,metricId,value){
+  const field=metricIds[metricId];if(!field)return false;
+  const mode=sessionMetricModes[metricId]||'add',s=run.state;
+  if(mode==='noop')return false;
+  if(mode==='max'){s[field]=Math.max(s[field]||0,value);return true;}
+  if(mode==='set'){s[field]=value;return true;}
+  s[field]=add(s[field],value);return true;
+ }
+ // The six settled producers (§1): each wraps UpdateMetricWithConditions
+ // with a constant metric id, a value of 1 (or the rounds won), and a
+ // zeroed conditions struct (no conditions). Challenge fan-out (§2 phase
+ // 3) flows through the existing settlement path: the producer records
+ // into run state, sessionMetrics copies the field by name, and
+ // updateChallenges fans out by metric id. The §2 phase-2 helper
+ // (0x1482f4540, unnamed in the public PDB) is NOT implemented — its name
+ // and bool meaning are unestablished. Reset / subtract / combine need
+ // the 0x148311f70 helper's semantics (and, for combine, the int
+ // parameter's role) — recorded open, not guessed.
+ function recordComboCruncherUsed(run){return applySessionMetric(run,39,1);}
+ function recordMusicBreakUsed(run){return applySessionMetric(run,44,1);}
+ function recordBountyCollectionFailure(run){return applySessionMetric(run,46,1);}
+ function recordDisabledBreakSectionFailure(run){return applySessionMetric(run,45,1);}
+ function recordTowerWinRounds(run,rounds){if(!Number.isSafeInteger(rounds)||rounds<=0)return false;return applySessionMetric(run,43,rounds);}
+ function recordMusicModeWinRounds(run,rounds){if(!Number.isSafeInteger(rounds)||rounds<=0)return false;return applySessionMetric(run,42,rounds);}
  const sourceLedger=['RecoveredRules.cpp: BeatComplete, AddBeatLootReward, AddToLootBar, PrepareDrawState','RecoveredSession.cpp: GetLootIncrement','RecoveredCardDispatch.cpp: RollAndGiveLootDropsV2','RecoveredSuccuEconomy.cpp: catalog, currency, metric/action handlers, timers','RecoveredNewerItemRuntime.cpp: item-use metrics'];
- // Native EMetricType ordinals for the counters itemUsed increments, from reJOIce
- // Analysis/ReferenceBuilds/newer-20261017/native-reflection-enums.json (47 values;
- // the older Analysis/native-reflection-enums.json has only 30, 0-29, which is why
- // 30/31/35 looked unresolved): 8 ItemsUsed, 27 BonerPillsUsed,
- // 30 DefensiveItemsUsed, 31 OffensiveItemsUsed, 34 LootRushesUsed,
- // 35 EscapeRopesUsed, 39 ComboCrunchersUsed.
- const metricIds={8:'ItemsUsed',27:'BonerPillsUsed',30:'DefensiveItemsUsed',31:'OffensiveItemsUsed',34:'LootRushesUsed',35:'EscapeRopesUsed',39:'ComboCrunchersUsed'};
+ // Native EMetricType ordinals, full 47-value enum from reJOIce
+ // Analysis/ReferenceBuilds/newer-20261017/native-reflection-enums.json
+ // (the older Analysis/native-reflection-enums.json has only 30, 0-29,
+ // which is why 30/31/35 looked unresolved).
+ const metricIds={0:'Strokes',1:'Edges',2:'SuccubiDefeated',3:'EnemiesDefeated',4:'MaxCombo',5:'StrokeCombo',6:'MissedCumWindows',7:'TimesTaunted',8:'ItemsUsed',9:'AvgStrokesPerEdge',10:'DrawsAtMaxHeat',11:'EarlyClimax',12:'SessionDuration',13:'SessionsCompleted',14:'SessionsWon',15:'TotalXPEarned',16:'MoneySpent',17:'EdgeStreak',18:'ConsecutiveSuccubiSurvived',19:'CumWindowsHit',20:'PerfectRounds',21:'TimesLost',22:'LostToSuccubus',23:'TimeAtHighHeat',24:'PercentAtHighHeat',25:'GamesWithSexToy',26:'PerfectEdges',27:'BonerPillsUsed',28:'AcceptedTemptation',29:'CameDuringTaunt',30:'DefensiveItemsUsed',31:'OffensiveItemsUsed',32:'DeclinedTemptation',33:'BountiesCollected',34:'LootRushesUsed',35:'EscapeRopesUsed',36:'MilkingCount',37:'SuccuSlayerSessionsWon',38:'EdgeSessionsWon',39:'ComboCrunchersUsed',40:'SuccuCoinsSpent',41:'SessionsWonAtMaxDifficulty',42:'BestMusicModeWinRounds',43:'BestTowerWinRounds',44:'MusicBreaksUsed',45:'DisabledBreakSectionFailures',46:'BountyCollectionFailures'};
  const shopIds=[0,1,2,3,4,5,6,7,9,10,11,12,13,16,17,18,19,20,21];
- const api={catalog,shopIds,initialize,has,fraction,heatCap,addHeat,addSuccuCoins,purchase,addBeatCoins,loot,beat,draw,succubusDefeated,itemUsed,recycler,advance,sourceLedger,metricIds};
+ const api={catalog,shopIds,initialize,has,fraction,heatCap,addHeat,addSuccuCoins,purchase,addBeatCoins,loot,beat,draw,succubusDefeated,itemUsed,recycler,advance,sourceLedger,metricIds,sessionMetricModes,applySessionMetric,recordComboCruncherUsed,recordMusicBreakUsed,recordBountyCollectionFailure,recordDisabledBreakSectionFailure,recordTowerWinRounds,recordMusicModeWinRounds};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.FanserviceEconomy=api;
 })(globalThis);
