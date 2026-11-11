@@ -59,6 +59,67 @@
   const remaining=releaseDeadline-now;
   return {allowed,countdown:true,progress:Math.max(0,Math.min(1,remaining/windowSeconds)),seconds:Math.ceil(remaining)};
  }
- const api={tickRate,specs,durationMs,sample,countdownSample,overlayState};
+ // Map-window warnings (UMusicModeManager, v0.05.1 — see
+ // docs/parity/evidence/ticket51-queue-consumer-20261111.md). The countdown
+ // text wording is the player's own: the original's exact format strings
+ // were not recovered from the binary.
+ //
+ // - Warning leads (constructor 0x1482ce640, verified in the v0.05.1 exe):
+ //   +0x60 = 30.0 s for the cum window, +0x68 = 10.0 s for break-disable.
+ //   EvaluateNotificationWarnings (0x1482decf0) copies them to +0x580 /
+ //   +0x5b0 when it schedules a warning (+0x570/+0x578 = window start/end,
+ //   +0x5a8 = next disable_break time).
+ // - CumIn (GetCumWindowWarningProgress 0x1482e94e0): the progress fills as
+ //   the window approaches: clamp(1 - max(start-now,0)/30, 0, 1), 0 when
+ //   there is no window (start < 0) or the lead is <= 0.
+ //   GetCumWindowWarningRemainingSeconds 0x1482e9570: start < 0 ? -1 :
+ //   max(start-now, 0).
+ // - CumWithin (GetCumWithinProgress 0x1482e96e0 / RemainingSeconds
+ //   0x1482e9870): over the event-history entry containing now, the
+ //   progress drains: clamp(max(end-now,0)/(end-start), 0, 1); the
+ //   remaining seconds are max(end-now, 0), or -1 / 0 when no entry
+ //   contains now.
+ // - BreakDisable (GetBreakDisableWarningProgress 0x1482e6de0): the same
+ //   shape as CumIn over the next disable_break time and its 10 s lead.
+ const CUM_WARNING_LEAD_SECONDS=30,BREAK_DISABLE_WARNING_LEAD_SECONDS=10;
+ const clamp01=value=>Math.max(0,Math.min(1,value));
+ function cumInWarning({now,windowStart}={}){
+  if(!Number.isFinite(now)||!Number.isFinite(windowStart))return {active:false,seconds:-1,progress:0};
+  const remaining=windowStart-now;
+  return {active:windowStart>=0&&remaining>=0&&remaining<=CUM_WARNING_LEAD_SECONDS,seconds:windowStart<0?-1:Math.max(remaining,0),progress:windowStart<0?0:clamp01(1-Math.max(remaining,0)/CUM_WARNING_LEAD_SECONDS)};
+ }
+ function cumWithinWarning({now,windowStart,windowEnd}={}){
+  if(![now,windowStart,windowEnd].every(Number.isFinite))return {active:false,seconds:-1,progress:0};
+  const inside=windowStart>=0&&windowEnd>=windowStart&&now>=windowStart&&now<=windowEnd;
+  const remaining=windowEnd-now,length=windowEnd-windowStart;
+  return {active:inside,seconds:inside?Math.max(remaining,0):-1,progress:inside&&length>0?clamp01(Math.max(remaining,0)/length):0};
+ }
+ function breakDisableWarning({now,disableTime}={}){
+  if(!Number.isFinite(now)||!Number.isFinite(disableTime))return {active:false,seconds:-1,progress:0};
+  const remaining=disableTime-now;
+  return {active:disableTime>=0&&remaining>=0&&remaining<=BREAK_DISABLE_WARNING_LEAD_SECONDS,seconds:disableTime<0?-1:Math.max(remaining,0),progress:disableTime<0?0:clamp01(1-Math.max(remaining,0)/BREAK_DISABLE_WARNING_LEAD_SECONDS)};
+ }
+ function nextMapWindow(events=[],now=0){
+  const starts=[],ends=[];let disableTime=-1;
+  for(const event of events||[]){
+   if(!event||!Number.isFinite(event.time))continue;
+   if(event.type==='cum_event'&&event.value==='start')starts.push(event.time);
+   else if(event.type==='cum_event'&&event.value==='end')ends.push(event.time);
+   else if(event.type==='disable_break'&&event.value==='start'&&event.time>=now&&(disableTime<0||event.time<disableTime))disableTime=event.time;
+  }
+  starts.sort((a,b)=>a-b);ends.sort((a,b)=>a-b);
+  let windowStart=-1,windowEnd=-1;
+  for(const start of starts){
+   const end=ends.find(time=>time>=start);
+   if(end===undefined)continue;
+   if(now<=end){windowStart=start;windowEnd=end;break;}
+  }
+  return {windowStart,windowEnd,disableTime};
+ }
+ function mapWindowWarnings({now,events}={}){
+  const {windowStart,windowEnd,disableTime}=nextMapWindow(events,now);
+  return {cumIn:cumInWarning({now,windowStart}),cumWithin:cumWithinWarning({now,windowStart,windowEnd}),breakDisable:breakDisableWarning({now,disableTime})};
+ }
+ const api={tickRate,specs,durationMs,sample,countdownSample,overlayState,CUM_WARNING_LEAD_SECONDS,BREAK_DISABLE_WARNING_LEAD_SECONDS,cumInWarning,cumWithinWarning,breakDisableWarning,nextMapWindow,mapWindowWarnings};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.FanserviceOverlays=api;
 })(globalThis);

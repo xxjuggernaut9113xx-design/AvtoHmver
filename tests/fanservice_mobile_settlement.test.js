@@ -11,9 +11,21 @@ function finishObjective(run){
   if(objective.objective===6){run.climax();break;}
   if(objective.objective===7){run.tribute();continue;}
   if(run.player.isAllowedToCum){run.climax();break;}
-  if(objective.objective===1){run.advance(Math.max(0,objective.target-(run.player.sessionLength-objective.baselineDuration))+.000001);continue;}
+  if(objective.objective===1){
+   // A boss-round Timer completes through the same trigger gate (Determine
+   // And Trigger Cum Meter Override Event, GM ubergraph v0.05.1), so a stale
+   // Succubus/Edge/Cum card from the previous round would hold the window
+   // forever; draw an ordinary card first.
+   if([3,5,6].includes(run.state.card))run.startCard('slow');
+   run.advance(Math.max(0,objective.target-(run.player.sessionLength-objective.baselineDuration))+.000001);continue;
+  }
   const current=run.state.cardFlow;
-  const flow=current&&!current.ended?current:run.startCard(objective.objective===8?'succubus':'slow');
+  // Once a Succu Slayer objective is complete, the trigger gate (Determine
+  // And Trigger Cum Meter Override Event, GM ubergraph v0.05.1) holds the
+  // window while the current card is a Succubus card (3), so the next card
+  // must be an ordinary one.
+  const done8=objective.objective===8&&run.state.succubi-(objective.baselineSuccubi??0)>=objective.target;
+  const flow=current&&!current.ended?current:run.startCard(done8?'slow':objective.objective===8?'succubus':'slow');
   assert(flow);run.advance(Math.max(0,flow.queue.at(-1).TargetHitTime-(run.state.seconds-flow.started))+.000001);
  }
  assert.notEqual(run.phase,'playing','objective must finish through delivered gameplay');

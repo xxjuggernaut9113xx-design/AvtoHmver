@@ -69,3 +69,62 @@ test('overlayState binds the countdown to the release-window remainder',()=>{
  assert.deepEqual(overlays.overlayState({isAllowedToCum:true,releaseDeadline:100,now:100,windowSeconds:60}),{allowed:true,countdown:false,progress:null,seconds:null});
  assert.deepEqual(overlays.overlayState({isAllowedToCum:true,releaseDeadline:100,now:130,windowSeconds:60}),{allowed:true,countdown:false,progress:null,seconds:null});
 });
+test('map-window warning leads pin the v0.05.1 UMusicModeManager constructor defaults',()=>{
+ // UMusicModeManager constructor 0x1482ce640 (v0.05.1 exe a8f46896, verified
+ // in the binary): movabs 30.0 -> +0x60, movabs 10.0 -> +0x68. The cum-window
+ // lead is copied to +0x580 and the break-disable lead to +0x5b0 by
+ // EvaluateNotificationWarnings (0x1482decf0) when it schedules a warning.
+ assert.equal(overlays.CUM_WARNING_LEAD_SECONDS,30);
+ assert.equal(overlays.BREAK_DISABLE_WARNING_LEAD_SECONDS,10);
+});
+test('cumInWarning fills as the next cum window approaches within 30 s',()=>{
+ // GetCumWindowWarningProgress 0x1482e94e0: clamp(1 - max(start-now,0)/30, 0, 1),
+ // 0 when there is no window (start < 0) or the lead is <= 0.
+ // GetCumWindowWarningRemainingSeconds 0x1482e9570: start < 0 ? -1 : max(start-now, 0).
+ assert.deepEqual(overlays.cumInWarning({now:0,windowStart:-1}),{active:false,seconds:-1,progress:0});
+ assert.deepEqual(overlays.cumInWarning({now:0,windowStart:60}),{active:false,seconds:60,progress:0});
+ assert.deepEqual(overlays.cumInWarning({now:30,windowStart:60}),{active:true,seconds:30,progress:0});
+ assert.deepEqual(overlays.cumInWarning({now:45,windowStart:60}),{active:true,seconds:15,progress:0.5});
+ assert.deepEqual(overlays.cumInWarning({now:60,windowStart:60}),{active:true,seconds:0,progress:1});
+ assert.deepEqual(overlays.cumInWarning({now:61,windowStart:60}),{active:false,seconds:0,progress:1});
+});
+test('cumWithinWarning drains over the running cum window',()=>{
+ // GetCumWithinProgress 0x1482e96e0: over the history entry containing now,
+ // clamp(max(end-now,0)/(end-start), 0, 1); 0 when no entry contains now.
+ // GetCumWithinRemainingSeconds 0x1482e9870: the containing entry's
+ // max(end-now, 0), or -1 when no entry contains now.
+ assert.deepEqual(overlays.cumWithinWarning({now:0,windowStart:60,windowEnd:90}),{active:false,seconds:-1,progress:0});
+ assert.deepEqual(overlays.cumWithinWarning({now:60,windowStart:60,windowEnd:90}),{active:true,seconds:30,progress:1});
+ assert.deepEqual(overlays.cumWithinWarning({now:75,windowStart:60,windowEnd:90}),{active:true,seconds:15,progress:0.5});
+ assert.deepEqual(overlays.cumWithinWarning({now:90,windowStart:60,windowEnd:90}),{active:true,seconds:0,progress:0});
+ assert.deepEqual(overlays.cumWithinWarning({now:91,windowStart:60,windowEnd:90}),{active:false,seconds:-1,progress:0});
+});
+test('breakDisableWarning fills as the next disable_break approaches within 10 s',()=>{
+ // GetBreakDisableWarningProgress 0x1482e6de0: same shape as the cum-in getter
+ // over the next disable_break time (+0x5a8) and its 10 s lead (+0x5b0).
+ assert.deepEqual(overlays.breakDisableWarning({now:0,disableTime:-1}),{active:false,seconds:-1,progress:0});
+ assert.deepEqual(overlays.breakDisableWarning({now:0,disableTime:20}),{active:false,seconds:20,progress:0});
+ assert.deepEqual(overlays.breakDisableWarning({now:10,disableTime:20}),{active:true,seconds:10,progress:0});
+ assert.deepEqual(overlays.breakDisableWarning({now:15,disableTime:20}),{active:true,seconds:5,progress:0.5});
+ assert.deepEqual(overlays.breakDisableWarning({now:20,disableTime:20}),{active:true,seconds:0,progress:1});
+});
+test('mapWindowWarnings picks the next cum window and disable_break from beatmap events',()=>{
+ const events=[
+  {time:10,type:'cum_event',value:'start'},{time:25,type:'cum_event',value:'end'},
+  {time:40,type:'disable_break',value:'start'},{time:50,type:'disable_break',value:'end'},
+  {time:70,type:'cum_event',value:'start'},{time:100,type:'cum_event',value:'end'}];
+ const at0=overlays.mapWindowWarnings({now:0,events});
+ assert.equal(at0.cumIn.active,true);near(at0.cumIn.progress,1-10/30);
+ assert.equal(at0.cumIn.seconds,10);
+ assert.equal(at0.breakDisable.active,false);
+ const at5=overlays.mapWindowWarnings({now:5,events});
+ assert.equal(at5.cumIn.active,true);near(at5.cumIn.progress,1-5/30);
+ const at15=overlays.mapWindowWarnings({now:15,events});
+ assert.equal(at15.cumWithin.active,true);near(at15.cumWithin.progress,2/3);
+ const at35=overlays.mapWindowWarnings({now:35,events});
+ assert.equal(at35.breakDisable.active,true);near(at35.breakDisable.progress,0.5);
+ assert.equal(at35.cumIn.active,false);
+ const at110=overlays.mapWindowWarnings({now:110,events});
+ assert.deepEqual(at110.cumIn,{active:false,seconds:-1,progress:0});
+ assert.deepEqual(at110.breakDisable,{active:false,seconds:-1,progress:0});
+});

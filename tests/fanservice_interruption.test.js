@@ -73,9 +73,14 @@ test('legacy session without an edge-start snapshot retains saved earnings and b
 test('objective completion discards the old edge checkpoint before a later interruption',()=>{
  const run=new Run(modes,{seed:137,cardRules,settings:{LastObjectiveIndex_Classic:1,LastObjective_Timer:300}});
  run.startCard('slow');run.edge();run.advance(1);run.continueEdgeRest();run.advance(300);
- assert.equal(run.objective.releaseDeadline,361);
+ // The trigger gate (Determine And Trigger Cum Meter Override Event, GM
+ // ubergraph v0.05.1) holds the window while the current card is the Edge
+ // card (5); it opens on the next ordinary card's first beat.
+ assert.equal(run.objective.releaseDeadline,null);
+ run.startCard('slow');run.advance(2);
+ assert.equal(run.objective.releaseDeadline,363);
  run.interrupt();run.resumeInterrupted();
- assert.equal(run.objective.releaseDeadline,361);assert.equal(run.state.seconds,301);
+ assert.equal(run.objective.releaseDeadline,363);assert.equal(run.state.seconds,303);
 });
 
 test('music return edge runs real beats and survives repeated reload without compounding its effects',()=>{

@@ -114,7 +114,13 @@ test('edge hold and rest restore exact deadlines, pattern and RNG through checkp
 });
 
 test('Edge objective reaches its actual count producer and opens a release window without synthetic counters',()=>{
- const run=session({settings:{LastObjectiveIndex_Classic:3,LastObjective_Edges:2}});run.edge();handoff(run);run.continueEdgeRest();const events=run.edge();assert.equal(run.state.edges,2);assert(events.some(e=>e.type==='release-window-opened'));assert(run.player.isAllowedToCum);run.climax();assert.equal(run.phase,'complete');assert.equal(run.state.edge.phase,'idle');assert(run.state.won);
+ const run=session({settings:{LastObjectiveIndex_Classic:3,LastObjective_Edges:2}});run.edge();handoff(run);run.continueEdgeRest();const events=run.edge();assert.equal(run.state.edges,2);
+ // The trigger gate (Determine And Trigger Cum Meter Override Event, GM
+ // ubergraph v0.05.1) holds the window while the current card is the Edge
+ // card (5); it opens on the next ordinary card's first beat.
+ assert.equal(events.some(e=>e.type==='release-window-opened'),false);assert.equal(run.player.isAllowedToCum,false);
+ run.startCard('slow');run.advance(2);assert(run.player.isAllowedToCum);
+ run.climax();assert.equal(run.phase,'complete');assert.equal(run.state.edge.phase,'idle');assert(run.state.won);
 });
 
 test('music and inactive phases reject direct Edge and its UI cannot manufacture metrics',()=>{

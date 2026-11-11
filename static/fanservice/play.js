@@ -514,6 +514,17 @@ function renderOverlays(){
   $('cum-countdown-progress').value=overlay.progress;
   $('cum-countdown-text').textContent=`Release window: ${overlay.seconds} seconds.`;
  }
+ // Map-window warnings (music mode only, UMusicModeManager getters — see
+ // docs/parity/evidence/ticket51-queue-consumer-20261111.md): the objective
+ // countdown above never runs in Playlist mode, so the same countdown
+ // overlay shows the CumIn / CumWithin / BreakDisable countdown from the
+ // beatmap events. CumWithin wins at the window start instant, when both it
+ // and CumIn are active.
+ if(music&&map?.events){
+  const warnings=FanserviceOverlays.mapWindowWarnings({now:position(),events:map.events});
+  const shown=warnings.cumWithin.active?{progress:warnings.cumWithin.progress,text:`Cum within ${warnings.cumWithin.seconds} seconds.`}:warnings.cumIn.active?{progress:warnings.cumIn.progress,text:`Cum in ${warnings.cumIn.seconds} seconds.`}:warnings.breakDisable.active?{progress:warnings.breakDisable.progress,text:`Breaks disabled in ${warnings.breakDisable.seconds} seconds.`}:null;
+  if(shown){$('cum-countdown-overlay').hidden=false;$('cum-countdown-progress').value=shown.progress;$('cum-countdown-text').textContent=shown.text;}
+ }
 }
 function objectiveEvents(events){
  const beats=events.filter(e=>e.type==='card-beat');
