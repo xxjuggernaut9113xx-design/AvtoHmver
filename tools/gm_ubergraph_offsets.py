@@ -19,7 +19,10 @@ jump-target occurrences aligned (280 distinct), 0 context-offset mismatches.
 The stmt-0 push address 99918 is the epilogue Return statement (stmt 2568),
 not the script end (99918 + 2 + 1 EndOfScript = 99921), so the total is exact.
 This validation is internal consistency, not a comparison with the original
-engine's serialized offsets.
+engine's serialized offsets. The same model also resolves the UI_Manager
+ubergraph (EX_InterfaceContext = opcode + interface value expression):
+705 statements, 25010 bytes, 0 unaligned targets — used for the TauntButton
+click entry 21921 -> stmt 609 and the T-key entry 8529 -> stmt 236.
 """
 import json, sys
 src = sys.argv[1]
@@ -104,6 +107,8 @@ def sz(x):
         if c != x['Offset']:
             bad.append(('ctxoffset', x['Offset'], c))
         return 1 + sz(x['ObjectExpression']) + 4 + 8 + c
+    if o == 'EX_InterfaceContext':
+        return 1 + sz(x['InterfaceValue'])
     if o == 'EX_StructMemberContext':
         return 1 + 8 + sz(x['StructExpression'])
     if o == 'EX_DynamicCast':
