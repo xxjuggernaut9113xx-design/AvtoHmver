@@ -19,6 +19,23 @@
  // 73198) spawns a Cum card and starts a beat pattern and carries no
  // duration or timer of its own.
  const RELEASE_WINDOW_SECONDS=60;
+ // Card-type gate for the release window (Determine And Trigger Cum Meter
+ // Override Event, BP_GlobalManager ubergraph, v0.05.1, live block
+ // @92330-93214): when 'Is Succu Frenzy Active' is false the trigger
+ // proceeds only when the current card type is NOT Edging (5), Cum (6) or
+ // Succubus (3); when Frenzy is active it proceeds only for a Succubus card
+ // (3). The dead trigger function has no frenzy type check; the live block
+ // governs. A card type the player does not know yet (undefined) is not in
+ // the excluded set, so it passes — the window is never blocked for lack of
+ // a current card.
+ const TRIGGER_GATE_EXCLUDED=new Set([3,5,6]);
+ function cumWindowTriggerGate(context={}){
+  if((context.modifiers||[]).includes('Succufrenzy'))return context.cardType===3;
+  return !TRIGGER_GATE_EXCLUDED.has(context.cardType);
+ }
+ // Expiry notification titles (Set and Display Cum Window Timer, GM ubergraph,
+ // v0.05.1): each objective case notifies '<Objective> Reset'.
+ const RESET_NOTIFICATIONS={0:'Cum Meter Reset',1:'Timer Reset',2:'Strokes Reset',3:'Edges Reset',8:'Succubi Reset'};
  function getSelectedIndex(settings={}){const v=settings.LastObjectiveIndex_Classic??0;return Number.isFinite(v)?round(clamp(v,0,specs.length-1)):0;}
  function getSavedTarget(settings={},index){const s=specs[index];if(!s)return 0;if(s.objective===0)return 1;const v=settings[s.saveKey]??s.defaultTarget;return Number.isFinite(v)?round(clamp(v,s.min,s.max)):s.defaultTarget;}
  function baselines(player={},stats={}){return {baselineDuration:player.sessionLength??0,baselineStrokes:stats.strokes??0,baselineEdges:stats.edges??0,baselineSuccubi:stats.succubiDefeated??0,baselineMilking:stats.milkingCount??0};}
@@ -67,6 +84,7 @@
    if(isPrejacExpired(state,player))return [{type:tower?'round-failed':'premature-cum'}];
    if(!isComplete(state,player,stats,meter))return [];
    if(tower&&context.phase!=='bossRound'||state.objective===7)return [{type:tower?'round-complete':'successful-cum'}];
+   if(!cumWindowTriggerGate(context))return [];
    return this.openReleaseWindow(player,stats,now);
   }
   expireReleaseWindow(player,stats,meter,now,context={}){
@@ -77,7 +95,7 @@
    const state=tower?context.state:this.state;if(!state)return {meter,events:[]};
    player.isAllowedToCum=false;stats.missedCumWindows=((stats.missedCumWindows??0)+1)|0;
    const result=resetAfterMiss(state,this.settings['DoesNotCummingInWindowResetObjective?']??true,meter);
-   return {meter:result.meter,events:result.reset?[{type:'objective-reset',overlay:'CumWindowClosedOverlay_Widget',notification:'Release window closed. Objective reset.',requestNextCard:true}]:[{type:tower?'round-complete':'successful-cum'}]};
+   return {meter:result.meter,events:result.reset?[{type:'objective-reset',overlay:'CumWindowClosedOverlay_Widget',notification:RESET_NOTIFICATIONS[state.objective]||'Release window closed. Objective reset.',requestNextCard:true}]:[{type:tower?'round-complete':'successful-cum'}]};
   }
  }
  const api={specs,getSelectedIndex,getSavedTarget,baselines,initialize,isComplete,isPrejacExpired,resetAfterMiss,Runtime};

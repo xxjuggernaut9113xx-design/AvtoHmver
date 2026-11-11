@@ -81,3 +81,42 @@ test('settled climax ignores Edge-card override and Tower Prejac after checkpoin
  assert.deepEqual(restored.resolveClimax(p,{mode:0,cardType:5}),[]);
  assert.deepEqual(restored.resolveClimax(p,{mode:1,phase:'bossRound',state:{active:true,objective:6,baselineDuration:20,target:30}}),[]);
 });
+test('release window opens only for the card types the original trigger accepts',()=>{
+ // Determine And Trigger Cum Meter Override Event (BP_GlobalManager ubergraph,
+ // v0.05.1, live block @92330-93214): when 'Is Succu Frenzy Active' is false
+ // the trigger proceeds only when the current card type is NOT Edging (5),
+ // Cum (6) or Succubus (3); when Frenzy is active it proceeds only for a
+ // Succubus card (3). The dead trigger function has no frenzy type check;
+ // the live block governs. A failed gate leaves the objective complete so
+ // the next tick retries instead of losing the window.
+ const complete=(i)=>{const p=player(),s=stats(),r=new O.Runtime({LastObjectiveIndex_Classic:i},p,s);r.state.target=10;p.sessionLength=30;for(const k of Object.keys(s))s[k]=30;return {p,s,r};};
+ for(let i=0;i<O.specs.length;i++){
+  const objective=O.specs[i].objective;if(![0,1,2,3,8].includes(objective))continue;
+  for(const cardType of [0,1,2,3,5,6,7,8]){
+   const {p,s,r}=complete(i);
+   assert.equal(r.tick(p,s,1,100,{mode:0,cardType}).some(e=>e.type==='release-window-opened'),![3,5,6].includes(cardType),`objective ${objective} card ${cardType} without Frenzy`);
+  }
+  for(const cardType of [0,3,5,6]){
+   const {p,s,r}=complete(i);
+   assert.equal(r.tick(p,s,1,100,{mode:0,cardType,modifiers:['Succufrenzy']}).some(e=>e.type==='release-window-opened'),cardType===3,`objective ${objective} card ${cardType} with Frenzy`);
+  }
+  const {p,s,r}=complete(i);
+  assert.deepEqual(r.tick(p,s,1,100,{mode:0,cardType:6}),[]);
+  assert.equal(r.tick(p,s,1,101,{mode:0,cardType:0})[0].type,'release-window-opened','a failed gate retries on the next tick');
+ }
+});
+test('expired release windows name the reset objective the original names',()=>{
+ // Set and Display Cum Window Timer (BP_GlobalManager ubergraph, v0.05.1):
+ // each objective case notifies '<Objective> Reset' — 'Cum Meter Reset' (0),
+ // 'Timer Reset' (1), 'Strokes Reset' (2), 'Edges Reset' (3), 'Succubi Reset' (8).
+ const expected={0:'Cum Meter Reset',1:'Timer Reset',2:'Strokes Reset',3:'Edges Reset',8:'Succubi Reset'};
+ for(let i=0;i<O.specs.length;i++){
+  const objective=O.specs[i].objective;if(!(objective in expected))continue;
+  const p=player(),s=stats(),r=new O.Runtime({LastObjectiveIndex_Classic:i},p,s);
+  r.state.target=10;p.sessionLength=30;for(const k of Object.keys(s))s[k]=30;
+  assert.equal(r.tick(p,s,1,100,{mode:0,cardType:0})[0].type,'release-window-opened');
+  const expired=r.expireReleaseWindow(p,s,1,160,{mode:0});
+  assert.equal(expired.events[0].type,'objective-reset');
+  assert.equal(expired.events[0].notification,expected[objective],`objective ${objective}`);
+ }
+});

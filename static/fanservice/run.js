@@ -25,7 +25,7 @@
   effectiveStats(){return SessionMetrics.effective(this.state,this.player);}
   resetObjective(){SessionMetrics.resetObjective(this);this.player.sessionLength=this.effectiveStats().sessionLength;}
   objectiveStats(){const s=this.effectiveStats();return {strokes:s.strokes,edges:s.edges,succubiDefeated:s.succubi,milkingCount:s.milkingCount,cumWindowsHit:s.CumWindowsHit||0,missedCumWindows:s.MissedCumWindows||0};}
-  context(){return {mode:this.config.mode,phase:this.tower&&!this.tower.endless&&this.tower.round>=this.tower.rounds?'bossRound':this.phase,state:this.roundObjective,playing:this.phase==='playing',cardType:this.state.card};}
+  context(){return {mode:this.config.mode,phase:this.tower&&!this.tower.endless&&this.tower.round>=this.tower.rounds?'bossRound':this.phase,state:this.roundObjective,playing:this.phase==='playing',cardType:this.state.card,modifiers:this.state.modifiers};}
   select(index){
    if(!this.tower||this.phase!=='selection')throw Error('No Tower draft is active.');
    const selected=this.tower.select(index);

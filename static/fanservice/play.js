@@ -516,7 +516,7 @@ function objectiveEvents(events){
  if(events.some(e=>e.type==='return-edge-complete')&&music){resumeMusic();status('Return edge complete. Resuming the saved song position.');}
  if(!music){const resumed=events.find(e=>e.type==='return-edge-complete'&&e.resumePool);if(resumed){if(!currentMedia)draw(resumed.resumePool,{prepare:false,force:true});status('Return edge complete. Resuming the interrupted task.');}}
  if(events.some(e=>e.type==='tribute-recorded'))status(`Tribute recorded: ${state.milkingCount}.`);
- if(events.some(e=>e.type==='objective-reset'))status('Release window closed. Objective reset.');
+ if(events.some(e=>e.type==='objective-reset'))status(events.find(e=>e.type==='objective-reset').notification||'Release window closed. Objective reset.');
  if(events.some(e=>['round-complete','round-failed'].includes(e.type))||run.phase!=='playing')renderTower();
  if(run.phase!=='playing')vibration.cancel();
  if(run.phase==='complete'&&!settling&&!finished)void end(!!state.won);
