@@ -32,14 +32,21 @@
  // !HasCame?); run.startCard is that seam.
  // NOT modeled, with the reason: AddToCumMeter(TauntCumAdd) — the field
  // exists but its default value is not in the retained evidence (the
- // UI_Manager CDO lives in the cooked packages); the +4/+5.0 current-card
- // modifiers — native BeatSpawnerManagerCPP calls with no retained body, so
- // add-vs-set-vs-multiply is unknown; AddPermanentSuccubusWeight — no player
- // counterpart; the dialogue struct 1 voiceline — its lines live in the
- // cooked data tables; the SpawnCustomCardEvent seventh parameter (0.5 for
- // the taunt card, 1.0 for the punishment card) — the parameter names are
- // not retained in SpawnCustomCardEvent.json.
- const cooldownSeconds=5,heatAdd=25,firemouthHeatAdd=50,temptingFateAt=5;
+ // UI_Manager CDO lives in the cooked packages); AddPermanentSuccubusWeight
+ // — no player counterpart; the dialogue struct 1 voiceline — its lines
+ // live in the cooked data tables; the SpawnCustomCardEvent seventh
+ // parameter (0.5 for the taunt card, 1.0 for the punishment card) — the
+ // parameter names are not retained in SpawnCustomCardEvent.json.
+ // MODELED (settled by v0.05.1 native disassembly, see the succubus branch
+ // below): the +4/+5.0 current-card modifiers. ApplyStrokeCountModifier(4)
+ // (0x14831bc60) MULTIPLIES the current card's remaining stroke count by 4
+ // (card-end index = currentIndex + remaining*4); ApplySpeedModifier(5.0)
+ // (0x14831bb10) DIVIDES the remaining beats' intervals by 5 (interval =
+ // |patternFloat| * baseInterval * (1/5.0), floored at the minimum). Both
+ // rebuild the current card's remaining queue from the current beat via
+ // RebuildQueueFromCurrentState (0x1483200e0); already-consumed beats are
+ // untouched. Neither is an add or a set.
+ const cooldownSeconds=5,heatAdd=25,firemouthHeatAdd=50,temptingFateAt=5,succubusStrokeFactor=4,succubusSpeed=5.0;
  const spawnParams=Object.freeze({pool:'fast',cardType:2,minInterval:0.18,maxInterval:0.23,background:'tauntbackground',notificationTitle:'Taunt',notificationBody:'Increased Stroke Speed & Count'});
  function cooldownRemaining(run){return Math.max(0,(run.state.tauntCooldownUntil||0)-run.state.seconds);}
  function guard(run){
@@ -59,11 +66,18 @@
   // 2130 and 2111). TotalTauntsUsed increments on the normal path only.
   s.TimesTaunted=((s.TimesTaunted||0)+1)|0;
   if(s.card===3){
-   // Succubus card: the current-card modifiers and the permanent succubus
-   // weight are not modeled (see the header note). No new card, no heat, no
-   // TotalTauntsUsed increment.
+   // Succubus card: no new card, no heat, no TotalTauntsUsed increment.
+   // The permanent succubus weight is still not modeled (see the header
+   // note). The two current-card modifiers ARE modeled, via the player's
+   // native pair — the stroke rebuild at the current speed followed by the
+   // speed rebuild at factor 1 produces the same queue as the combined
+   // call (both go through RebuildQueueFromCurrentState 0x1483200e0).
+   // modifiersApplied is false only when the card has no future beats
+   // left (the natives' currentIndex < Num guard); the taunt still counts
+   // and still sets the flags in that case.
+   const modifiersApplied=run.modifyCard(succubusSpeed,succubusStrokeFactor);
    s.hasTaunted=true;s.tauntCooldownUntil=s.seconds+cooldownSeconds;
-   return {ok:true,branch:'succubus',taunts:s.TimesTaunted,totalTaunts:s.TotalTauntsUsed||0,temptingFate:false};
+   return {ok:true,branch:'succubus',taunts:s.TimesTaunted,totalTaunts:s.TotalTauntsUsed||0,temptingFate:false,modifiersApplied};
   }
   if(isFiremouth(run)){
    Economy.addHeat(run,firemouthHeatAdd);
@@ -82,7 +96,7 @@
   s.hasTaunted=true;s.tauntCooldownUntil=s.seconds+cooldownSeconds;
   return {ok:true,branch:'normal',taunts:s.TimesTaunted,totalTaunts:s.TotalTauntsUsed,temptingFate:s.TotalTauntsUsed===temptingFateAt};
  }
- const sourceLedger=['UI_Manager ubergraph stmts 328-348 + 55-75 + 170-260: TauntButton click guards, notifications, Firemouth(15) and succubus branches','BP_GlobalManager ubergraph stmts 2083-2099 + 2100-2144: Taunt() and Firemouth Taunt flows, TotalTauntsUsed increment, UpdateMetric(7, 1) at stmts 2111 and 2130','BP_GlobalManager ubergraph stmts 1722-1724 + 1896-1899 + 2132-2143: 5.0s cooldown, 1s looping timer tick','BP_DrawManager DetermineCardV2 stmt 15: HasTaunted? reset per card unless HasCame','BP_GlobalManager_C class defaults: TauntHeatAddAmount 25.0, TauntCooldownTimerDuration 5.0'];
- const api={cooldownSeconds,heatAdd,firemouthHeatAdd,temptingFateAt,spawnParams,guard,taunt,isFiremouth,cooldownRemaining,sourceLedger};
+ const sourceLedger=['UI_Manager ubergraph stmts 328-348 + 55-75 + 170-260: TauntButton click guards, notifications, Firemouth(15) and succubus branches','BP_GlobalManager ubergraph stmts 2083-2099 + 2100-2144: Taunt() and Firemouth Taunt flows, TotalTauntsUsed increment, UpdateMetric(7, 1) at stmts 2111 and 2130','BP_GlobalManager ubergraph stmts 1722-1724 + 1896-1899 + 2132-2143: 5.0s cooldown, 1s looping timer tick','BP_DrawManager DetermineCardV2 stmt 15: HasTaunted? reset per card unless HasCame','BP_GlobalManager_C class defaults: TauntHeatAddAmount 25.0, TauntCooldownTimerDuration 5.0','v0.05.1 a8f46896 ApplyStrokeCountModifier 0x14831bc60 (multiply remaining x4) + ApplySpeedModifier 0x14831bb10 (intervals /5.0) + RebuildQueueFromCurrentState 0x1483200e0'];
+ const api={cooldownSeconds,heatAdd,firemouthHeatAdd,temptingFateAt,succubusStrokeFactor,succubusSpeed,spawnParams,guard,taunt,isFiremouth,cooldownRemaining,sourceLedger};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.FanserviceTaunts=api;
 })(globalThis);

@@ -35,15 +35,48 @@ test('the fifth taunt shows Tempting Fate',()=>{
  assert.equal(result.totalTaunts,5);assert.equal(result.temptingFate,true);
 });
 
-test('taunting during a succubus card changes no heat, spawns nothing, and counts only the metric',()=>{
+test('taunting during a succubus card multiplies the remaining strokes by 4 and runs them 5x faster',()=>{
  const run=session(),before=run.startCard('succubus'),generation=before.generation;
+ const assigned=before.assigned,length=before.queue.length;
  const result=Taunts.taunt(run);
  assert.equal(result.ok,true);assert.equal(result.branch,'succubus');
  assert.equal(run.state.heat,0);
  assert.equal(run.state.TimesTaunted,1);assert.equal(run.state.TotalTauntsUsed,0);
- assert.equal(run.state.card,3);assert.equal(run.state.cardFlow.generation,generation);
+ assert.equal(run.state.card,3);
+ // Native ApplyStrokeCountModifier(4) (0x14831bc60): card-end index =
+ // currentIndex + remaining*4 — the remaining strokes quadruple.
+ // ApplySpeedModifier(5.0) (0x14831bb10): the rebuilt beats' intervals are
+ // divided by 5 (interval = |pattern| * base * (1/5), floored at minimum).
+ assert.equal(result.modifiersApplied,true);
+ assert.equal(before.speed,5);
+ assert.equal(before.assigned,assigned*4);
+ assert.equal(before.remaining,assigned*4);
+ assert.equal(before.queue.length,length*4);
+ assert.equal(before.generation,generation+1);
+ assert.equal(before.queue[0].AbsoluteFireTime,0.1);
+ for(const entry of before.queue)assert.equal(entry.Interval,Math.max(Math.abs(entry.CustomMultiplier)*before.interval*(1/before.speed),before.minimum));
  assert.equal(run.state.hasTaunted,true);assert.equal(run.state.tauntCooldownUntil,5);
  assert.equal(result.temptingFate,false);
+});
+
+test('a mid-card succubus taunt leaves fired beats untouched and quadruples only the remainder',()=>{
+ const run=session(),flow=run.startCard('succubus');
+ run.advance(2);
+ const fired=flow.nextFire,prefix=structuredClone(flow.queue.slice(0,fired));
+ const remaining=flow.remaining,length=flow.queue.length,completed=flow.completed;
+ const result=Taunts.taunt(run);
+ assert.equal(result.ok,true);assert.equal(result.branch,'succubus');
+ assert.equal(result.modifiersApplied,true);
+ assert.equal(flow.speed,5);
+ assert.deepEqual(flow.queue.slice(0,fired),prefix);
+ assert.equal(flow.queue.length,fired+(length-fired)*4);
+ // The native multiplies from the fire cursor (currentIndex), not the hit
+ // cursor: beats already spawned but still travelling (fired - completed)
+ // are preserved, not multiplied; only the unfired entries quadruple.
+ assert.equal(flow.queue.length-flow.nextFire,(length-fired)*4);
+ assert.equal(flow.remaining,(fired-completed)+(length-fired)*4);
+ assert.equal(flow.remaining,remaining+(length-fired)*3);
+ assert.equal(flow.queue[fired].AbsoluteFireTime,run.state.seconds-flow.started+.1);
 });
 
 test('Firemouth taunt adds 50 heat, summons a succubus, and counts only the metric',()=>{
