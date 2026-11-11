@@ -16,12 +16,14 @@ Source: `reJOIce` commit `1a18e9a8ccd97fbfb0cc785f6f3d2e025ad86cff`, `Analysis/R
 
 ## Consequence for the player (not applied)
 
-- Ordinary draws in modes 0 and 1, outside music mode, are replaced by `CumEventOverride` while `HasCame?` or `IsAllowedToCum?` holds. That path uses the five-row `CumBeatPatterns` bank at the default 1.75 s travel, not the Fast bank at 1.5 s. The Fast/1.5 s pairing in the shared player's `cum` pool matches `Spawn100PercentCumMeterOverrideEvent` (entry 66033) only.
-- The shared `card-rules.json` has no `CumBeatPatterns` rows, so the CDO capture must supply them (names and float32 intervals are not recoverable from the repository; see the evidence review).
+- Ordinary draws in modes 0 and 1, outside music mode, are replaced by `CumEventOverride` while `HasCame?` or `IsAllowedToCum?` holds. That path uses the five-row `CumBeatPatterns` bank, passes `Beat Travel Time` (class default 1.75, no literal in the ubergraph) to `StartPatternWithMediaSync`, and does not call `CheckIntervalMultipliers` on the picked row (the 100 percent path does, stmt 1605). Its cum card is `SpawnCustomCardEvent(25, 50 strokes, 0.28-0.30 s, type 6)`; the player's `cum` card is 75-100 strokes, 0.28-0.35 s, travel 1.5, Fast bank, which equals the `Spawn100PercentCumMeterOverrideEvent` call (stmt 1603-1606) exactly. The Fast/1.5 s pairing in the shared player's `cum` pool matches `Spawn100PercentCumMeterOverrideEvent` (entry 66033) only.
+- The shared `card-rules.json` has no `CumBeatPatterns` rows. The rows are in reJOIce itself: `Analysis/ReferenceBuilds/newer-20261017/blueprint-class-defaults.json`, `defaults[0].values` (class `BP_GlobalManager_C`, payload SHA-256 `2e54a9da90cdc07f94e30c45953587f94bef5f98d1d5733c616023f615caf3b7`, `byte_identical_roundtrip: true`). Note `card-rules.json` records `build v004-exclusive-c645757d` and defaults hash `05d48496...`; that differs from this payload hash, so the player's banks and these rows are not yet shown to come from the same dump.
+- `CumBeatPatterns` (5 rows, multipliers): `1-1` [1.0]; `1-1-1-1-123456` [1,1,1,1,.5,.5,.5,.5,.5,.5]; `1-1-12345` [1,1,.5,.5,.5,.5,-1.0]; `123456789-rest` [.5 x8, 1.5]; `1234-1234` [1,1,1,1.5]. The `-1.0` is a negative multiplier; the player's queue already treats `CustomMultiplier < 0` as a non-beat (`cards.js` advance).
+- `EdgingBeatPatterns` (9 rows, unread by any retained AST): `1-1`; `12-12` [1,1.5]; `1-1-123`; `1-12-1-12`; `12-1-123-1`; `1234-1-1`; `1234567-1-1`; `123-123`; `12-12-12-123456`.
 - `EdgingBeatPatterns` needs no player change on this evidence.
 
 ## Still open
 
 - Whether the shared player's meter/`cum` semantics correspond to `HasCame?` or `IsAllowedToCum?`; whether a bank swap there would be a faithful change or a different mechanic.
-- The five CumBeatPatterns interval vectors, from the local CDO capture, before any fixture is written.
+- Confirm the float32 values and the build identity (see above) before a fixture is written; the JSON rows are decimals.
 - Whether `BeatSpawnerManagerCPP` (native) reads `EdgingBeatPatterns`.
