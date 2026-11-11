@@ -273,6 +273,33 @@ function draw(pool,{prepare=true,force=false,cardOptions={}}={}){
  if(prepare){state.card={slow:0,medium:1,fast:2,succubus:3,cum:6,ass:7,boobs:8}[pool];state.canUseSlowdown=true;state.canUseBonerPill=true;if(started&&!finished&&run.phase==='playing'){FanserviceEconomy.draw(run);if(!music){run.startCard(pool,cardOptions);speed=1;}}}
  return true;
 }
+function spawnPunishment(){
+ // SpawnPunishmentEvent (GM ubergraph stmts 1440-1460): a custom succubus
+ // card event, not the Apex Lure draw('succubus') path. It replaces the
+ // current card with SpawnCustomCardEvent(SuccubusCards, 30, 50, 0.28, 0.33,
+ // byte(3), 1.0, ...), locks items for the event (stmt 1454), switches the
+ // background to 8 ('tauntbackground'), and shows the "Punishment"
+ // notification. The next draw re-enables items through Economy.draw, the
+ // same mechanism that unlocks after any succubus card. Not reproduced:
+ // the voiceline (FindSpecialEventDialogueStructs(1) lines live in the
+ // cooked data table, not the retained ASTs), PlayMusic(3) (no dynamic
+ // music track switch in Classic/Tower), FastPaceAnim and the BM widgets
+ // (UI-only, no player counterpart).
+ if(!started||paused||finished||run.phase!=='playing')return false;
+ decks??=rules.mediaPools(media,FanserviceModifiers.options(state.modifiers));
+ if(!decks.succubus?.length){status('No succubus media in the frozen selection. Punishment could not start.');return false;}
+ if(!remaining.succubus?.length)remaining.succubus=[...decks.succubus];
+ const index=Math.floor(Math.random()*remaining.succubus.length),item=remaining.succubus.splice(index,1)[0];
+ showMedia(item,0,{restart:true});
+ category='succubus';
+ state.card=3;state.canUseSlowdown=true;state.canUseBonerPill=true;
+ FanserviceEconomy.draw(run);
+ run.startCard('succubus',{punishment:true});speed=1;
+ state.canUseItems=false;
+ FanserviceBackground.apply($('session-background'),'tauntbackground',$('background-status'));
+ status('Punishment: Your boasts have consequences.');
+ return true;
+}
 function pulseBeat(){lastBeat=position();$('center').style.boxShadow='0 0 18px #fff';setTimeout(()=>$('center').style.boxShadow='',80);}
 let laneSource,laneQueue,laneStarted,laneTimes=[],laneNodes=[$('beat')];
 function renderBeatLane(){
@@ -438,7 +465,7 @@ async function end(won){
  }catch(error){state.finished=false;status('Rewards could not be saved: '+error.message);checkpoint(true);}
  finally{settling=false;updateScreenWake();renderSessionShell();}
 }
-function itemContext(){const levels=profile.mobile_music_upgrades||[1,1,1],value=type=>catalog.music_upgrades[type]['Value_L'+Math.max(1,Math.min(5,levels[type]||1))];return {mode:run.config.mode,manager:true,maxBreaks:value(1),breakDuration:value(0),minimumBeatInterval:0,biggerPockets:run.ownedModifiers.includes(13),allOrNothing:state.modifiers.includes('All or Nothing'),objectiveType:(run.roundObjective||run.objective.state).objective};}
+function itemContext(){const levels=profile.mobile_music_upgrades||[1,1,1],value=type=>catalog.music_upgrades[type]['Value_L'+Math.max(1,Math.min(5,levels[type]||1))];return {mode:run.config.mode,manager:true,maxBreaks:value(1),breakDuration:value(0),minimumBeatInterval:0,biggerPockets:run.ownedModifiers.includes(13),allOrNothing:state.modifiers.includes('All or Nothing'),objectiveType:(run.roundObjective||run.objective.state).objective,punishmentEnabled:true};}
 function readItemState(){return {...state,_baseline:{...state},strokes:run.effectiveStats().strokes,cumMeter:state.meter,cardType:state.card,strokeCount:state.cardFlow?.remaining??state.strokes,beatInterval:state.cardFlow?.interval??[.7,.5,.35][Number($('difficulty').value)]/speed,beatsRemaining:music?map.beats.length-clock.next:state.cardFlow?.remaining??1,canUseItems:state.canUseItems!==false&&FanserviceModifiers.options(state.modifiers).canUseItems&&!state.breakSectionDisabled&&state.seconds>=breakUntil};}
 function writeItemState(value){for(const key of ['heat','combo','coins','effects','metrics','canUseSlowdown','canUseBonerPill','coinMultiplier','lootBarMultiplier','shieldToggled'])if(value[key]!==value._baseline[key])state[key]=value[key];if(value.cumMeter!==value._baseline.meter)state.meter=value.cumMeter;if(value.cardType!==value._baseline.card){state.card=value.cardType;if(state.cardFlow)state.cardFlow.card=value.cardType;}}
 function itemDependencies(){return {context:itemContext(),random:run.random,hooks:{
@@ -451,6 +478,8 @@ function itemDependencies(){return {context:itemContext(),random:run.random,hook
  pill:effect=>{if(music)return false;const next=Math.max(.1,Math.min(5,speed*effect.speed));if(state.cardFlow&&!run.modifyCard(next,effect.timelineStrokes))return false;speed=next;return true;},
  openStore:()=>{if(run.tower&&run.phase==='playing')return false;renderInventory(true);if(!inventoryDialog.open)inventoryDialog.showModal();return true;},
  spawnSuccubus:({strokeAddend}={})=>FanserviceModifiers.options(state.modifiers).canSpawnSuccubi&&draw('succubus',{cardOptions:{apexLure:true,strokeAddend}}),
+ punishment:(type,s)=>FanservicePunishment.roll(s.TimesTaunted||0,run.random),
+ spawnPunishment:()=>spawnPunishment(),
  escape:()=>{if(music)return false;return draw(undefined,{force:true});}
  }};}
 function useItem(type){
