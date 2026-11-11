@@ -139,6 +139,46 @@ test('Cum favorites live in the Cum registry and draw pool',()=>{
  const drawn=favorites.drawForCategory(6);
  assert.equal(drawn.filename,'cumfav.png');assert.equal(drawn.isFavorite,true);
 });
+test('FavoriteFrenzy gate is >=3 favorite cards AND not on cooldown',()=>{
+ // FavoriteFrenzyEligibilityCheck (BP_GlobalManager): Eligible =
+ // HasEnoughFavoriteFrenzyCards(3) AND NOT IsFavoriteFrenzyOnCooldown?.
+ // Cooldown is 120 s: Master_FavoriteFrenzyCooldownSeconds (GM CDO);
+ // Progress adds 1.0 per 1 s tick and ends when Current >= Master.
+ const favorites=setup();
+ assert.equal(favorites.isFavoriteFrenzyEligible(0),false,'fewer than 3 favorites');
+ favorites.toggleFavorite(entry('a.png',0));favorites.toggleFavorite(entry('b.png',1));
+ assert.equal(favorites.isFavoriteFrenzyEligible(0),false,'still fewer than 3');
+ favorites.toggleFavorite(entry('c.png',2));
+ assert.equal(favorites.isFavoriteFrenzyEligible(0),true,'3 favorites, no cooldown');
+ favorites.startFavoriteFrenzyCooldown(0);
+ assert.equal(favorites.isFavoriteFrenzyEligible(0),false,'on cooldown');
+ assert.equal(favorites.isFavoriteFrenzyEligible(119.999),false,'still on cooldown just before 120 s');
+ assert.equal(favorites.isFavoriteFrenzyEligible(120),true,'cooldown ends at exactly 120 s (Current >= Master)');
+});
+test('triggerFavoriteFrenzy returns the decoded spawn spec and starts the 120 s cooldown',()=>{
+ // FavoriteFrenzyEvent (GM ubergraph entry 81592): SpawnCustomCardEvent
+ // (SlowCards, 20, 50, 0.18, 0.25, byte 9, ...); overlay
+ // FavoriteFrenzySpawnOverlay_Widget; background 3; music 2; dialogue 0.
+ // The gate counts the derived FavoriteFrenzy deck but the event spawns
+ // from SlowCards with card type 9.
+ const favorites=setup();
+ assert.equal(favorites.triggerFavoriteFrenzy(0),null,'ineligible with no favorites');
+ for(const [name,category] of [['a.png',0],['b.png',1],['c.png',2]])favorites.toggleFavorite(entry(name,category));
+ const spec=favorites.triggerFavoriteFrenzy(10);
+ assert.deepEqual(spec,{pool:'slow',category:9,minStrokes:20,maxStrokes:50,intervalMin:0.18,intervalMax:0.25,overlay:'FavoriteFrenzySpawnOverlay_Widget',background:3,music:2,dialogue:0});
+ assert.equal(favorites.isFavoriteFrenzyOnCooldown(10),true);
+ assert.equal(favorites.triggerFavoriteFrenzy(11),null,'cooldown blocks a second trigger');
+ assert.equal(favorites.isFavoriteFrenzyEligible(129.999),false,'still on cooldown just before expiry');
+ assert.equal(favorites.isFavoriteFrenzyEligible(130),true,'eligible again once the 120 s cooldown expires');
+});
+test('startFavoriteFrenzyCooldown restarts from the new start time',()=>{
+ const favorites=setup();
+ for(const [name,category] of [['a.png',0],['b.png',1],['c.png',2]])favorites.toggleFavorite(entry(name,category));
+ favorites.startFavoriteFrenzyCooldown(0);
+ favorites.startFavoriteFrenzyCooldown(100);
+ assert.equal(favorites.isFavoriteFrenzyEligible(219.999),false,'restarted cooldown runs from 100');
+ assert.equal(favorites.isFavoriteFrenzyEligible(220),true);
+});
 test('Event/Edging/AssFrenzy/BoobFrenzy favorites dispatch to the Fast registry',()=>{
  // AddFavoriteCardToArray (BP_DrawManager): N=4 (Event), N=5 (Edging),
  // N=7 (AssFrenzy), N=8 (BoobFrenzy) all dispatch to the Fast block.

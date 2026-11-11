@@ -38,12 +38,21 @@
  //   from master. Unfavorite appends to master AND remaining (§4), which
  //   can duplicate an entry already lingering in the remaining deck; the
  //   seen set keeps the duplicate from drawing twice in one cycle.
- // - The FavoriteFrenzy cooldown (120 s, Blueprint) and the frenzy event
- //   trigger / eligibility check are Blueprint-side and NOT modeled here;
- //   the frenzy overlay widgets are not built. The registry is session
- //   state; the original persists bIsFavorite on the saved entry, the
- //   player does not persist favorites yet.
+ // - The FavoriteFrenzy cooldown (120 s, Blueprint) and the frenzy gate
+ //   ARE modeled here (isFavoriteFrenzyEligible /
+ //   startFavoriteFrenzyCooldown / triggerFavoriteFrenzy — see below).
+ //   The frenzy event's presentation (FastPaceAnim, dialogue 0, background
+ //   3, music 2, FavoriteFrenzySpawnOverlay_Widget) is carried in the
+ //   trigger's spawn spec but play.js does not act on it yet, and the
+ //   trigger's CALL SITE is unestablished: no caller of
+ //   FavoriteFrenzyEvent or FavoriteFrenzyEligibilityCheck exists in the
+ //   DrawManager, GlobalManager, or UI_Manager ubergraphs (native-by-name
+ //   or dead code in this build, same as AddFavoriteCardToArray), so no
+ //   draw-flow wiring is added. The registry is session state; the
+ //   original persists bIsFavorite on the saved entry, the player does not
+ //   persist favorites yet.
  const categories=Object.freeze({slow:0,medium:1,fast:2,succubus:3,event:4,edge:5,cum:6,ass:7,boobs:8,favorite:9});
+ const FRENZY_MIN_CARDS=3,FRENZY_COOLDOWN_SECONDS=120;
  const poolNames=['slow','medium','fast','succubus','cum','ass','boobs'];
  const categoryByPool={slow:0,medium:1,fast:2,succubus:3,cum:6,ass:7,boobs:8};
  function filenameOf(entry){return String(entry?.filename??entry?.file??'');}
@@ -67,6 +76,7 @@
    this.master=new Map();this.remaining=new Map();
    this.favoritesSource=new Map();this.remainingFavorites=new Map();
    this.universe=new Set();this.seen=new Set();
+   this.frenzyCooldownEndsAt=null;
   }
   arrayFor(map,category){let array=map.get(category);if(!array){array=[];map.set(category,array);}return array;}
   findByFilename(array,filename){const key=String(filename).toLowerCase();return array.find(entry=>keyOf(entry)===key);}
@@ -212,6 +222,34 @@
   }
   getFavoriteFrenzyCardCount(){return this.master.get(9)?.length||0;}
   hasEnoughFavoriteFrenzyCards(count){return this.getFavoriteFrenzyCardCount()>=Math.max(count||0,0);}
+  // FavoriteFrenzy gate + cooldown (BP_GlobalManager, GM ubergraph):
+  // FavoriteFrenzyEligibilityCheck: Eligible = HasEnoughFavoriteFrenzyCards(3)
+  // AND NOT IsFavoriteFrenzyOnCooldown?. StartFavoriteFrenzyCooldown:
+  // K2_ClearAndInvalidateTimerHandle, IsFavoriteFrenzyOnCooldown? = true,
+  // Current_FavoriteFrenzyCooldownSeconds = 0.0, then a 1.0 s looping
+  // K2_SetTimerDelegate calls ProgressFavoriteFrenzyCooldown, which adds
+  // 1.0 per tick and, at Current >= Master_FavoriteFrenzyCooldownSeconds
+  // (120.0, GM CDO), clears the timer, sets the flag false, and prints
+  // 'Favorite Frenzy Off Cooldown, Eligible for Draw'. The player models
+  // the counter as an absolute session-seconds end time (now + 120);
+  // the 1 s tick is an implementation detail with no observable difference.
+  // FavoriteFrenzyEvent (entry 81592) spawns SpawnCustomCardEvent
+  // (SlowCards, 20, 50, 0.18, 0.25, byte 9, ...) — the gate counts the
+  // derived FavoriteFrenzy deck but the event spawns from SlowCards with
+  // card type 9 — then FastPaceAnim, PlaySpecialEventDialogue(0), Change
+  // Beat Background(3), PlayMusic(2), and creates
+  // FavoriteFrenzySpawnOverlay_Widget. No caller of the event or the
+  // eligibility check exists in any ubergraph, so triggerFavoriteFrenzy
+  // returns the decoded spawn spec for the call site to act on; it does
+  // not draw a card itself.
+  isFavoriteFrenzyOnCooldown(now=0){return this.frenzyCooldownEndsAt!==null&&now<this.frenzyCooldownEndsAt;}
+  isFavoriteFrenzyEligible(now=0){return this.hasEnoughFavoriteFrenzyCards(FRENZY_MIN_CARDS)&&!this.isFavoriteFrenzyOnCooldown(now);}
+  startFavoriteFrenzyCooldown(now=0){this.frenzyCooldownEndsAt=now+FRENZY_COOLDOWN_SECONDS;return this.frenzyCooldownEndsAt;}
+  triggerFavoriteFrenzy(now=0){
+   if(!this.isFavoriteFrenzyEligible(now))return null;
+   this.startFavoriteFrenzyCooldown(now);
+   return {pool:'slow',category:9,minStrokes:20,maxStrokes:50,intervalMin:0.18,intervalMax:0.25,overlay:'FavoriteFrenzySpawnOverlay_Widget',background:3,music:2,dialogue:0};
+  }
   getRemainingCards(){return this.remaining.get(this.currentCategory)?.length||0;}
   getRemainingFavoriteCards(){return this.remainingFavorites.get(this.currentCategory)?.length||0;}
  }

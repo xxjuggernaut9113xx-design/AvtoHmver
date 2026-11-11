@@ -132,8 +132,68 @@ DoubleProperty; `Current_FavoriteFrenzyCooldownSeconds` #303,
 `IsFavoriteFrenzyOnCooldown?` #301, `FavoriteFrenzyTimerHandle` #304).
 The GM ubergraph carries the matching debug strings "Favorite Frenzy On
 Cooldown" and "Favorite Frenzy Off Cooldown, Eligible for Draw" plus
-"Timer Cooldown Over". The player's favorites.js does not yet model the
-frenzy trigger/cooldown (120 s) or the frenzy event itself.
+"Timer Cooldown Over". The player's favorites.js models the gate and the
+cooldown (2026-11-11, Task 1): `isFavoriteFrenzyEligible(now)` =
+`hasEnoughFavoriteFrenzyCards(3) AND NOT isFavoriteFrenzyOnCooldown(now)`,
+`startFavoriteFrenzyCooldown(now)` sets the end to now + 120,
+`triggerFavoriteFrenzy(now)` returns the decoded spawn spec and starts
+the cooldown. The cooldown counter is modeled as an absolute session-
+seconds end time; the 1 s tick is an implementation detail with no
+observable difference.
+
+## `FavoriteFrenzyEvent` / `StartFavoriteFrenzyCooldown` / `ProgressFavoriteFrenzyCooldown` — decoded (GM ubergraph, 2026-11-11)
+
+Parsed with the fixed kismet2 parser from the GM ubergraph
+(BP_GlobalManager legacy `.uasset`).
+
+`FavoriteFrenzyEvent` (stub → entry 81592):
+1. `StartFavoriteFrenzyCooldown`.
+2. Clear IdleTimerHandle.
+3. `GetDataTableRowFromName(HeatCategoryDataTable, 'SlowHeat')` — gate;
+   the row exists (rows are HighHeat/MediumHeat/SlowHeat), so the event
+   proceeds. The OutRow is not visibly consumed by the spawn below.
+4. `SpawnCustomCardEvent(SlowCards, 20, 50, 0.18, 0.25, byte 9, Stroke
+   Time Speed Multiplier, Stroke Count Multiplier, SlateBrush,
+   StrokeInterval)` — the gate counts the derived FavoriteFrenzy deck,
+   but the event spawns from **SlowCards** with card type 9.
+5. `Array_Random(FrenzyBeatPatterns)` → `CheckIntervalMultipliers` →
+   `StartPatternWithMediaSync(pattern, BeatSpawnInterval,
+   CurrentStrokeCount, MediaPlaybackManager, 1.0, 0.0, Beat Travel Time)`.
+6. `PlayerEdgedLastDraw? = false`; `DrawManager.IsSpecialEvent? =
+   false`; `CurrentCardTypeEnum = 2` (Fast — as read, although the
+   spawned card is type 9).
+7. `ApplyVolumeScalar(SFXVolume)` → `PlaySound2D(volume, 1.0, 0.0)`.
+8. `PlayAnimation(FastPaceAnim, 0.0, 1 loop, 0, 1.0)`.
+9. `PlaySpecialEventDialogue(0)`.
+10. `Change Beat Background(3)`.
+11. `PlayMusic(2)`.
+12. Create `FavoriteFrenzySpawnOverlay_Widget` + `AddToViewport(0)`.
+
+`StartFavoriteFrenzyCooldown` (stub → entry 79218, body at shared block
+73041): debug print 'Favorite Frenzy On Cooldown' (2.0 s);
+`K2_ClearAndInvalidateTimerHandle(FavoriteFrenzyTimerHandle)`;
+`IsFavoriteFrenzyOnCooldown? = true`;
+`Current_FavoriteFrenzyCooldownSeconds = 0.0`; then
+`K2_SetTimerDelegate(delegate, 1.0, True, 0.0, 0.0)` → stored in
+`FavoriteFrenzyTimerHandle` (shared block 57837) — a 1.0 s looping
+timer calling `ProgressFavoriteFrenzyCooldown`.
+
+`ProgressFavoriteFrenzyCooldown` (stub → entry 78910):
+`Current_FavoriteFrenzyCooldownSeconds += 1.0` per tick; when `Current
+>= Master_FavoriteFrenzyCooldownSeconds` (120.0): clear the timer
+handle, `IsFavoriteFrenzyOnCooldown? = false`, debug print 'Favorite
+Frenzy Off Cooldown, Eligible for Draw'. Otherwise return and keep
+ticking.
+
+**No caller** of `FavoriteFrenzyEvent` or
+`FavoriteFrenzyEligibilityCheck` exists in the DrawManager, GlobalManager,
+or UI_Manager ubergraphs (full LVF scan, 2026-11-11) — the only Frenzy
+LVF call in GM is `StartFavoriteFrenzyCooldown` inside
+`FavoriteFrenzyEvent` itself. The trigger call site is therefore
+unestablished (native-by-name or dead code in this build, same as
+`AddFavoriteCardToArray`). The player's `triggerFavoriteFrenzy` returns
+the decoded spawn spec for a future call site to act on and does not
+draw a card itself; play.js has no frenzy trigger wiring.
 
 `CheckAndUpdateFavoriteUI` (699 bytes; script at 183, icode 408, storage 504,
 11 stmts) references `FavoritesIcon`, `GameModeSelection`,
@@ -236,8 +296,12 @@ this repo.
   matches the toggle semantics above, but the original's exact call path is
   unconfirmed.
 - No Blueprint caller of `AddFavoriteMedia` found in this pass.
-- Frenzy trigger bodies (`FavoriteFrenzyEvent`, cooldown progress/start) live
-  in the GM ubergraph (now parseable end-to-end with the fixed parser); the
-  trigger gate and 120 s cooldown are decoded above, but the frenzy event
-  itself and its overlay are not yet modeled in the player.
+- Frenzy trigger bodies (`FavoriteFrenzyEvent`, cooldown progress/start)
+  are decoded and the gate + 120 s cooldown are modeled in favorites.js
+  (see above); the frenzy event's presentation (FastPaceAnim, dialogue 0,
+  background 3, music 2, FavoriteFrenzySpawnOverlay_Widget) is carried in
+  the trigger's spawn spec but play.js does not act on it yet, and the
+  trigger's CALL SITE is unestablished — no caller of
+  `FavoriteFrenzyEvent` or `FavoriteFrenzyEligibilityCheck` in any
+  ubergraph.
 - The loops/overlay half of #44 is in `ticket44-loops-overlay-20261111.md`.
