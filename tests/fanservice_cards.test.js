@@ -47,7 +47,13 @@ test('source pattern banks create bounded cards with travel time and exact strok
 test('encounter completion produces actual objective metrics and source run-currency rewards',()=>{
  const run=session({settings:{LastObjectiveIndex_Classic:6,LastObjective_SuccuSlayer:5}});
  for(let n=0;n<5;n++){const flow=run.startCard('succubus');run.advance(last(flow)+.001);assert.equal(run.state.succubi,n+1);}
- assert.equal(run.state.succuCoins,5);assert.equal(run.state.ConsecutiveSuccubiSurvived,5);assert(run.player.isAllowedToCum);assert(run.objective.releaseDeadline>run.state.seconds);
+ assert.equal(run.state.succuCoins,5);assert.equal(run.state.ConsecutiveSuccubiSurvived,5);
+ // The trigger gate (Determine And Trigger Cum Meter Override Event, GM
+ // ubergraph v0.05.1) holds the window while the current card is a Succubus
+ // card (3); it opens on the next ordinary card's first beat.
+ assert.equal(run.player.isAllowedToCum,false);
+ const flow=run.startCard('slow');run.advance(2);
+ assert(run.player.isAllowedToCum);assert(run.objective.releaseDeadline>run.state.seconds);
  assert.equal(run.climax()[0].type,'successful-cum');assert.equal(run.phase,'complete');assert(run.state.won);
 });
 
@@ -164,4 +170,21 @@ test('punishment card is a succubus card with the traced 0.28-0.33 interval',()=
  assert.equal(plain.card,3);assert.equal(plain.travel,1.5);
  assert.equal(plain.interval,0.28);
  assert.equal(plain.assigned,31);
+});
+test('FavoriteFrenzyEvent spawns a 20-50 stroke slow card at 0.18-0.25 s as type 9',()=>{
+ // FavoriteFrenzyEvent (BP_GlobalManager ubergraph entry 81592, v0.05.1):
+ // SpawnCustomCardEvent(SlowCards, 20, 50, 0.18, 0.25, byte 9, ...). The
+ // rolled interval still passes through timing(), whose 0.28 floor applies,
+ // exactly as for the taunt card (0.18-0.23) — see the taunt branch above.
+ for(let seed=1;seed<40;seed++){
+  const run=session({seed}),flow=run.startCard('slow',{frenzy:true});
+  assert.equal(flow.pool,'slow');assert.equal(flow.card,9);
+  assert.equal(run.state.card,9);
+  assert.equal(flow.travel,cardRules.travel);assert.equal(flow.travel,1.75);
+  assert(flow.assigned>=16&&flow.assigned<=40,`frenzy strokes ${flow.assigned}`);
+  assert(flow.interval>=.28&&flow.interval<=.25*1.5,`frenzy interval ${flow.interval}`);
+  assert(cardRules.patterns.slow.some(row=>row.length===flow.pattern.length&&row.every((v,i)=>v===flow.pattern[i]||v>=2&&flow.pattern[i]===2.5)),'frenzy pattern from slow bank');
+  const plain=session({seed}).startCard('slow');
+  assert.equal(plain.card,0,'an ordinary slow card stays type 0');
+ }
 });

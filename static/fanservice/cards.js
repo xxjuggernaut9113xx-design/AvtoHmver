@@ -25,12 +25,19 @@
  function current(run){return run.state.cardFlow;}
  function start(run,pool,options={}){
   const data=run.config.cardRules,s=run.state;if(!data||run.config.mode===2&&!(run.returnEdge&&pool==='edge'))return null;
-  const card={slow:0,medium:1,fast:2,succubus:3,cum:6,ass:7,boobs:8,edge:5}[pool];if(card===undefined)throw Error('Unsupported card pool.');
+  const card=options.frenzy===true?9:{slow:0,medium:1,fast:2,succubus:3,cum:6,ass:7,boobs:8,edge:5}[pool];if(card===undefined)throw Error('Unsupported card pool.');
   const apexLure=card===3&&options.apexLure===true,strokeAddend=apexLure?options.strokeAddend:0;
   if(apexLure&&(!Number.isFinite(strokeAddend)||strokeAddend<0))throw Error('Apex Lure stroke modifier is invalid.');
   const difficulty=run.config.difficulty??1,multipliers=Rules.drawMultipliers(Rules.comboTier(s.combo),data.difficulty_count[difficulty],data.difficulty_speed[difficulty]);
   let count=multipliers.count,time=multipliers.time,travel=data.travel,bank=pool,min,max,low,high;
-  if(card<=2){const row=data.heat[['SlowHeat','MediumHeat','HighHeat'][card]];min=row.MinStrokeCount;max=row.MaxStrokeCount;low=card===2?.15:row.MinIntervalSeconds;high=row.MaxIntervalSeconds;
+  if(options.frenzy===true){
+   // FavoriteFrenzyEvent (GM ubergraph entry 81592, v0.05.1):
+   // SpawnCustomCardEvent(SlowCards, 20, 50, 0.18, 0.25, byte 9, ...). The
+   // rolled interval still passes through timing(), whose 0.28 floor applies,
+   // exactly as for the taunt card (0.18-0.23).
+   min=20;max=50;low=.18;high=.25;bank='slow';
+  }
+  else if(card<=2){const row=data.heat[['SlowHeat','MediumHeat','HighHeat'][card]];min=row.MinStrokeCount;max=row.MaxStrokeCount;low=card===2?.15:row.MinIntervalSeconds;high=row.MaxIntervalSeconds;
    // Taunt (GM ubergraph stmts 2124-2129): SpawnCustomCardEvent(FastCards,
    // HighHeat.MinStrokeCount, HighHeat.MaxStrokeCount, 0.18, 0.23, byte(2),
    // 0.5, ...). The count range already matches the fast branch; only the
