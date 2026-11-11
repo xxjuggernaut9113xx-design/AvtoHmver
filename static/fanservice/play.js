@@ -189,7 +189,29 @@ const edgePanel=element('section'),edgeButton=action('Edge / E',()=>triggerEdge(
 const tauntButton=action('Taunt',()=>triggerTaunt());tauntButton.id='taunt-action';tauntButton.setAttribute('aria-label','Taunt');$('controls').append(tauntButton);
 function renderTaunt(){tauntButton.hidden=!started||finished||!!music;}
 let edgeView='';
-function triggerEdge(){if(!started||paused||finished||!FanserviceEdge.allowed(run))return;objectiveEvents(run.edge());checkpoint(true);render();}
+function triggerEdge(){
+ if(!started||paused||finished||!FanserviceEdge.allowed(run))return;
+ // Hotbar stmt 32: the Edge button rolls punishment when the current card is
+ // an edge card (byte 5) and edges are available; a trigger spawns the
+ // punishment event and blocks the edge (TriggerEdgeV2 never runs). The
+ // direct edge (any other card) has no roll site — it is the session
+ // widget's E direct action, not the hotbar button. ActivateItem(2), called
+ // first by the button flow (stmt 26), is a no-op: the ActivateItem switch
+ // has no case for type 2. EdgeAvailable has no player counterpart (a
+ // loot-granted edge count in the original; GiveEdge increments it, and the
+ // player models edges as always available when allowed()), so allowed() is
+ // the availability gate here. The roll reads TotalTauntsUsed, the same
+ // input as the item sites (play.js:521). The roll is skipped at a 0% rate
+ // (fewer than 5 taunts): the outcome is predetermined, and drawing would
+ // only perturb the shared random stream — the edge smoke's Mercy deadline
+ // window caught the shift (1 pass, 1 fail over two repeats with the
+ // unconditional draw; baseline passes).
+ if(run.state.card===5){
+  const taunts=run.state.TotalTauntsUsed||0;
+  if(FanservicePunishment.rate(taunts)>0&&FanservicePunishment.roll(taunts,run.random)){spawnPunishment();checkpoint(true);render();return;}
+ }
+ objectiveEvents(run.edge());checkpoint(true);render();
+}
 function edgeAction(events){objectiveEvents(events);checkpoint(true);render();}
 function renderEdge(){
  const e=state.edge,enabled=started&&!paused&&!finished&&FanserviceEdge.allowed(run);edgeButton.disabled=!enabled;

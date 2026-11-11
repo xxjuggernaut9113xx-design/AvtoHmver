@@ -145,7 +145,7 @@ flows (entries resolved with the hotbar offset model):
 
 | stmt | flow | shape |
 | --- | --- | --- |
-| 32 | Edge button (entry 512 → 25) | roll after `ActivateItem(2)`; trigger spawns punishment and `PopFlow`s — the edge is blocked |
+| 32 | Edge button (entry 512 → 25) | roll after `ActivateItem(2)`; trigger spawns punishment and `PopFlow`s — the edge is blocked. **Wired in this slice** (see follow-up below): `play.js` `triggerEdge()` rolls when the current card is an edge card (byte 5) and blocks the edge on trigger. |
 | 99 | DecreaseHeat (entry 1303 → 48) | AoN (97) → `UpdateItemUses` (98) → roll → trigger: spawn (101) + `PopFlow` (102), widget effect (103+) skipped; miss: jump 3952 → 103 |
 | 167 | Break tail | roll in the widget tail; trigger spawns (169) and ends; trigger does not block anim/heat-spell |
 | 183 | Slowdown (entry 7113 → 164) | AoN (181) → `UpdateItemUses` (182) → roll → trigger: spawn (185); the `ActivateItem(3)` continuation still runs |
@@ -153,8 +153,9 @@ flows (entries resolved with the hotbar offset model):
 
 **Types 6 and 7 have no roll site anywhere** — the five sites above are
 exhaustive. The type-0 roll has no player counterpart (the player has no
-CumChance item); the Edge roll lives in the edge system, not `items.js`,
-and was not touched.
+CumChance item); see the type-0 survey in the follow-up at the end of this
+note — it is recorded as blocked, not wired. The Edge roll is wired in
+`play.js` `triggerEdge()` (see the same follow-up).
 
 Type 1, verified in detail: the button flow (stmts 48-50) calls
 `ActivateItem(1)`; `ActivateItem`'s type-1 branch calls `UseReduceHeatItem`
@@ -230,17 +231,20 @@ it would conflate it with ApexLure's `spawnSuccubus`.
 
 - #48 `play.js` punishment wiring content (see §3 above) and the taunt-count
   input (`TimesTaunted` exists only as a tower metric, so the
-  `(taunts/5)*20%` rate has no player input) — untouched.
+  `(taunts/5)*20%` rate has no player input) — the spawn is wired (e5fb511)
+  and the taunt-count input is wired (edec337, 6f27747); the Edge roll is
+  wired in this follow-up; the type-0 roll is blocked (no player
+  counterpart), see below.
 - #48 All-or-Nothing scope for non-Playlist Break — see §2 side
   observation; needs Kevin's decision.
 - #48 Defensive/Offensive `ItemsUsed` counting correction — see §2; needs
   the three non-retained callees checked first.
-- #48 `DetermineShouldHotHandsModifierApply` internals (the player excludes
-  type 1 from Hot Hands, but `ActivateItem` calls it for type 1 at stmt 44)
-  — not investigated; the Hot Hands line was not touched.
-- Type-0 (CumChance) punishment roll — no player item; nothing to wire.
-- Edge punishment roll (hotbar stmt 32) — lives in the edge system, not
-  `items.js`; not touched in this slice.
+- #48 `DetermineShouldHotHandsModifierApply` internals — surveyed in this
+  follow-up: fully determinable from the retained ASTs, and the player's
+  existing check already matches them exactly (no correction); the
+  notification is the only unmodeled piece, shared with Heat Spell.
+- Type-0 (CumChance) punishment roll — no player item; blocked, see below.
+- Edge punishment roll (hotbar stmt 32) — wired in this follow-up.
 
 ## Follow-up: enum file pinned by test; v004 native slice confirms Blueprint bodies are not native (2026-11-11)
 
@@ -437,3 +441,128 @@ separately in the player.
   parameter names not retained in `SpawnCustomCardEvent.json`).
 - T-key shortcut (InpActEvt_T entry 8529 -> UI stmt 236, a widget-create
   flow, NOT established as the taunt handler — no T shortcut implemented).
+
+## Follow-up: Edge punishment roll wired; type-0 roll blocked; Hot Hands internals surveyed (2026-11-11)
+
+### Edge roll (hotbar stmt 32) — wired in `play.js` `triggerEdge()`
+
+Full flow re-read from the hotbar ubergraph (offsets resolved with
+`tools/hotbar_ubergraph_offsets.py`, 260 stmts / 9725 bytes, 54/54 targets
+aligned): entry 512 → stmt 25 `CheckForRhythmMode()` → stmt 26
+`ActivateItem(2)` → stmt 27 `PopExecutionFlow` → stmt 28
+`CurrentCardTypeEnum == 5` (JumpIfNot → 810 = stmt 36, flow ends) → stmt 30
+`PlayerItemCounts.EdgeAvailable > 0` (JumpIfNot → 810, flow ends) → stmt 32
+`RollPunishmentChance()` → stmt 33 JumpIfNot → 941 = stmt 39 (miss) →
+stmt 34 `SpawnPunishmentEvent()` → stmt 35 `PopFlow` (trigger: the edge is
+blocked). On a miss the flow continues at stmt 39-40 to
+`TriggerEdgeV2()` — the edge starts.
+
+Two corrections to the earlier framing of this site:
+
+- **`ActivateItem(2)` is a no-op.** The `ActivateItem` switch compares
+  against `[0, 1, 3, 4, 5, 6, 7, 9, 10, 11, 12, 13]` — types 2 and 8 have
+  no case, so a call with 2 falls through all comparisons to stmt 25
+  (`EX_Jump` → 4193, the end). The Edge button's `ActivateItem(2)` call
+  therefore does nothing; the roll is the button's own behaviour, not
+  something that happens "after an item use".
+- **`EdgeAvailable` is a loot-granted count.** `BP_EdgeManager/GiveEdge`
+  does `EdgeAvailable += 1` plus the `ReceiveEdgeItem` animation; the
+  count is read in `RollAndGiveLootDrops(V2)` and in the hotbar
+  `GetEdgeAvailableText`. The player has no such inventory — edges are
+  always available when `FanserviceEdge.allowed(run)` — so `allowed()` is
+  the availability gate in the wiring, and the missing count is recorded
+  here rather than invented.
+
+Wiring (`play.js` `triggerEdge()`, after the `allowed()` check): if the
+current card is an edge card (`run.state.card === 5`) and the roll
+triggers, call the existing `spawnPunishment()` (reused, not rebuilt) and
+return without `run.edge()`; otherwise proceed exactly as before. The
+direct edge (any other card) has no roll site — it is the session
+widget's E direct action, not the hotbar button — so the `card === 5`
+gate is the faithful boundary. The roll reads `TotalTauntsUsed`, the same
+input as the item sites.
+
+**Rate-0 gate (found live).** The roll is skipped when
+`FanservicePunishment.rate(taunts)` is 0 (fewer than 5 taunts): the
+outcome is predetermined, and `roll()` draws `random.fraction()` even at
+a 0% rate, which perturbs the shared random stream. The edge smoke
+caught it: with the unconditional draw it failed 1 of 2 repeats at the
+Mercy deadline window (`deadline - seconds` in `(59.9, 60]`), while the
+baseline passed; with the gate it passes 3/3. The items.js sites still
+draw unconditionally at 0% (pre-existing, tested behaviour — not changed
+here).
+
+Tests: new `tests/fanservice_edge_punishment_smoke.cjs` (Chromium 1248,
+TDD red-first — the trigger case failed with card 5 instead of 3 before
+the fix), 4/4 runs: guard case (direct edge at 100% rate starts an edge,
+no punishment), trigger case (edge card at 100% rate spawns the
+punishment with the traced parameters — card 3, succubus pool, punishment
+stamp, interval [0.28, 0.33], assigned [30, 50] × live count multiplier,
+items locked, "Punishment" status, taunt background — and the edge does
+not record, phase stays `sequence`), miss case (edge card at 0% rate
+records the edge, no punishment). The punishment smoke and the edge
+smoke also pass (edge smoke 3/3 with the gate).
+
+### Type-0 roll (hotbar stmt 203) — blocked, no player counterpart
+
+Full flow traced (same offset model): the IncreaseCumChance button, entry
+8192 → stmt 200 (Jump → 8140 = stmt 196) `ActivateItem(0)` →
+`UseCumChanceItem` (a thunk to hotbar entry 9606 → stmt 249 → 221/222) →
+stmt 210 `IncreaseCumChanceAvailable > 0` → stmt 212
+`ApplyAllOrNothingModifierEffects_IfToggled` → stmts 213-215
+`TotalDefenseItemUses += 1` → stmt 216 `UpdateItemUses` → stmt 217
+(Jump → 8234 = stmt 203) `RollPunishmentChance()` → stmt 204 JumpIfNot →
+8298 = stmt 206 (miss: `LastDefensiveItemUsageTime = SessionLength`,
+`Slot1KeyPress` animation at 208, then the shared widget tail at stmt 51)
+→ stmt 205 Jump → 8197 = stmt 201 `SpawnPunishmentEvent()` → stmt 202
+`PopFlow` (trigger: the button effect is blocked).
+
+The player has no CumChance item (type 0), no IncreaseCumChance button,
+no `IncreaseCumChanceAvailable` count, and no cum-chance mechanic of any
+kind (zero references in `static/fanservice/` or `tests/`). Wiring the
+roll would require inventing the button, the item, and the mechanic, so
+this site is recorded as blocked, not wired. Exact missing pieces: a
+player counterpart for the IncreaseCumChance button/action, and the
+`UseCumChanceItem` effect beyond the roll (its body is only the hotbar
+entry above; the shared widget tail after stmt 209 jumps to stmt 51,
+whose tier switch is on `IncreaseCumChanceUpgradeLevel`).
+
+### `DetermineShouldHotHandsModifierApply` internals — surveyed, no correction
+
+The function is fully retained
+(`functions/BP_CHGameInstance/DetermineShouldHotHandsModifierApply.json`,
+8 statements, legible in full):
+
+1. `IsModifierActive?("Hot Hands")` — if not active, return (nothing
+   happens).
+2. `ItemType == 1` — if true, return (no heat, no notification). The
+   type-1 exclusion lives INSIDE this function.
+3. Otherwise: `CreateNotificationBox("Hot Hands Modifier", "Item usage
+   adds heat.\r\n+10% Heat Added", ...)` then `AddHeat(10.0, true)`.
+
+`AddHeat` is also fully retained
+(`functions/BP_GlobalManager/AddHeat.json`): `MaxHeat` is 100, or 75
+when `HasSuccuModifier(0)` (Pot Lid); the second parameter is
+`IgnoreHeatMultiplier?`, and Hot Hands passes `true`, so the +10 is raw
+— no difficulty multiplier, no Lube halving (modifier 2) — clamped to
+`MaxHeat`.
+
+The player's existing line (`economy.js` `itemUsed`) already matches
+all of this exactly: `type !== 1` excluded, Break excluded outside
+Playlist mode (the original calls Hot Hands for Break only on the
+Playlist branch, `ActivateItem` stmt 69; the non-Playlist branch,
+stmts 72-75, has no call), `+10` clamped at `heatCap` (75 with Pot Lid,
+100 otherwise), no Lube/difficulty scaling. The existing tests already
+pin it (`tests/fanservice_economy.test.js`: types 3/5/6/7/9/10/11/12/13
++10, type 1 none, Break Playlist-only; `tests/fanservice_item_interactions.test.js`:
+Break Hot Hands belongs to the Playlist branch). **No code change was
+made for Hot Hands.**
+
+The one unmodeled piece is the notification: the original shows "Hot
+Hands Modifier" / "Item usage adds heat.\r\n+10% Heat Added" on every
+qualifying use, and the player shows no modifier notification for any
+item use (no "Hot Hands" or "Heat Spell" string anywhere in
+`static/fanservice/` outside `economy.js`/`modifiers.js`). Adding it
+would need a notification channel through `itemUsed` for both modifiers
+alike; that is a presentation gap, not a Hot Hands correction, and it is
+recorded here rather than implemented.
