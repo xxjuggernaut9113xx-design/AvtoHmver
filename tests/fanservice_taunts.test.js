@@ -20,10 +20,11 @@ test('normal taunt adds 25 heat, spawns the traced fast card, and counts once',(
  const flow=run.state.cardFlow;
  assert.equal(flow.pool,'fast');assert.equal(flow.card,2);assert.equal(flow.taunt,true);
  assert(flow.interval>=.28&&flow.interval<=.322);
- assert(flow.assigned>=20&&flow.assigned<=30);
  // Same seed: the traced [0.18,0.23] roll lands below the timing() 0.28
- // floor, so the delivered interval is exactly 0.28 with 20 strokes.
+ // floor, so the delivered interval is exactly 0.28; the assigned count is
+ // the HighHeat 20-30 roll times the tier-0 count multiplier (0.8), so 20.
  assert.equal(flow.interval,0.28);
+ assert(flow.assigned>=16&&flow.assigned<=24);
  assert.equal(flow.assigned,20);
  assert.equal(result.temptingFate,false);
 });
