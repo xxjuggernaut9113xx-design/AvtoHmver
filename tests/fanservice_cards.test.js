@@ -113,3 +113,31 @@ test('doubling a pattern with rests counts actual strokes and completes exactly 
  const events=run.advance(last(flow)+.001);assert.equal(flow.remaining,0);assert.equal(run.state.strokes,strokes);assert.equal(events.filter(event=>event.type==='card-complete').length,1);
  run.advance(100);assert.equal(run.state.enemies,1);
 });
+
+const cumBank=[[1],[1,1,1,1,.5,.5,.5,.5,.5,.5],[1,1,.5,.5,.5,.5,-1],[.5,.5,.5,.5,.5,.5,.5,.5,1.5],[1,1,1,1.5]];
+test('CumBeatPatterns bank matches the newer-build BP_GlobalManager class defaults (reJOIce newer-20261017, payload 2e54a9da)',()=>{
+ assert.deepEqual(cardRules.patterns.cum,cumBank);
+});
+
+test('ordinary CumEventOverride card is 25-50 strokes at 0.28-0.30 s from CumBeatPatterns with Beat Travel Time; the 100 percent card is unchanged',()=>{
+ for(let seed=1;seed<40;seed++){
+  const run=session({seed}),flow=run.startCard('cum',{override:true});
+  assert.equal(flow.pool,'cum');assert.equal(flow.travel,cardRules.travel);assert.equal(flow.travel,1.75);
+  assert(cumBank.some(row=>JSON.stringify(row)===JSON.stringify(flow.pattern)),'pattern from cum bank');
+  assert(flow.assigned>=20&&flow.assigned<=40,`override strokes ${flow.assigned}`);
+  assert(flow.interval>=.28*.6&&flow.interval<=.30*1.5,`override interval ${flow.interval}`);
+  const full=session({seed}).startCard('cum');
+  assert.equal(full.travel,1.5);assert(full.assigned>=60,`100 percent strokes ${full.assigned}`);
+  assert(cardRules.patterns.fast.some(row=>row.length===full.pattern.length&&row.every((v,i)=>v===full.pattern[i]||v>=2&&full.pattern[i]===2.5)),'100 percent pattern from fast bank (2.0 becomes 2.5 after no previous interval)');
+ }
+});
+
+test('original DetermineCardV2 draws CumEventOverride while IsAllowedToCum or HasCame in modes 0 and 1, never in Playlist, Edge first',()=>{
+ const run=session({mode:0});
+ assert.equal(run.cumOverrideDue(),false);
+ run.player.isAllowedToCum=true;assert.equal(run.cumOverrideDue(),true);
+ run.player.isAllowedToCum=false;run.player.hasCame=true;assert.equal(run.cumOverrideDue(),true);
+ run.player.hasCame=false;run.player.isAllowedToCum=true;run.state.edge={phase:'sequence'};assert.equal(run.cumOverrideDue(),false);
+ const tower=session({mode:1});tower.player.isAllowedToCum=true;assert.equal(tower.cumOverrideDue(),true);
+ const playlist=session({mode:2});playlist.player.isAllowedToCum=true;assert.equal(playlist.cumOverrideDue(),false);
+});

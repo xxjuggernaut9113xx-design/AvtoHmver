@@ -39,6 +39,7 @@
    const intervalRoll=.8+run.random.fraction()*.45,countRoll=.8+run.random.fraction()*.45,base=Math.trunc(edge.lastCount*edge.strokeMultiplier);
    max=clamp(base,15,60);min=clamp(Math.trunc(base*countRoll),15,60);high=edge.lastInterval;low=edge.lastInterval*intervalRoll;count=time=1;bank='medium';
   }
+  else if(card===6&&options.override===true){min=25;max=50;low=.28;high=.30;bank='cum';}
   else if(card===6){min=75;max=100;low=.28;high=.35;travel=1.5;bank='fast';}
   else{const row=data.heat.HighHeat;min=row.MinStrokeCount;max=row.MaxStrokeCount;low=.15;high=row.MaxIntervalSeconds;bank='frenzy';}
   const result=timing(run.random.range(min,max),low+run.random.fraction()*(high-low),count,run.config.userCountMultiplier??1,time);

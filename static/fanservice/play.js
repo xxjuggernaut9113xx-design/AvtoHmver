@@ -264,6 +264,7 @@ function draw(pool,{prepare=true,force=false,cardOptions={}}={}){
  if(prepare&&!force&&started&&FanserviceEdge.active(run)){status('Finish the active edge stage before drawing another card.');return false;}
  if(prepare&&!force&&started&&!music&&state.card===3&&FanserviceCards.remaining(run)>0){status('Finish the active encounter before drawing another card.');return false;}
  decks??=rules.mediaPools(media,FanserviceModifiers.options(state.modifiers));
+ if(pool===undefined&&!music&&started&&!finished&&run.phase==='playing'&&run.cumOverrideDue()){pool='cum';cardOptions={...cardOptions,override:true};}
  pool??=music?category:automaticMediaPool();category=pool;
  if(!decks[pool]?.length){status(`No ${pool} media in the frozen selection. Enable a complementary pack or organize its tags in full fanservice.`);return false;}
  if(!remaining[pool]?.length)remaining[pool]=[...decks[pool]];

@@ -69,6 +69,7 @@
    if(flow&&!['edge','cum'].includes(pool))Edge.ordinaryCardStarted(this);
    return flow;
   }
+  cumOverrideDue(){return (this.config.mode===0||this.config.mode===1)&&(this.player.isAllowedToCum||this.player.hasCame)&&!Edge.active(this);}
   delayCard(seconds){return Cards.delay(this,seconds);}
   modifyCard(speed,factor=1){return Cards.rebuild(this,speed,factor);}
   tribute(){
