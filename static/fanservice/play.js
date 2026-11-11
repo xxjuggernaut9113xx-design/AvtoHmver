@@ -4,6 +4,7 @@ const profileKey='fanservice-profile-v1:'+library,checkpointKey='fanservice-sess
 let sessionId=store.id(),profile,media=[],decks,remaining={},music,map,soundtrackWarnings,run,state,catalog,contract,cardRules,started=false,paused=false,finished=false,settling=false,lastBeat=0,lastFrame=0,checkpointAt=0,category='slow',breakUntil=0,speed=1,pinnedPacks=[],restoring=false,currentMedia=null,mediaPosition=0,restoredView=null,keepMediaOnReplay=false,pendingMediaSeek=null,mediaSeekToken=0;
 const clock={next:0,event:0,last:0},resources=[],finishButton=$('finish');
 let specialEvents;
+let favorites=null;
 let musicBuffering=false,musicLeadIn=0,musicStarting=false,restorePosition=null;
 let finishHold;
 const mediaStatus=document.createElement('p');mediaStatus.id='media-status';mediaStatus.setAttribute('role','status');$('voice-status').after(mediaStatus);
@@ -188,6 +189,33 @@ function renderItemControls(){
 const edgePanel=element('section'),edgeButton=action('Edge / E',()=>triggerEdge());edgePanel.id='edge-panel';edgeButton.id='edge-action';edgeButton.setAttribute('aria-label','Edge / E');edgePanel.setAttribute('aria-live','polite');objectiveStatus.after(edgePanel);$('controls').append(edgeButton);
 const tauntButton=action('Taunt',()=>triggerTaunt());tauntButton.id='taunt-action';tauntButton.setAttribute('aria-label','Taunt');$('controls').append(tauntButton);
 function renderTaunt(){tauntButton.hidden=!started||finished||!!music;}
+const favoriteButton=action('Favorite',()=>toggleFavorite());favoriteButton.id='favorite-action';favoriteButton.setAttribute('aria-label','Favorite');$('controls').append(favoriteButton);
+function renderFavorite(){favoriteButton.hidden=!started||finished||!!music;favoriteButton.disabled=!currentMedia||!favorites;favoriteButton.textContent=currentMedia&&favorites?.isFavorite(currentMedia)?'Unfavorite':'Favorite';}
+function toggleFavorite(){
+ if(!started||paused||finished||!currentMedia||music||!favorites)return;
+ const result=favorites.toggleFavorite(currentMedia);
+ // Native ToggleFavorite moves the entry out of the master pool only; the
+ // remaining-deck copy lingers until that deck exhausts and refills from
+ // master. Unfavorite restores it to the master and remaining decks.
+ refreshFavoriteInDecks(currentMedia,result.isFavorite);
+ status(result.isFavorite?`Favorited ${currentMedia.file||currentMedia.id}.`:`Unfavorited ${currentMedia.file||currentMedia.id}.`);
+ checkpoint(true);render();
+}
+function refreshFavoriteInDecks(item,isFavorite){
+ const pools=['slow','medium','fast','succubus','cum','ass','boobs'];
+ const tags=(item.tags||[]).map(tag=>String(tag).toLowerCase());
+ const belongs=pools.filter(name=>tags.includes(name));if(!belongs.length)belongs.push('slow');
+ for(const pool of pools){
+  if(!decks[pool])continue;
+  const at=decks[pool].findIndex(entry=>entry.id===item.id);
+  if(isFavorite){if(at>=0)decks[pool].splice(at,1);}
+  else if(belongs.includes(pool)&&at<0)decks[pool].push(item);
+  if(remaining[pool]&&!isFavorite&&belongs.includes(pool)){
+   const remainingAt=remaining[pool].findIndex(entry=>entry.id===item.id);
+   if(remainingAt<0)remaining[pool].push(item);
+  }
+ }
+}
 let edgeView='';
 function triggerEdge(){
  if(!started||paused||finished||!FanserviceEdge.allowed(run))return;
@@ -232,7 +260,7 @@ function makeRun(){
  const settings={...(profile.mobile_settings||{}),LastObjectiveIndex_Classic:Number(objectiveSelect.value),LootBarEnabled:lootChoice.checked,'IsBrainMelterEnabled?':frenzyChoice.checked};if(spec.saveKey)settings[spec.saveKey]=target;
  return new FanserviceRun.Run(catalog,{mode,rounds:Number(roundsInput.value),settings,difficulty:Number($('difficulty').value),cardRules,lootEnabled:lootChoice.checked,maxBreaks:catalog.music_upgrades[1]['Value_L'+Math.max(1,Math.min(5,profile.mobile_music_upgrades?.[1]||1))],seed:run?.config.seed??crypto.getRandomValues(new Int32Array(1))[0],hotbar:run?.inventory.hotbarItems||profile.mobile_loadout,modifiers:profile.progression?.enabled_modifiers||[]});
 }
-function installRun(value){window.FanserviceVoice.stop();vibration.cancel();cancelFinishHold();run=value;state=run.state;decks=rules.mediaPools(media,FanserviceModifiers.options(state.modifiers));remaining={};}
+function installRun(value){window.FanserviceVoice.stop();vibration.cancel();cancelFinishHold();run=value;state=run.state;decks=rules.mediaPools(media,FanserviceModifiers.options(state.modifiers));remaining={};favorites=new FanserviceFavorites.Favorites({random:run.random});favorites.register(media);}
 function pauseVisualMedia(){$('video').pause();$('background-video').pause();}
 function cancelMediaGesture(){
  mediaPress=null;mediaKey=null;
@@ -290,9 +318,23 @@ function draw(pool,{prepare=true,force=false,cardOptions={}}={}){
  decks??=rules.mediaPools(media,FanserviceModifiers.options(state.modifiers));
  if(pool===undefined&&!music&&started&&!finished&&run.phase==='playing'&&run.cumOverrideDue()){pool='cum';cardOptions={...cardOptions,override:true};}
  pool??=music?category:automaticMediaPool();category=pool;
- if(!decks[pool]?.length){status(`No ${pool} media in the frozen selection. Enable a complementary pack or organize its tags in full fanservice.`);return false;}
- if(!remaining[pool]?.length)remaining[pool]=[...decks[pool]];
- const index=Math.floor(Math.random()*remaining[pool].length),item=remaining[pool].splice(index,1)[0],video=item.type==='video';
+ let item=null;
+ // Favorite injection (DrawNextCardForCategory 0x14826f430): for a non-9
+ // category, a 0-99 roll against the threshold draws from the current
+ // category's remaining-favorites deck instead of the normal deck. The
+ // injected entry is pruned from the normal remaining deck: the native
+ // enforces the same anti-repeat through its seen set, which does not
+ // reach this working deck.
+ const favoriteCategory={slow:0,medium:1,fast:2,succubus:3,cum:6,ass:7,boobs:8}[pool];
+ const injected=favorites&&favoriteCategory!==undefined&&!music?favorites.injectFavorite(favoriteCategory,run.random):null;
+ if(injected?.item){
+  item=injected.item;
+  if(remaining[pool]){const at=remaining[pool].findIndex(entry=>entry.id===item.id);if(at>=0)remaining[pool].splice(at,1);}
+ }else{
+  if(!decks[pool]?.length){status(`No ${pool} media in the frozen selection. Enable a complementary pack or organize its tags in full fanservice.`);return false;}
+  if(!remaining[pool]?.length)remaining[pool]=[...decks[pool]];
+  const index=Math.floor(Math.random()*remaining[pool].length);item=remaining[pool].splice(index,1)[0];
+ }
  showMedia(item,0,{restart:true});
  if(prepare){state.card={slow:0,medium:1,fast:2,succubus:3,cum:6,ass:7,boobs:8}[pool];state.canUseSlowdown=true;state.canUseBonerPill=true;if(started&&!finished&&run.phase==='playing'){FanserviceEconomy.draw(run);if(!music){run.startCard(pool,cardOptions);speed=1;}}}
  return true;
@@ -443,7 +485,7 @@ function render(){
  finishButton.setAttribute('aria-label',finishButton.textContent);
  $('controls').dataset.finishReady=String(!finishButton.disabled);
  if(finishButton.disabled)cancelFinishHold();
- $('draw').disabled=!started||finished||run.phase!=='playing'||FanserviceEdge.active(run);$('tap').disabled=$('draw').disabled||paused;renderEdge();renderTaunt();
+ $('draw').disabled=!started||finished||run.phase!=='playing'||FanserviceEdge.active(run);$('tap').disabled=$('draw').disabled||paused;renderEdge();renderTaunt();renderFavorite();
 }
 function objectiveEvents(events){
  const beats=events.filter(e=>e.type==='card-beat');

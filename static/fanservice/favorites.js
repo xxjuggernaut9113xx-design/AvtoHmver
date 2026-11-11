@@ -46,7 +46,7 @@
   for(const name of poolNames)if(tags.includes(name))return categoryByPool[name];
   return 0;
  }
- function normalize(entry){return {filename:filenameOf(entry),category:categoryOf(entry),isFavorite:entry?.isFavorite===true,item:entry?.item??null};}
+ function normalize(entry){return {filename:filenameOf(entry),category:categoryOf(entry),isFavorite:entry?.isFavorite===true,item:entry?.item??entry??null};}
  class Favorites{
   constructor({random,threshold}={}){
    this.random=random||{fraction:()=>Math.random()};
