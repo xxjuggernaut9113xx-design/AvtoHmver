@@ -305,3 +305,135 @@ them. Note the build difference: the cooked packages are v004, while the
 reference-build ASTs/enums used elsewhere in this note are
 newer-20261017 — any evidence taken from v004 needs its build
 correspondence stated, as was done for the card-rules hash.
+
+## Follow-up: taunt counting traced and implemented; play.js Taunt button wired (2026-11-11)
+
+### Taunt trace (reJOIce newer-20261017, UI_Manager + GM ubergraphs, offset model)
+
+Correction to the slice brief: taunts are a **player action** (a Taunt
+button), not succubus taunt events. The punishment roll's input
+`TotalTauntsUsed` (`PlayerVariablesStruct.LegacyStats.TotalTauntsUsed`)
+is incremented only by the player pressing Taunt.
+
+UI_Manager TauntButton click handler (entry 21921 -> stmt 609, resolved
+with the offset model; `tools/gm_ubergraph_offsets.py` now also handles
+`EX_InterfaceContext` — UI_Manager validates 705 stmts / 25010 bytes / 0
+unaligned targets, GM unchanged 2570 stmts / 299/299). Guards in order:
+CurrentCardTypeEnum == 6 (cum) -> "Cannot Taunt" / "Cannot taunt during
+cum events."; == 5 (edge) -> "Cannot Taunt" / "Cannot taunt during edging
+events."; `IsTauntOnCooldown?` -> "Taunt on Cooldown" / "Try again in
+{seconds} seconds." (FTrunc of remaining duration); `HasTaunted?` ->
+"Already Taunted" / "Wait until the next task to taunt."; then
+PlayAnimation(TauntButtonKeyPress). Then: card == 3 (succubus) ->
+"Succubus Taunt!" / "Succubi Spawn Chance Permanently Increased. " +
+`AddPermanentSuccubusWeight()` -> falls through to `Taunt()`; else if
+`HasSuccuModifier(15)` (Firemouth) -> "Firemouth Taunt!" / "Your Trash
+Talk has Summoned a Succubus!" + `Firemouth Taunt()` -> StartTauntCooldown
+-> AddToCumMeter(TauntCumAdd) -> Tempting Fate check; else normal ->
+"Taunt!" / "Increased Stroke Speed & Count" -> `Taunt()` ->
+StartTauntCooldown -> AddToCumMeter(TauntCumAdd) -> if TotalTauntsUsed ==
+5 -> "Tempting Fate" / "Your taunts drew her ire. Items may trigger
+punishment." Tooltip: "Taunt" / "Draws a tougher challenge."
+
+GM `Taunt()` (entry 86586 -> stmt 2144 -> Jump 86220 -> stmt 2130
+`UpdateMetric(7,1)` -> Jump 85713 -> stmt 2114): IsTauntOnCooldown?=true;
+HasTaunted?=true if not set; if card == 3 -> `ApplyStrokeCountModifier(4)`
++ `ApplySpeedModifier(5.0)` then PopFlow (nothing else); else clear
+IdleTimer, `AddHeat(TauntHeatAddAmount = 25.0, false)`, GetDataTableRow
+"HighHeat" -> `SpawnCustomCardEvent(FastCards, HighHeat.MinStrokeCount,
+HighHeat.MaxStrokeCount, 0.18, 0.23, byte(2), 0.5, Stroke Count
+Multiplier, SlateBrush, StrokeInterval)`, then Array_Random
+(FrenzyBeatPatterns) -> CheckIntervalMultipliers ->
+StartPatternWithMediaSync(..., 1.0, 0, Beat Travel Time), print "Taunt
+Event", TotalTauntsUsed += 1, CurrentCardTypeEnum = 2 (fast),
+CardManager.CheckAndReplaceEmptyDecks(),
+FindSpecialEventDialogueStructs(1) + voiceline, Change Beat
+Background(8).
+
+GM `Firemouth_Taunt()` (entry 85708 -> stmt 2113 -> stmt 2111
+`UpdateMetric(7,1)` -> stmt 2100): IsTauntOnCooldown?=true;
+HasTaunted?=true if not set; if card == 3 -> modifiers only, PopFlow;
+else clear IdleTimer, AddHeat(50.0, false), SpawnSuccubus(false).
+Firemouth does NOT increment TotalTauntsUsed.
+
+Cooldown: StartTauntCooldown (entry 86419 -> stmt 2136 -> Jump 86286 ->
+stmt 2132): print "Taunt Cooldown Started.", IsTauntOnCooldown?=true,
+TauntCooldownTimerDuration = 5.0, K2_SetTimerDelegate(TauntCooldown,
+interval 1.0s, looping=true). TauntCooldown (entry 86424 -> stmt 2137):
+each 1s tick, if duration <= 0 -> IsTauntOnCooldown?=false + clear timer,
+else duration -= 1.0. Class defaults: TauntHeatAddAmount = 25.0,
+TauntCooldownTimerDuration = 5.0.
+
+`HasTaunted?` reset: `DetermineCardV2` stmt 15 sets HasTaunted?=false
+when !HasCame? — i.e. on each new card determination unless the player
+has already came. No `HasTaunted? = false` write exists anywhere else in
+the retained ASTs.
+
+Two counters, distinct: `EMetricType::TimesTaunted` (7) is incremented by
+BOTH taunt paths (GM stmts 2130 and 2111 — verified: exactly two
+`UpdateMetric(7,1)` calls in the GM ubergraph) and is the challenge metric
+(native contract: TimesTaunted >= 3 and >= 50) and the tower-history
+input. `TotalTauntsUsed` (LegacyStats) is incremented by normal taunts
+only and is the `RollPunishmentChance` input. They must be tracked
+separately in the player.
+
+### Implemented (commits d7f34af, edec337, 6f27747, 8065ed4)
+
+- `static/fanservice/taunts.js` (`FanserviceTaunts`: cooldownSeconds=5,
+  heatAdd=25, firemouthHeatAdd=50, temptingFateAt=5, spawnParams
+  {pool:'fast', cardType:2, minInterval:0.18, maxInterval:0.23,
+  background:'tauntbackground'}, guard(), taunt(), isFiremouth(),
+  cooldownRemaining()). `run.js` loads it, state init gains
+  TimesTaunted:0, TotalTauntsUsed:0, hasTaunted:false,
+  tauntCooldownUntil:0, `startCard()` resets hasTaunted for ordinary
+  draws only (not edge/cum/taunt/punishment, not after `player.hasCame`),
+  new `run.taunt()` method. `cards.js` loads Taunts; fast cards with
+  `options.taunt===true` roll interval [0.18,0.23] (HighHeat 20-30 strokes
+  already matched the fast branch); cardFlow stamped `taunt:true`.
+  `tests/fanservice_taunts.test.js` (9 tests, TDD red-first). Note: the
+  traced [0.18,0.23] roll lands below the player's existing 0.28 interval
+  floor in `timing()`, so the delivered interval is exactly 0.28 at seed
+  137 (pinned by test); the assigned count is the HighHeat 20-30 roll
+  times the tier-0 count multiplier (0.8), so 16-24 at tier 0.
+- `play.js` Taunt button (next to Edge, hidden outside active card play
+  and in Soundtrack mode, where the taunt's card spawn has no
+  counterpart) with `triggerTaunt()`: media availability first, then
+  `run.taunt()`, then the branch media, the tauntbackground switch on the
+  normal branch only, and the traced notification strings. `play.html`
+  loads `taunts.js` (after `economy.js` — the first placement before it
+  broke the browser load, because the top-level `load()` runs at script
+  evaluation and `FanserviceEconomy` was not defined yet; the failure
+  surfaced as status "Cannot read properties of undefined (reading
+  'has')").
+- Correction to the previous slice's wiring: the punishment hook read
+  `s.TimesTaunted`, the EMetricType challenge metric. The roll reads
+  `TotalTauntsUsed` — Firemouth taunts increment the metric but not the
+  count — so the hook now reads `s.TotalTauntsUsed`, and the items-test
+  stubs and punishment smoke use that field.
+- `tests/fanservice_taunt_smoke.cjs` (new, Chromium 1248): Start, click
+  Taunt, fast card 2 with taunt stamp, interval in [0.28, 0.322],
+  assigned the HighHeat roll times the live combo multiplier, heat +25,
+  TimesTaunted 1, TotalTauntsUsed 1, background 'taunt', status
+  'Taunt!'; second click -> 'Taunt on Cooldown'; fast-forward 5s + new
+  card -> taunt allowed again (counters 2). Also fixes a pre-existing
+  flake in the punishment smoke found while re-running it: the
+  assigned-count assertion assumed a 1.0 combo multiplier, but assigned
+  is the 30-50 roll times the combo count multiplier (0.8 at tier 0), so
+  a 27 could fail it. Both smokes now capture the live multiplier and
+  assert the scaled range; each passes 3/3 runs. Tower and Challenges
+  smokes still pass.
+
+### Still not modeled (taunt)
+
+- TauntCumAdd value (field exists in UI_Manager; no default in
+  `blueprint-class-defaults.json` — the UI_Manager CDO lives in the
+  cooked packages).
+- `ApplyStrokeCountModifier(4)` / `ApplySpeedModifier(5.0)` semantics
+  (native BeatSpawnerManagerCPP, no retained body — add-vs-set-vs-multiply
+  unknown); the player applies the traced heat/spawn instead.
+- `AddPermanentSuccubusWeight` (no player counterpart).
+- Dialogue-struct-1 voiceline lines (cooked data tables).
+- SpawnCustomCardEvent 7th parameter (0.5 taunt / 1.0 punishment —
+  parameter names not retained in `SpawnCustomCardEvent.json`).
+- T-key shortcut (InpActEvt_T entry 8529 -> UI stmt 236, a widget-create
+  flow, NOT established as the taunt handler — no T shortcut implemented).
