@@ -9,6 +9,23 @@ test('mobile XP matches all 4200 native reconstruction golden fixtures',()=>{
  const rows=fixtures('native-xp-traces');assert.equal(rows.length,4200);
  for(const {stats:s,expected_xp} of rows)assert.equal(rules.xp({seconds:s.SessionDuration,strokes:s.Strokes,edges:s.Edges,enemies:s.EnemiesDefeated,succubi:s.SuccubiDefeated||0,won:s.bWon,modifiers:s.ActiveModifiers}),expected_xp,JSON.stringify(s));
 });
+test('XP matches disassembled v0.05.1 PrepareSessionRewards/CalculateSessionXP: floored minutes, per-source 0.5 loss multiplier',()=>{
+ // Native (hash-verified v0.05.1): PrepareSessionRewards 0x1483046c0, CalculateSessionXP
+ // 0x1482d90e0. TIME = floor(floor(seconds/60)*10*winMult); STROKES =
+ // floor(min(strokes*0.18,360)*winMult); ENEMIES = floor(min(total,60)*winMult);
+ // EDGES = floor(edges*15*winMult); win bonus +60 un-halved; modifier mult on the sum.
+ const cases=[
+  [{seconds:0,strokes:0,edges:0,enemies:59,won:false},29],
+  [{seconds:59,strokes:0,edges:0,enemies:0,won:true},60],
+  [{seconds:600,strokes:100,edges:3,enemies:10,won:false},86],
+  [{seconds:600,strokes:100,edges:3,enemies:10,won:true,modifiers:['ironman']},279],
+  [{seconds:600,strokes:0,edges:0,enemies:0,won:false,modifiers:['hardcore']},57],
+  [{seconds:61,strokes:0,edges:0,enemies:0,won:true},70],
+  [{seconds:0,strokes:10000,edges:0,enemies:0,won:false},180],
+  [{seconds:0,strokes:10000,edges:0,enemies:0,won:true},420],
+ ];
+ for(const [stats,expected] of cases)assert.equal(rules.xp(stats),expected,JSON.stringify(stats));
+});
 test('mobile meter and coin rules match native session traces',()=>{
  for(const row of fixtures('session-rule-traces')){
   const i=row.inputs,w=row.writes;
