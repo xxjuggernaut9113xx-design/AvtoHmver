@@ -78,7 +78,12 @@
   const s=run.state;s.ItemsUsed=add(s.ItemsUsed,1);
   const metric=classification==='Offensive'?'OffensiveItemsUsed':'DefensiveItemsUsed';s[metric]=add(s[metric],1);
   const specific={5:'BonerPillsUsed',10:'EscapeRopesUsed',11:'LootRushesUsed',13:'ComboCrunchersUsed'}[type];if(specific)s[specific]=add(s[specific],1);
-  if(metric==='DefensiveItemsUsed'&&has(run,4))s.heat=clamp(s.heat-10,0,100);
+  // ActivateItem calls ApplyHeatSpellEffect only for types 0, 1, 3, 6, 7 and
+  // for Break outside Playlist mode (stmts 30, 42, 53, 74, 91, 102). Escape
+  // Rope (10) and Combo Cruncher (13) never call it, and UseEscapeRopeItem's
+  // ubergraph flow (entry 71540) only creates a widget, re-enables items and
+  // calls SlowStrokeEvent, so the -10 is by type, not by classification.
+  if(([0,1,3,6,7].includes(type)||(type===4&&run.config.mode!==2))&&has(run,4))s.heat=clamp(s.heat-10,0,100);
   // Original ActivateItem calls DetermineShouldHotHandsModifierApply for Break only on its Playlist (mode 2) branch.
   if(type!==1&&!(type===4&&run.config.mode!==2)&&s.modifiers.includes('Hot Hands'))s.heat=clamp(s.heat+10,0,heatCap(run));
  }

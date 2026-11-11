@@ -37,9 +37,25 @@ test('run timers, currency and independent economy randomness resume exactly',()
  for(const value of [run,restored]){value.beat();value.advance(1);economy.recycler(value);}
  assert.deepEqual(restored.export(),run.export());assert.equal(run.state.succuCoins,2);assert.equal(run.state.economy.coinverterStrokes,0);assert.equal(run.state.economy.tycoonElapsed,0);
 });
-test('item use records the native specific metrics and source heat ordering',()=>{
- const run=session({modifiers:['Hot Hands']});run.ownedModifiers=[4,0];run.state.heat=74;economy.itemUsed(run,10,'Defensive');assert.equal(run.state.heat,74);assert.equal(run.state.ItemsUsed,1);assert.equal(run.state.DefensiveItemsUsed,1);assert.equal(run.state.EscapeRopesUsed,1);
+test('item use records the native specific metrics',()=>{
+ // Escape Rope gets no Heat Spell -10 (ActivateItem stmts 120-130 never call
+ // ApplyHeatSpellEffect for type 10), so Hot Hands (+10, capped at 75 by Pot
+ // Lid) is the only heat change: 74 -> 75.
+ const run=session({modifiers:['Hot Hands']});run.ownedModifiers=[4,0];run.state.heat=74;economy.itemUsed(run,10,'Defensive');assert.equal(run.state.heat,75);assert.equal(run.state.ItemsUsed,1);assert.equal(run.state.DefensiveItemsUsed,1);assert.equal(run.state.EscapeRopesUsed,1);
  economy.itemUsed(run,5,'Offensive');assert.equal(run.state.heat,75);assert.equal(run.state.BonerPillsUsed,1);economy.itemUsed(run,11,'Offensive');assert.equal(run.state.LootRushesUsed,1);economy.itemUsed(run,13,'Defensive');assert.equal(run.state.ComboCrunchersUsed,1);
+});
+test('Heat Spell reduces heat only on the ActivateItem branches that call ApplyHeatSpellEffect',()=>{
+ // ActivateItem stmts 30, 42, 53, 74, 91, 102 call ApplyHeatSpellEffect for
+ // types 0, 1, 3, 6, 7 and for Break outside Playlist mode; Escape Rope (10)
+ // and Combo Cruncher (13) never call it, and UseEscapeRopeItem's ubergraph
+ // flow (entry 71540) only creates a widget, re-enables items and calls
+ // SlowStrokeEvent, so neither gets the -10.
+ for(const type of [1,3,6,7]){const run=session();run.ownedModifiers=[4];run.state.heat=50;economy.itemUsed(run,type,'Defensive');assert.equal(run.state.heat,40,`type ${type}`);}
+ for(const [mode,heat] of [[0,40],[1,40],[2,50]]){const run=session({mode});run.ownedModifiers=[4];run.state.heat=50;economy.itemUsed(run,4,'Defensive');assert.equal(run.state.heat,heat,`Break mode ${mode}`);}
+ for(const [type,classification] of [[10,'Defensive'],[13,'Defensive'],[5,'Offensive'],[9,'Offensive'],[11,'Offensive'],[12,'Offensive']]){const run=session();run.ownedModifiers=[4];run.state.heat=50;economy.itemUsed(run,type,classification);assert.equal(run.state.heat,50,`type ${type}`);}
+ // With Pot Lid capping heat at 75, Heat Spell (-10) applies before Hot Hands
+ // (+10): 74 -> 64 -> 74, not 74 -> 75 -> 65.
+ const ordered=session({modifiers:['Hot Hands']});ordered.ownedModifiers=[4,0];ordered.state.heat=74;economy.itemUsed(ordered,3,'Defensive');assert.equal(ordered.state.heat,74);
 });
 test('Hot Hands heats Break only in Playlist mode, as the retained ActivateItem branches do',()=>{
  for(const [mode,heat] of [[0,50],[1,50],[2,60]]){
