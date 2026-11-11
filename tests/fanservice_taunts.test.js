@@ -29,6 +29,38 @@ test('normal taunt adds 25 heat, spawns the traced fast card, and counts once',(
  assert.equal(result.temptingFate,false);
 });
 
+test('every accepted taunt adds TauntCumAdd (0.01) to the cum meter',()=>{
+ // UI_Manager CDO Default__UI_Manager_C: TauntCumAdd is property #227
+ // (DoubleProperty), value 0.01 (0x3F847AE147AE147B). The TauntButton
+ // handler calls AddToCumMeter(TauntCumAdd) in the shared epilogue
+ // (StartTauntCooldown -> AddToCumMeter) after Taunt() / Firemouth
+ // Taunt(); the succubus branch falls through to the same Taunt() call,
+ // so the add applies on all three branches, once per accepted taunt.
+ const run=session();
+ assert.equal(run.state.meter,0);
+ assert.equal(Taunts.taunt(run).ok,true);
+ assert.equal(run.state.meter,0.01);
+ assert.equal(Taunts.tauntCumAdd,0.01);
+});
+
+test('Firemouth and succubus taunts add the same cum-meter increment, capped at 1',()=>{
+ const fire=session();fire.ownedModifiers.push(15);
+ fire.state.meter=0.995;
+ assert.equal(Taunts.taunt(fire).branch,'firemouth');
+ assert.equal(fire.state.meter,1);
+ const succ=session();succ.startCard('succubus');
+ succ.state.meter=0.5;
+ assert.equal(Taunts.taunt(succ).branch,'succubus');
+ assert.equal(succ.state.meter,0.51);
+});
+
+test('a blocked taunt does not touch the cum meter',()=>{
+ const run=session();run.state.meter=0.4;
+ run.state.card=6;
+ assert.equal(Taunts.taunt(run).ok,false);
+ assert.equal(run.state.meter,0.4);
+});
+
 test('the fifth taunt shows Tempting Fate',()=>{
  const run=session();run.state.TotalTauntsUsed=4;
  const result=Taunts.taunt(run);

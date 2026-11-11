@@ -30,9 +30,7 @@
  // seconds. HasTaunted? resets on each new card determination unless the
  // player has already came (DetermineCardV2 stmt 15, reached when
  // !HasCame?); run.startCard is that seam.
- // NOT modeled, with the reason: AddToCumMeter(TauntCumAdd) — the field
- // exists but its default value is not in the retained evidence (the
- // UI_Manager CDO lives in the cooked packages); AddPermanentSuccubusWeight
+ // NOT modeled, with the reason: AddPermanentSuccubusWeight
  // — no player counterpart; the dialogue struct 1 voiceline — its lines
  // live in the cooked data tables; the SpawnCustomCardEvent seventh
  // parameter (0.5 for the taunt card, 1.0 for the punishment card) — the
@@ -46,7 +44,15 @@
  // rebuild the current card's remaining queue from the current beat via
  // RebuildQueueFromCurrentState (0x1483200e0); already-consumed beats are
  // untouched. Neither is an add or a set.
- const cooldownSeconds=5,heatAdd=25,firemouthHeatAdd=50,temptingFateAt=5,succubusStrokeFactor=4,succubusSpeed=5.0;
+ // MODELED (pinned from the UI_Manager CDO, see docs/parity/evidence/
+ // ticket48-taunt-cumadd-20261111.md): AddToCumMeter(TauntCumAdd).
+ // TauntCumAdd is UI_Manager property #227 (DoubleProperty), CDO default
+ // 0.01 (0x3F847AE147AE147B). The TauntButton handler calls it in the
+ // shared epilogue (StartTauntCooldown -> AddToCumMeter) after Taunt() /
+ // Firemouth Taunt(); the succubus branch falls through to the same
+ // Taunt() call, so the add applies once per accepted taunt on all three
+ // branches, capped at 1 like the other cum-meter adds.
+ const cooldownSeconds=5,heatAdd=25,firemouthHeatAdd=50,temptingFateAt=5,succubusStrokeFactor=4,succubusSpeed=5.0,tauntCumAdd=0.01;
  const spawnParams=Object.freeze({pool:'fast',cardType:2,minInterval:0.18,maxInterval:0.23,background:'tauntbackground',notificationTitle:'Taunt',notificationBody:'Increased Stroke Speed & Count'});
  function cooldownRemaining(run){return Math.max(0,(run.state.tauntCooldownUntil||0)-run.state.seconds);}
  function guard(run){
@@ -65,6 +71,10 @@
   // EMetricType::TimesTaunted (7): both taunt paths increment it (GM stmts
   // 2130 and 2111). TotalTauntsUsed increments on the normal path only.
   s.TimesTaunted=((s.TimesTaunted||0)+1)|0;
+  // AddToCumMeter(TauntCumAdd): the shared handler epilogue adds 0.01 to
+  // the cum meter once per accepted taunt (all three branches; the succubus
+  // branch falls through to the same Taunt() call). Capped at 1.
+  s.meter=Math.min(1,(s.meter||0)+tauntCumAdd);
   if(s.card===3){
    // Succubus card: no new card, no heat, no TotalTauntsUsed increment.
    // The permanent succubus weight is still not modeled (see the header
@@ -96,7 +106,7 @@
   s.hasTaunted=true;s.tauntCooldownUntil=s.seconds+cooldownSeconds;
   return {ok:true,branch:'normal',taunts:s.TimesTaunted,totalTaunts:s.TotalTauntsUsed,temptingFate:s.TotalTauntsUsed===temptingFateAt};
  }
- const sourceLedger=['UI_Manager ubergraph stmts 328-348 + 55-75 + 170-260: TauntButton click guards, notifications, Firemouth(15) and succubus branches','BP_GlobalManager ubergraph stmts 2083-2099 + 2100-2144: Taunt() and Firemouth Taunt flows, TotalTauntsUsed increment, UpdateMetric(7, 1) at stmts 2111 and 2130','BP_GlobalManager ubergraph stmts 1722-1724 + 1896-1899 + 2132-2143: 5.0s cooldown, 1s looping timer tick','BP_DrawManager DetermineCardV2 stmt 15: HasTaunted? reset per card unless HasCame','BP_GlobalManager_C class defaults: TauntHeatAddAmount 25.0, TauntCooldownTimerDuration 5.0','v0.05.1 a8f46896 ApplyStrokeCountModifier 0x14831bc60 (multiply remaining x4) + ApplySpeedModifier 0x14831bb10 (intervals /5.0) + RebuildQueueFromCurrentState 0x1483200e0'];
- const api={cooldownSeconds,heatAdd,firemouthHeatAdd,temptingFateAt,succubusStrokeFactor,succubusSpeed,spawnParams,guard,taunt,isFiremouth,cooldownRemaining,sourceLedger};
+ const sourceLedger=['UI_Manager ubergraph stmts 328-348 + 55-75 + 170-260: TauntButton click guards, notifications, Firemouth(15) and succubus branches','BP_GlobalManager ubergraph stmts 2083-2099 + 2100-2144: Taunt() and Firemouth Taunt flows, TotalTauntsUsed increment, UpdateMetric(7, 1) at stmts 2111 and 2130','BP_GlobalManager ubergraph stmts 1722-1724 + 1896-1899 + 2132-2143: 5.0s cooldown, 1s looping timer tick','BP_DrawManager DetermineCardV2 stmt 15: HasTaunted? reset per card unless HasCame','BP_GlobalManager_C class defaults: TauntHeatAddAmount 25.0, TauntCooldownTimerDuration 5.0','v0.05.1 a8f46896 ApplyStrokeCountModifier 0x14831bc60 (multiply remaining x4) + ApplySpeedModifier 0x14831bb10 (intervals /5.0) + RebuildQueueFromCurrentState 0x1483200e0','v0.05.1 a8f46896 UI_Manager CDO Default__UI_Manager_C: TauntCumAdd property #227 (DoubleProperty) = 0.01 (0x3F847AE147AE147B); AddToCumMeter(TauntCumAdd) in the shared handler epilogue'];
+ const api={cooldownSeconds,heatAdd,firemouthHeatAdd,temptingFateAt,succubusStrokeFactor,succubusSpeed,tauntCumAdd,spawnParams,guard,taunt,isFiremouth,cooldownRemaining,sourceLedger};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.FanserviceTaunts=api;
 })(globalThis);

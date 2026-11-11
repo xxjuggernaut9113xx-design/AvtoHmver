@@ -373,8 +373,8 @@ function triggerTaunt(){
  // Firemouth Taunt(), StartTauntCooldown(), and the Tempting Fate check at
  // five taunts. The media for the spawned card is picked here, mirroring
  // spawnPunishment; run.taunt() does the guards, heat, counters, cooldown,
- // and card spawn. The cum-meter add (TauntCumAdd) is not modeled — its
- // value is not in the retained evidence. No T-key shortcut: the original's
+ // card spawn, and the cum-meter add (TauntCumAdd 0.01, UI_Manager CDO
+ // property #227). No T-key shortcut: the original's
  // T-key entry (8529 -> UI stmt 236) lands in a widget-create flow, not
  // the taunt handler, so it was not established as the taunt key.
  if(!started||paused||finished||run.phase!=='playing'||music)return;

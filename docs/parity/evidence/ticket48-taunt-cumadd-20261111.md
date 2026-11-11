@@ -1,8 +1,8 @@
-# #48 taunt — `TauntCumAdd` use found; value still unpinned
+# #48 taunt — `TauntCumAdd` pinned: 0.01
 
 Source: hash-verified v0.05.1 build, unpacked with retoc (Oodle), converted to
 legacy `.uasset`/`.uexp` with `retoc to-legacy`, mined with the session's
-Python reader (`work/uasset.py`, `work/kismet2.py` in
+Python reader (`work/uasset.py`, `work/kismet2.py`, `work/cdowalk.py` in
 `~/workspace/rejoice-evidence/cockhero-itch/work/`).
 
 Package: `/Game/NewSetup/UI_Manager` (`UI_Manager.uasset`, 238,916 bytes;
@@ -39,38 +39,85 @@ BP_GlobalManager name map at all (the one raw byte-pattern hit in the GM
 `.uexp` is a coincidence: the bytes `ea 02 00 00 00 00 00 00` as data, not an
 FName reference).
 
-## Value: NOT pinned
+## Value: PINNED — 0.01
 
-The value is a CDO default and was **not** established in this pass:
+`TauntCumAdd` is UI_Manager property **#227** of 247 (0-based) in the
+`UI_Manager_C` class export's inline FProperty list (`DoubleProperty`,
+elemsize 8; class-export offset 14860). Its CDO default is **0.01**
+(IEEE-754 double `0x3F847AE147AE147B`).
 
-- The UI_Manager CDO (`Default__UI_Manager_C`, class 1484, size 1567) is
-  **unversioned** property data (no FPropertyTags), so the property cannot be
-  found by searching for its name index — name indices do not appear in the
-  data at all. The PropWalker does not parse it.
-- The CDO header contains float32 candidates **1.75** and **1.875**
-  (alternating at offsets 43, 51, 59, 67, each followed by 4 zero bytes).
-  These are **not** established as `TauntCumAdd`: they sit in the CDO header,
-  before the Blueprint's own properties, and are most likely parent-class or
-  early properties. Do not use 1.75 or 1.875 as the value on this evidence.
-- The `.usmap` (`~/workspace/reJOIce/Materials/Mappings/CockHeroProgression.usmap`)
-  does **not** contain `TauntCumAdd` or `UI_Manager` at all, so it cannot
-  supply the property layout. (It does contain `TauntCooldownTimerDuration`
-  and neighbouring UI/GM property names, so it is a partial name list, not a
-  complete class layout.)
-- `TauntCumAdd` has no separable property export in the package (the class's
-  property definitions live inside the `UI_Manager_C` class export, 18,110
-  bytes), so its type/size/offset cannot be read off an export either.
+### How it was pinned (CDO unversioned-property walk)
 
-### Method to pin it
+The UI_Manager CDO (`Default__UI_Manager_C`, 1567 bytes) is unversioned
+property data. The format (UAssetAPI `Unversioned/FFragment.cs`,
+`FUnversionedHeader.cs`) is a stream of LE uint16 fragments until one has
+`bIsLast`: bits 0–6 SkipNum, bit 7 bHasAnyZeroes, bits 9–15 ValueNum,
+bit 8 bIsLast; a zero mask follows only if a fragment has bHasAnyZeroes.
+The CDO header is 20 bytes (10 fragments), no zero mask, with 26 present
+properties: 0, 197–201, 205–206, 210–216, 218–223, **227**, 233, 241,
+262–263. Property indices are the class's own properties in declaration
+order (derived-first); indices past 246 are parent-class properties.
 
-Walk the CDO's unversioned property data using the class's property
-declaration order (from the `UI_Manager_C` class export's inline property
-list, or a complete `.usmap`), accumulating each property's serialized size
-(float 4, double 8, bool 1, int 4, object ref 4, arrays/structs variable)
-until `TauntCumAdd` is reached, then read its float. Alternatively, use
-UAssetAPI with a working `.usmap` against the retoc legacy files (UAssetAPI
-v1.1.0 could not read retoc's legacy header as-is — that route needs the
-header issue resolved first).
+The walk (`work/cdowalk.py`) decodes the values up to #205 and confirms the
+layout: UberGraphFrame 2 bytes, BeatIntervalTimeFloat 0.25, IsBeatBarActive
+true, StrokeCountRequired 10, AnchorSet (AnchorData: Offsets 0,0;
+Anchors 0.0, **1.75**), IsBeatSpawnable false, StrokeCounterDisplay 0.
+The middle (CardArray + text arrays) was not walked end-to-end, so the
+value is pinned from the CDO **tail**, verified two independent ways:
+
+- **From the last text element:** the 15th taunt line's FText starts at
+  1433 (Flags 0, HistoryType 1, Namespace length 0, Key
+  `D844B45D4C1160512FE5B7924C5A6E61`, SourceString length 22,
+  `"*SCREAMS OF PLEASURE*"`) and ends at 1505. After it: #214
+  DecreaseDifficultyCost 25 (int), #215 DecreaseDifficultyHeatSubtract
+  40.0 (double), #216 DecreaseDifficultyUseCostIncrease 5 (int), #218
+  EdgeBuyPrice 150, #219 IncreaseCumChanceCost 500, #220
+  AddTimetoEdgeRecoveryCost 150, #221 EdgeRecoveryLengthIncreaseAmount 2,
+  #222 BuySuccubusShieldsCost 100, #223 BuySuccubusShieldsAddAmount 25
+  (six ints, 24 bytes) — 40 bytes total — so #227 sits at 1505 + 40 =
+  **1545**, where the double reads **0.01**.
+- **From the CDO end:** 1567 − (8 for #227 + 4 for #233 + 4 for #241 +
+  6 for parent properties #262–263) = **1545**. Same offset.
+  The trailing object refs confirm the alignment: #233
+  ModifiersDataTable = import −102 (`ModifierInfoDataTable`), #241
+  SuccuShopItemsDataTable = import −101
+  (`SuccuShopModifierItems_DT`), and the last 6 bytes are zeros.
+
+Every neighbouring value matches its property name, the object refs
+resolve to the correct DataTables, and the layout accounts for exactly
+1567 bytes. The value is **0.01** — one percent of the cum meter per taunt.
+
+### Correction to the earlier candidates
+
+The float32 candidates **1.75** and **1.875** at CDO offsets 43/51/59/67
+are **not** `TauntCumAdd`: 1.75 is `AnchorSet.Anchors.Y` (a float inside
+the AnchorData struct at #200), and 1.875 is a neighbouring float in the
+same region. Do not use 1.75 or 1.875 as the value.
+
+### FText format (established during this walk)
+
+An `FText` in unversioned CDO data is: Flags int32 + HistoryType int8 +
+Namespace FString + Key FString + SourceString FString. HistoryType is 0
+or 1 in this build (both carry the three strings); Namespace may be
+length 0 (empty, no bytes) or length 1 (just a null). FString length
+includes the null terminator; length 0 means empty with no bytes. The
+last taunt line's FText (offset 1433) tiles exactly against its neighbours,
+confirming the layout. The middle of the CDO (CardArray at #206 and the
+Slow/Medium/Fast text arrays at #211–213) was not walked end-to-end in
+this pass — the CardArray count does not read as a plain int32 at the
+expected offset, so a forward walk from #206 still needs its array/struct
+layout resolved. That gap does not affect the pinned value, which rests
+on the tail verification above.
+
+### Class-property quirk (for future walks)
+
+In this package's class-export property list, the struct/object
+FPackageIndex tail field is stored as `(FPackageIndex << 8)` (low byte
+0x00); recover it with an arithmetic right-shift by 8. Validated: all
+218 Object/Struct class refs resolve correctly after the shift
+(e.g. UberGraphFrame → `PointerToUberGraphFrame`, import −372;
+AnchorSet → `AnchorData`, import −379; ModifiersDataTable → `DataTable`,
+import −30).
 
 ## Related taunt evidence (CDO)
 
@@ -113,9 +160,15 @@ packages (and the frenzy-trigger bodies in the GM ubergraph).
 ## What this settles / leaves open for #48 (taunt)
 
 - Settled: `TauntCumAdd` is the cum-meter increment applied on taunt, via
-  `AddToCumMeter(TauntCumAdd)`. The player's taunt implementation does not
-  yet model any cum-meter addition on taunt; when the value is pinned, the
-  taunt handler should add it.
-- Still open: the numeric value of `TauntCumAdd`; the dialogue
-  selection/weighting; the "Hot Hands Modifier" notification (presentation
-  gap, separate item).
+  `AddToCumMeter(TauntCumAdd)`, and its value is **0.01**. Implemented in
+  `static/fanservice/taunts.js` (`tauntCumAdd = 0.01`; `run.state.meter`
+  increases by 0.01, capped at 1, once per accepted taunt). Branch
+  placement: the TauntButton handler calls it in the shared epilogue
+  (`StartTauntCooldown -> AddToCumMeter`) after `Taunt()` / `Firemouth
+  Taunt()`; the succubus branch falls through to the same `Taunt()` call,
+  so the add applies on all three branches (see the handler trace in
+  `ticket48-heat-spell-punishment-20261111.md`). Tests:
+  `tests/fanservice_taunts.test.js` (all three branches, cap at 1,
+  blocked taunt adds nothing).
+- Still open: the dialogue selection/weighting; the "Hot Hands Modifier"
+  notification (presentation gap, separate item).
