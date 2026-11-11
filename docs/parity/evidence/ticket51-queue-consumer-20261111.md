@@ -93,7 +93,9 @@ END:
     `EvaluateNotificationWarnings` (0x1482decf0, called from Tick
     every frame) when the next window falls inside the warning lead.
   - `+0x580` = warning lead time = `max(+0x60, 0.0)` (a config
-    double at `+0x60`; its CDO default is NOT established).
+    double at `+0x60`; its default is PINNED: **30.0** —
+    `UMusicModeManager` constructor 0x1482ce640, verified in the
+    v0.05.1 exe: `movabs 0x403e000000000000 → +0x60`).
   - `+0x588` = latched announced upcoming window start; re-latched
     only when `|new start − old| > 0.001` (epsilon const
     0x14bf3cd30 = 0.001), so the warning broadcast fires once per
@@ -104,9 +106,17 @@ END:
   - Readers: `GetCumWindowWarningRemainingSeconds` (0x1482e9570:
     `max(+0x570 − audioTime, 0)`, else −1.0),
     `GetCumWindowWarningProgress` (0x1482e94e0:
-    `clamp(1 − (+0x570 − now)/+0x580, 0, 1)`, 0 when `+0x570<=0`
+    `clamp(1 − max(+0x570 − now, 0)/+0x580, 0, 1)`, 0 when `+0x570<0`
     or `+0x580<=0`), `GetCumWindowWarningText` (0x1482e95d0:
     formats remaining until `+0x570` and until `+0x578`).
+  - CumWithin readers (same history walk, over the
+    `FEventHistoryEntry` array at `+0x238` that contains now):
+    `GetCumWithinProgress` (0x1482e96e0:
+    `clamp(max(end − now, 0)/(end − start), 0, 1)`, 0 when no entry
+    contains now), `GetCumWithinRemainingSeconds` (0x1482e9870:
+    `max(end − now, 0)` for the containing entry, else −1.0).
+    The exact CumIn/CumWithin text format strings were not recovered
+    from the binary; the player's countdown wording is its own.
   - Tick case 8 (DisableBreak) RESETS the latch: `+0x580 = −1.0`
     (disables the progress getter until re-latched) and
     `+0x588 = 0.0` (clears the announced-start latch so the next
@@ -114,8 +124,9 @@ END:
 - **Break-disable warning readers: SETTLED (2026-11-11).**
   - `+0x5a8` = start time (audio time) of the next upcoming
     DisableBreak event; `+0x5b0` = warning window =
-    `max(+0x68, 0.0)` (a config double at `+0x68`; CDO default NOT
-    established). Written by `EvaluateNotificationWarnings`: it
+    `max(+0x68, 0.0)` (a config double at `+0x68`; its default is
+    PINNED: **10.0** — same constructor: `movabs
+    0x4024000000000000 → +0x68`). Written by `EvaluateNotificationWarnings`: it
     scans the beatmap event array at `+0x2b0` (40-byte stride,
     count `+0x2b8`) for type-8 events with `0 < time − now <=
     +0x68`, skips indices already in the `TSet<int32>` dedup set
@@ -214,17 +225,25 @@ return;
 ```
 
 The body carries **no duration, no timer, and no 60** — the window's
-duration comes from `CumWindowTime = 60.0`, not from this body. No
-Blueprint caller of `CumEventOverride` was found in the GM ubergraph
-(same pattern as `AddFavoriteCardToArray` — native-by-name or dead code).
+duration comes from `CumWindowTime = 60.0`, not from this body. Its
+caller is SETTLED: `DetermineCardV2` (BP_DrawManager) calls it at stmt
+12 (@463) and stmt 56 (@2429), in modes 0/1 outside music mode, when
+`HasCame?` OR `IsAllowedToCum?` (see below); the player's
+`run.cumOverrideDue()` matches.
 
 ## Trigger function — decoded (`Determine And Trigger Cum Meter Override Event`, 4000-byte export)
 
 Switch on `GameInstance.CurrentSessionObjective`; only cases 0, 2, 3, 8
 have an override path (Timer 1, Prejac 6, Tribute 7 return without one):
 
-- Case 0 (Cum meter): if NOT Frenzy, require `CurrentCardTypeEnum` ∈
-  {5 Edging, 6 Cum, 3 Succubus}; then `CumMeterPercentage >= 1.0`.
+- Case 0 (Cum meter): if NOT Frenzy, require `CurrentCardTypeEnum` ∉
+  {5 Edging, 6 Cum, 3 Succubus} — the gate passes only when the current
+  card is none of those three; then `CumMeterPercentage >= 1.0`. (An
+  earlier version of this note had the polarity inverted; corrected
+  2026-11-11 against the live ubergraph block @92330–93214, where the
+  OR {5,6,3} → exit.) If Frenzy IS active, the live block requires
+  type == 3 (Succubus); the dead trigger function has no frenzy type
+  check — the live block governs.
 - Case 2 (Strokes): `CurrentSessionStats.Strokes >=
   Objective_StrokesRequired`. Case 3 (Edges): `Edges >=
   Objective_EdgesRequired`. Case 8 (Succubus):
@@ -241,21 +260,56 @@ strokes, vs the override's 25–50), random `FastBeatPatterns`,
 `StartPatternWithMediaSync`, and `PlaySpecialEventDialogue(4)`. The
 trigger's other call site in the ubergraph (shared block at 92486)
 re-checks `CurrentCardTypeEnum == 3` and `IsCumRound?` before firing
-the same two calls. No Blueprint caller of the trigger function itself
-was found in the GM ubergraph.
+the same two calls. **Trigger cadence: SETTLED.** `BeatComplete` (GM
+function export, 33 stmts, icode 821, v0.05.1) stmt 16
+`AddtoCumMeteronBeatComplete` → stmt 17 `Determine And Trigger Cum
+Meter Override Event` — the trigger check runs on EVERY BEAT COMPLETE.
+The player's `run.advance()` → `objective.tick()` runs per advance/beat,
+the equivalent cadence.
 
-The player's `tick()` opens the release window for any objective on
-completion (except Tower non-boss and Tribute, which complete directly).
-Two decoded details are NOT yet modeled in the player and are recorded
-here, not silently assumed: (a) the objective-0 card-type gate ({5, 6,
-3} when not in Frenzy) — the player's tick has no such gate, and the
-trigger's call cadence (which beat/card event invokes it) is not
-established, so wiring the gate into the player's tick loop would invent
-behavior; (b) the Timer objective has no override path in the trigger
-function — the player's Timer → release window is unconfirmed by this
-decode (the Timer objective may complete through a different path).
-The 75–100-stroke 100%-meter card (vs the override's 25–50) is likewise
-not modeled: the player's release-window draw is a forced `'cum'` card.
+**Timer path: SETTLED.** The trigger function has no Timer case, but the
+Timer completion reaches the same live trigger block via the 1 s session
+timer: `SetSessionDurationEvent` is bound at GM ubergraph stmt 586
+(@25634) via `BindDelegate` + `K2_SetTimerDelegate(rate=1.0,
+looping=True)`; the Timer completion check (stmts 2378–2380:
+`SessionLength >= Objective_TimeRequired_Seconds` →
+`PopExecutionFlowIfNot` → Jump @92333, the SuccuFrenzy check) enters
+the trigger block. Prejac (objective 6) has an analogous check at stmts
+2381–2384 (jump target @94068 not yet dumped).
+
+**`IsCumRound?`: SETTLED with a caveat.** GM ubergraph stmt 657 (@28287)
+sets `GameInstance.IsCumRound? = True` during session init. NO False
+write exists in any converted package (GM ubergraph search found only
+stmts 657 and 2336; GI scripts contain no write;
+`SetCurrentSessionObjective` only sets `CurrentSessionObjective`); the
+GI CDO default was not walked. In the decoded Classic path
+`IsCumRound?` is effectively always true, so the trigger always takes
+the `Spawn100Percent` branch, never `RoundWinOverride` — a False write
+could exist in an unconverted package or native code.
+
+**`RoundWinOverride` (entry 79488 → Jump @56800):** creates a widget +
+`AddToViewport(0)` (class unresolved), `UpdateObjectiveTitleVictoryStart`,
+`UpdateMetric(14, 1)`, `SessionStatsArray += CurrentSessionStats`,
+notify 'Round Completed' / 'Advance to the next round.' — a round
+victory, NO cum window.
+
+**Expiry notifications: SETTLED** (`Set and Display Cum Window Timer`,
+entry 49184 — all cases end with `DetermineCardV2`): case 0 'Cum Meter
+Reset', case 1 'Timer Reset' (which also does
+`Objective_TimeRequired_Seconds += Original Objective Time Required
+Seconds`), case 2 'Strokes Reset', case 3 'Edges Reset', case 8
+'Succubi Reset' (which also does `Objective_SuccubusRequired += Original
+Objective Succubus Required`). Cases 2 and 8 end the session instead
+when `DoesNotCummingInWindowResetObjective?` is false.
+
+The player's `tick()` now models the gate
+(`objectives.js cumWindowTriggerGate`, wired through `run.context()`'s
+`modifiers` + `cardType`): non-Frenzy requires the type ∉ {5,6,3},
+Frenzy requires type == 3; a failed gate leaves the objective complete
+so the next tick retries. The 75–100-stroke 100%-meter card is already
+modeled: `play.js` draws `'cum'` (75–100, 0.28–0.35, travel 1.5, bank
+'fast') on `release-window-opened`, and subsequent automatic draws use
+the 25–50 override card while the window is open.
 
 ## Player alignment / open items
 
@@ -265,24 +319,18 @@ not modeled: the player's release-window draw is a forced `'cum'` card.
 - Presentation gaps (settled by the decode, not yet wired to the MAP
   event — the overlay countdown currently only runs on the objective
   override's `releaseDeadline`): the "Cum Now!" / "Cum Window Closed"
-  notifications; the `CumWithinXSec` countdown to the map's end time
-  during the window; the CumButtonFlash green/red loop toggle.
-- Still open: the GM cum-window timer functions
-  (`Start_Cum_Window_Timer` 48674, `Set_and_Display_Cum_Window_Timer`
-  49184) are now decoded (see above — 1 s tick, CumWindowTime = 60.0).
-  The warning getters are decoded but NOT modeled in the player: no
-  player UI seam exists for the break-disable warning (seconds-until-
-  disabled text + progress) or the cum-window warning (lead-time
-  countdown + progress), and the config defaults at `+0x60` (cum
-  warning lead) and `+0x68` (break-disable warning window) are NOT
-  established — pinning them needs the `UMusicModeManager` CDO
-  property values mapped to those member offsets, which the session
-  parser does not do. No player code change was made for Task 3:
-  the disable_break toggle (`play.js:439`) and the event-first
-  ordering in `rules.js` `schedule` already match the original's
-  observable behavior.
-- Decoded but not yet modeled in the player: the objective-0 card-type
-  gate ({5, 6, 3} when not in Frenzy); the Timer objective's lack of an
-  override path in the trigger function (player's Timer → release window
-  unconfirmed); the 75–100-stroke 100%-meter card vs the override's
-  25–50; the `CumEventOverride` caller (none found in the ubergraph).
+  notifications; the CumButtonFlash green/red loop toggle.
+- Map-window warnings: MODELED (2026-11-11). The leads are pinned
+  (+0x60 = 30.0, +0x68 = 10.0, ctor 0x1482ce640) and the getters are
+  decoded (see above); `overlays.js` adds `cumInWarning` /
+  `cumWithinWarning` / `breakDisableWarning` / `mapWindowWarnings` and
+  `renderOverlays` shows them on the countdown overlay in music mode
+  (the objective countdown never runs there). The exact CumIn/CumWithin
+  text format strings were not recovered from the binary; the player's
+  countdown wording is its own.
+- Decoded and modeled in the player (2026-11-11): the objective-0
+  card-type gate (∉ {5,6,3} non-Frenzy, == 3 Frenzy — live block
+  governs); the Timer objective's path to the trigger block (1 s
+  session timer, completion check @2378–2380); the 75–100-stroke
+  100%-meter card (drawn on `release-window-opened`); the
+  `CumEventOverride` caller (`DetermineCardV2` stmts 12/56).

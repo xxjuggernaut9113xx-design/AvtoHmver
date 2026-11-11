@@ -185,15 +185,26 @@ handle, `IsFavoriteFrenzyOnCooldown? = false`, debug print 'Favorite
 Frenzy Off Cooldown, Eligible for Draw'. Otherwise return and keep
 ticking.
 
-**No caller** of `FavoriteFrenzyEvent` or
-`FavoriteFrenzyEligibilityCheck` exists in the DrawManager, GlobalManager,
-or UI_Manager ubergraphs (full LVF scan, 2026-11-11) — the only Frenzy
-LVF call in GM is `StartFavoriteFrenzyCooldown` inside
-`FavoriteFrenzyEvent` itself. The trigger call site is therefore
-unestablished (native-by-name or dead code in this build, same as
-`AddFavoriteCardToArray`). The player's `triggerFavoriteFrenzy` returns
-the decoded spawn spec for a future call site to act on and does not
-draw a card itself; play.js has no frenzy trigger wiring.
+**Call site: SETTLED (2026-11-11).** The frenzy fires as an ordinary
+weighted special event per card draw. `TriggerSelectedEvent`
+(BP_DrawManager, 65 stmts, icode 2279) switches on
+`FoundEvent.EventName`: code 12 → `FavoriteFrenzyEvent` (stmt 62 @2142)
++ debug print "Favorite Frenzy Event Triggered" (codes 3, 9, 10 have no
+case → return). The gate runs at filter time:
+`CheckEventConditions&ReturnArray` (BP_GlobalManager, 88 stmts, icode
+2527) loops `AllSpecialEventsArray`; Favorite Frenzy (EventName 12) →
+`FavoriteFrenzyEligibilityCheck` (stmt 82 @2363) +
+`PopExecutionFlowIfNot`. Chain: `DetermineCardV2` stmts 63–67 →
+CheckEventConditions&ReturnArray → AdjustHeatLevelWeights →
+AdjustComboLevelWeights → `ChooseWeightedEventFromArray` →
+`TriggerSelectedEvent` → `FavoriteFrenzyEvent`. The player's
+`triggerFavoriteFrenzy` starts the 120 s cooldown and returns the
+decoded spawn spec; play.js wires it through `automaticMediaPool`
+(event code 12 admitted when `favorites.isFavoriteFrenzyEligible`) and
+draws the type-9 card through `Cards.start({frenzy:true})`. v0.05.1
+`SpecialEventDataTable` row 12 ('NewRow') matches the player's
+`special-events.json` exactly (baseWeight 0, weightMultiplier 0, heat
+5/5/5, combo F5/D5/C5/B5/A25/S35), so no data change was needed.
 
 `CheckAndUpdateFavoriteUI` (699 bytes; script at 183, icode 408, storage 504,
 11 stmts) references `FavoritesIcon`, `GameModeSelection`,
@@ -298,10 +309,11 @@ this repo.
 - No Blueprint caller of `AddFavoriteMedia` found in this pass.
 - Frenzy trigger bodies (`FavoriteFrenzyEvent`, cooldown progress/start)
   are decoded and the gate + 120 s cooldown are modeled in favorites.js
-  (see above); the frenzy event's presentation (FastPaceAnim, dialogue 0,
-  background 3, music 2, FavoriteFrenzySpawnOverlay_Widget) is carried in
-  the trigger's spawn spec but play.js does not act on it yet, and the
-  trigger's CALL SITE is unestablished — no caller of
-  `FavoriteFrenzyEvent` or `FavoriteFrenzyEligibilityCheck` in any
-  ubergraph.
+  (see above); the call site is SETTLED (TriggerSelectedEvent, event
+  code 12; gate at CheckEventConditions&ReturnArray stmt 82 @2363) and
+  play.js wires it through `automaticMediaPool` with the type-9 spawn
+  through `Cards.start({frenzy:true})`. The frenzy event's presentation
+  (FastPaceAnim, dialogue 0, background 3, music 2,
+  FavoriteFrenzySpawnOverlay_Widget) is carried in the trigger's spawn
+  spec but play.js does not act on it yet.
 - The loops/overlay half of #44 is in `ticket44-loops-overlay-20261111.md`.

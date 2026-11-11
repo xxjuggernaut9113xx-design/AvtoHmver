@@ -59,8 +59,14 @@ multiple confirmations). So the overlay breathes continuously while visible:
 
 The widget also has a `MovieSceneEventTrack_0` (81 bytes) +
 `MovieSceneEventTriggerSection_0` (36 bytes) and a `SequenceEvent` stub export.
-An event is wired to the sequence, but its exact frame/purpose was not pinned
-in this pass (the event section is a GUID + a small payload, not a keyframe list).
+**Purpose: SETTLED (2026-11-11).** The widget ubergraph (7 stmts, icode 89):
+stmt 1 @10 Construct → `PlayAnimation(SpawnOverlay, 0.0, NumLoops 0, Forward,
+1.0, False)`; stmt 3 @62 (SequenceEvent entry, icode 62) →
+`VirtualFunction RemoveFromParent` with no params. When the event track
+fires, the widget removes itself from its parent. Frame still unpinned:
+the event section's 16-byte payload (`02020e03020202030f00000010000000`
++ GUID) is not a property-tag stream (PropWalker fails on it) and the
+FMovieSceneEventChannel key-time layout for this payload is unestablished.
 
 ### Channel serialization (for future miners)
 
@@ -134,13 +140,21 @@ On Construct:
 - The two countdown overlays are the same widget with different progress/text
   bindings; the player can implement one overlay component parameterized by
   the progress/text source.
+- `CreateAllowedToCumBackgroundLoop` (GM ubergraph entry 73997 → Jump
+  @72658): creates the loop widget + `AddToViewport(0)`, stores
+  `AllowedToCumOverlayLoopWidgetRef`, sets `DoesCumOverlayLoopExist? =
+  true`. It is bound (GM ubergraph `BindDelegate` @66159) to the
+  SpawnOverlay AnimationFinished delegate of the PermissionToCum overlay
+  created in `Spawn100Percent` — the loop widget appears when the
+  PermissionToCum spawn animation finishes.
 
 ## What this does NOT settle
 
 - The **60 s cum-window hard-code** (`static/fanservice/objectives.js:52`) is
   not addressed by these animations; nothing here gives a window duration.
-- The `SequenceEvent` wired to `SpawnOverlay`'s event track: frame/purpose
-  unpinned.
+- The `SequenceEvent` wired to `SpawnOverlay`'s event track: purpose
+  SETTLED (RemoveFromParent on fire); frame unpinned (event-channel
+  payload layout unestablished).
 - The `Idle` duration (60233 ticks) is recorded verbatim; do not round it to
   60000 without evidence.
 
