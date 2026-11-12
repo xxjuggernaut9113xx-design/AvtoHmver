@@ -1,8 +1,11 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const {Favorites,categories}=require('../static/fanservice/favorites');
-// Favorite-injection roll threshold default (10) is the Blueprint-side
-// FavoritesLikelyhoodPercent (BP_GlobalManager CDO); the native
-// controller+0x30 provenance is unestablished — see the module header.
+// Favorite-injection roll threshold default (20) is the save-game
+// FavoritesLikelihoodPercentage (BP_CHSaveGame_C CDO, 20), which
+// InitializeFavoriteLikelihood copies into the GM's
+// FavoritesLikelyhoodPercent and the controller's FavoritePercentage at
+// UI init — the GM CDO 10 is only the pre-init default. See the module
+// header and docs/parity/evidence/ticket44-favorites-blueprint-20261111.md.
 function stubRandom(values){let i=0;return {fraction:()=>values[i++%values.length]};}
 function entry(filename,category,item){return {filename,category,isFavorite:false,...(item?{item}:{})};}
 function setup(values=[.5]){const favorites=new Favorites({random:stubRandom(values)});favorites.register([entry('a.png',0),entry('b.png',1),entry('c.png',2),entry('d.png',0)]);return favorites;}
@@ -99,19 +102,21 @@ test('injectFavorite rolls against the threshold and consumes nothing on a miss'
  const frenzy=setup([.05]);frenzy.toggleFavorite(entry('a.png',0));
  assert.equal(frenzy.injectFavorite(9),null);
 });
-test('default injection threshold is the Blueprint-side 10',()=>{
- assert.equal(new Favorites({random:stubRandom([.5])}).threshold,10);
+test('default injection threshold is the save-game 20',()=>{
+ assert.equal(new Favorites({random:stubRandom([.5])}).threshold,20);
  assert.equal(new Favorites({random:stubRandom([.5]),threshold:25}).threshold,25);
 });
 test('the injection roll is 1-100, success iff roll <= FavoritesLikelyhoodPercent',()=>{
  // RollFavoritesChance (BP_GlobalManager): RandomIntegerInRange(1, 100),
  // success iff roll <= FavoritesLikelyhoodPercent. The roll itself is
- // pinned (fraction 0 -> 1, 0.09 -> 10, 0.10 -> 11, 0.99 -> 100); the
+ // pinned (fraction 0 -> 1, 0.19 -> 20, 0.20 -> 21, 0.99 -> 100); the
  // 0-99 form has the same hit probability but is not the pinned form.
+ // The threshold is the save-game 20 (see the header comment), so the
+ // boundary is roll 20 hits / roll 21 misses.
  const favorites=setup([.5]);
  assert.equal(favorites.roll(stubRandom([0])),1);
- assert.equal(favorites.roll(stubRandom([0.09])),10);
- assert.equal(favorites.roll(stubRandom([0.10])),11);
+ assert.equal(favorites.roll(stubRandom([0.19])),20);
+ assert.equal(favorites.roll(stubRandom([0.20])),21);
  assert.equal(favorites.roll(stubRandom([0.99])),100);
  assert.equal(favorites.roll(stubRandom([1])),100);
  const at=(fraction)=>{
@@ -119,8 +124,8 @@ test('the injection roll is 1-100, success iff roll <= FavoritesLikelyhoodPercen
   return favorited.injectFavorite(0);
  };
  assert.equal(at(0).filename,'a.png');
- assert.equal(at(0.09).filename,'a.png');
- assert.equal(at(0.10),null);
+ assert.equal(at(0.19).filename,'a.png');
+ assert.equal(at(0.20),null);
  assert.equal(at(0.99),null);
  const empty=new Favorites({random:stubRandom([0])});empty.register([entry('a.png',0)]);
  assert.equal(empty.injectFavorite(0),null,'An empty favorite pool rolls nothing and fails');

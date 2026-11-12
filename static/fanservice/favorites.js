@@ -24,10 +24,21 @@
  // Player deviations, recorded, not hidden:
  // - Anti-repeat key: the native MakeMediaAntiRepeatKey transform was not
  //   decoded, so the lowercased filename is used as the key until it is.
- // - Injection threshold default 10 is the Blueprint-side
- //   FavoritesLikelyhoodPercent (BP_GlobalManager CDO). The native
- //   controller+0x30 provenance (own CDO vs Blueprint-set) is unestablished;
- //   do not treat 10 as a native fact.
+ // - Injection threshold default 20 is the SAVE-GAME default, not the GM
+ //   CDO 10: BP_CHSaveGame_C FavoritesLikelihoodPercentage defaults to 20
+ //   (save-class-defaults.json, payload 85d62672), and
+ //   InitializeFavoriteLikelihood (UI_Manager, 22 stmts) copies it into
+ //   GM FavoritesLikelyhoodPercent (stmt 4) and then into the native
+ //   controller's FavoritePercentage (stmt 5) at UI init — before any
+ //   draw — and the FavoritesFrequencySlider change handler keeps all
+ //   three in sync (UI_Manager ubergraph stmts 669/675/679). The GM CDO
+ //   10 is only the pre-init default and never reaches a roll. The
+ //   controller field is the single favorites-percentage property on
+ //   UMediaPlaybackController in all retained evidence, so it is the
+ //   +0x30 roll threshold by elimination; the offset identity itself was
+ //   not read from a property-offset table. The slider itself is not
+ //   modeled in the player (no settings UI for it), so the threshold is
+ //   the default 20 unless a caller passes one.
  // - Hard/soft anti-repeat blocked sets: the native builds both from
  //   BuildAntiRepeatBlockedKeys / BuildSoftGlobalAntiRepeatBlockedKeys,
  //   whose contents were not decoded. The player uses the seen set (keys
@@ -92,7 +103,7 @@
  class Favorites{
   constructor({random,threshold}={}){
    this.random=random||{fraction:()=>Math.random()};
-   this.threshold=threshold===undefined?10:threshold;
+   this.threshold=threshold===undefined?20:threshold;
    this.ready=false;this.currentCategory=0;
    this.master=new Map();this.remaining=new Map();
    this.favoritesSource=new Map();this.remainingFavorites=new Map();
