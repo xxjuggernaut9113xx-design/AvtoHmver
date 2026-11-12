@@ -226,3 +226,24 @@ test('FavoriteFrenzyEvent spawns a 20-50 stroke slow card at 0.18-0.25 s as type
   assert.equal(plain.card,0,'an ordinary slow card stays type 0');
  }
 });
+test('Taunt() spawns a fast card whose beat pattern comes from the FrenzyBeatPatterns bank',()=>{
+ // Taunt() (GM ubergraph entry 86586 -> stmt 2144 -> Jump 86220 -> stmt
+ // 2130 -> Jump 85713 -> stmt 2114; shared block stmts 2087-2089):
+ // SpawnCustomCardEvent(FastCards, HighHeat.Min, HighHeat.Max, 0.18,
+ // 0.23, byte(2), 0.5, ...) then Array_Random(FrenzyBeatPatterns) ->
+ // CheckIntervalMultipliers -> StartPatternWithMediaSync. The media deck
+ // is fast and the card is type 2, but the pattern bank is the frenzy
+ // bank (3 rows) — NOT the fast bank the ordinary FastStrokeEvent rolls
+ // (GM stmt 2304, FastBeatPatterns). Same 2.0 -> 2.5 allowance as the
+ // frenzy test; the frenzy rows carry no value >= 2, so it never fires.
+ for(let seed=1;seed<40;seed++){
+  const run=session({seed}),flow=run.startCard('fast',{taunt:true});
+  assert.equal(flow.pool,'fast');assert.equal(flow.card,2);
+  assert.equal(flow.taunt,true);
+  assert.equal(run.state.card,2);
+  assert(cardRules.patterns.frenzy.some(row=>row.length===flow.pattern.length&&row.every((v,i)=>v===flow.pattern[i]||v>=2&&flow.pattern[i]===2.5)),'taunt pattern from frenzy bank');
+  const plain=session({seed}).startCard('fast');
+  assert.equal(plain.card,2,'an ordinary fast card stays type 2');
+  assert(cardRules.patterns.fast.some(row=>row.length===plain.pattern.length&&row.every((v,i)=>v===plain.pattern[i]||v>=2&&plain.pattern[i]===2.5)),'ordinary fast pattern stays in the fast bank');
+ }
+});

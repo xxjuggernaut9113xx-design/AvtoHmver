@@ -48,7 +48,13 @@
    // 0.5, ...). The count range already matches the fast branch; only the
    // interval differs from an ordinary fast card (.15-.35). The rolled
    // interval still passes through timing(), whose 0.28 floor applies.
-   if(card===2&&options.taunt===true){low=Taunts.spawnParams.minInterval;high=Taunts.spawnParams.maxInterval;}}
+   // The beat pattern, however, does NOT come from the fast bank: the
+   // shared block (GM stmts 2087-2089) rolls Array_Random(FrenzyBeatPatterns)
+   // -> CheckIntervalMultipliers -> StartPatternWithMediaSync, so a taunt
+   // card uses bank 'frenzy' — the same caller-bank rule as the frenzy
+   // card above. An ordinary fast card (FastStrokeEvent, GM stmt 2304)
+   // rolls FastBeatPatterns instead.
+   if(card===2&&options.taunt===true){low=Taunts.spawnParams.minInterval;high=Taunts.spawnParams.maxInterval;bank='frenzy';}}
   else if(card===3){min=30;max=50;low=.15;high=.33;time=1;travel=1.5;count=Modifiers.succubusCountMultiplier(count,run.effectiveStats?run.effectiveStats().succubi:s.succubi,s.modifiers,Economy.has(run,7)?.5:1);if(apexLure)count+=strokeAddend;
    // SpawnPunishmentEvent (GM ubergraph stmt 1446): SpawnCustomCardEvent
    // (SuccubusCards, 30, 50, 0.28, 0.33, byte(3), 1.0, ...). The count range,
