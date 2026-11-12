@@ -1,6 +1,7 @@
-const test=require('node:test'),assert=require('node:assert/strict');
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const {Run}=require('../static/fanservice/run'),economy=require('../static/fanservice/economy');
 const modes=require('../static/fanservice/data/modes.json'),cardRules=require('../static/fanservice/data/card-rules.json'),Rules=require('../static/fanservice/rules');
+const fixtures=name=>JSON.parse(fs.readFileSync(path.join(__dirname,'fixtures/fanservice',name+'.json'))).fixtures;
 function session(config={}){const run=new Run(modes,{seed:137,...config});economy.draw(run);return run;}
 
 // #50 tier mapping, settled 2026-11-11 from the v0.05.1 cooked packages
@@ -99,4 +100,40 @@ test('item spawn chances match the native difficulty setter',()=>{
  assert.deepEqual(economy.itemSpawnChances(2),{cumIncrease:3,decreaseHeat:10,edge:5,break:5,slowdown:10,bonerPill:35,succuShield:5});
  assert.equal(economy.itemSpawnChances(3),null);
  assert.equal(economy.itemSpawnChances(-1),null);
+});
+
+// #50 SetEdgingPaceModifier + SetUserStrokeMultiplier (BP_GlobalManager,
+// v0.05.1, 21 stmts each): both switch on a save MultiplierEnum 0-4 ->
+// 1/2/3/4/8; out-of-range enums change nothing. The two setters are
+// corroborated by the state-rule traces (enums 0-5, and 255 for the stroke
+// multiplier), which use a 17.0 sentinel input to prove the default case
+// leaves the value untouched.
+test('MultiplierEnum maps 0-4 to 1/2/3/4/8 and out-of-range to no change',()=>{
+ assert.deepEqual([0,1,2,3,4].map(v=>economy.multiplierEnumValue(v)),[1,2,3,4,8]);
+ for(const v of [5,255,-1])assert.equal(economy.multiplierEnumValue(v),null);
+ for(const [fn,enumKey,valueKey] of [
+  ['SetEdgingPaceModifier','GameInstance.CurrentSave.EdgePacingMultiplierEnum','EdgePacingMultiplier'],
+  ['SetUserStrokeMultiplier','GameInstance.CurrentSave.StrokeMultiplierEnum','UserStrokeCountMultiplier']]){
+  for(const row of fixtures('state-rule-traces').filter(r=>r.function===fn)){
+   const expected=row.writes[valueKey];
+   assert.equal(economy.multiplierEnumValue(row.inputs[enumKey]),expected??null,`${fn} enum ${row.inputs[enumKey]}`);
+  }
+ }
+});
+test('Run maps the save MultiplierEnums onto the card-timing config values',()=>{
+ for(const [enumKey,valueKey] of [['edgePacingMultiplierEnum','edgePacingMultiplier'],['userCountMultiplierEnum','userCountMultiplier']]){
+  for(const [enumValue,expected] of [[0,1],[1,2],[2,3],[3,4],[4,8]]){
+   const run=new Run(modes,{seed:137,[enumKey]:enumValue});
+   assert.equal(run.config[valueKey],expected,`${enumKey} ${enumValue}`);
+  }
+  // Out-of-range enum: native default case changes nothing, so a directly
+  // passed value survives and an absent one stays absent (consumers fall
+  // back to 1, the enum-0 value).
+  const kept=new Run(modes,{seed:137,[enumKey]:5,[valueKey]:17});
+  assert.equal(kept.config[valueKey],17,`${enumKey} 5 keeps direct value`);
+  const absent=new Run(modes,{seed:137,[enumKey]:5});
+  assert.equal(absent.config[valueKey],undefined,`${enumKey} 5 leaves absent`);
+  const plain=new Run(modes,{seed:137});
+  assert.equal(plain.config[valueKey],undefined,`no ${enumKey}`);
+ }
 });

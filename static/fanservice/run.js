@@ -6,6 +6,16 @@
  class Run {
   constructor(catalog,config={}){
    this.catalog=catalog;this.config={mode:0,rounds:3,endless:false,settings:{},seed:1,difficulty:1,lootEnabled:false,...copy(config)};
+   // #50 SetEdgingPaceModifier / SetUserStrokeMultiplier: the native
+   // setters map a save MultiplierEnum (0-4) to 1/2/3/4/8. When the run is
+   // built with the enum keys, map them onto the config values the card
+   // timing already consumes (cards.js: edgePacingMultiplier, userCount-
+   // Multiplier); an out-of-range enum leaves a directly-passed value
+   // alone (native default case changes nothing), and with neither key the
+   // consumers fall back to 1, the enum-0 value.
+   for(const [enumKey,valueKey] of [['edgePacingMultiplierEnum','edgePacingMultiplier'],['userCountMultiplierEnum','userCountMultiplier']]){
+    if(this.config[enumKey]!==undefined){const v=Economy.multiplierEnumValue(this.config[enumKey]);if(v!==null)this.config[valueKey]=v;}
+   }
    if(![0,1,2].includes(this.config.mode))throw Error('Choose a supported gameplay mode.');
    if(![0,1,2].includes(this.config.difficulty)||typeof this.config.lootEnabled!=='boolean')throw Error('Choose a supported difficulty and loot setting.');
    if(!Number.isSafeInteger(this.config.rounds)||this.config.rounds<1||this.config.rounds>1000)throw Error('Choose between 1 and 1000 Tower rounds.');

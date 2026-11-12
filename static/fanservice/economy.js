@@ -55,6 +55,24 @@
   {cumIncrease:8,decreaseHeat:25,edge:15,break:15,slowdown:15,bonerPill:50,succuShield:10},
   {cumIncrease:3,decreaseHeat:10,edge:5,break:5,slowdown:10,bonerPill:35,succuShield:5}];
  function itemSpawnChances(difficulty){return itemSpawnChanceTable[difficulty]??null;}
+ // #50 SetEdgingPaceModifier + SetUserStrokeMultiplier (BP_GlobalManager,
+ // v0.05.1, 21 stmts each): both switch on a SAVE enum — EdgePacingMultiplierEnum
+ // and StrokeMultiplierEnum respectively — 0/1/2/3/4 -> 1.0/2.0/3.0/4.0/8.0
+ // (the MultiplierEnum 1x/2x/3x/4x/8x; the settings UI offers the same five
+ // options, VideoSettingsMenuV2 InitDefaultsFromSaveGame + the
+ // EdgePacingMultiplier / StrokeCountMultiplier selection-changed bindings).
+ // Out-of-range enum values hit the default case and change nothing, so the
+ // function returns null there. The consumers already exist in the player:
+ // cards.js:61 multiplies the edge interval decrement by
+ // run.config.edgePacingMultiplier, and cards.js timing() multiplies the
+ // card count by run.config.userCountMultiplier (SpawnCustomCardEvent's
+ // UserStrokeCountMultiplier use, 96-stmt decode). The Run constructor maps
+ // the enum keys onto those config values; the consumer ranges in cards.js
+ // are left untouched (they come from BP_EdgeManager / the card timing, not
+ // from these setters). Save enum defaults to 0 (byte default) -> 1.0,
+ // which is also what the consumers fall back to (?? 1).
+ const multiplierEnumValues=[1,2,3,4,8];
+ function multiplierEnumValue(enumValue){return multiplierEnumValues[enumValue]??null;}
  function initialize(run){const s=run.state;s.economy??={seed:173203,tycoonElapsed:0,exorcistRemaining:0,coinverterStrokes:0};s.lootBar??=0;s.lootRolls??=0;
   if((run.config?.mode??0)!==1&&s.sessionMeterMultiplier===undefined){const d=run.config.mode===0?cumMeterDifficulty(run.config.difficulty??1):null;s.sessionMeterMultiplier=d?d.meterMultiplier:1;s.meterMultiplier=s.sessionMeterMultiplier;}
   return s.economy;}
@@ -200,6 +218,6 @@
  // which is why 30/31/35 looked unresolved).
  const metricIds={0:'Strokes',1:'Edges',2:'SuccubiDefeated',3:'EnemiesDefeated',4:'MaxCombo',5:'StrokeCombo',6:'MissedCumWindows',7:'TimesTaunted',8:'ItemsUsed',9:'AvgStrokesPerEdge',10:'DrawsAtMaxHeat',11:'EarlyClimax',12:'SessionDuration',13:'SessionsCompleted',14:'SessionsWon',15:'TotalXPEarned',16:'MoneySpent',17:'EdgeStreak',18:'ConsecutiveSuccubiSurvived',19:'CumWindowsHit',20:'PerfectRounds',21:'TimesLost',22:'LostToSuccubus',23:'TimeAtHighHeat',24:'PercentAtHighHeat',25:'GamesWithSexToy',26:'PerfectEdges',27:'BonerPillsUsed',28:'AcceptedTemptation',29:'CameDuringTaunt',30:'DefensiveItemsUsed',31:'OffensiveItemsUsed',32:'DeclinedTemptation',33:'BountiesCollected',34:'LootRushesUsed',35:'EscapeRopesUsed',36:'MilkingCount',37:'SuccuSlayerSessionsWon',38:'EdgeSessionsWon',39:'ComboCrunchersUsed',40:'SuccuCoinsSpent',41:'SessionsWonAtMaxDifficulty',42:'BestMusicModeWinRounds',43:'BestTowerWinRounds',44:'MusicBreaksUsed',45:'DisabledBreakSectionFailures',46:'BountyCollectionFailures'};
  const shopIds=[0,1,2,3,4,5,6,7,9,10,11,12,13,16,17,18,19,20,21];
- const api={catalog,shopIds,initialize,has,fraction,heatCap,addHeat,addSuccuCoins,purchase,addBeatCoins,loot,beat,draw,succubusDefeated,itemUsed,recycler,advance,sourceLedger,metricIds,sessionMetricModes,applySessionMetric,cumMeterDifficulty,towerCumMeterDifficulty,itemSpawnChances,recordComboCruncherUsed,recordMusicBreakUsed,recordBountyCollectionFailure,recordDisabledBreakSectionFailure,recordTowerWinRounds,recordMusicModeWinRounds};
+ const api={catalog,shopIds,initialize,has,fraction,heatCap,addHeat,addSuccuCoins,purchase,addBeatCoins,loot,beat,draw,succubusDefeated,itemUsed,recycler,advance,sourceLedger,metricIds,sessionMetricModes,applySessionMetric,cumMeterDifficulty,towerCumMeterDifficulty,itemSpawnChances,multiplierEnumValue,recordComboCruncherUsed,recordMusicBreakUsed,recordBountyCollectionFailure,recordDisabledBreakSectionFailure,recordTowerWinRounds,recordMusicModeWinRounds};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.FanserviceEconomy=api;
 })(globalThis);
