@@ -158,7 +158,7 @@
   continue(){if(!this.tower||!['shop','round-complete'].includes(this.phase))throw Error('Complete the current round first.');this.tower.continue();this.phase='selection';return this.tower.options;}
   export(){
    const tower=this.tower?copy({rounds:this.tower.rounds,endless:this.tower.endless,round:this.tower.round,history:this.tower.history,recent:this.tower.recent,completed:this.tower.completed,failed:this.tower.failed,phase:this.tower.phase,options:this.tower.options,selected:this.tower.selected,seed:this.tower.random.seed}):null;
-   return copy({version:1,config:this.config,state:this.state,player:this.player,phase:this.phase,inventory:this.inventory.export(),ownedModifiers:this.ownedModifiers,redeemedRounds:this.redeemedRounds,randomSeed:this.random.seed,tower,shopEvery:this.shopEvery,roundStart:this.roundStart,roundObjective:this.roundObjective,edgeCheckpoint:this.edgeCheckpoint,interrupted:this.interrupted,returnEdge:this.returnEdge,objective:{settings:this.objective.settings,state:this.objective.state,releaseDeadline:this.objective.releaseDeadline,gmSeconds:this.objective.gmSeconds,gmStopped:this.objective.gmStopped}});
+   return copy({version:1,config:this.config,state:this.state,player:this.player,phase:this.phase,inventory:this.inventory.export(),ownedModifiers:this.ownedModifiers,redeemedRounds:this.redeemedRounds,randomSeed:this.random.seed,tower,shopEvery:this.shopEvery,roundStart:this.roundStart,roundObjective:this.roundObjective,edgeCheckpoint:this.edgeCheckpoint,interrupted:this.interrupted,returnEdge:this.returnEdge,objective:{settings:this.objective.settings,state:this.objective.state,releaseDeadline:this.objective.releaseDeadline,gmSeconds:this.objective.gmSeconds,gmStopped:this.objective.gmStopped,hungrySuccubiCounter:this.objective.hungrySuccubiCounter}});
   }
   static restore(catalog,saved){
    if(saved?.version!==1||!saved.config||!saved.state||!saved.player||!Array.isArray(saved.inventory?.ownedItems))throw Error('Saved mobile session is invalid or unsupported.');
@@ -170,6 +170,9 @@
    // second back and Prejac never stopped the clock).
    if(!Number.isFinite(run.objective.gmSeconds))run.objective.gmSeconds=Math.floor(run.player.sessionLength??0);
    if(typeof run.objective.gmStopped!=='boolean')run.objective.gmStopped=false;
+   // Saves from before the Hungry Succubi counter carry no reading;
+   // it starts at 0 (the GM field is fresh per session in the original).
+   if(!Number.isFinite(run.objective.hungrySuccubiCounter))run.objective.hungrySuccubiCounter=0;
    if(saved.tower){run.tower=Object.assign(Object.create(Tower.Tower.prototype),copy(saved.tower),{catalog,inventory:run.inventory,ownedModifiers:run.ownedModifiers,rewardRules:Inventory,random:new Tower.Random(saved.tower.seed)});}
    return run;
   }

@@ -148,3 +148,16 @@ test('Succubus drawing locks ordinary items and Those Are Mine clears only equip
  const run=session({modifiers:['Those Are Mine']});run.inventory.state(1).charges=3;run.inventory.state(3).charges=2;run.inventory.equip(1,0);run.state.card=3;economy.draw(run);assert.equal(run.inventory.state(1).charges,0);assert.equal(run.inventory.state(3).charges,2);assert.equal(run.state.canUseItems,false);
  run.state.card=0;economy.draw(run);assert.equal(run.state.canUseItems,true);
 });
+test('beat meter time gain reads the GM SessionLength, not wall seconds',()=>{
+ // AddtoCumMeteronBeatComplete stmt 43 (GM ubergraph, v0.05.1, cooked
+ // package export 14): the time term is Divide_IntInt(
+ // PlayerVariablesStruct.SessionLength, 300) / 10000 — the GM counter,
+ // not the PM wall clock. The two diverge whenever the Devil guard held
+ // GM seconds back or Prejac stopped the clock.
+ const run=session();run.state.card=0;run.state.meter=0;run.state.meterMultiplier=1;
+ run.state.seconds=0;run.objective.gmSeconds=300;run.beat();
+ assert(Math.abs(run.state.meter-.00035)<1e-12);
+ const wall=session();wall.state.card=0;wall.state.meter=0;wall.state.meterMultiplier=1;
+ wall.state.seconds=600;wall.objective.gmSeconds=0;wall.beat();
+ assert(Math.abs(wall.state.meter-.00025)<1e-12);
+});

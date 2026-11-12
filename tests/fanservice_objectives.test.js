@@ -215,3 +215,91 @@ test('expired release windows name the reset objective the original names',()=>{
   assert.equal(expired.events[0].notification,expected[objective],`objective ${objective}`);
  }
 });
+test('Hungry Succubi: gate is a Succubus card with the modifier active, then the counter increments',()=>{
+ // ApplyHungrySuccubiEffects (GM ubergraph, v0.05.1, cooked package
+ // export 26, 49 stmts, 0 errors; reJOIce newer-20261017 AST): called
+ // once per BeatComplete; stmts 0-3 return unless CurrentCardTypeEnum
+ // is Succubus (3) AND 'Hungry Succubi' is active, and stmts 4-6 then
+ // increment HungrySuccubiCounter. The counter is written nowhere else.
+ const p=player(),s=stats(),live={strokes:20,edges:20,succubi:20,milkingCount:20};
+ for(let i=0;i<O.specs.length;i++){
+  const r=new O.Runtime({LastObjectiveIndex_Classic:i},p,s);
+  assert.equal(r.hungrySuccubiCounter,0);
+  assert.equal(r.applyHungrySuccubiEffects(live,{cardType:0,modifiers:['Hungry Succubi']}),null);
+  assert.equal(r.applyHungrySuccubiEffects(live,{cardType:3,modifiers:[]}),null);
+  assert.equal(r.applyHungrySuccubiEffects(live,{cardType:3}),null);
+  assert.equal(r.hungrySuccubiCounter,0);
+  assert.deepEqual(live,{strokes:20,edges:20,succubi:20,milkingCount:20});
+ }
+ // Music mode has no modeled CurrentSessionObjective, so the effect is
+ // inert there, like the rest of the objective machinery.
+ const r=new O.Runtime({},p,s);
+ assert.equal(r.applyHungrySuccubiEffects(live,{mode:2,cardType:3,modifiers:['Hungry Succubi']}),null);
+ assert.equal(r.hungrySuccubiCounter,0);
+});
+test('Hungry Succubi: Timer loses 2 GM seconds and Strokes loses 3 per Succubus beat, clamped at 0',()=>{
+ // First switch (cooked stmts 7-19): objective 1 jumps to the -2 s
+ // branch (SessionLength = Clamp(SessionLength - 2, 0, 9999999) +
+ // PlaySound2D(cumSFX__10_)), objective 2 to SubtractSessionMetric(0, 3)
+ // + the same sound. Both branches return before the 200-check, so the
+ // counter is never reset on Timer or Strokes.
+ const p=player(),s=stats();
+ const timer=new O.Runtime({LastObjectiveIndex_Classic:1},p,s);
+ timer.gmSeconds=10;const live={strokes:20,edges:20,succubi:20,milkingCount:20};
+ const succ={cardType:3,modifiers:['Hungry Succubi']};
+ assert.deepEqual(timer.applyHungrySuccubiEffects(live,succ),{effect:'timer-minus-2',sound:true,counter:1});
+ assert.equal(timer.gmSeconds,8);assert.deepEqual(live,{strokes:20,edges:20,succubi:20,milkingCount:20});
+ timer.gmSeconds=1;timer.applyHungrySuccubiEffects(live,succ);assert.equal(timer.gmSeconds,0);
+ timer.hungrySuccubiCounter=199;timer.gmSeconds=10;
+ assert.deepEqual(timer.applyHungrySuccubiEffects(live,succ),{effect:'timer-minus-2',sound:true,counter:200});
+ assert.deepEqual(timer.applyHungrySuccubiEffects(live,succ),{effect:'timer-minus-2',sound:true,counter:201});
+ assert.equal(timer.gmSeconds,6);
+ const strokes=new O.Runtime({LastObjectiveIndex_Classic:2},p,s);
+ assert.deepEqual(strokes.applyHungrySuccubiEffects(live,succ),{effect:'strokes-minus-3',sound:true,counter:1});
+ assert.equal(live.strokes,17);assert.equal(strokes.gmSeconds,0);
+ live.strokes=2;strokes.applyHungrySuccubiEffects(live,succ);assert.equal(live.strokes,0);
+ strokes.hungrySuccubiCounter=199;live.strokes=20;
+ assert.deepEqual(strokes.applyHungrySuccubiEffects(live,succ),{effect:'strokes-minus-3',sound:true,counter:200});
+ assert.equal(live.strokes,17);
+});
+test('Hungry Succubi: at 200 Succubus cards the bonus fires per objective and resets the counter',()=>{
+ // Second switch (cooked stmts 27-38, reached only for objectives 3/6/7/8):
+ // Temp (the post-increment counter) >= 200 resets the counter to 0 and
+ // then Edges subtracts metric 1 by 1, Prejac adds SessionLength + 15,
+ // Tribute subtracts metric 36 (MilkingCount) by 1, Succubus subtracts
+ // metric 2 (SuccubiDefeated) by 1 — each followed by PlaySound2D.
+ // Below 200 nothing happens besides the count; Cum meter (0) returns
+ // before the check, so its counter only ever grows.
+ const p=player(),s=stats(),succ={cardType:3,modifiers:['Hungry Succubi']};
+ const cases=[
+  [3,'edges-minus-1','edges',19],[4,'prejac-plus-15',null,null],
+  [5,'milking-minus-1','milkingCount',19],[6,'succubi-minus-1','succubi',19]
+ ];
+ for(const [index,effect,field,value] of cases){
+  const r=new O.Runtime({LastObjectiveIndex_Classic:index},p,s);
+  const live={strokes:20,edges:20,succubi:20,milkingCount:20};r.gmSeconds=100;
+  for(let i=0;i<199;i++)assert.deepEqual(r.applyHungrySuccubiEffects(live,succ),{effect:null,sound:false,counter:i+1});
+  assert.equal(live.edges,20);assert.equal(r.gmSeconds,100);
+  assert.deepEqual(r.applyHungrySuccubiEffects(live,succ),{effect,sound:true,counter:0});
+  if(field)assert.equal(live[field],value);else assert.equal(r.gmSeconds,115);
+  assert.deepEqual(r.applyHungrySuccubiEffects(live,succ),{effect:null,sound:false,counter:1});
+ }
+ const cum=new O.Runtime({LastObjectiveIndex_Classic:0},p,s);
+ const live={strokes:20,edges:20,succubi:20,milkingCount:20};cum.gmSeconds=100;
+ for(let i=0;i<200;i++)assert.deepEqual(cum.applyHungrySuccubiEffects(live,succ),{effect:null,sound:false,counter:i+1});
+ assert.deepEqual(live,{strokes:20,edges:20,succubi:20,milkingCount:20});assert.equal(cum.gmSeconds,100);
+});
+test('Hungry Succubi: Tower rounds use the round objective and the counter survives the switch',()=>{
+ // The switches read GameInstance.CurrentSessionObjective, which
+ // InitializeRoundObjectiveAndStats sets per round in Tower — so the
+ // round objective governs, while HungrySuccubiCounter (a GM field)
+ // persists across rounds. A counter built up under Timer rounds fires
+ // the Prejac +15 s on the first Succubus card of a Prejac round.
+ const p=player(),s=stats(),succ={cardType:3,modifiers:['Hungry Succubi']};
+ const r=new O.Runtime({LastObjectiveIndex_Classic:1},p,s);
+ r.gmSeconds=100;r.hungrySuccubiCounter=199;
+ const round={active:true,objective:6,target:60,baselineGmSeconds:0};
+ assert.deepEqual(r.applyHungrySuccubiEffects({strokes:0,edges:0,succubi:0,milkingCount:0},{...succ,mode:1,state:round}),{effect:'prejac-plus-15',sound:true,counter:0});
+ assert.equal(r.gmSeconds,115);
+ r.reset();assert.equal(r.hungrySuccubiCounter,0);assert.equal(r.gmSeconds,0);
+});

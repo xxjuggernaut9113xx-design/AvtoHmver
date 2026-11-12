@@ -117,3 +117,19 @@ test('restoring a mid-round objective preserves release deadline and Tower next-
  const resumed=Run.restore(catalog,classic.export());assert.equal(resumed.objective.releaseDeadline,63);
  assert.equal(resumed.advance(60)[0].type,'objective-reset');
 });
+test('Hungry Succubi applies on every beat complete and its counter survives checkpoint/reload',()=>{
+ const {Run}=require('../static/fanservice/run');
+ const run=new Run(catalog,{settings:{LastObjectiveIndex_Classic:1,LastObjective_Timer:300},modifiers:['Hungry Succubi']});
+ run.state.card=3;run.objective.gmSeconds=10;run.beat();
+ assert.equal(run.objective.gmSeconds,8);assert.equal(run.objective.hungrySuccubiCounter,1);
+ run.beat();assert.equal(run.objective.gmSeconds,6);assert.equal(run.objective.hungrySuccubiCounter,2);
+ const restored=Run.restore(catalog,run.export());
+ assert.equal(restored.objective.hungrySuccubiCounter,2);assert.equal(restored.objective.gmSeconds,6);
+ restored.state.card=3;restored.beat();
+ assert.equal(restored.objective.gmSeconds,4);assert.equal(restored.objective.hungrySuccubiCounter,3);
+ const saved=run.export();delete saved.objective.hungrySuccubiCounter;
+ assert.equal(Run.restore(catalog,saved).objective.hungrySuccubiCounter,0);
+ const plain=new Run(catalog,{settings:{LastObjectiveIndex_Classic:1,LastObjective_Timer:300}});
+ plain.state.card=3;plain.objective.gmSeconds=10;plain.beat();
+ assert.equal(plain.objective.gmSeconds,10);assert.equal(plain.objective.hungrySuccubiCounter,0);
+});

@@ -97,8 +97,65 @@
  return {reset:true,meter};
  }
  class Runtime {
-  constructor(settings={},player={},stats={}){this.settings=settings;this.gmSeconds=0;this.gmStopped=false;this.state=initialize(settings,player,stats);this.releaseDeadline=null;player.isAllowedToCum=[6,7].includes(this.state.objective);}
-  reset(){this.state={active:false,objective:0,target:1,...baselines()};this.releaseDeadline=null;this.gmSeconds=0;this.gmStopped=false;}
+  constructor(settings={},player={},stats={}){this.settings=settings;this.gmSeconds=0;this.gmStopped=false;this.hungrySuccubiCounter=0;this.state=initialize(settings,player,stats);this.releaseDeadline=null;player.isAllowedToCum=[6,7].includes(this.state.objective);}
+  reset(){this.state={active:false,objective:0,target:1,...baselines()};this.releaseDeadline=null;this.gmSeconds=0;this.gmStopped=false;this.hungrySuccubiCounter=0;}
+  // Hungry Succubi session-length / metric adjustments
+  // (ApplyHungrySuccubiEffects, BP_GlobalManager, v0.05.1, cooked
+  // package export 26, 49 stmts, 0 errors; cross-checked against the
+  // reJOIce newer-20261017 AST — docs/parity/evidence/
+  // ticket45-hungry-succubi-20261112.md). BeatComplete calls it once per
+  // beat complete, last (stmt 31), after AddtoCumMeteronBeatComplete.
+  // Gate (stmts 0-3): return unless the current card is Succubus (3)
+  // AND 'Hungry Succubi' is active. The counter (stmts 4-6) increments
+  // on every gated call and is written nowhere else — session-persistent,
+  // never reset per round, reset only by the 200-threshold below.
+  // First switch on GameInstance.CurrentSessionObjective (stmts 7-19):
+  // Timer (1) -> SessionLength = Clamp(SessionLength - 2, 0, 9999999);
+  // Strokes (2) -> SubtractSessionMetric(0, 3) [Strokes - 3]; both then
+  // PlaySound2D(cumSFX__10_, 1.5, 1.0) and return BEFORE the 200-check,
+  // so the counter is never reset on Timer or Strokes. Objectives 3/6/7/8
+  // fall through to the 200-check (stmts 27-29): Temp (the post-increment
+  // counter) < 200 returns with no effect; >= 200 resets the counter to
+  // 0 and then Edges (3) subtracts metric 1 [Edges] by 1, Prejac (6)
+  // adds SessionLength + 15 (no clamp), Tribute (7) subtracts metric 36
+  // [MilkingCount] by 1, Succubus (8) subtracts metric 2
+  // [SuccubiDefeated] by 1 — each followed by the same sound and return.
+  // Cum meter (0) and any other objective return with no effect (the
+  // counter still increments). The metric subtracts go through the
+  // SubtractSessionMetric setter clamp (>= 0; refresh rides the
+  // settlement path, as for the other reset/subtract callers — see
+  // economy.js); the live fields here are the run.state counters
+  // (strokes/edges/succubi/milkingCount). The sound has no player
+  // surface (same standing as the other GM SFX); `sound` in the result
+  // pins where it plays. In Tower the round objective governs
+  // (context.state); in Music mode there is no modeled
+  // CurrentSessionObjective, so the effect is inert there, like the rest
+  // of the objective machinery.
+  // Returns null when the gate fails or the mode is Music; otherwise
+  // {effect, sound, counter} with effect null when only the counter moved.
+  applyHungrySuccubiEffects(live,context={}){
+   if(context.mode!==undefined&&context.mode!==0&&context.mode!==1)return null;
+   if(context.cardType!==3||!(context.modifiers||[]).includes('Hungry Succubi'))return null;
+   this.hungrySuccubiCounter=(this.hungrySuccubiCounter||0)+1;
+   const counter=this.hungrySuccubiCounter;
+   const objective=context.mode===1?context.state:this.state;
+   const subtract=(field,amount)=>{live[field]=Math.max(0,(live[field]||0)-amount);};
+   switch(objective?.objective){
+    case 1:this.gmSeconds=clamp(this.gmSeconds-2,0,9999999);return {effect:'timer-minus-2',sound:true,counter};
+    case 2:subtract('strokes',3);return {effect:'strokes-minus-3',sound:true,counter};
+    case 3:case 6:case 7:case 8:break;
+    default:return {effect:null,sound:false,counter};
+   }
+   if(counter<200)return {effect:null,sound:false,counter};
+   this.hungrySuccubiCounter=0;
+   switch(objective.objective){
+    case 3:subtract('edges',1);return {effect:'edges-minus-1',sound:true,counter:0};
+    case 6:this.gmSeconds+=15;return {effect:'prejac-plus-15',sound:true,counter:0};
+    case 7:subtract('milkingCount',1);return {effect:'milking-minus-1',sound:true,counter:0};
+    case 8:subtract('succubi',1);return {effect:'succubi-minus-1',sound:true,counter:0};
+   }
+   return {effect:null,sound:false,counter:0};
+  }
   resolveClimax(player,context={},gmSeconds){
    if(gmSeconds===undefined)gmSeconds=player.sessionLength;
    if(player.hasCame)return [];

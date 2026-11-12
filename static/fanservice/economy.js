@@ -101,7 +101,12 @@
   if(s.card===3&&s.modifiers.includes('Avarice'))s.coins=add(s.coins,-1);else addBeatCoins(run,Rules.coinAward(s.card));
   addHeat(run,[.25,.15,.2][s.heatCategory??1]||0);
   if(s.modifiers.includes('Mr. Money Bandz'))s.baseGain=.000125;
-  const effective=run.effectiveStats?run.effectiveStats():s;s.meter=Rules.meter({...s,edges:effective.edges,seconds:effective.seconds});
+  // The meter time-gain term reads the GM SessionLength, not the PM wall
+  // clock (AddtoCumMeteronBeatComplete stmt 43, GM v0.05.1: Divide_IntInt(
+  // PlayerVariablesStruct.SessionLength, 300) / 10000 — see rules.js).
+  // run.objective.gmSeconds is that counter; fall back to wall seconds
+  // only when no GM reading exists.
+  const effective=run.effectiveStats?run.effectiveStats():s;s.meter=Rules.meter({...s,edges:effective.edges,seconds:run.objective?.gmSeconds??effective.seconds});
   if(run.config.lootEnabled){
    if(s.lootBar>=1){events.push({type:'loot',reward:loot(run)});s.lootBar=0;}
    const base={0:.05,1:.035,2:.03,3:.05,5:.05,6:.05,7:.03,8:.03}[s.card]||0;
@@ -111,6 +116,10 @@
   }
   if(has(run,20)){e.coinverterStrokes++;if(e.coinverterStrokes>=300){addSuccuCoins(run,Math.trunc(e.coinverterStrokes/300));e.coinverterStrokes%=300;}}
   if(has(run,21)&&s.card===3)addHeat(run,-.25);
+  // BeatComplete's last call (stmt 31, GM v0.05.1): Hungry Succubi
+  // session-length / metric adjustments, gated inside on a Succubus card
+  // with the modifier active (objectives.js).
+  if(run.objective&&typeof run.context==='function')run.objective.applyHungrySuccubiEffects(s,run.context());
   return events;
  }
  function draw(run){
