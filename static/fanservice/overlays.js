@@ -105,6 +105,25 @@
   if(!Number.isFinite(elapsed)||elapsed<0||elapsed>=specs.fastPace.durationTicks/tickRate)return {visible:false,sample:null};
   return {visible:true,sample:sample('fastPace',elapsed*tickRate)};
  }
+ // Which ordinary pool draws play FastPaceAnim (the "Fast!" flash). The
+ // seven PlayAnimation(FastPaceAnim) sites in the GM ubergraph (reJOIce
+ // newer-20261017, ExecuteUbergraph_BP_GlobalManager.json) are: the
+ // succubus event stmts 731 (apex branch) + 746 (non-apex branch), the
+ // punishment stmt 1453, AssFrenzyEvent stmt 1823, BoobFrenzyEvent stmt
+ // 1838, FavoriteFrenzyEvent stmt 2016, and FastStrokeEvent stmt 2313.
+ // Of those, four are ordinary pool draws — fast, succubus, ass, boobs —
+ // and this helper covers exactly those four. The frenzy is wired
+ // separately via frenzyStartedAt (its draw comes through the slow pool),
+ // and the punishment + the firemouth taunt (SpawnSuccubus) are spawns,
+ // not pool draws, so play.js sets their flash timestamp directly.
+ // SlowStrokeEvent, MediumStrokeEvent, the cum event, and the edge event
+ // have no FastPaceAnim site. Taunt() (stmts 2087-2099) has none either:
+ // the earlier note's "taunt (stmt 2313)" attribution was wrong — 2313
+ // is the ordinary fast draw, reached from FastStrokeEvent entry 92308
+ // -> stmt 2326 — so a normal taunt does NOT flash, while a firemouth
+ // taunt DOES (it spawns the succubus event, stmt 746 branch).
+ const paceFlashPools=['fast','succubus','ass','boobs'];
+ function flashesPace(pool){return paceFlashPools.includes(pool);}
  // Map-window warnings (UMusicModeManager, v0.05.1 — see
  // docs/parity/evidence/ticket51-queue-consumer-20261111.md). The countdown
  // text is the original's exact wording, recovered from the native getters
@@ -222,6 +241,6 @@
   const {windowStart,windowEnd,disableTime}=nextMapWindow(events,now);
   return {cumIn:cumInText({now,windowStart}),cumWithin:cumWithinText({now,windowStart,windowEnd}),breakDisable:breakDisableText({now,disableTime})};
  }
- const api={tickRate,specs,durationMs,sample,countdownSample,overlayState,frenzyOverlayState,fastPaceState,CUM_WARNING_LEAD_SECONDS,BREAK_DISABLE_WARNING_LEAD_SECONDS,cumInWarning,cumWithinWarning,breakDisableWarning,nextMapWindow,mapWindowWarnings,displaySeconds,durationText,cumInText,cumWithinText,breakDisableText,mapWindowWarningTexts};
+ const api={tickRate,specs,durationMs,sample,countdownSample,overlayState,frenzyOverlayState,fastPaceState,flashesPace,CUM_WARNING_LEAD_SECONDS,BREAK_DISABLE_WARNING_LEAD_SECONDS,cumInWarning,cumWithinWarning,breakDisableWarning,nextMapWindow,mapWindowWarnings,displaySeconds,durationText,cumInText,cumWithinText,breakDisableText,mapWindowWarningTexts};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.FanserviceOverlays=api;
 })(globalThis);

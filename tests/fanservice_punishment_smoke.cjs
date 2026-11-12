@@ -60,6 +60,13 @@ const root=path.resolve(__dirname,'../static/fanservice');let origin;const fixtu
    assert.equal(punished.charges,0,'The DecreaseHeat charge is consumed even though its effect was skipped');
    assert.equal(punished.itemsUsed,1,'ItemsUsed increments on the punished use');
    assert.equal(await sprayButton.isDisabled(),true,'The hotbar must lock while items are locked');
+   // FastPaceAnim (GM ubergraph stmt 1453): the punishment event plays
+   // the same "Fast!" flash as the frenzy. The card takes 30-50 strokes
+   // at 0.28-0.33 s, so 100 ms of clock cannot complete it.
+   await page.clock.fastForward(100);
+   assert.equal(await page.evaluate(()=>!document.querySelector('#pace-flash').hidden),true,'The Fast! flash must show at the punishment spawn (SpawnPunishmentEvent stmt 1453)');
+   await page.clock.fastForward(2000);
+   assert.equal(await page.evaluate(()=>document.querySelector('#pace-flash').hidden),true,'The Fast! flash must hide after 0.7547 s');
    const generation=await page.evaluate(()=>state.cardFlow.generation);
    let completed=false;
    for(let attempt=0;attempt<12&&!completed;attempt++){

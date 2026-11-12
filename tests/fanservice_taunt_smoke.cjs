@@ -69,6 +69,41 @@ const root=path.resolve(__dirname,'../static/fanservice');let origin;const fixtu
    assert.equal(second.taunt,true);
    assert.equal(second.taunts,2);assert.equal(second.totalTaunts,2);
    assert(second.status.includes('Taunt!'),'The second taunt notification must be shown');
+   // FastPaceAnim (GM ubergraph, reJOIce newer-20261017): a NORMAL taunt
+   // plays no animation — Taunt() (stmts 2087-2099) has no PlayAnimation
+   // call, so the flash must be hidden right after the taunt above (the
+   // earlier note's "taunt (stmt 2313)" was wrong: 2313 is the ordinary
+   // FastStrokeEvent). An ordinary fast draw DOES flash (stmt 2313), as
+   // do the succubus (stmts 731/746), ass (1823), and boobs (1838)
+   // draws; a firemouth taunt flashes too, via SpawnSuccubus (stmt 746).
+   assert.equal(await page.evaluate(()=>document.querySelector('#pace-flash').hidden),true,'The Fast! flash must NOT show on a normal taunt: Taunt() plays no FastPaceAnim');
+   const flashVisible=async()=>await page.evaluate(()=>!document.querySelector('#pace-flash').hidden);
+   await page.evaluate(()=>draw('fast',{force:true}));
+   await page.clock.fastForward(100);
+   assert.equal(await flashVisible(),true,'The Fast! flash must show on an ordinary fast draw (FastStrokeEvent stmt 2313)');
+   await page.clock.fastForward(2000);
+   assert.equal(await flashVisible(),false,'The Fast! flash must hide after 0.7547 s');
+   await page.evaluate(()=>draw('succubus',{force:true}));
+   await page.clock.fastForward(100);
+   assert.equal(await flashVisible(),true,'The Fast! flash must show on a succubus draw (succubus event stmts 731/746)');
+   await page.clock.fastForward(2000);
+   assert.equal(await flashVisible(),false,'The Fast! flash must hide after 0.7547 s');
+   await page.evaluate(()=>draw('ass',{force:true}));
+   await page.clock.fastForward(100);
+   assert.equal(await flashVisible(),true,'The Fast! flash must show on an ass draw (AssFrenzyEvent stmt 1823)');
+   await page.clock.fastForward(2000);
+   await page.evaluate(()=>draw('boobs',{force:true}));
+   await page.clock.fastForward(100);
+   assert.equal(await flashVisible(),true,'The Fast! flash must show on a boobs draw (BoobFrenzyEvent stmt 1838)');
+   await page.clock.fastForward(5000);
+   await page.evaluate(()=>{run.state.modifiers.push('Firemouth');draw('slow',{force:true});});
+   await tauntButton.click();
+   const firemouth=await page.evaluate(()=>({card:state.card,pool:state.cardFlow?.pool,status:document.querySelector('#status').textContent}));
+   assert.equal(firemouth.card,3,'The firemouth taunt must summon a succubus card');
+   assert.equal(firemouth.pool,'succubus');
+   assert(firemouth.status.includes('Firemouth Taunt!'),'The firemouth notification must be shown');
+   await page.clock.fastForward(100);
+   assert.equal(await flashVisible(),true,'The Fast! flash must show on a firemouth taunt: it spawns the succubus event (stmt 746)');
    assert.deepEqual(errors,[]);
    reports.push({before,taunted,rejected,second});
   }finally{await context.close();}

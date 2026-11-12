@@ -378,8 +378,17 @@ function draw(pool,{prepare=true,force=false,cardOptions={}}={}){
  // otherwise never resets the background on Classic/Tower draws. The
  // dialogue (succubus bucket) and music (track 2) are not modeled — see
  // docs/parity/evidence/ticket44-favorites-blueprint-20261111.md.
+ // The Fast! flash (FastPaceAnim) plays on the fast, succubus, ass, and
+ // boobs draws too — FastStrokeEvent stmt 2313, succubus event stmts 731
+ // / 746, AssFrenzyEvent stmt 1823, BoobFrenzyEvent stmt 1838 — so a draw
+ // from one of those pools stamps paceFlashStartedAt here (the frenzy
+ // keeps its own frenzyStartedAt; its draw comes through the slow pool).
+ // Slow, medium, cum, and edge draws have no FastPaceAnim site and do
+ // not stamp it. A normal taunt does not stamp it either: Taunt() (stmts
+ // 2087-2099) plays no animation — the flash on a taunt-like fast card
+ // belongs to the ordinary FastStrokeEvent, not to Taunt().
  const frenzy=state.frenzyPending&&!music;
- if(prepare){state.card=frenzy?9:{slow:0,medium:1,fast:2,succubus:3,cum:6,ass:7,boobs:8}[pool];state.canUseSlowdown=true;state.canUseBonerPill=true;if(started&&!finished&&run.phase==='playing'){FanserviceEconomy.draw(run);if(!music){if(frenzy&&favorites)favorites.triggerFavoriteFrenzy(state.seconds);run.startCard(pool,frenzy?{...cardOptions,frenzy:true}:cardOptions);if(frenzy){state.frenzyStartedAt=state.seconds;FanserviceBackground.apply($('session-background'),'normalbeatbackground',$('background-status'));}speed=1;}}}
+ if(prepare){state.card=frenzy?9:{slow:0,medium:1,fast:2,succubus:3,cum:6,ass:7,boobs:8}[pool];state.canUseSlowdown=true;state.canUseBonerPill=true;if(started&&!finished&&run.phase==='playing'){FanserviceEconomy.draw(run);if(!music){if(frenzy&&favorites)favorites.triggerFavoriteFrenzy(state.seconds);run.startCard(pool,frenzy?{...cardOptions,frenzy:true}:cardOptions);if(frenzy){state.frenzyStartedAt=state.seconds;FanserviceBackground.apply($('session-background'),'normalbeatbackground',$('background-status'));}else if(FanserviceOverlays.flashesPace(pool))state.paceFlashStartedAt=state.seconds;speed=1;}}}
  return true;
 }
 function spawnPunishment(){
@@ -389,11 +398,12 @@ function spawnPunishment(){
  // byte(3), 1.0, ...), locks items for the event (stmt 1454), switches the
  // background to 8 ('tauntbackground'), and shows the "Punishment"
  // notification. The next draw re-enables items through Economy.draw, the
- // same mechanism that unlocks after any succubus card. Not reproduced:
+ // same mechanism that unlocks after any succubus card. It also plays
+ // FastPaceAnim (GM ubergraph stmt 1453), wired here via #pace-flash
+ // (state.paceFlashStartedAt). Not reproduced:
  // the voiceline (FindSpecialEventDialogueStructs(1) lines live in the
  // cooked data table, not the retained ASTs), PlayMusic(3) (no dynamic
- // music track switch in Classic/Tower), FastPaceAnim (the frenzy wires
- // the same flash via #pace-flash; punishment wiring is a follow-up) and
+ // music track switch in Classic/Tower), and
  // the BM widgets (UI-only, no player counterpart).
  if(!started||paused||finished||run.phase!=='playing')return false;
  decks??=rules.mediaPools(media,FanserviceModifiers.options(state.modifiers));
@@ -405,6 +415,7 @@ function spawnPunishment(){
  state.card=3;state.canUseSlowdown=true;state.canUseBonerPill=true;
  FanserviceEconomy.draw(run);
  run.startCard('succubus',{punishment:true});speed=1;
+ state.paceFlashStartedAt=state.seconds;
  state.canUseItems=false;
  FanserviceBackground.apply($('session-background'),'tauntbackground',$('background-status'));
  status('Punishment: Your boasts have consequences.');
@@ -439,10 +450,19 @@ function triggerTaunt(){
   category=wanted;speed=1;
  }
  if(result.branch==='normal'){
+  // A normal taunt plays NO FastPaceAnim: Taunt() (GM stmts 2087-2099)
+  // has no PlayAnimation call — the flash on a fast card belongs to the
+  // ordinary FastStrokeEvent (stmt 2313), not to Taunt().
   FanserviceBackground.apply($('session-background'),'tauntbackground',$('background-status'));
   status(result.temptingFate?'Tempting Fate: Your taunts drew her ire. Items may trigger punishment.':'Taunt! Increased Stroke Speed & Count.');
  }else if(result.branch==='succubus')status('Succubus Taunt! Succubi Spawn Chance Permanently Increased.');
- else status('Firemouth Taunt! Your Trash Talk has Summoned a Succubus!');
+ else{
+  // Firemouth Taunt() calls SpawnSuccubus(false) (GM stmt 2083), which
+  // fires the succubus event — FastPaceAnim at stmt 746 (non-apex
+  // branch) — so a firemouth taunt DOES flash, unlike a normal taunt.
+  state.paceFlashStartedAt=state.seconds;
+  status('Firemouth Taunt! Your Trash Talk has Summoned a Succubus!');
+ }
  checkpoint(true);render();
 }
 function pulseBeat(){lastBeat=position();$('center').style.boxShadow='0 0 18px #fff';setTimeout(()=>$('center').style.boxShadow='',80);}
@@ -551,11 +571,17 @@ function renderOverlays(){
  // 1.75 s "FAVORITE FRENZY" banner and the 0.7547 s FastPaceAnim "Fast!"
  // flash, both from the frenzy draw (state.frenzyStartedAt, session
  // seconds). The CSS keyframes in play.css carry the decoded scale/alpha
- // curves; this only toggles visibility on the session clock.
+ // curves; this only toggles visibility on the session clock. The same
+ // flash also plays on the fast, succubus, ass, and boobs draws, the
+ // punishment, and the firemouth taunt — those stamp
+ // state.paceFlashStartedAt instead (see draw(), spawnPunishment(),
+ // triggerTaunt()), and the flash shows while either timestamp is
+ // inside its 0.7547 s window.
  const frenzy=FanserviceOverlays.frenzyOverlayState({startedAt:state.frenzyStartedAt,now:state.seconds});
  $('frenzy-overlay').hidden=!frenzy.visible;
  const pace=FanserviceOverlays.fastPaceState({startedAt:state.frenzyStartedAt,now:state.seconds});
- $('pace-flash').hidden=!pace.visible;
+ const paceEvent=FanserviceOverlays.fastPaceState({startedAt:state.paceFlashStartedAt,now:state.seconds});
+ $('pace-flash').hidden=!pace.visible&&!paceEvent.visible;
  // Map-window warnings (music mode only, UMusicModeManager getters — see
  // docs/parity/evidence/ticket51-queue-consumer-20261111.md): the objective
  // countdown above never runs in Playlist mode, so the same countdown

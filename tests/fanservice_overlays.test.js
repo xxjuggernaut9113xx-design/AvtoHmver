@@ -269,3 +269,20 @@ test('fastPaceState is visible for exactly 45281 ticks from the frenzy draw',()=
  assert.equal(overlays.fastPaceState({startedAt:10,now:10.754}).visible,true);
  assert.deepEqual(overlays.fastPaceState({startedAt:10,now:10.755}),{visible:false,sample:null});
 });
+test('FastPaceAnim plays on the fast, succubus, ass, and boobs draws — and on no other pool',()=>{
+ // The seven PlayAnimation(FastPaceAnim) sites in the GM ubergraph
+ // (reJOIce newer-20261017, ExecuteUbergraph_BP_GlobalManager.json):
+ // succubus event stmts 731 (apex branch) + 746 (non-apex branch),
+ // punishment stmt 1453, AssFrenzyEvent stmt 1823, BoobFrenzyEvent stmt
+ // 1838, FavoriteFrenzyEvent stmt 2016 (already wired via
+ // frenzyStartedAt), FastStrokeEvent stmt 2313. SlowStrokeEvent,
+ // MediumStrokeEvent, the cum event, and the edge event have no such
+ // site. Taunt() (stmts 2087-2099) has none either: the earlier note's
+ // "taunt (stmt 2313)" attribution was wrong — 2313 is the ordinary
+ // fast draw, reached from FastStrokeEvent entry 92308 -> stmt 2326.
+ // The punishment and the firemouth taunt (SpawnSuccubus) are spawns,
+ // not pool draws, so play.js sets their flash timestamp directly;
+ // this helper covers the four pool draws only.
+ for(const pool of ['fast','succubus','ass','boobs'])assert.equal(overlays.flashesPace(pool),true,`a ${pool} draw must flash Fast!`);
+ for(const pool of ['slow','medium','cum','edge'])assert.equal(overlays.flashesPace(pool),false,`a ${pool} draw must not flash Fast!`);
+});
