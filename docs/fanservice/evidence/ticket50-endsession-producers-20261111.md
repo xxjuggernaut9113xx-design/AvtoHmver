@@ -111,39 +111,37 @@ From `native-contract.json` (`DT_Challenges.json`):
 
 ## Per-metric verdict
 
-### SessionsWonAtMaxDifficulty (41) — STILL BLOCKED
+### SessionsWonAtMaxDifficulty (41) — PRODUCER FOUND 2026-11-12
 
 - Confirmed: metric ID 41, session field 0x2d8, additive record semantics,
   EndSession flush + lifetime accumulation, Lifetime scope, "win on Insane"
   description.
-- Not established: the producer. No retained `.c` file anywhere under
-  `newer-20261017` calls `RecordSessionMetric` (`FUN_1483070c0`), and no
-  retained Blueprint function calls `RecordSessionMetric` either (the only
-  retained `SetSessionMetric` call is
-  `functions/BP_GlobalManager/SetSessionDuration.json` line 431, metric 24,
-  `SessionDuration`). The routine that increments 0x2d8 — and the difficulty
-  value it compares — is not in the retained evidence.
-- Difficulty value gap, not a contradiction: the native enum
-  `EDifficultyTier` is four-tier — Easy 0, Medium 1, Hard 2, Insane 3
-  (`native-reflection-enums.json`). The player uses a three-tier selector —
-  Easy 0, Normal 1, Insane 2 (`static/fanservice/play.html:6`, validated to
-  `[0,1,2]` in `static/fanservice/run.js:10`). On the native scale, value 2 is
-  Hard; on the player scale, value 2 is Insane. The retained evidence contains
-  no mapping between the player's three-tier difficulty and the native
-  four-tier `EDifficultyTier`, and `modes-runtime-contract.md` states
-  explicitly that "unsupported numeric difficulty remapping into the older
-  three-difficulty gameplay configuration is not silently asserted." Changing
-  the player predicate to `difficulty===3` would invent that mapping and
-  would be unreachable (the player rejects difficulty outside `[0,1,2]`), so
-  no fix was made. The player's `difficulty===2` remains an
-  authored-description interpretation, exactly as recorded in
-  `ticket50-session-metrics-20261108.md`.
-- Won-only gating is consistent with the challenge text and with EndSession's
-  `bWon`-gated metrics 14/21 branch, but the 41 field itself is flushed
-  unconditionally, so won-gating for this field must live in the missing
-  producer and is not directly established.
+- **Producer found:** `BP_GlobalManager/ExecuteUbergraph_BP_GlobalManager.json`
+  stmts 2475–2479 — gated ONLY on `CurrentDifficulty == 2`
+  (`EqualEqual_ByteByte`, `CurrentDifficulty` vs byte 2), then
+  `UpdateMetric(41, 1)`, then `UpdateObjectiveTitleVictoryStart`, then
+  `UpdateMetric(14, 1)` (SessionsWon). It sits in a victory path, and the
+  `GameModeSelection == 1` check (stmt 2480) comes AFTER the 41 call, so
+  the call is NOT mode-gated: a win at Insane counts in any mode. A
+  whole-`.text` call scan of the v0.05.1 exe confirms no native code path
+  records 41 (the 17 `UpdateMetricWithConditions` call sites are the six
+  producers, `UpdateMetric`, the `exec` wrapper, `SetStrokeCombo` (4, 5),
+  `AddXP` (15), and `EndSession` (15, 21, 14, 42, 43, 13)) — the producer
+  is Blueprint-only, and this is it.
+- Difficulty value settled: the compared value is 2, the Blueprint
+  `DifficultySelections_ENUM` InsaneMode — NOT native `EDifficultyTier` 3.
+  The player's `difficulty===2` (three-tier selector, `play.html:6`,
+  validated `[0,1,2]` in `run.js:10`) is exactly the native comparison,
+  and the player's predicate puts no mode condition on metric 41, matching
+  the ubergraph order. The earlier "authored-description interpretation"
+  label in `ticket50-session-metrics-20261108.md` is superseded for this
+  metric. Pinned by a regression test (`tests/fanservice_progression.test.js`:
+  Insane wins in modes 1 and 2 also record metric 41).
+- Won-only gating is established by the call site: the 41 call sits in the
+  victory path next to the SessionsWon (14) record and the victory-title
+  update.
 
-### SuccuSlayerSessionsWon (37) — STILL BLOCKED
+### SuccuSlayerSessionsWon (37) — PRODUCER FOUND 2026-11-12 (one residual)
 
 - Confirmed: metric ID 37, session field 0x2cc, additive record semantics,
   EndSession flush + lifetime accumulation, Lifetime scope, "Win 10
@@ -152,32 +150,62 @@ From `native-contract.json` (`DT_Challenges.json`):
   (`native-reflection-enums.json`), and the player uses objective 8 for
   "Succu Slayer" (`static/fanservice/objectives.js:10`). This part of the
   player predicate (`objective===8`) matches the retained native enum.
-- Not established: the producer. Same missing call site as metric 41 — no
-  retained `RecordSessionMetric(0x25, …)` call, so the exact conditions (won
-  only? which mode value means Classic?) are not in the retained evidence.
-- Mode value gap: no game-mode enum is retained at all
-  (`native-reflection-enums.json` has no `EGameMode` / session-mode enum, and
-  no enumerator named Classic). The player's `mode===0` for Classic is the
-  player's own scale (`static/fanservice/play.js:21`: 0 Classic, 1 Tower,
-  2 Soundtrack) with no native-enum support in the retained evidence.
-- Won-only gating: same position as metric 41 — consistent with the text, not
-  directly established for this field.
+- **Producer found:** `BP_GlobalManager/ExecuteUbergraph_BP_GlobalManager.json`
+  stmts 777–779 — gated ONLY on
+  `GameInstance.CurrentSessionObjective == 8` (`EqualEqual_ByteByte` vs
+  byte 8), inside the successful-cum chain (stmt 770 `Change Beat
+  Background` 5, stmt 771 `SuccessfulCumBackgroundOverride = true`,
+  stmt 772 `PrintString "Cumming on Time!! Good job!!!!!"`, stmt 780
+  `Delay` 10.0 s), then `UpdateMetric(37, 1)`. No native call site
+  records 37 (same whole-`.text` census as metric 41), and no other
+  `UpdateMetric(37, …)` call exists anywhere in the retained Blueprint
+  set — this is the only producer.
+- Mode value, residual: the call site itself checks no mode — the only
+  gate at the site is the objective. The retained ubergraph JSON carries
+  no per-statement bytecode offsets, so the chain's entry point (and
+  with it a direct mode gate at entry) was not resolved from this file.
+  The player's `mode===0` (Classic) gate rests on the challenge text
+  ("Win 10 SuccuSlayer sessions in classic mode"), on the chain being
+  the session-level successful-cum celebration rather than a Tower round
+  flow (Tower round wins are recorded separately as metric 43, rounds —
+  not sessions), and on the native `GameModeSelection` values (0 Classic,
+  1 Tower, 2 Playlist) established by the `SetCumMeterDifficultyModifier`
+  decode. `mode===0` for Classic is the player's own scale
+  (`play.js:21`: 0 Classic, 1 Tower, 2 Soundtrack); no native game-mode
+  enum is retained (`native-reflection-enums.json` has no `EGameMode`).
+- Won-only gating is established by the call site: the 37 call sits in
+  the successful-cum (win) chain.
+- Player predicate (`won && mode===0 && objective===8`) is the
+  best-supported reading of the retained evidence; the chain-entry mode
+  gating is the one explicitly recorded residual for this metric. It does
+  not change the player's behavior: in the player a Tower SuccuSlayer
+  round win never sets a session `won` (Tower rounds complete via
+  `completeRound`; only a full Tower victory sets `won`, and it carries
+  no single session objective), so the `mode===0` gate is unreachable
+  either way in the current player flow.
 
 ## What would unblock it
 
-1. The retained body of the routine that writes manager+0x2d8 / +0x2cc — i.e.
-   a `RecordSessionMetric(0x29 / 0x25, …)` call site or a direct field write —
-   most plausibly in the round/session-completion path that feeds
-   `EndSession_UProgressionManager` (0x1482ddd60), showing the exact
-   comparison for each field: the difficulty value or enum compared, the mode
-   value compared, the objective value compared, and whether the write is
-   gated on the session `bWon` flag.
-2. A retained mapping between the player's three-tier difficulty selector
-   (Easy 0 / Normal 1 / Insane 2) and the native four-tier `EDifficultyTier`
-   (Easy 0 / Medium 1 / Hard 2 / Insane 3), to settle whether the native
-   producer's "max difficulty" comparison corresponds to the player's value 2.
-3. A retained native game-mode enum (or the session's stored mode field)
-   establishing which value means Classic, to settle `mode===0`.
+Resolved 2026-11-12 (see the per-metric verdicts above):
+
+1. The routine that writes manager+0x2d8 / +0x2cc — FOUND, in Blueprint,
+   not native code: the GM ubergraph calls `UpdateMetric(41, 1)` gated
+   on `CurrentDifficulty == 2` (stmts 2475–2479, victory path, no mode
+   gate) and `UpdateMetric(37, 1)` gated on
+   `CurrentSessionObjective == 8` (stmts 777–779, successful-cum
+   chain). A whole-`.text` call scan proves no native code records
+   either metric.
+2. The difficulty mapping — SETTLED: the native comparison is the
+   Blueprint enum value 2 (InsaneMode), matching the player's
+   three-tier selector 1:1; no remapping to native `EDifficultyTier` 3.
+3. The Classic mode value — PARTIALLY SETTLED: native
+   `GameModeSelection` 0 = Classic is established by the
+   `SetCumMeterDifficultyModifier` decode (outer switch on
+   `GameModeSelection`, 0 = Classic); the 37 chain's entry-point mode
+   gating was not resolved from the retained ubergraph JSON (no
+   per-statement bytecode offsets), so the player's `mode===0` gate
+   rests on the challenge text and the session-level chain, as recorded
+   in the 37 verdict above.
 
 ## Regression / test status
 

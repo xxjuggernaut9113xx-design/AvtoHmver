@@ -248,8 +248,12 @@ Still open (recorded, not guessed):
   so the button → enum-value assignment is inferred from the button /
   function / enum names, not parsed.
 - Producers-note §7 items 4–5 (`RefreshIncompleteSessionChallengeMetric`
-  write arithmetic, `CombineSessionStatsArray` int parameter) remain open
-  as before.
+  write arithmetic, `CombineSessionStatsArray` int parameter) — SETTLED
+  2026-11-12, see the producers note §7 items 4–5 and §4: Refresh is an
+  absolute assignment of the new metric value into the in-progress
+  challenge entry; Combine's int parameter is the Required won Tower
+  rounds (player: `economy.js combineSessionStatsArray`, commit
+  `5be8ebe`, tested).
 
 Settled 2026-11-12 (commits `b20890d`, `96ae5e3`, `3539be3`, `edab506`;
 tests in `tests/fanservice_difficulty.test.js` and
@@ -272,9 +276,13 @@ tests in `tests/fanservice_difficulty.test.js` and
   caller exists), stored in `state.sessionMeterMultiplier` so `draw()`
   restores it instead of 1 (native has no per-draw reset; the old
   `draw()` reset clobbered a difficulty value every draw). Money Bandz ×
-  tier-gain interaction is NOT established (native handling of the
-  halving against a tier `BaseCumGain` was not decoded); the player's
-  `beat()`/`meter()` Money Bandz behavior is unchanged.
+  tier-gain interaction — SETTLED 2026-11-12 (see the bullet below):
+  the native `AddtoCumMeteronBeatComplete` (stmts 15–17 + 22) OVERWRITES
+  `BaseCumGain` to 0.000125 whenever Mr. Money Bandz is active, so a
+  Tower tier gain is clobbered to 0.000125 and the tier multiplier still
+  applies on top; the player's `beat()` overwrite + `meter()` 0.000125
+  already did exactly this, now pinned by a Tower regression test
+  (`tests/fanservice_difficulty.test.js`, commit `5be8ebe`).
 - `SetItemSpawnRatesBasedOnDifficulty` (94 stmts): per `CurrentDifficulty`
   0/1/2 → (CumIncrease, DecreaseHeat, Edge, Break, Slowdown, BonerPill,
   SuccuShield): Easy (20, 40, 45, 35, 40, 75, 20), Normal (8, 25, 15, 15,
@@ -318,6 +326,24 @@ tests in `tests/fanservice_difficulty.test.js` and
   enums default to 0 (byte default) → 1.0.
 - Producers-note §7 items 2–3 (`0x1482f4540` / `0x148311f70` helpers)
   settled — see that note §4/§7 and commit `edab506`.
+- Money Bandz × tier gain — SETTLED 2026-11-12
+  (`AddtoCumMeteronBeatComplete.json`, retained `newer-20261017`,
+  stmts 15–17 + 22): if `IsModifierActive?("Mr. Money Bandz")` then
+  `BaseCumGain = 0.000125` — a constant assignment that overwrites
+  whatever `SetCumMeterDifficultyModifier` set, including a Tower tier
+  value (0.01 / 0.006667 / 0.004 / 0.002857 / 0.002 / 0.001111); it is
+  NOT a halving of the current value. The gain applied that beat is
+  then `BaseCumGain × CumMeterMultiplier` (stmt 22), so the tier
+  multiplier still applies on top of 0.000125. (The Devil check at
+  stmts 18–21 returns early with no gain when Deal With The Devil is
+  active and the card is not a Succubus card.) The assignment persists
+  in the instance variable — the setter runs once per GM lifetime, so a
+  clobbered tier gain is not restored. The player already matched this
+  exactly (`economy.beat()` overwrites `state.baseGain` to 0.000125;
+  `rules.meter()` uses 0.000125 × `meterMultiplier`); the Tower
+  regression test in `tests/fanservice_difficulty.test.js` (commit
+  `5be8ebe`) pins tier-gain + Money Bandz → 0.000125 × tier multiplier
+  and tier-gain alone → tier gain × tier multiplier.
 
 ### The earlier open assessment (superseded — kept for the record)
 
