@@ -92,6 +92,26 @@ test('Hot Hands heats Break only in Playlist mode, as the retained ActivateItem 
  for(const type of [3,5,6,7,9,10,11,12,13]){const run=session({modifiers:['Hot Hands']});run.state.heat=50;economy.itemUsed(run,type,'Offensive');assert.equal(run.state.heat,60,`type ${type}`);}
  const decrease=session({modifiers:['Hot Hands']});decrease.state.heat=50;economy.itemUsed(decrease,1,'Defensive');assert.equal(decrease.state.heat,50);
 });
+test('Hot Hands returns its notification when it applies, and none otherwise',()=>{
+ // DetermineShouldHotHandsModifierApply (retained AST): CreateNotificationBox
+ // ("Hot Hands Modifier", "Item usage adds heat.\r\n+10% Heat Added", ...)
+ // fires before AddHeat(10.0, true) whenever Hot Hands is active and the
+ // item is not type 1. The player renders it on the single status line as
+ // "Title: body" (the Punishment precedent), collapsing the body's line
+ // break to a space. The box fires even when the heat is already capped.
+ const note='Hot Hands Modifier: Item usage adds heat. +10% Heat Added';
+ const run=session({modifiers:['Hot Hands']});run.state.heat=50;
+ assert.equal(economy.itemUsed(run,3,'Defensive'),note);assert.equal(run.state.heat,60);
+ const capped=session({modifiers:['Hot Hands']});capped.ownedModifiers=[0];capped.state.heat=75;
+ assert.equal(economy.itemUsed(capped,3,'Defensive'),note);assert.equal(capped.state.heat,75);
+ const playlist=session({mode:2,modifiers:['Hot Hands']});playlist.state.heat=50;
+ assert.equal(economy.itemUsed(playlist,4,'Defensive'),note);assert.equal(playlist.state.heat,60);
+ const plain=session();plain.state.heat=50;assert.equal(economy.itemUsed(plain,3,'Defensive'),null);
+ const decrease=session({modifiers:['Hot Hands']});decrease.state.heat=50;
+ assert.equal(economy.itemUsed(decrease,1,'Defensive'),null);assert.equal(decrease.state.heat,50);
+ const widget=session({modifiers:['Hot Hands']});widget.state.heat=50;
+ assert.equal(economy.itemUsed(widget,4,'Defensive'),null);assert.equal(widget.state.heat,50);
+});
 test('active time metrics and run currency stop outside playing phases',()=>{
  const run=session();run.state.heat=70;run.advance(.6);run.advance(.6);assert.equal(run.state.TimeAtHighHeat,1);run.advance(1.9);assert.equal(run.state.TimeAtHighHeat,3);run.phase='shop';const before=run.export();run.advance(60);run.beat();assert.deepEqual(run.export(),before);
 });

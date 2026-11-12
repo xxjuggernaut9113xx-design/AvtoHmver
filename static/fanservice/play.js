@@ -612,7 +612,7 @@ function readItemState(){return {...state,_baseline:{...state},strokes:run.effec
 function writeItemState(value){for(const key of ['heat','combo','coins','effects','metrics','canUseSlowdown','canUseBonerPill','coinMultiplier','lootBarMultiplier','shieldToggled'])if(value[key]!==value._baseline[key])state[key]=value[key];if(value.cumMeter!==value._baseline.meter)state.meter=value.cumMeter;if(value.cardType!==value._baseline.card){state.card=value.cardType;if(state.cardFlow)state.cardFlow.card=value.cardType;}}
 function itemDependencies(){return {context:itemContext(),random:run.random,hooks:{
  recycler:()=>FanserviceEconomy.recycler(run),
- itemUsed:type=>FanserviceEconomy.itemUsed(run,type,run.inventory.catalog.find(r=>r.type===type)?.classification),
+ itemUsed:type=>{const notification=FanserviceEconomy.itemUsed(run,type,run.inventory.catalog.find(r=>r.type===type)?.classification);if(notification)status(notification);},
  resetObjective:value=>{run.resetObjective();value.coins=0;value.cumMeter=state.meter;value.strokes=run.effectiveStats().strokes;},
  panicBlocked:(type,s)=>FanserviceModifiers.panicBlocked(run.inventory.catalog.find(r=>r.type===type)?.id,s.heat,state.modifiers),
  speed:multiplier=>{if(music)return false;const next=Math.max(.1,Math.min(5,speed*multiplier));if(state.cardFlow&&!run.modifyCard(next))return false;speed=next;return true;},
@@ -633,7 +633,7 @@ function useItem(type){
  const value=readItemState(),result=FanserviceItems.use(run.inventory,type,value,itemDependencies());
  if(!result.ok)throw Error(result.reason);
  writeItemState(value);
- if(result.consumed||type===6)FanserviceEconomy.itemUsed(run,type,run.inventory.catalog.find(row=>row.type===type).classification);
+ if(result.consumed||type===6){const notification=FanserviceEconomy.itemUsed(run,type,run.inventory.catalog.find(row=>row.type===type).classification);if(notification)status(notification);}
  checkpoint(true);
 }
 function renderInventory(storeEvent=false){

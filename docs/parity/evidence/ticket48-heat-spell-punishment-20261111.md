@@ -597,17 +597,34 @@ stmts 72-75, has no call), `+10` clamped at `heatCap` (75 with Pot Lid,
 100 otherwise), no Lube/difficulty scaling. The existing tests already
 pin it (`tests/fanservice_economy.test.js`: types 3/5/6/7/9/10/11/12/13
 +10, type 1 none, Break Playlist-only; `tests/fanservice_item_interactions.test.js`:
-Break Hot Hands belongs to the Playlist branch). **No code change was
-made for Hot Hands.**
+Break Hot Hands belongs to the Playlist branch).
 
-The one unmodeled piece is the notification: the original shows "Hot
-Hands Modifier" / "Item usage adds heat.\r\n+10% Heat Added" on every
-qualifying use, and the player shows no modifier notification for any
-item use (no "Hot Hands" or "Heat Spell" string anywhere in
-`static/fanservice/` outside `economy.js`/`modifiers.js`). Adding it
-would need a notification channel through `itemUsed` for both modifiers
-alike; that is a presentation gap, not a Hot Hands correction, and it is
-recorded here rather than implemented.
+#### Notification wired (2026-11-12)
+
+The notification is now modeled. `economy.js` `itemUsed` returns
+`'Hot Hands Modifier: Item usage adds heat. +10% Heat Added'` when Hot
+Hands applies and `null` otherwise; `play.js` shows the returned text
+via `status(...)` on both `itemUsed` call paths — the direct call in
+`useItem` (every consumed use + the type-6 toggle) and the `itemUsed`
+hook in `itemDependencies()` (type 7 Resupply, the only hook call site
+in `items.js`). The rendering follows the Punishment precedent
+(`status('Punishment: Your boasts have consequences.')`): title + `": "`
++ body on the single status line, with the body's `\r\n` collapsed to a
+space. The notification is tied to the same condition as the +10 (not
+to the heat change), so it fires even when the heat is already capped —
+matching the original, which shows the box before `AddHeat`. Pinned by
+`tests/fanservice_economy.test.js` ("Hot Hands returns its notification
+when it applies, and none otherwise": applies incl. capped heat and
+Playlist Break; `null` with no Hot Hands, for type 1, and for
+non-Playlist Break). The exact strings were re-verified from the
+retained AST this session (`CreateNotificationBox` params: title
+`"Hot Hands Modifier"`, body `"Item usage adds heat.\r\n+10% Heat
+Added"`, firing before `AddHeat(10.0, true)`).
+
+Heat Spell's notification ("Heat Spell" / "Defensive Item Used\r\nHeat
+has been reduced by 10%") is the same shared gap and stays unmodeled —
+`itemUsed` returns only the Hot Hands text. Wiring it is the same
+channel, but it is out of scope for the Hot Hands item.
 
 ## Follow-up: All-or-Nothing scope for Break decided from the evidence — Playlist only (2026-11-11)
 
