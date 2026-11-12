@@ -31,11 +31,16 @@
   const difficulty=run.config.difficulty??1,multipliers=Rules.drawMultipliers(Rules.comboTier(s.combo),data.difficulty_count[difficulty],data.difficulty_speed[difficulty]);
   let count=multipliers.count,time=multipliers.time,travel=data.travel,bank=pool,min,max,low,high;
   if(options.frenzy===true){
-   // FavoriteFrenzyEvent (GM ubergraph entry 81592, v0.05.1):
-   // SpawnCustomCardEvent(SlowCards, 20, 50, 0.18, 0.25, byte 9, ...). The
-   // rolled interval still passes through timing(), whose 0.28 floor applies,
-   // exactly as for the taunt card (0.18-0.23).
-   min=20;max=50;low=.18;high=.25;bank='slow';
+   // FavoriteFrenzyEvent (BP_DrawManager ubergraph entry 81592, v0.05.1):
+   // SpawnCustomCardEvent(SlowCards, 20, 50, 0.18, 0.25, byte 9, ...), then
+   // Array_Random(FrenzyBeatPatterns) -> CheckIntervalMultipliers ->
+   // StartPatternWithMediaSync. SpawnCustomCardEvent starts NO beat pattern
+   // (96-stmt decode), so the card's pattern comes from the caller's bank:
+   // FrenzyBeatPatterns, the player's patterns.frenzy (3 rows) — NOT the
+   // slow bank the media deck draws from. The rolled interval still passes
+   // through timing(), whose 0.28 floor applies, exactly as for the taunt
+   // card (0.18-0.23).
+   min=20;max=50;low=.18;high=.25;bank='frenzy';
   }
   else if(card<=2){const row=data.heat[['SlowHeat','MediumHeat','HighHeat'][card]];min=row.MinStrokeCount;max=row.MaxStrokeCount;low=card===2?.15:row.MinIntervalSeconds;high=row.MaxIntervalSeconds;
    // Taunt (GM ubergraph stmts 2124-2129): SpawnCustomCardEvent(FastCards,

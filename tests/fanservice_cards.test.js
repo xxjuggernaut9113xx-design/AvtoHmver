@@ -172,10 +172,15 @@ test('punishment card is a succubus card with the traced 0.28-0.33 interval',()=
  assert.equal(plain.assigned,31);
 });
 test('FavoriteFrenzyEvent spawns a 20-50 stroke slow card at 0.18-0.25 s as type 9',()=>{
- // FavoriteFrenzyEvent (BP_GlobalManager ubergraph entry 81592, v0.05.1):
- // SpawnCustomCardEvent(SlowCards, 20, 50, 0.18, 0.25, byte 9, ...). The
- // rolled interval still passes through timing(), whose 0.28 floor applies,
- // exactly as for the taunt card (0.18-0.23) — see the taunt branch above.
+ // FavoriteFrenzyEvent (BP_DrawManager ubergraph entry 81592, v0.05.1):
+ // SpawnCustomCardEvent(SlowCards, 20, 50, 0.18, 0.25, byte 9, ...), then
+ // Array_Random(FrenzyBeatPatterns) -> CheckIntervalMultipliers ->
+ // StartPatternWithMediaSync. SpawnCustomCardEvent starts NO beat pattern
+ // (96-stmt decode), so the card's pattern comes from the caller's bank:
+ // FrenzyBeatPatterns, the player's patterns.frenzy (3 rows) — NOT the slow
+ // bank the media deck draws from. The rolled interval still passes through
+ // timing(), whose 0.28 floor applies, exactly as for the taunt card
+ // (0.18-0.23) — see the taunt branch above.
  for(let seed=1;seed<40;seed++){
   const run=session({seed}),flow=run.startCard('slow',{frenzy:true});
   assert.equal(flow.pool,'slow');assert.equal(flow.card,9);
@@ -183,7 +188,7 @@ test('FavoriteFrenzyEvent spawns a 20-50 stroke slow card at 0.18-0.25 s as type
   assert.equal(flow.travel,cardRules.travel);assert.equal(flow.travel,1.75);
   assert(flow.assigned>=16&&flow.assigned<=40,`frenzy strokes ${flow.assigned}`);
   assert(flow.interval>=.28&&flow.interval<=.25*1.5,`frenzy interval ${flow.interval}`);
-  assert(cardRules.patterns.slow.some(row=>row.length===flow.pattern.length&&row.every((v,i)=>v===flow.pattern[i]||v>=2&&flow.pattern[i]===2.5)),'frenzy pattern from slow bank');
+  assert(cardRules.patterns.frenzy.some(row=>row.length===flow.pattern.length&&row.every((v,i)=>v===flow.pattern[i]||v>=2&&flow.pattern[i]===2.5)),'frenzy pattern from frenzy bank');
   const plain=session({seed}).startCard('slow');
   assert.equal(plain.card,0,'an ordinary slow card stays type 0');
  }

@@ -311,7 +311,9 @@ function automaticMediaPool(){
   // event code 12; gated at filter time by CheckEventConditions&ReturnArray
   // stmt 82 @2363 via FavoriteFrenzyEligibilityCheck): the gate counts the
   // derived FavoriteFrenzy deck (>=3) and the 120 s cooldown; the spawn
-  // itself draws from the slow deck as a type-9 card (see draw()).
+  // itself draws from the slow deck as a type-9 card (see draw()) — the
+  // MEDIA deck is slow, but the card's beat pattern comes from
+  // FrenzyBeatPatterns (cards.js bank 'frenzy'), not the slow bank.
   if(row.eventCode===12)return favorites&&favorites.isFavoriteFrenzyEligible(state.seconds);
   return true;
  });
