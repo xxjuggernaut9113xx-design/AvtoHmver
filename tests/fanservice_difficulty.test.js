@@ -88,6 +88,31 @@ test('Playlist cum meter values are untouched by the difficulty setter',()=>{
  assert.equal(run.state.meterMultiplier,1);
 });
 
+// #50 Money Bandz x tier gain (BP_GlobalManager AddtoCumMeteronBeatComplete,
+// v0.05.1, stmts 15-17 + 22): when Mr. Money Bandz is active the function
+// OVERWRITES BaseCumGain to 0.000125 — a constant assignment, not a halving
+// of the current value — so a Tower tier gain (e.g. 0.01) is clobbered to
+// 0.000125, and the gain is still multiplied by CumMeterMultiplier. The
+// player already did this (economy.beat overwrites state.baseGain;
+// rules.meter uses 0.000125 x meterMultiplier); this pins it against the
+// tier table so a Tower regression cannot silently restore the tier gain.
+test('Mr. Money Bandz overwrites the Tower tier base gain to 0.000125',()=>{
+ const run=new Run(modes,{mode:1,rounds:3,seed:137});
+ const selected=run.select(0),table=economy.towerCumMeterDifficulty(selected.tier);
+ assert.notEqual(table.baseGain,0.000125,'tier gain must differ from the Bandz value for this test');
+ run.state.modifiers=['Mr. Money Bandz'];
+ run.beat();
+ assert.equal(run.state.baseGain,0.000125,'tier baseGain is overwritten, not halved');
+ assert(Math.abs(run.state.meter-0.000125*table.meterMultiplier)<1e-12,'gain is 0.000125 x tier multiplier');
+ // Without the modifier the tier gain survives the same beat.
+ const plain=new Run(modes,{mode:1,rounds:3,seed:137});
+ const plainSelected=plain.select(0),plainTable=economy.towerCumMeterDifficulty(plainSelected.tier);
+ plain.state.modifiers=[];
+ plain.beat();
+ assert.equal(plain.state.baseGain,plainTable.baseGain);
+ assert(Math.abs(plain.state.meter-plainTable.baseGain*plainTable.meterMultiplier)<1e-12);
+});
+
 // #50 SetItemSpawnRatesBasedOnDifficulty (BP_GlobalManager, v0.05.1, 94
 // stmts): per CurrentDifficulty 0/1/2, the seven *ItemSpawnChance doubles.
 // The table is set at session start; its only consumer (RollAndGiveLootDrops

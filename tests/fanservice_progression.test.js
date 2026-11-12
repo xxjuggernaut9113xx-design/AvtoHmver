@@ -32,6 +32,12 @@ test('session win metrics require a won Insane or Classic SuccuSlayer session',(
  assert.equal(metric({won:true,difficulty:2},'SessionsWonAtMaxDifficulty'),1);
  assert.equal(metric({won:false,difficulty:2},'SessionsWonAtMaxDifficulty'),0);
  assert.equal(metric({won:true,difficulty:1},'SessionsWonAtMaxDifficulty'),0);
+ // Native GM ubergraph (ExecuteUbergraph_BP_GlobalManager, v0.05.1, stmts
+ // 2475-2479): UpdateMetric(41, 1) is gated ONLY on CurrentDifficulty ==
+ // 2 and sits before the GameModeSelection switch — a win at Insane
+ // counts in any mode, so the player puts no mode condition on metric 41.
+ assert.equal(metric({won:true,mode:1,difficulty:2},'SessionsWonAtMaxDifficulty'),1);
+ assert.equal(metric({won:true,mode:2,difficulty:2},'SessionsWonAtMaxDifficulty'),1);
  assert.equal(metric({won:true,mode:0,objective:8},'SuccuSlayerSessionsWon'),1);
  assert.equal(metric({won:false,mode:0,objective:8},'SuccuSlayerSessionsWon'),0);
  assert.equal(metric({won:true,mode:1,objective:8},'SuccuSlayerSessionsWon'),0);

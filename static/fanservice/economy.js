@@ -263,6 +263,69 @@
  function recordDisabledBreakSectionFailure(run){return applySessionMetric(run,45,1);}
  function recordTowerWinRounds(run,rounds){if(!Number.isSafeInteger(rounds)||rounds<=0)return false;return applySessionMetric(run,43,rounds);}
  function recordMusicModeWinRounds(run,rounds){if(!Number.isSafeInteger(rounds)||rounds<=0)return false;return applySessionMetric(run,42,rounds);}
+ // CombineSessionStatsArray (UProgressionManager 0x1482da9c0, v0.05.1 —
+ // see docs/parity/evidence/ticket50-producers-native-20261111.md §7 item
+ // 5): combines an array of Tower-round FSessionStats into one session
+ // struct. The int parameter is the Required won rounds (the native log
+ // reads "[Progression] Combined %d Tower rounds stats: WonRounds=%d
+ // Required=%d TowerWon=%s Strokes=%d Edges=%d Duration=%d"); when it is
+ // <= 0 it defaults to the array count, i.e. every round must be won. A
+ // round counts as won when its bWon bool is set or its SessionsWon > 0.
+ // Per round the native loop adds most int fields, max-merges MaxCombo,
+ // EdgeStreak, ConsecutiveSuccubiSurvived, BestMusicModeWinRounds,
+ // BestTowerWinRounds — and GamesWithSexToy (+0x6c, max despite the
+ // RecordSessionMetric add mode) — OR-merges the bLostToSuccubus bool, and
+ // concatenates the ActiveModifiers array (+0x40 TArray) without dedup.
+ // PercentAtHighHeat is DERIVED, not summed: in float32,
+ // clamp(trunc(TimeAtHighHeat / SessionDuration * 200 - 0.5) >> 1, 0, 100),
+ // 0 when the summed duration is <= 0 (so a full high-heat session reads
+ // 99, not 100 — that is the native arithmetic, K1 = 100.0f, K2 = 0.5f).
+ // SessionsWon / bWon are 1/true iff WonRounds >= Required (and Required
+ // > 0, so an empty array never wins); when won, BestTowerWinRounds is
+ // max-merged with Required itself, not with WonRounds. SessionsCompleted
+ // is always 1. Metrics 5/9/15/20/21 have no session field and are never
+ // summed; SessionsWon/SessionsCompleted are derived, never summed. The
+ // native struct field at +0x5c is named PercentTimeAtHighHeat; the player
+ // keeps its PercentAtHighHeat field name. Non-object elements contribute
+ // nothing (a player-side guard; native reads the struct fields as-is).
+ // The native's only caller is its exec wrapper (Blueprint-callable), so
+ // this is exposed as a tested utility, not wired into the session flow —
+ // the player keeps no per-round FSessionStats array to combine.
+ const combineMaxMetrics=new Set([4,17,18,25,42,43]),combineNoFieldMetrics=new Set([5,9,15,20,21]);
+ function combineSessionStatsArray(statsArray,requiredWins){
+  if(!Array.isArray(statsArray))throw Error('CombineSessionStatsArray needs an array of session stats.');
+  const required=Number.isSafeInteger(requiredWins)&&requiredWins>0?requiredWins:statsArray.length;
+  const out={};for(const id of Object.keys(metricIds))out[metricIds[id]]=0;
+  out.won=false;out.lostToSuccubus=false;out.ActiveModifiers=[];
+  let wins=0;
+  for(const stats of statsArray){
+   if(!stats||typeof stats!=='object')continue;
+   for(const id of Object.keys(metricIds)){
+    const metric=Number(id),field=metricIds[metric],value=stats[field];
+    if(typeof value!=='number'||!Number.isFinite(value))continue;
+    if(combineNoFieldMetrics.has(metric)||metric===13||metric===14||metric===24)continue;
+    if(combineMaxMetrics.has(metric)){out[field]=Math.max(out[field],Math.trunc(value));continue;}
+    out[field]=add(out[field],Math.trunc(value));
+   }
+   if(stats.won===true||(typeof stats.SessionsWon==='number'&&stats.SessionsWon>0))wins++;
+   if(stats.lostToSuccubus===true)out.lostToSuccubus=true;
+   if(Array.isArray(stats.ActiveModifiers))out.ActiveModifiers.push(...stats.ActiveModifiers);
+  }
+  const duration=out.SessionDuration,time=Math.max(0,out.TimeAtHighHeat);
+  let percent=0;
+  if(duration>0){
+   let x=Math.fround(time/duration);
+   x=Math.fround(x*100);x=Math.fround(x+x);x=Math.fround(x-0.5);
+   percent=clamp(Math.trunc(x)>>1,0,100);
+  }
+  out.PercentAtHighHeat=percent;
+  out.SessionsCompleted=1;
+  const towerWon=required>0&&wins>=required;
+  out.won=towerWon;
+  out.SessionsWon=towerWon?1:0;
+  if(towerWon)out.BestTowerWinRounds=Math.max(out.BestTowerWinRounds,required);
+  return out;
+ }
  const sourceLedger=['RecoveredRules.cpp: BeatComplete, AddBeatLootReward, AddToLootBar, PrepareDrawState','RecoveredSession.cpp: GetLootIncrement','RecoveredCardDispatch.cpp: RollAndGiveLootDropsV2','RecoveredSuccuEconomy.cpp: catalog, currency, metric/action handlers, timers','RecoveredNewerItemRuntime.cpp: item-use metrics'];
  // Native EMetricType ordinals, full 47-value enum from reJOIce
  // Analysis/ReferenceBuilds/newer-20261017/native-reflection-enums.json
@@ -270,6 +333,6 @@
  // which is why 30/31/35 looked unresolved).
  const metricIds={0:'Strokes',1:'Edges',2:'SuccubiDefeated',3:'EnemiesDefeated',4:'MaxCombo',5:'StrokeCombo',6:'MissedCumWindows',7:'TimesTaunted',8:'ItemsUsed',9:'AvgStrokesPerEdge',10:'DrawsAtMaxHeat',11:'EarlyClimax',12:'SessionDuration',13:'SessionsCompleted',14:'SessionsWon',15:'TotalXPEarned',16:'MoneySpent',17:'EdgeStreak',18:'ConsecutiveSuccubiSurvived',19:'CumWindowsHit',20:'PerfectRounds',21:'TimesLost',22:'LostToSuccubus',23:'TimeAtHighHeat',24:'PercentAtHighHeat',25:'GamesWithSexToy',26:'PerfectEdges',27:'BonerPillsUsed',28:'AcceptedTemptation',29:'CameDuringTaunt',30:'DefensiveItemsUsed',31:'OffensiveItemsUsed',32:'DeclinedTemptation',33:'BountiesCollected',34:'LootRushesUsed',35:'EscapeRopesUsed',36:'MilkingCount',37:'SuccuSlayerSessionsWon',38:'EdgeSessionsWon',39:'ComboCrunchersUsed',40:'SuccuCoinsSpent',41:'SessionsWonAtMaxDifficulty',42:'BestMusicModeWinRounds',43:'BestTowerWinRounds',44:'MusicBreaksUsed',45:'DisabledBreakSectionFailures',46:'BountyCollectionFailures'};
  const shopIds=[0,1,2,3,4,5,6,7,9,10,11,12,13,16,17,18,19,20,21];
- const api={catalog,shopIds,initialize,has,fraction,heatCap,addHeat,addSuccuCoins,purchase,addBeatCoins,loot,beat,draw,succubusDefeated,itemUsed,recycler,advance,sourceLedger,metricIds,sessionMetricModes,applySessionMetric,cumMeterDifficulty,towerCumMeterDifficulty,itemSpawnChances,multiplierEnumValue,getSessionMetricValue,setSessionMetricValue,resetSessionMetric,subtractSessionMetric,recordComboCruncherUsed,recordMusicBreakUsed,recordBountyCollectionFailure,recordDisabledBreakSectionFailure,recordTowerWinRounds,recordMusicModeWinRounds};
+ const api={catalog,shopIds,initialize,has,fraction,heatCap,addHeat,addSuccuCoins,purchase,addBeatCoins,loot,beat,draw,succubusDefeated,itemUsed,recycler,advance,sourceLedger,metricIds,sessionMetricModes,applySessionMetric,cumMeterDifficulty,towerCumMeterDifficulty,itemSpawnChances,multiplierEnumValue,getSessionMetricValue,setSessionMetricValue,resetSessionMetric,subtractSessionMetric,recordComboCruncherUsed,recordMusicBreakUsed,recordBountyCollectionFailure,recordDisabledBreakSectionFailure,recordTowerWinRounds,recordMusicModeWinRounds,combineSessionStatsArray};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.FanserviceEconomy=api;
 })(globalThis);

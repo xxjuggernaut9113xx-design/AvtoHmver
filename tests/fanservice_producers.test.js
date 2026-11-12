@@ -156,3 +156,105 @@ test('producer records fan out to challenges at settlement by metric id',()=>{
  assert.equal(p.progression.challenge_progress.test_your_might.completed,true);
  assert.equal(p.progression.challenge_progress.the_whole_record.completed,true);
 });
+
+// #50 CombineSessionStatsArray (UProgressionManager 0x1482da9c0, v0.05.1 —
+// see docs/parity/evidence/ticket50-producers-native-20261111.md §7 item
+// 5): combines Tower-round FSessionStats into one session struct. The int
+// parameter is the Required won rounds (log: "[Progression] Combined %d
+// Tower rounds stats: WonRounds=%d Required=%d TowerWon=%s ..."); when it
+// is <= 0 it defaults to the array count, i.e. every round must be won.
+// Per round: additive sums for most int fields; max-merge for MaxCombo,
+// EdgeStreak, ConsecutiveSuccubiSurvived, BestMusicModeWinRounds,
+// BestTowerWinRounds — and GamesWithSexToy (+0x6c, max despite the
+// RecordSessionMetric add mode); OR-merge for the lost-to-Succubus bool;
+// ActiveModifiers (+0x40 TArray) concatenated without dedup.
+// PercentAtHighHeat is DERIVED, not summed: clamp(((int)(
+// TimeAtHighHeat / SessionDuration * 200 - 0.5)) >> 1, 0, 100) in float32,
+// 0 when the summed duration is <= 0 (so a full high-heat session reads
+// 99, not 100). SessionsWon / bWon are 1/true iff WonRounds >= Required
+// (a won round is bWon set or SessionsWon > 0); when won,
+// BestTowerWinRounds is max-merged with Required itself, not WonRounds.
+// SessionsCompleted is always 1; 5/9/15/20/21 have no session field and
+// are never summed; SessionsWon/SessionsCompleted are never summed either.
+test('combineSessionStatsArray sums, max-merges and derives the Tower win',()=>{
+ const combined=economy.combineSessionStatsArray([
+  {Strokes:100,Edges:2,MaxCombo:50,SessionDuration:60,TimeAtHighHeat:30,SessionsWon:1,won:true,GamesWithSexToy:2,BestTowerWinRounds:3,SuccuSlayerSessionsWon:1,ActiveModifiers:['A']},
+  {Strokes:50,Edges:1,MaxCombo:80,SessionDuration:30,TimeAtHighHeat:30,SessionsWon:0,won:false,GamesWithSexToy:5,BestTowerWinRounds:1,SuccuSlayerSessionsWon:0,ActiveModifiers:['B','C']},
+ ],2);
+ assert.equal(combined.Strokes,150);
+ assert.equal(combined.Edges,3);
+ assert.equal(combined.SessionDuration,90);
+ assert.equal(combined.TimeAtHighHeat,60);
+ assert.equal(combined.SuccuSlayerSessionsWon,1);
+ assert.equal(combined.MaxCombo,80);
+ assert.equal(combined.GamesWithSexToy,5);
+ assert.equal(combined.BestTowerWinRounds,3);
+ // 60/90 of the session at high heat: trunc(60/90*200-0.5)>>1 = 66.
+ assert.equal(combined.PercentAtHighHeat,66);
+ assert.deepEqual(combined.ActiveModifiers,['A','B','C']);
+ // Only one of two rounds won, Required is 2: not a Tower win.
+ assert.equal(combined.won,false);
+ assert.equal(combined.SessionsWon,0);
+ assert.equal(combined.SessionsCompleted,1);
+ assert.equal(combined.lostToSuccubus,false);
+});
+
+test('combineSessionStatsArray counts a Tower win at Required and maxes BestTowerWinRounds with it',()=>{
+ const won=economy.combineSessionStatsArray([
+  {SessionDuration:10,TimeAtHighHeat:5,SessionsWon:1,won:true,BestTowerWinRounds:0},
+  {SessionDuration:10,TimeAtHighHeat:5,SessionsWon:0,won:true,BestTowerWinRounds:0},
+ ],1);
+ assert.equal(won.won,true);
+ assert.equal(won.SessionsWon,1);
+ assert.equal(won.SessionsCompleted,1);
+ // Won with Required 1: BestTowerWinRounds is max(0, Required=1) = 1.
+ assert.equal(won.BestTowerWinRounds,1);
+ // Required defaults to the array count when <= 0: two won rounds win.
+ assert.equal(economy.combineSessionStatsArray([
+  {SessionDuration:10,SessionsWon:1,won:true},
+  {SessionDuration:10,SessionsWon:1,won:true},
+ ]).won,true);
+ // ...and one won round of two does not.
+ assert.equal(economy.combineSessionStatsArray([
+  {SessionDuration:10,SessionsWon:1,won:true},
+  {SessionDuration:10,SessionsWon:0,won:false},
+ ]).won,false);
+ // A round counts as won from SessionsWon > 0 even without the bool.
+ assert.equal(economy.combineSessionStatsArray([{SessionDuration:10,SessionsWon:2}]).won,true);
+});
+
+test('combineSessionStatsArray derives PercentAtHighHeat exactly and never sums the no-op metrics',()=>{
+ assert.equal(economy.combineSessionStatsArray([{SessionDuration:100,TimeAtHighHeat:100}]).PercentAtHighHeat,99);
+ assert.equal(economy.combineSessionStatsArray([{SessionDuration:100,TimeAtHighHeat:50}]).PercentAtHighHeat,49);
+ assert.equal(economy.combineSessionStatsArray([{SessionDuration:100,TimeAtHighHeat:75}]).PercentAtHighHeat,74);
+ assert.equal(economy.combineSessionStatsArray([{SessionDuration:0,TimeAtHighHeat:10}]).PercentAtHighHeat,0);
+ assert.equal(economy.combineSessionStatsArray([{SessionDuration:100,TimeAtHighHeat:-5}]).PercentAtHighHeat,0);
+ assert.equal(economy.combineSessionStatsArray([{SessionDuration:100,TimeAtHighHeat:300}]).PercentAtHighHeat,100);
+ const noops=economy.combineSessionStatsArray([
+  {StrokeCombo:9,AvgStrokesPerEdge:4,TotalXPEarned:100,PerfectRounds:2,TimesLost:3,SessionsWon:5,SessionsCompleted:7,SessionDuration:10},
+  {StrokeCombo:8,AvgStrokesPerEdge:6,TotalXPEarned:200,PerfectRounds:1,TimesLost:2,SessionsWon:4,SessionsCompleted:9,SessionDuration:10},
+ ],99);
+ for(const field of ['StrokeCombo','AvgStrokesPerEdge','TotalXPEarned','PerfectRounds','TimesLost'])assert.equal(noops[field],0,field);
+ // SessionsWon/SessionsCompleted are derived, never summed.
+ assert.equal(noops.SessionsWon,0);
+ assert.equal(noops.SessionsCompleted,1);
+ assert.equal(noops.SessionDuration,20);
+});
+
+test('combineSessionStatsArray OR-merges the lost-to-Succubus bool and handles the empty array',()=>{
+ const lost=economy.combineSessionStatsArray([
+  {SessionDuration:10,LostToSuccubus:1,lostToSuccubus:false},
+  {SessionDuration:10,LostToSuccubus:2,lostToSuccubus:true},
+ ]);
+ assert.equal(lost.LostToSuccubus,3);
+ assert.equal(lost.lostToSuccubus,true);
+ const empty=economy.combineSessionStatsArray([]);
+ assert.equal(empty.SessionsCompleted,1);
+ assert.equal(empty.SessionsWon,0);
+ assert.equal(empty.won,false);
+ assert.equal(empty.PercentAtHighHeat,0);
+ assert.deepEqual(empty.ActiveModifiers,[]);
+ assert.equal(empty.Strokes,0);
+ assert.throws(()=>economy.combineSessionStatsArray(null),/array/);
+ assert.throws(()=>economy.combineSessionStatsArray('nope'),/array/);
+});
