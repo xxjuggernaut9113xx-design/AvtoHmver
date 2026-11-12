@@ -63,21 +63,84 @@ The widget also has a `MovieSceneEventTrack_0` (81 bytes) +
 stmt 1 @10 Construct → `PlayAnimation(SpawnOverlay, 0.0, NumLoops 0, Forward,
 1.0, False)`; stmt 3 @62 (SequenceEvent entry, icode 62) →
 `VirtualFunction RemoveFromParent` with no params. When the event track
-fires, the widget removes itself from its parent. Frame still unpinned:
-the event section's 16-byte payload (`02020e03020202030f00000010000000`
-+ GUID) is not a property-tag stream (PropWalker fails on it) and the
-FMovieSceneEventChannel key-time layout for this payload is unestablished.
+fires, the widget removes itself from its parent.
 
-### Channel serialization (for future miners)
+**Frame: decoded as far as the cooked data allows — NOT recoverable
+(2026-11-12).** The section exports are UE5 *unversioned* property streams,
+not property-tag streams (PropWalker fails on them for that reason). The
+fragment header decodes per the `unreal_asset` Rust crate
+(`UnversionedHeaderFragment`: u16 LE = skip[6:0], has_zeros[7], is_last[8],
+value_num[15:9]); the float-channel layout below validates byte-exact on all
+11 channels, so the header machinery is confirmed. The event section's header
+is 2 fragments — (skip=2, values=1), (skip=14, values=1, last) — i.e. exactly
+2 serialized properties (schema indices 2 and 17) in 12 payload bytes:
 
-`FMovieSceneFloatChannel` = `[Times: i32 count + count×i32 frame numbers]`
-`[Values: i32 per-value-size (28) + i32 count + count×28-byte values (float in
-the first 4 bytes)]` `[trailing: Default f32 + hasDefault u8 + TickRate
-(60000, 1) + padding]`. The 28-byte value is the 22-byte
-`FMovieSceneFloatValue` (value + tangent mode/weight + arrive/leave tangents
-and weights) plus 6 trailing bytes. The PropWalker does NOT work on MovieScene
-exports (not an FPropertyTag stream); the byte-pattern parser above is what
-validates (all channels land exactly on the trailing GUID).
+`02 02 02 03 0f 00 00 00 10 00 00 00` (+ 16-byte section GUID + 4 zero bytes)
+
+What the 12 bytes are: the leading `02 02 02 03` is the same nested-fragment
+header that opens the footer of the transform/color sections, and the two
+i32s (15, 16) match that footer's object-reference pattern exactly — the
+transform footer holds (11, 12) → 1-based export refs to exports 10/11
+(`EaseInFunction`, `EaseOutFunction`), the color footer (13, 14) → exports
+12/13 (same pair), so (15, 16) → exports 14/15 (`EaseInFunction`,
+`EaseOutFunction`): the section's EaseIn/EaseOut function objects. The event
+track corroborates 1-based refs: its value 21 reads as export 20, the event
+section itself. **No frame number is present anywhere in the 12 bytes** (no
+60000, no plausible tick value), and the bound function name `SequenceEvent`
+(name index 13) appears nowhere in the section export as an FName or string.
+A 1-key `FMovieSceneEventChannel` (Times array + KeyValues array, one
+`FMovieSceneEvent` = FName Function + `FMovieSceneEventParameters`) needs
+≥44 bytes and cannot fit in 12 bytes, so the key time and the bound function
+name are not recoverable from this export. A tree-wide scan confirms this is
+the only `MovieSceneEventTriggerSection`/`MovieSceneEventTrack` in the whole
+legacy tree (no second sample to compare against), and the Zen `.uasset` is
+IoStore (`bad magic` for the legacy parser), so no independent parse exists
+here. This is consistent with the cooked-build behavior documented on the
+Epic forum (Feb 2026): `ChannelProxy` is not initialized for
+`UMovieSceneEventTriggerSection` in cooked builds and the event data is
+imported from the sequence at runtime via `ImportEntityImpl` — the key data
+does not survive in this export in decodable form.
+
+**Player consequence: none implementable.** The event is a second removal
+path for the loop widget (fire → `RemoveFromParent`), alongside the
+already-modeled removal when the cum window closes (`HandleCumEvent` end),
+but its firing frame is unknown; timing a removal at a guessed frame (e.g.
+60000) would be inventing behavior, so no player change and no test.
+Scratch: `/tmp/scratch_floatchan.py`, `/tmp/scratch_sections.py`,
+`/tmp/scratch_eventscan.py` (fragment decode + tree scan).
+
+### Channel serialization (verified 2026-11-12, byte-exact on all 11 channels)
+
+Section exports are UE5 **unversioned** property streams. Each section =
+`[fragment header][channels][4 zero bytes between/after channels][footer]
+[16-byte section GUID][4 zero bytes]`. The header is a run of u16 LE
+fragments (`UnversionedHeaderFragment` per the `unreal_asset` crate: skip =
+bits 0–6, has_zeros = bit 7, is_last = bit 8, value_num = bits 9–15).
+Transform header: (skip=1, values=7), (skip=1, values=2), (skip=13, values=1,
+last) — 10 values: 7 channels + 3 footer values. Color header: (skip=0,
+values=4), (skip=1, values=2), (skip=13, values=1, last) — 7 values: 4
+channels + 3 footer values.
+
+`FMovieSceneFloatChannel` (per the `unreal_asset` crate, confirmed on every
+channel here) = `[pre_infinity_extrap u8][post_infinity_extrap u8]
+[times_struct_length i32 = 4][times_length i32][times: count×i32]
+[values_struct_length i32 = 28][values_length i32][values: count×28 bytes]
+[default_value f32][has_default_value i32][tick_resolution: i32 num, i32 den]`.
+Both extrap bytes are 4 on every channel here; tick is 60000/1; default 0.0,
+has_default 0. The 28-byte `FMovieSceneFloatValue` = f32 value +
+`FMovieSceneTangentData` (arrive/leave tangent f32, arrive/leave tangent
+weight f32, tangent-weight-mode u8, 5 padding bytes = 22) + interp-mode i8 +
+tangent-mode i8 (4+22+1+1 = 28; padding size derived from the total).
+
+Footer (22 bytes, both float sections) = `[nested fragment header
+02 02 02 03][EaseIn object ref i32][EaseOut object ref i32][01 00 00 00 00 01
+— 6 bytes, unidentified (i32 1 + two flag bytes)][EndFrame i32 = 60000]`.
+The object refs are 1-based export indices (transform 11,12 → exports 10,11;
+color 13,14 → exports 12,13 — each section's own EaseIn/EaseOut pair).
+StartFrame 0 is zero-valued and skipped by the fragment header, so it never
+appears. The PropWalker does NOT work on MovieScene exports (not an
+FPropertyTag stream); the layout above is what validates (all channels land
+exactly on the trailing GUID).
 
 ## CumInXSec / CumWithinXSec overlays — `Idle` + `SpawnAnim`
 
@@ -160,8 +223,10 @@ On Construct:
 - The **60 s cum-window hard-code** (`static/fanservice/objectives.js:52`) is
   not addressed by these animations; nothing here gives a window duration.
 - The `SequenceEvent` wired to `SpawnOverlay`'s event track: purpose
-  SETTLED (RemoveFromParent on fire); frame unpinned (event-channel
-  payload layout unestablished).
+  SETTLED (RemoveFromParent on fire); frame NOT recoverable from the cooked
+  packages (event-section payload decoded 2026-11-12: 12 bytes hold only the
+  EaseIn/EaseOut refs, no key time, no function name — see above). No player
+  behavior follows from it; do not time a removal at a guessed frame.
 - The `Idle` duration (60233 ticks) is recorded verbatim; do not round it to
   60000 without evidence.
 
