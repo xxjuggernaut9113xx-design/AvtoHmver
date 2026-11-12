@@ -626,6 +626,34 @@ has been reduced by 10%") is the same shared gap and stays unmodeled —
 `itemUsed` returns only the Hot Hands text. Wiring it is the same
 channel, but it is out of scope for the Hot Hands item.
 
+#### Heat Spell notification wired (2026-11-12)
+
+The shared gap above is now closed. `ApplyHeatSpellEffect` was
+re-verified from the retained AST this session (reJOIce
+`functions/BP_GlobalManager/ApplyHeatSpellEffect.json`): gate
+`HasSuccuModifier(4)`, `Heat Level = FClamp(Heat Level − 10.0, 0, 100)`,
+then `CreateNotificationBox(icon −4120, "Heat Spell", "Defensive Item
+Used\r\nHeat has been reduced by 10%", ...)` — the strings exactly as
+reported. `ActivateItem` calls it at stmts 30, 42, 53, 74, 91, 102
+(types 0, 1, 3, 6, 7 and Break outside Playlist mode); Escape Rope
+(10) and Combo Cruncher (13) never call it. `economy.js` `itemUsed`
+now returns `'Heat Spell: Defensive Item Used Heat has been reduced by
+10%'` whenever the effect's condition holds (the -10 condition and the
+notification share one `heatSpellApplies` const, so they cannot drift),
+tied to the condition, not to the heat change — it fires even at heat 0.
+When both Heat Spell and Hot Hands apply, the return joins them in the
+original call order (Heat Spell first in every `ActivateItem` branch)
+with `' · '`, keeping the `string|null` contract: e.g. `'Heat Spell:
+... · Hot Hands Modifier: ...'`. The `' · '` join is a player rendering
+decision for the single status line. No `play.js` change was needed —
+both `itemUsed` call sites already show the returned text via
+`status()`. Pinned by `tests/fanservice_economy.test.js` ("Heat Spell
+returns its notification when it applies, and combines with Hot Hands
+in original order": types 1/3/6/7 and Break modes 0/1; `null` for
+Playlist Break and for types 5/9/10/11/12/13; fires at heat 0; combined
+order; Hot Hands only for Playlist Break with Heat Spell owned; Heat
+Spell only for type 1 with Hot Hands active).
+
 ## Follow-up: All-or-Nothing scope for Break decided from the evidence — Playlist only (2026-11-11)
 
 **Decision.** All-or-Nothing applies to Break only in Playlist mode

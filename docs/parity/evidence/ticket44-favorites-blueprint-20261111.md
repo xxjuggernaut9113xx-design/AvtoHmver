@@ -206,6 +206,141 @@ draws the type-9 card through `Cards.start({frenzy:true})`. v0.05.1
 `special-events.json` exactly (baseWeight 0, weightMultiplier 0, heat
 5/5/5, combo F5/D5/C5/B5/A25/S35), so no data change was needed.
 
+## Frenzy presentation — decoded and wired (2026-11-12)
+
+`FavoriteFrenzyEvent` was re-parsed from the GM ubergraph (entry 81592,
+icode 99921, 2569 stmts; script `/tmp/frenzy_decode.py`) and each
+presentation step was decoded from the cooked packages (retoc-converted
+to `/tmp/frenzy-legacy/CockHero/Content/Widgets/SpecialEventWidgets/`,
+scripts `/tmp/frenzy_overlay_decode.py`, `/tmp/fastpace_decode.py`,
+`/tmp/frenzy_texture.py`). The event's 17 steps, in order:
+
+1. `StartFavoriteFrenzyCooldown`.
+2. Clear `IdleTimerHandle` (no player counterpart — the player has no
+   idle timer).
+3. `GetDataTableRowFromName(HeatCategoryDataTable, 'SlowHeat')` — gate;
+   the row exists, so the event proceeds. The OutRow is not consumed.
+4. `SpawnCustomCardEvent(SlowCards, 20, 50, 0.18, 0.25, byte 9, ...)` —
+   **the spawn starts NO beat pattern** (96-stmt decode of
+   `SpawnCustomCardEvent`): it rolls the stroke count and interval,
+   toggles stroke-counter visibility, applies brain-melter intervals and
+   the media swap, and returns an empty SlateBrush + StrokeInterval 0.
+5. `Array_Random(FrenzyBeatPatterns)` → 6. `CheckIntervalMultipliers`
+   (if the current interval is ≤ 0.2, any pattern value ≥ 2.0 becomes
+   2.5 — the same constants as the player's existing rule in
+   `cards.js`) → 7. `StartPatternWithMediaSync(pattern,
+   BeatSpawnInterval, CurrentStrokeCount, MediaPlaybackManager, 1.0,
+   0.0, Beat Travel Time)`. **The card's beat pattern comes from
+   `FrenzyBeatPatterns`, not the slow bank.** Wired: `cards.js` frenzy
+   branch now uses bank `'frenzy'` (`patterns.frenzy`, 3 rows:
+   `[0.5,0.5,0.5,0.5,1.0]`, `[0.5]`, `[0.5,0.5,1.0]` — verified
+   GM-CDO float32-exact in `card-rules.json`); the media deck stays
+   slow. Pinned by `tests/fanservice_cards.test.js` (frenzy pattern
+   from the frenzy bank, red-first).
+8. `PlayerEdgedLastDraw? = false`; 9. `DrawManager.IsSpecialEvent? =
+   false`; 10. `CurrentCardTypeEnum = 2` (Fast). The player models none
+   of these flags — `state.card` is 9, and `taunts.js` treats card 9 as
+   a normal card (its succubus branch keys on card 3 only), matching the
+   original's Fast branch for a taunt during a frenzy card.
+11. `ApplyVolumeScalar(1.0, SFXVolume)` → `PlaySound2D(Enter_Play, ...)`.
+    Not wireable — no player sound asset (same precedent as
+    `Enter_Simulate`).
+12. `PlayAnimation(FastPaceAnim, 0.0, 1 loop, Forward, 1.0, false)` —
+    wired (see below).
+13. `PlaySpecialEventDialogue(0)` — the 'succubus' bucket
+    (`DialogueSpecialEventsEnum` 0; the bucket key is the lowercased
+    enumerator name). Not wireable: the lines live in the persona
+    dialogue data tables built by `InitializeDialogueMap`, and the
+    player has no Classic-mode dialogue-line system — same precedent as
+    the taunt/punishment voicelines.
+14. `Change Beat Background(3)` — wired (see below).
+15. `PlayMusic(2)` — `AMP2_90_A_2_3` at 0.15×BackgroundMusicVolume,
+    gated on `IsDynamicMusicEnabled?`. Not wireable: no dynamic music in
+    Classic/Tower and no such asset — same precedent as punishment
+    `PlayMusic(3)`.
+16. Create `FavoriteFrenzySpawnOverlay_Widget` +
+    `AddToViewport(0)` — wired (see below).
+
+**Background — SETTLED, wired.** `Change Beat Background` (GM, 47
+stmts) switches on the input byte: 3 → `SetBackground(1)`.
+`BackgroundTypesEnum` 3 is 'Normal Beat Background', and the
+`HandleBackGroundChange` string→byte map (`normalbeatbackground`→3)
+cross-checks to the same SetBackground index. So frenzy input 3 =
+player `normalbeatbackground`. Wired in `play.js` `draw()`: the frenzy
+also resets a stale `tauntbackground` left by a prior taunt or
+punishment, since the player otherwise never resets the background on
+Classic/Tower draws. The `bColoredBackgroundEnabled?` black-tint branch
+is unmodeled (the player has no such setting). Pinned by the favorites
+smoke test (taunt first sets 'taunt', the frenzy resets it to 'normal').
+
+**Overlay widget — SETTLED, wired.** `FavoriteFrenzySpawnOverlay_Widget`
+(43 exports) has two image widgets: `Background` (Texture2D
+`FavoriteFrenzyOverlayBackground`, 3840×2160 DXT5 — thin dark speed
+lines radiating from the center, 3.6% opaque) and `Text` (Texture2D
+`FavoriteFrenzyOverlayText`, 3840×2160 DXT5 — baked black letters
+reading **"FAVORITE FRENZY"** in two arched bubbly lines with sparkles,
+decoded from the BC3 pixel data at header offset 137; the RGB is pure
+black, so the text displays black over the video). `SpawnOverlay`
+(60000 ticks/s, 105000 ticks = 1.75 s, plays once): Background —
+uniform scale 1.0 → 1.2 @0.15 s → 1.0 @0.5 s, opacity 0.25 → 1.0 @0.15 s,
+then a 0.8/1.0 oscillation every 0.15 s, → 0.0 @1.75 s (the 10-key
+alpha channel was recovered by widening the channel search past its
+n≤8 cap); Text — uniform scale 0.5 → 1.0 @0.15 s → 1.2 @0.3 s → 1.0
+@0.5 s → 0.9 @1.0 s → 1.1 @1.55 s, opacity 0.25 → 1.0 @0.15 s → 0.9
+@0.5 s → 1.0 @0.85 s → 0.9 @1.2 s → 1.0 @1.55 s → 0.0 @1.75 s, RGB
+1.0 → 0.9 @0.5 s → 1.0 (a tint dim with no visible effect on black
+letters — recorded, not modeled). The event-trigger section fires
+`SequenceEvent` at 105000 ticks and the widget's handler calls
+`RemoveFromParent`, so the banner lives exactly 1.75 s. Construct also
+plays a random evil laugh (`Array_Random(EvilLaughArraySFX)` →
+`PlaySound2D`, 13 `evillaugh_sfx` files) plus two MovieScene audio
+sections whose SoundWaves were not resolved from the section bytes
+(the widget references `Epic_Stock_Media_-_Vibrant_Game_-_Sci_Fi_Cannon_Blast_Modulated`
+and `Unrealsfx_-_Morph_-_Bubbly_Swoosh`); audio is not wireable. Wired:
+`overlays.js` `frenzyBackground` / `frenzyText` specs +
+`frenzyOverlayState` (visible for exactly 1.75 s from the frenzy draw),
+`play.html` `#frenzy-overlay` (background layer + `FAVORITE<br>FRENZY`
+text), `play.css` keyframes carrying the decoded curves, `play.js`
+`renderOverlays()` toggling visibility on the session clock. The
+speed-lines layer is a CSS `repeating-conic-gradient` approximation of
+the baked texture and the bubbly arched font is not reproduced — both
+documented in `play.css`. Pinned by `tests/fanservice_overlays.test.js`
+(specs, samples, 1.75 s visibility boundary) and the favorites smoke
+test (banner shows with the text at the draw, hides after 2 s).
+
+**FastPaceAnim — SETTLED, wired.** The animation (MovieScene export in
+`UI_Manager`) binds `TextBlock_2`, whose default text is **"Fast!"**
+(114-byte export; the GUID string + `Fast!` literal). 45281 ticks ≈
+0.7547 s, plays once: uniform scale 0.1 → 1.0 @0.2516 s → 0.75 @0.5031 s
+→ 1.0 @0.7547 s, rotation 0° → 5° @0.25 s → 1° @0.2514 s → -2° @0.5 s →
+-1° @0.5029 s (the near-duplicate keys are sharp jumps, kept verbatim),
+opacity 1.0 → 0.75 @0.2516 s → 1.0 @0.5031 s → 0.0 @0.7547 s, RGB
+constant (1.0, 0.5, 0.8) — a pink tint. It is the generic special-event
+pace flash: the same animation is played by the succubus event (two
+branches), the punishment, the 'ass'/'boobs' events, the frenzy, and the
+taunt (GM ubergraph stmts 731, 746, 1453, 1823, 1838, 2016, 2313).
+Wired for the frenzy only: `overlays.js` `fastPace` spec (with the
+rotation channel — `sample()` returns `rotation` only for specs that
+define it, so the older specs keep their pinned shape) +
+`fastPaceState`, `play.html` `#pace-flash` (`Fast!`), `play.css`
+`frenzy-fast-pace` keyframes (the scale values at the rotation-only
+keys are the exact linear interpolations of the scale curve at those
+times), `play.js` `renderOverlays()`. The flash sits near the top of
+the stage so it does not cover the banner — the original's TextBlock_2
+canvas slot was not decoded, so the placement is an adaptation.
+Pinned by `tests/fanservice_overlays.test.js` and the favorites smoke
+test. **Follow-up:** the same flash belongs on taunt, punishment, and
+the succubus/'ass'/'boobs' events; wiring those is a separate slice
+(the punishment comment in `play.js` records this).
+
+**Taunt pattern bank — open follow-up, NOT changed.** `Taunt()` uses
+the same `FrenzyBeatPatterns` → `StartPatternWithMediaSync` flow (GM
+ubergraph stmt 2313 area; `taunts.js` header already records "a random
+FrenzyBeatPattern"), but the player models the taunt card with the fast
+bank (`run.startCard('fast', {taunt:true})` → `cards.js` bank
+`'fast'`), and taunt tests/smoke pin it. Changing it needs its own
+red-first slice and smoke re-check; the frenzy fix does not touch it.
+
 `CheckAndUpdateFavoriteUI` (699 bytes; script at 183, icode 408, storage 504,
 11 stmts) references `FavoritesIcon`, `GameModeSelection`,
 `IsPlayerToggledCheck?`.

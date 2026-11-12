@@ -348,9 +348,17 @@ function draw(pool,{prepare=true,force=false,cardOptions={}}={}){
  showMedia(item,0,{restart:true});
  // The frenzy pick (automaticMediaPool, event code 12) spawns through the
  // slow deck as a type-9 card and starts the 120 s cooldown here, at the
- // spawn — the original starts it inside FavoriteFrenzyEvent.
+ // spawn — the original starts it inside FavoriteFrenzyEvent. The
+ // presentation is wired here too: FavoriteFrenzyEvent (BP_DrawManager
+ // ubergraph entry 81592) shows the 1.75 s FavoriteFrenzySpawnOverlay
+ // banner and plays FastPaceAnim (the "Fast!" flash), and switches the
+ // background to 3, the Normal Beat Background — which also resets a stale
+ // tauntbackground left by a prior taunt or punishment, since the player
+ // otherwise never resets the background on Classic/Tower draws. The
+ // dialogue (succubus bucket) and music (track 2) are not modeled — see
+ // docs/parity/evidence/ticket44-favorites-blueprint-20261111.md.
  const frenzy=state.frenzyPending&&!music;
- if(prepare){state.card=frenzy?9:{slow:0,medium:1,fast:2,succubus:3,cum:6,ass:7,boobs:8}[pool];state.canUseSlowdown=true;state.canUseBonerPill=true;if(started&&!finished&&run.phase==='playing'){FanserviceEconomy.draw(run);if(!music){if(frenzy&&favorites)favorites.triggerFavoriteFrenzy(state.seconds);run.startCard(pool,frenzy?{...cardOptions,frenzy:true}:cardOptions);speed=1;}}}
+ if(prepare){state.card=frenzy?9:{slow:0,medium:1,fast:2,succubus:3,cum:6,ass:7,boobs:8}[pool];state.canUseSlowdown=true;state.canUseBonerPill=true;if(started&&!finished&&run.phase==='playing'){FanserviceEconomy.draw(run);if(!music){if(frenzy&&favorites)favorites.triggerFavoriteFrenzy(state.seconds);run.startCard(pool,frenzy?{...cardOptions,frenzy:true}:cardOptions);if(frenzy){state.frenzyStartedAt=state.seconds;FanserviceBackground.apply($('session-background'),'normalbeatbackground',$('background-status'));}speed=1;}}}
  return true;
 }
 function spawnPunishment(){
@@ -363,8 +371,9 @@ function spawnPunishment(){
  // same mechanism that unlocks after any succubus card. Not reproduced:
  // the voiceline (FindSpecialEventDialogueStructs(1) lines live in the
  // cooked data table, not the retained ASTs), PlayMusic(3) (no dynamic
- // music track switch in Classic/Tower), FastPaceAnim and the BM widgets
- // (UI-only, no player counterpart).
+ // music track switch in Classic/Tower), FastPaceAnim (the frenzy wires
+ // the same flash via #pace-flash; punishment wiring is a follow-up) and
+ // the BM widgets (UI-only, no player counterpart).
  if(!started||paused||finished||run.phase!=='playing')return false;
  decks??=rules.mediaPools(media,FanserviceModifiers.options(state.modifiers));
  if(!decks.succubus?.length){status('No succubus media in the frozen selection. Punishment could not start.');return false;}
@@ -516,6 +525,16 @@ function renderOverlays(){
   $('cum-countdown-progress').value=overlay.progress;
   $('cum-countdown-text').textContent=`Release window: ${overlay.seconds} seconds.`;
  }
+ // Favorite Frenzy overlay (FavoriteFrenzySpawnOverlay_Widget, v0.05.1 —
+ // see docs/parity/evidence/ticket44-favorites-blueprint-20261111.md): the
+ // 1.75 s "FAVORITE FRENZY" banner and the 0.7547 s FastPaceAnim "Fast!"
+ // flash, both from the frenzy draw (state.frenzyStartedAt, session
+ // seconds). The CSS keyframes in play.css carry the decoded scale/alpha
+ // curves; this only toggles visibility on the session clock.
+ const frenzy=FanserviceOverlays.frenzyOverlayState({startedAt:state.frenzyStartedAt,now:state.seconds});
+ $('frenzy-overlay').hidden=!frenzy.visible;
+ const pace=FanserviceOverlays.fastPaceState({startedAt:state.frenzyStartedAt,now:state.seconds});
+ $('pace-flash').hidden=!pace.visible;
  // Map-window warnings (music mode only, UMusicModeManager getters — see
  // docs/parity/evidence/ticket51-queue-consumer-20261111.md): the objective
  // countdown above never runs in Playlist mode, so the same countdown

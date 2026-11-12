@@ -43,7 +43,10 @@
  //   startFavoriteFrenzyCooldown / triggerFavoriteFrenzy — see below).
  //   The frenzy event's presentation (FastPaceAnim, dialogue 0, background
  //   3, music 2, FavoriteFrenzySpawnOverlay_Widget) is carried in the
- //   trigger's spawn spec but play.js does not act on it yet. The trigger's
+ //   trigger's spawn spec and play.js acts on the wireable parts (draw():
+ //   the 1.75 s overlay banner, the Fast! flash, the Normal Beat
+ //   Background). The dialogue and music are not modeled — see
+ //   docs/parity/evidence/ticket44-favorites-blueprint-20261111.md. The trigger's
  //   CALL SITE is settled (BP_DrawManager TriggerSelectedEvent stmt 62 @2142,
  //   event code 12, gated at filter time by
  //   BP_GlobalManager CheckEventConditions&ReturnArray stmt 82 @2363 via

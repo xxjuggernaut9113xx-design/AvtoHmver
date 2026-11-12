@@ -55,6 +55,12 @@ const root=path.resolve(__dirname,'../static/fanservice');let origin;const fixtu
    }
    assert.equal(await page.evaluate(()=>favorites.getFavoriteFrenzyCardCount()),3,'Three favorites must fill the derived FavoriteFrenzy deck');
    assert.equal(await page.evaluate(()=>favorites.isFavoriteFrenzyEligible(state.seconds)),true,'The frenzy gate must be open with three favorites and no cooldown');
+   // A taunt first sets the stale tauntbackground the frenzy must clear
+   // (FavoriteFrenzyEvent switches the background to 3, Normal Beat
+   // Background). The slow draw forces the taunt's normal branch.
+   await page.evaluate(()=>draw('slow',{force:true}));
+   await page.locator('#taunt-action').click();
+   assert.equal(await page.evaluate(()=>document.querySelector('#session-background').dataset.backgroundPreset),'taunt','The taunt must set the taunt background first');
    let frenzy=false;
    for(let n=0;n<60&&!frenzy;n++){await page.evaluate(()=>draw(undefined,{force:true}));frenzy=await page.evaluate(()=>state.card===9);}
    assert.equal(frenzy,true,'An automatic draw must pick the frenzy event within 60 draws');
@@ -63,6 +69,18 @@ const root=path.resolve(__dirname,'../static/fanservice');let origin;const fixtu
    const frenzyStrokes=await page.evaluate(()=>run.state.cardFlow.assigned);
    assert.ok(frenzyStrokes>=16&&frenzyStrokes<=40,`Frenzy strokes ${frenzyStrokes} must be in 20-50 before the difficulty multiplier`);
    assert.equal(await page.evaluate(()=>favorites.isFavoriteFrenzyEligible(state.seconds)),false,'The frenzy spawn must start the 120 s cooldown');
+   // Frenzy presentation (FavoriteFrenzyEvent, BP_DrawManager entry 81592):
+   // the 1.75 s "FAVORITE FRENZY" banner, the 0.7547 s "Fast!" flash, and
+   // the background reset to the Normal Beat Background.
+   await page.clock.fastForward(100);
+   assert.equal(await page.evaluate(()=>document.querySelector('#frenzy-overlay').hidden),false,'The frenzy banner must show at the frenzy draw');
+   assert.equal(await page.evaluate(()=>{const text=document.querySelector('#frenzy-overlay-text').textContent;return text.includes('FAVORITE')&&text.includes('FRENZY');}),true,'The frenzy banner must read FAVORITE FRENZY');
+   assert.equal(await page.evaluate(()=>document.querySelector('#pace-flash').hidden),false,'The Fast! flash must show at the frenzy draw');
+   assert.equal(await page.evaluate(()=>document.querySelector('#pace-flash p').textContent),'Fast!','The flash must read Fast!');
+   assert.equal(await page.evaluate(()=>document.querySelector('#session-background').dataset.backgroundPreset),'normal','The frenzy must reset the background to the Normal Beat Background');
+   await page.clock.fastForward(2000);
+   assert.equal(await page.evaluate(()=>document.querySelector('#frenzy-overlay').hidden),true,'The frenzy banner must hide after 1.75 s');
+   assert.equal(await page.evaluate(()=>document.querySelector('#pace-flash').hidden),true,'The Fast! flash must hide after 0.7547 s');
    assert.deepEqual(errors,[],'No page errors');
    reports.push('favorites smoke: PASS');
   }catch(error){reports.push('favorites smoke: FAIL '+error.message);throw error;}

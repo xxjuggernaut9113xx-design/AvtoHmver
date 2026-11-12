@@ -199,3 +199,73 @@ test('mapWindowWarningTexts picks the exact text for each beatmap warning',()=>{
  assert.deepEqual(overlays.mapWindowWarningTexts({now:35,events}),{cumIn:'CUM IN: 35 SEC',cumWithin:'',breakDisable:'BREAKS DISABLED IN 00:05'});
  assert.deepEqual(overlays.mapWindowWarningTexts({now:110,events}),{cumIn:'',cumWithin:'',breakDisable:''});
 });
+
+// Favorite Frenzy overlay (FavoriteFrenzySpawnOverlay_Widget, v0.05.1 —
+// see docs/parity/evidence/ticket44-favorites-blueprint-20261111.md).
+// SpawnOverlay 105000 ticks = 1.75 s, plays once, then the widget removes
+// itself (SequenceEvent at 105000 ticks -> RemoveFromParent). Two layers:
+// Background (speed-lines image) and Text ("FAVORITE FRENZY", baked black
+// letters, decoded from the DXT5 texture). FastPaceAnim 45281 ticks ≈
+// 0.7547 s, plays once, animates the "Fast!" text block (TextBlock_2).
+test('frenzy overlay specs pin the decoded 1.75 s SpawnOverlay keys',()=>{
+ assert.equal(overlays.specs.frenzyBackground.durationTicks,105000);
+ assert.equal(overlays.specs.frenzyBackground.loops,1);
+ assert.deepEqual(overlays.specs.frenzyBackground.scaleX,[[0,1],[9000,1.2],[30000,1]]);
+ assert.deepEqual(overlays.specs.frenzyBackground.scaleY,[[0,1],[9000,1.2],[30000,1]]);
+ assert.deepEqual(overlays.specs.frenzyBackground.opacity,[[0,0.25],[9000,1],[18000,0.8],[27000,1],[36000,0.8],[45000,1],[54000,0.8],[63000,1],[72000,0.8],[105000,0]]);
+ assert.equal(overlays.specs.frenzyText.durationTicks,105000);
+ assert.equal(overlays.specs.frenzyText.loops,1);
+ assert.deepEqual(overlays.specs.frenzyText.scaleX,[[0,0.5],[9000,1],[18000,1.2],[30000,1],[60000,0.9],[93000,1.1]]);
+ assert.deepEqual(overlays.specs.frenzyText.scaleY,[[0,0.5],[9000,1],[18000,1.2],[30000,1],[60000,0.9],[93000,1.1]]);
+ assert.deepEqual(overlays.specs.frenzyText.opacity,[[0,0.25],[9000,1],[30000,0.9],[51000,1],[72000,0.9],[93000,1],[105000,0]]);
+ assert.equal(overlays.durationMs('frenzyBackground'),1750);
+ assert.equal(overlays.durationMs('frenzyText'),1750);
+});
+test('sample pins the frenzy background pulse and text keys, clamped at 1.75 s',()=>{
+ assert.deepEqual(overlays.sample('frenzyBackground',0),{scaleX:1,scaleY:1,opacity:0.25});
+ assert.deepEqual(overlays.sample('frenzyBackground',9000),{scaleX:1.2,scaleY:1.2,opacity:1});
+ const midBg=overlays.sample('frenzyBackground',18000);
+ near(midBg.scaleX,1.2-0.2*(9000/21000));assert.equal(midBg.opacity,0.8);
+ assert.deepEqual(overlays.sample('frenzyBackground',105000),{scaleX:1,scaleY:1,opacity:0});
+ assert.deepEqual(overlays.sample('frenzyBackground',120000),{scaleX:1,scaleY:1,opacity:0});
+ assert.deepEqual(overlays.sample('frenzyText',0),{scaleX:0.5,scaleY:0.5,opacity:0.25});
+ assert.deepEqual(overlays.sample('frenzyText',9000),{scaleX:1,scaleY:1,opacity:1});
+ assert.deepEqual(overlays.sample('frenzyText',18000).scaleX,1.2);
+ near(overlays.sample('frenzyText',18000).opacity,1-0.1*(9000/21000));
+ assert.deepEqual(overlays.sample('frenzyText',93000),{scaleX:1.1,scaleY:1.1,opacity:1});
+ assert.deepEqual(overlays.sample('frenzyText',105000),{scaleX:1.1,scaleY:1.1,opacity:0});
+ assert.deepEqual(overlays.sample('frenzyText',120000),{scaleX:1.1,scaleY:1.1,opacity:0});
+});
+test('FastPaceAnim spec pins the decoded 0.7547 s wobble and pink tint keys',()=>{
+ assert.equal(overlays.specs.fastPace.durationTicks,45281);
+ assert.equal(overlays.specs.fastPace.loops,1);
+ assert.deepEqual(overlays.specs.fastPace.scaleX,[[0,0.1],[15094,1],[30188,0.75],[45281,1]]);
+ assert.deepEqual(overlays.specs.fastPace.scaleY,[[0,0.1],[15094,1],[30188,0.75],[45281,1]]);
+ assert.deepEqual(overlays.specs.fastPace.rotation,[[0,0],[15000,5],[15086,1],[30000,-2],[30171,-1]]);
+ assert.deepEqual(overlays.specs.fastPace.opacity,[[0,1],[15094,0.75],[30188,1],[45281,0]]);
+ near(overlays.durationMs('fastPace'),45281/60);
+});
+test('sample pins FastPaceAnim keys, including rotation, clamped at 0.7547 s',()=>{
+ assert.deepEqual(overlays.sample('fastPace',0),{scaleX:0.1,scaleY:0.1,opacity:1,rotation:0});
+ assert.equal(overlays.sample('fastPace',15000).rotation,5);
+ near(overlays.sample('fastPace',15000).scaleX,0.1+0.9*(15000/15094));
+ assert.deepEqual(overlays.sample('fastPace',15094).scaleX,1);
+ assert.deepEqual(overlays.sample('fastPace',15094).opacity,0.75);
+ near(overlays.sample('fastPace',15094).rotation,1-3*(8/14914));
+ assert.deepEqual(overlays.sample('fastPace',30188),{scaleX:0.75,scaleY:0.75,opacity:1,rotation:-1});
+ assert.deepEqual(overlays.sample('fastPace',45281),{scaleX:1,scaleY:1,opacity:0,rotation:-1});
+ assert.deepEqual(overlays.sample('fastPace',60000),{scaleX:1,scaleY:1,opacity:0,rotation:-1});
+});
+test('frenzyOverlayState is visible for exactly 1.75 s from the frenzy draw',()=>{
+ assert.deepEqual(overlays.frenzyOverlayState({startedAt:null,now:10}),{visible:false,background:null,text:null});
+ assert.deepEqual(overlays.frenzyOverlayState({startedAt:10,now:10}),{visible:true,background:{scaleX:1,scaleY:1,opacity:0.25},text:{scaleX:0.5,scaleY:0.5,opacity:0.25}});
+ assert.equal(overlays.frenzyOverlayState({startedAt:10,now:11.749}).visible,true);
+ assert.deepEqual(overlays.frenzyOverlayState({startedAt:10,now:11.75}),{visible:false,background:null,text:null});
+ assert.deepEqual(overlays.frenzyOverlayState({startedAt:10,now:9}),{visible:false,background:null,text:null});
+});
+test('fastPaceState is visible for exactly 45281 ticks from the frenzy draw',()=>{
+ assert.deepEqual(overlays.fastPaceState({startedAt:null,now:10}),{visible:false,sample:null});
+ assert.deepEqual(overlays.fastPaceState({startedAt:10,now:10}),{visible:true,sample:{scaleX:0.1,scaleY:0.1,opacity:1,rotation:0}});
+ assert.equal(overlays.fastPaceState({startedAt:10,now:10.754}).visible,true);
+ assert.deepEqual(overlays.fastPaceState({startedAt:10,now:10.755}),{visible:false,sample:null});
+});

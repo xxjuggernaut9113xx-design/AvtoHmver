@@ -42,6 +42,34 @@ main { padding-left: max(12px, var(--safe-left)); padding-right: max(12px, var(-
 @keyframes cum-spawn-overlay { 0% { transform: scale(1); opacity: 1; } 50.07% { transform: scale(1.1); opacity: .5; } 100% { transform: scale(1); opacity: 1; } }
 @keyframes cum-spawn-anim { 0% { transform: scale(1); opacity: 0; } 50% { transform: scale(1.05); opacity: .5; } 100% { transform: scale(1); opacity: 1; } }
 @keyframes cum-idle { 0% { transform: scaleY(1); } 50% { transform: scaleY(1.05); } 100% { transform: scaleY(1); } }
+/* Favorite Frenzy overlay (FavoriteFrenzySpawnOverlay_Widget, v0.05.1 —
+   see docs/parity/evidence/ticket44-favorites-blueprint-20261111.md).
+   SpawnOverlay 105000 ticks = 1.75 s, plays once: the Background layer
+   (speed-lines image) scales 1.0→1.2→1.0 over 0.5 s with opacity
+   0.25→1.0 at 0.15 s, a 0.8/1.0 oscillation every 0.15 s, then a fade to
+   0.0 at 1.75 s; the Text layer ("FAVORITE FRENZY", baked black letters)
+   scales 0.5→1.0→1.2→1.0→0.9→1.1 with opacity 0.25→1.0→0.9→1.0→0.9→1.0
+   →0.0. The speed lines are a CSS approximation of the baked texture
+   (thin dark rays radiating from the center); the bubbly arched font of
+   the baked text is not reproduced. FastPaceAnim 45281 ticks ≈ 0.7547 s:
+   the "Fast!" flash scales 0.1→1.0→0.75→1.0, rotates 0°→5°→1°→-2°→-1°,
+   fades 1.0→0.75→1.0→0.0 in the decoded pink (RGB 1.0, 0.5, 0.8). The
+   flash sits near the top of the stage so it does not cover the banner —
+   the original's TextBlock_2 canvas slot was not decoded, so the
+   placement is an adaptation. Keyframes list only the properties that
+   change at each key; the rest interpolate between their own keys. In the
+   pace keyframes the scale values at the rotation-only keys are the
+   linear interpolations of the scale curve at those times (0.9943 at
+   0.25 s, 0.9993 at 0.2514 s, 0.7531 at 0.5 s, 0.7502 at 0.5029 s). */
+#frenzy-overlay, #pace-flash { position: absolute; z-index: 3; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; text-align: center; }
+#frenzy-overlay[hidden], #pace-flash[hidden] { display: none; }
+#frenzy-overlay-background { position: absolute; inset: 0; background: repeating-conic-gradient(from 0deg at 50% 50%, rgba(0,0,0,.55) 0deg .6deg, transparent .6deg 7deg); animation: frenzy-spawn-background 1.75s linear 1 forwards; }
+#frenzy-overlay-text { position: relative; margin: 0; color: #000; font-size: clamp(28px, 6vw, 56px); font-weight: 900; line-height: 1.05; letter-spacing: .02em; animation: frenzy-spawn-text 1.75s linear 1 forwards; }
+#pace-flash { justify-content: flex-start; padding-top: 12%; }
+#pace-flash p { margin: 0; color: #ff80cc; font-size: clamp(20px, 4vw, 36px); font-weight: 900; text-shadow: 0 1px 6px #000, 0 1px 12px #000; animation: frenzy-fast-pace .7547s linear 1 forwards; }
+@keyframes frenzy-spawn-background { 0% { transform: scale(1); opacity: .25; } 8.571% { transform: scale(1.2); opacity: 1; } 17.143% { opacity: .8; } 25.714% { opacity: 1; } 28.571% { transform: scale(1); } 34.286% { opacity: .8; } 42.857% { opacity: 1; } 51.429% { opacity: .8; } 60% { opacity: 1; } 68.571% { opacity: .8; } 100% { transform: scale(1); opacity: 0; } }
+@keyframes frenzy-spawn-text { 0% { transform: scale(.5); opacity: .25; } 8.571% { transform: scale(1); opacity: 1; } 17.143% { transform: scale(1.2); } 28.571% { transform: scale(1); opacity: .9; } 48.571% { opacity: 1; } 57.143% { transform: scale(.9); } 68.571% { opacity: .9; } 88.571% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(1.1); opacity: 0; } }
+@keyframes frenzy-fast-pace { 0% { transform: scale(.1) rotate(0deg); opacity: 1; } 33.123% { transform: scale(.9943) rotate(5deg); } 33.313% { transform: scale(.9993) rotate(1deg); } 33.335% { transform: scale(1) rotate(1deg); opacity: .75; } 66.254% { transform: scale(.7531) rotate(-2deg); } 66.631% { transform: scale(.7502) rotate(-1deg); } 66.654% { transform: scale(.75) rotate(-1deg); opacity: 1; } 100% { transform: scale(1) rotate(-1deg); opacity: 0; } }
 #session-hud { position: absolute; z-index: 2; inset: 0; display: flex; flex-direction: column; justify-content: space-between; pointer-events: none; container-type: size; }
 #hud-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; padding: max(10px, var(--safe-top)) max(10px, var(--safe-right)) 0 max(10px, var(--safe-left)); }
 #gameplay-stage[data-holding-hand="left"] #hud-top { flex-direction: row-reverse; }

@@ -19,6 +19,28 @@
  //   plus the engine SoundWave Enter_Simulate on spawn (audio is not
  //   modeled — the player has no sound asset for it).
  //
+ // Favorite Frenzy overlay (FavoriteFrenzySpawnOverlay_Widget, v0.05.1 —
+ // see docs/parity/evidence/ticket44-favorites-blueprint-20261111.md).
+ // SpawnOverlay 105000 ticks = 1.75 s, plays once (NumLoopsToPlay=1); the
+ // event-trigger section fires SequenceEvent at 105000 ticks and the
+ // widget's handler removes it from the parent, so the banner lives for
+ // exactly 1.75 s. Two layers, both bound in the MovieScene:
+ // - Background (the speed-lines image): uniform scale 1.0 → 1.2 → 1.0
+ //   over 0.5 s, opacity 0.25 → 1.0 at 0.15 s, then a 0.8/1.0 oscillation
+ //   every 0.15 s, fading to 0.0 at 1.75 s. RGB constant 1.0.
+ // - Text (the "FAVORITE FRENZY" image, baked black letters decoded from
+ //   the DXT5 texture): uniform scale 0.5 → 1.0 → 1.2 → 1.0 → 0.9 → 1.1
+ //   over 1.55 s, opacity 0.25 → 1.0 → 0.9 → 1.0 → 0.9 → 1.0 → 0.0 at
+ //   1.75 s. RGB dips to 0.9 at 0.5 s and back to 1.0 — a tint dim with no
+ //   visible effect on the black letters, so it is recorded, not modeled.
+ // FastPaceAnim (UI_Manager, 45281 ticks ≈ 0.7547 s, plays once) animates
+ // the "Fast!" text block (TextBlock_2): uniform scale 0.1 → 1.0 → 0.75 →
+ // 1.0, rotation 0° → 5° → 1° → -2° → -1° (the near-duplicate keys at
+ // 0.25 s / 0.2514 s and 0.5 s / 0.5029 s are sharp jumps, kept verbatim),
+ // opacity 1.0 → 0.75 → 1.0 → 0.0, RGB constant (1.0, 0.5, 0.8) — a pink
+ // tint. The animation ends at opacity 0, so the label stays invisible
+ // until the next special event plays it again.
+ //
  // Interpolation between keys is linear. The 60 s release window is NOT
  // modeled here and NOT changed by this module: the countdown progress is
  // bound to the caller's window (objectives.js releaseDeadline), and the
@@ -28,7 +50,10 @@
  const specs={
   spawnOverlay:{durationTicks:60000,loops:0,scaleX:[[0,1],[30041,1.1],[60000,1]],scaleY:[[0,1],[30041,1.1],[60000,1]],opacity:[[0,1],[30041,0.5],[60000,1]]},
   idle:{durationTicks:60233,loops:0,scaleX:[[0,1],[30117,1],[60233,1]],scaleY:[[0,1],[30117,1.05],[60233,1]],opacity:[[0,1],[60233,1]]},
-  spawnAnim:{durationTicks:30000,loops:1,scaleX:[[0,1],[15000,1.05],[30000,1]],scaleY:[[0,1],[15000,1.05],[30000,1]],opacity:[[0,0],[30000,1]]}
+  spawnAnim:{durationTicks:30000,loops:1,scaleX:[[0,1],[15000,1.05],[30000,1]],scaleY:[[0,1],[15000,1.05],[30000,1]],opacity:[[0,0],[30000,1]]},
+  frenzyBackground:{durationTicks:105000,loops:1,scaleX:[[0,1],[9000,1.2],[30000,1]],scaleY:[[0,1],[9000,1.2],[30000,1]],opacity:[[0,0.25],[9000,1],[18000,0.8],[27000,1],[36000,0.8],[45000,1],[54000,0.8],[63000,1],[72000,0.8],[105000,0]]},
+  frenzyText:{durationTicks:105000,loops:1,scaleX:[[0,0.5],[9000,1],[18000,1.2],[30000,1],[60000,0.9],[93000,1.1]],scaleY:[[0,0.5],[9000,1],[18000,1.2],[30000,1],[60000,0.9],[93000,1.1]],opacity:[[0,0.25],[9000,1],[30000,0.9],[51000,1],[72000,0.9],[93000,1],[105000,0]]},
+  fastPace:{durationTicks:45281,loops:1,scaleX:[[0,0.1],[15094,1],[30188,0.75],[45281,1]],scaleY:[[0,0.1],[15094,1],[30188,0.75],[45281,1]],rotation:[[0,0],[15000,5],[15086,1],[30000,-2],[30171,-1]],opacity:[[0,1],[15094,0.75],[30188,1],[45281,0]]}
  };
  function durationMs(name){return specs[name].durationTicks*1000/tickRate;}
  function channelValue(keys,tick){
@@ -46,7 +71,11 @@
   let t=tick;
   if(spec.loops===0)t=((t%spec.durationTicks)+spec.durationTicks)%spec.durationTicks;
   else t=Math.min(Math.max(t,0),spec.durationTicks);
-  return {scaleX:channelValue(spec.scaleX,t),scaleY:channelValue(spec.scaleY,t),opacity:channelValue(spec.opacity,t)};
+  const result={scaleX:channelValue(spec.scaleX,t),scaleY:channelValue(spec.scaleY,t),opacity:channelValue(spec.opacity,t)};
+  // Rotation exists only on FastPaceAnim; the older specs have no rotation
+  // channel, so their sample shape stays {scaleX, scaleY, opacity}.
+  if(spec.rotation)result.rotation=channelValue(spec.rotation,t);
+  return result;
  }
  function countdownSample(tick){
   if(tick<specs.spawnAnim.durationTicks)return sample('spawnAnim',tick);
@@ -58,6 +87,23 @@
   if(!countdown)return {allowed,countdown:false,progress:null,seconds:null};
   const remaining=releaseDeadline-now;
   return {allowed,countdown:true,progress:Math.max(0,Math.min(1,remaining/windowSeconds)),seconds:Math.ceil(remaining)};
+ }
+ // Favorite Frenzy presentation state (see the header comment): the overlay
+ // and the Fast! flash both start at the frenzy draw (startedAt, session
+ // seconds) and end at their decoded durations — 1.75 s for the overlay,
+ // 45281 ticks for the flash. The CSS keyframes in play.css carry the
+ // curves; these functions only say whether each element is visible, with
+ // the layer samples returned for testing.
+ function frenzyOverlayState({startedAt,now}={}){
+  const elapsed=Number.isFinite(startedAt)&&Number.isFinite(now)?now-startedAt:NaN;
+  if(!Number.isFinite(elapsed)||elapsed<0||elapsed>=specs.frenzyText.durationTicks/tickRate)return {visible:false,background:null,text:null};
+  const tick=elapsed*tickRate;
+  return {visible:true,background:sample('frenzyBackground',tick),text:sample('frenzyText',tick)};
+ }
+ function fastPaceState({startedAt,now}={}){
+  const elapsed=Number.isFinite(startedAt)&&Number.isFinite(now)?now-startedAt:NaN;
+  if(!Number.isFinite(elapsed)||elapsed<0||elapsed>=specs.fastPace.durationTicks/tickRate)return {visible:false,sample:null};
+  return {visible:true,sample:sample('fastPace',elapsed*tickRate)};
  }
  // Map-window warnings (UMusicModeManager, v0.05.1 — see
  // docs/parity/evidence/ticket51-queue-consumer-20261111.md). The countdown
@@ -176,6 +222,6 @@
   const {windowStart,windowEnd,disableTime}=nextMapWindow(events,now);
   return {cumIn:cumInText({now,windowStart}),cumWithin:cumWithinText({now,windowStart,windowEnd}),breakDisable:breakDisableText({now,disableTime})};
  }
- const api={tickRate,specs,durationMs,sample,countdownSample,overlayState,CUM_WARNING_LEAD_SECONDS,BREAK_DISABLE_WARNING_LEAD_SECONDS,cumInWarning,cumWithinWarning,breakDisableWarning,nextMapWindow,mapWindowWarnings,displaySeconds,durationText,cumInText,cumWithinText,breakDisableText,mapWindowWarningTexts};
+ const api={tickRate,specs,durationMs,sample,countdownSample,overlayState,frenzyOverlayState,fastPaceState,CUM_WARNING_LEAD_SECONDS,BREAK_DISABLE_WARNING_LEAD_SECONDS,cumInWarning,cumWithinWarning,breakDisableWarning,nextMapWindow,mapWindowWarnings,displaySeconds,durationText,cumInText,cumWithinText,breakDisableText,mapWindowWarningTexts};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.FanserviceOverlays=api;
 })(globalThis);
