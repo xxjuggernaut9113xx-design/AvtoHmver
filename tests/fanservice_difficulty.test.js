@@ -86,3 +86,17 @@ test('Playlist cum meter values are untouched by the difficulty setter',()=>{
  economy.draw(run);
  assert.equal(run.state.meterMultiplier,1);
 });
+
+// #50 SetItemSpawnRatesBasedOnDifficulty (BP_GlobalManager, v0.05.1, 94
+// stmts): per CurrentDifficulty 0/1/2, the seven *ItemSpawnChance doubles.
+// The table is set at session start; its only consumer (RollAndGiveLootDrops
+// V1) is dead in this build — no Blueprint caller, no delegate binding, no
+// exec* PDB symbol, no exe string reference — so the live weighted loot
+// pick (Modifiers.rollLoot, V3/native Roll) is left untouched.
+test('item spawn chances match the native difficulty setter',()=>{
+ assert.deepEqual(economy.itemSpawnChances(0),{cumIncrease:20,decreaseHeat:40,edge:45,break:35,slowdown:40,bonerPill:75,succuShield:20});
+ assert.deepEqual(economy.itemSpawnChances(1),{cumIncrease:8,decreaseHeat:25,edge:15,break:15,slowdown:15,bonerPill:50,succuShield:10});
+ assert.deepEqual(economy.itemSpawnChances(2),{cumIncrease:3,decreaseHeat:10,edge:5,break:5,slowdown:10,bonerPill:35,succuShield:5});
+ assert.equal(economy.itemSpawnChances(3),null);
+ assert.equal(economy.itemSpawnChances(-1),null);
+});

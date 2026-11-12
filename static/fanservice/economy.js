@@ -32,6 +32,29 @@
  function cumMeterDifficulty(difficulty){const m=cumMeterMultipliers[difficulty];return m===undefined?null:{meterMultiplier:m,baseGain:.00025};}
  const towerCumMeterTable={0:{meterMultiplier:10,baseGain:.01},1:{meterMultiplier:10,baseGain:.01},2:{meterMultiplier:8.5,baseGain:.006667},3:{meterMultiplier:5,baseGain:.004},4:{meterMultiplier:4,baseGain:.002857},5:{meterMultiplier:3,baseGain:.002},6:{meterMultiplier:2,baseGain:.001111}};
  function towerCumMeterDifficulty(tier){return towerCumMeterTable[tier]??null;}
+ // #50 SetItemSpawnRatesBasedOnDifficulty (BP_GlobalManager, v0.05.1, 94
+ // stmts): switches on CurrentDifficulty 0/1/2 and sets the seven
+ // *ItemSpawnChance doubles (percent, 0-100), then prints them. The values
+ // are set live at session start (InitializeDifficultyVariables), so the
+ // table is implemented and tested here — but its ONLY consumer,
+ // RollAndGiveLootDrops (102 stmts), has no caller in any Blueprint, no
+ // delegate binding in the GM ubergraph, no exec* symbol in the public PDB,
+ // and its name never appears in the exe strings: it is dead in this build.
+ // The live loot path is RollAndGiveLootDropsV3 (called by
+ // Beat_Complete_Add_Lootbar_Reward) + the native RollLootDrop weighted
+ // pick, which the player's Modifiers.rollLoot already models — so rollLoot
+ // is NOT re-weighted with these chances. V1's mechanics, decoded for the
+ // record (see the ticket-50 data-tables note): per item, if Available <
+ // Max*ItemCount (caps 1/3/10/3/2/5/15 for CumIncrease/DecreaseHeat/Edge/
+ // Slowdown/Break/BonerPill/SuccuShield), an independent Roll Chance
+ // (0-100%) against the chance grants +1 — except the Slowdown roll grants
+ // Break and the Break roll grants Slowdown (native copy-paste swap), and a
+ // shield grant is [10,15,20,25,35] by SuccubusShieldsUpgradeLevel 0-4.
+ const itemSpawnChanceTable=[
+  {cumIncrease:20,decreaseHeat:40,edge:45,break:35,slowdown:40,bonerPill:75,succuShield:20},
+  {cumIncrease:8,decreaseHeat:25,edge:15,break:15,slowdown:15,bonerPill:50,succuShield:10},
+  {cumIncrease:3,decreaseHeat:10,edge:5,break:5,slowdown:10,bonerPill:35,succuShield:5}];
+ function itemSpawnChances(difficulty){return itemSpawnChanceTable[difficulty]??null;}
  function initialize(run){const s=run.state;s.economy??={seed:173203,tycoonElapsed:0,exorcistRemaining:0,coinverterStrokes:0};s.lootBar??=0;s.lootRolls??=0;
   if((run.config?.mode??0)!==1&&s.sessionMeterMultiplier===undefined){const d=run.config.mode===0?cumMeterDifficulty(run.config.difficulty??1):null;s.sessionMeterMultiplier=d?d.meterMultiplier:1;s.meterMultiplier=s.sessionMeterMultiplier;}
   return s.economy;}
@@ -177,6 +200,6 @@
  // which is why 30/31/35 looked unresolved).
  const metricIds={0:'Strokes',1:'Edges',2:'SuccubiDefeated',3:'EnemiesDefeated',4:'MaxCombo',5:'StrokeCombo',6:'MissedCumWindows',7:'TimesTaunted',8:'ItemsUsed',9:'AvgStrokesPerEdge',10:'DrawsAtMaxHeat',11:'EarlyClimax',12:'SessionDuration',13:'SessionsCompleted',14:'SessionsWon',15:'TotalXPEarned',16:'MoneySpent',17:'EdgeStreak',18:'ConsecutiveSuccubiSurvived',19:'CumWindowsHit',20:'PerfectRounds',21:'TimesLost',22:'LostToSuccubus',23:'TimeAtHighHeat',24:'PercentAtHighHeat',25:'GamesWithSexToy',26:'PerfectEdges',27:'BonerPillsUsed',28:'AcceptedTemptation',29:'CameDuringTaunt',30:'DefensiveItemsUsed',31:'OffensiveItemsUsed',32:'DeclinedTemptation',33:'BountiesCollected',34:'LootRushesUsed',35:'EscapeRopesUsed',36:'MilkingCount',37:'SuccuSlayerSessionsWon',38:'EdgeSessionsWon',39:'ComboCrunchersUsed',40:'SuccuCoinsSpent',41:'SessionsWonAtMaxDifficulty',42:'BestMusicModeWinRounds',43:'BestTowerWinRounds',44:'MusicBreaksUsed',45:'DisabledBreakSectionFailures',46:'BountyCollectionFailures'};
  const shopIds=[0,1,2,3,4,5,6,7,9,10,11,12,13,16,17,18,19,20,21];
- const api={catalog,shopIds,initialize,has,fraction,heatCap,addHeat,addSuccuCoins,purchase,addBeatCoins,loot,beat,draw,succubusDefeated,itemUsed,recycler,advance,sourceLedger,metricIds,sessionMetricModes,applySessionMetric,cumMeterDifficulty,towerCumMeterDifficulty,recordComboCruncherUsed,recordMusicBreakUsed,recordBountyCollectionFailure,recordDisabledBreakSectionFailure,recordTowerWinRounds,recordMusicModeWinRounds};
+ const api={catalog,shopIds,initialize,has,fraction,heatCap,addHeat,addSuccuCoins,purchase,addBeatCoins,loot,beat,draw,succubusDefeated,itemUsed,recycler,advance,sourceLedger,metricIds,sessionMetricModes,applySessionMetric,cumMeterDifficulty,towerCumMeterDifficulty,itemSpawnChances,recordComboCruncherUsed,recordMusicBreakUsed,recordBountyCollectionFailure,recordDisabledBreakSectionFailure,recordTowerWinRounds,recordMusicModeWinRounds};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.FanserviceEconomy=api;
 })(globalThis);
