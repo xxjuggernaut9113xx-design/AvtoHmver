@@ -17,7 +17,24 @@
   [21,'Flame Harness','Succubus strokes reduce heat by 0.25.',12]
  ].map(([id,title,description,cost])=>({id,title,description,cost}));
  function has(run,id){return run.ownedModifiers.includes(id);}
- function initialize(run){const s=run.state;s.economy??={seed:173203,tycoonElapsed:0,exorcistRemaining:0,coinverterStrokes:0};s.lootBar??=0;s.lootRolls??=0;return s.economy;}
+ // #50 SetCumMeterDifficultyModifier (BP_GlobalManager, v0.05.1, 72 stmts):
+ // Classic (GameModeSelection 0) switches on CurrentDifficulty 0/1/2 and
+ // sets CumMeterMultiplier to 8.0 / 1.0 / 0.5, then prints the values.
+ // BaseCumGain is NEVER set in that branch, so it keeps the CDO default
+ // 0.00025 (blueprint-class-defaults.json line 7974). Tower (mode 1)
+ // switches on the selected option's DifficultyTier 0-6 and sets BOTH
+ // values (see towerCumMeterDifficulty); Playlist (mode 2) returns without
+ // touching either. The setter runs once per GM lifetime at BeginPlay
+ // (InitializeDifficultyVariables), so the player stores the session value
+ // in state.sessionMeterMultiplier and draw() restores it instead of 1.
+ // Out-of-range inputs return null: native default case changes nothing.
+ const cumMeterMultipliers=[8,1,0.5];
+ function cumMeterDifficulty(difficulty){const m=cumMeterMultipliers[difficulty];return m===undefined?null:{meterMultiplier:m,baseGain:.00025};}
+ const towerCumMeterTable={0:{meterMultiplier:10,baseGain:.01},1:{meterMultiplier:10,baseGain:.01},2:{meterMultiplier:8.5,baseGain:.006667},3:{meterMultiplier:5,baseGain:.004},4:{meterMultiplier:4,baseGain:.002857},5:{meterMultiplier:3,baseGain:.002},6:{meterMultiplier:2,baseGain:.001111}};
+ function towerCumMeterDifficulty(tier){return towerCumMeterTable[tier]??null;}
+ function initialize(run){const s=run.state;s.economy??={seed:173203,tycoonElapsed:0,exorcistRemaining:0,coinverterStrokes:0};s.lootBar??=0;s.lootRolls??=0;
+  if((run.config?.mode??0)!==1&&s.sessionMeterMultiplier===undefined){const d=run.config.mode===0?cumMeterDifficulty(run.config.difficulty??1):null;s.sessionMeterMultiplier=d?d.meterMultiplier:1;s.meterMultiplier=s.sessionMeterMultiplier;}
+  return s.economy;}
  function fraction(run){const e=initialize(run);e.seed=(Math.imul(e.seed,196314165)+907633515)|0;return (e.seed>>>9)/8388608;}
  function heatCap(run){return has(run,0)?75:100;}
  function addHeat(run,amount){const s=run.state;s.heat=clamp(s.heat+amount*(has(run,2)?.5:1)*[.75,1,2][run.config.difficulty??1],0,100);s.heat=Math.min(s.heat,heatCap(run));}
@@ -56,7 +73,7 @@
   return events;
  }
  function draw(run){
-  const s=run.state;initialize(run);s.coinMultiplier=1;s.meterMultiplier=1;s.canUseSlowdown=true;s.canUseBonerPill=true;
+  const s=run.state;initialize(run);s.coinMultiplier=1;s.meterMultiplier=s.sessionMeterMultiplier??1;s.canUseSlowdown=true;s.canUseBonerPill=true;
   s.canUseItems=!s.modifiers.includes('Raw Dog');s.totalDraws=add(s.totalDraws,1);
   if(s.heat>=100){s.highDraws=add(s.highDraws,1);s.DrawsAtMaxHeat=add(s.DrawsAtMaxHeat,1);}else s.highDraws=0;
   s.heatCategory=s.heat>=0&&s.heat<=30?2:s.heat<=70?1:s.heat<=100?0:s.heatCategory??1;
@@ -160,6 +177,6 @@
  // which is why 30/31/35 looked unresolved).
  const metricIds={0:'Strokes',1:'Edges',2:'SuccubiDefeated',3:'EnemiesDefeated',4:'MaxCombo',5:'StrokeCombo',6:'MissedCumWindows',7:'TimesTaunted',8:'ItemsUsed',9:'AvgStrokesPerEdge',10:'DrawsAtMaxHeat',11:'EarlyClimax',12:'SessionDuration',13:'SessionsCompleted',14:'SessionsWon',15:'TotalXPEarned',16:'MoneySpent',17:'EdgeStreak',18:'ConsecutiveSuccubiSurvived',19:'CumWindowsHit',20:'PerfectRounds',21:'TimesLost',22:'LostToSuccubus',23:'TimeAtHighHeat',24:'PercentAtHighHeat',25:'GamesWithSexToy',26:'PerfectEdges',27:'BonerPillsUsed',28:'AcceptedTemptation',29:'CameDuringTaunt',30:'DefensiveItemsUsed',31:'OffensiveItemsUsed',32:'DeclinedTemptation',33:'BountiesCollected',34:'LootRushesUsed',35:'EscapeRopesUsed',36:'MilkingCount',37:'SuccuSlayerSessionsWon',38:'EdgeSessionsWon',39:'ComboCrunchersUsed',40:'SuccuCoinsSpent',41:'SessionsWonAtMaxDifficulty',42:'BestMusicModeWinRounds',43:'BestTowerWinRounds',44:'MusicBreaksUsed',45:'DisabledBreakSectionFailures',46:'BountyCollectionFailures'};
  const shopIds=[0,1,2,3,4,5,6,7,9,10,11,12,13,16,17,18,19,20,21];
- const api={catalog,shopIds,initialize,has,fraction,heatCap,addHeat,addSuccuCoins,purchase,addBeatCoins,loot,beat,draw,succubusDefeated,itemUsed,recycler,advance,sourceLedger,metricIds,sessionMetricModes,applySessionMetric,recordComboCruncherUsed,recordMusicBreakUsed,recordBountyCollectionFailure,recordDisabledBreakSectionFailure,recordTowerWinRounds,recordMusicModeWinRounds};
+ const api={catalog,shopIds,initialize,has,fraction,heatCap,addHeat,addSuccuCoins,purchase,addBeatCoins,loot,beat,draw,succubusDefeated,itemUsed,recycler,advance,sourceLedger,metricIds,sessionMetricModes,applySessionMetric,cumMeterDifficulty,towerCumMeterDifficulty,recordComboCruncherUsed,recordMusicBreakUsed,recordBountyCollectionFailure,recordDisabledBreakSectionFailure,recordTowerWinRounds,recordMusicModeWinRounds};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.FanserviceEconomy=api;
 })(globalThis);

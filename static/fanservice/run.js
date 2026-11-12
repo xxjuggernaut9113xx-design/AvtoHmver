@@ -28,7 +28,14 @@
   context(){return {mode:this.config.mode,phase:this.tower&&!this.tower.endless&&this.tower.round>=this.tower.rounds?'bossRound':this.phase,state:this.roundObjective,playing:this.phase==='playing',cardType:this.state.card,modifiers:this.state.modifiers};}
   select(index){
    if(!this.tower||this.phase!=='selection')throw Error('No Tower draft is active.');
+   const first=this.tower.round===0;
    const selected=this.tower.select(index);
+   // #50 SetCumMeterDifficultyModifier, Tower branch: the native setter
+   // runs once per GM lifetime at BeginPlay, reading the then-current
+   // SelectedOption's DifficultyTier. The player has no option selected at
+   // construction, so the first select() (round 0 -> 1) is that moment;
+   // later rounds never re-apply it (no per-round caller exists).
+   if(first){const table=Economy.towerCumMeterDifficulty(selected.tier);if(table){this.state.meterMultiplier=table.meterMultiplier;this.state.baseGain=table.baseGain;this.state.sessionMeterMultiplier=table.meterMultiplier;}}
    this.roundStart=copy(this.state);this.roundObjective={active:true,objective:selected.objective,target:selected.parameter,...Objectives.baselines(this.player,this.objectiveStats())};
    this.state.meter=0;this.state.modifiers=[...selected.modifiers];this.player.hasCame=false;this.player.isAllowedToCum=[6,7].includes(selected.objective);this.objective.releaseDeadline=null;this.phase='playing';return selected;
   }

@@ -37,3 +37,52 @@ test('Easy draws use the native stroke count/speed multipliers',()=>{
 test('beat coins do not scale with session difficulty (CoinEarn has no native consumer)',()=>{
  for(const difficulty of [0,1,2]){const run=session({difficulty});run.beat();assert.equal(run.state.coins,1,`difficulty ${difficulty}`);}
 });
+
+// #50 SetCumMeterDifficultyModifier (BP_GlobalManager, v0.05.1, 72 stmts):
+// Classic branch switches on CurrentDifficulty 0/1/2 -> CumMeterMultiplier
+// 8.0 / 1.0 / 0.5 and never touches BaseCumGain (stays the CDO 0.00025).
+// Tower branch switches on the selected option's DifficultyTier 0-6 and
+// sets both values; Playlist returns without touching either.
+test('Classic cum meter multiplier is set per difficulty and survives draws',()=>{
+ for(const [difficulty,multiplier] of [[0,8],[1,1],[2,0.5]]){
+  const run=session({difficulty});
+  assert.equal(run.state.meterMultiplier,multiplier,`difficulty ${difficulty}`);
+  assert.equal(run.state.sessionMeterMultiplier,multiplier,`difficulty ${difficulty}`);
+  assert.equal(run.state.baseGain,0.00025,`difficulty ${difficulty}`);
+  economy.draw(run);
+  assert.equal(run.state.meterMultiplier,multiplier,`difficulty ${difficulty} after draw`);
+  // One beat from an empty meter gains baseGain * multiplier, nothing else.
+  run.beat();
+  assert(Math.abs(run.state.meter-0.00025*multiplier)<1e-12,`difficulty ${difficulty} meter`);
+ }
+ assert.deepEqual([economy.cumMeterDifficulty(0),economy.cumMeterDifficulty(1),economy.cumMeterDifficulty(2)],[
+  {meterMultiplier:8,baseGain:0.00025},{meterMultiplier:1,baseGain:0.00025},{meterMultiplier:0.5,baseGain:0.00025}]);
+ assert.equal(economy.cumMeterDifficulty(3),null);
+ assert.equal(economy.cumMeterDifficulty(-1),null);
+});
+test('Tower cum meter values come from the first selected option tier, once',()=>{
+ const tiers={0:{meterMultiplier:10,baseGain:0.01},1:{meterMultiplier:10,baseGain:0.01},2:{meterMultiplier:8.5,baseGain:0.006667},3:{meterMultiplier:5,baseGain:0.004},4:{meterMultiplier:4,baseGain:0.002857},5:{meterMultiplier:3,baseGain:0.002},6:{meterMultiplier:2,baseGain:0.001111}};
+ for(const tier of [0,1,2,3,4,5,6])assert.deepEqual(economy.towerCumMeterDifficulty(tier),tiers[tier],`tier ${tier}`);
+ assert.equal(economy.towerCumMeterDifficulty(7),null);
+ assert.equal(economy.towerCumMeterDifficulty(-1),null);
+ const run=new Run(modes,{mode:1,rounds:3,seed:137});
+ assert.equal(run.state.meterMultiplier,1);
+ assert.equal(run.state.baseGain,0.00025);
+ const selected=run.select(0),first=tiers[selected.tier];
+ assert.equal(run.state.meterMultiplier,first.meterMultiplier,`tier ${selected.tier}`);
+ assert.equal(run.state.baseGain,first.baseGain,`tier ${selected.tier}`);
+ assert.equal(run.state.sessionMeterMultiplier,first.meterMultiplier);
+ economy.draw(run);
+ assert.equal(run.state.meterMultiplier,first.meterMultiplier,'after draw');
+ // A second round's option must not re-apply the setter.
+ run.completeRound(true);run.continue();run.select(0);
+ assert.equal(run.state.meterMultiplier,first.meterMultiplier,'second round');
+ assert.equal(run.state.baseGain,first.baseGain,'second round');
+});
+test('Playlist cum meter values are untouched by the difficulty setter',()=>{
+ const run=session({mode:2});
+ assert.equal(run.state.meterMultiplier,1);
+ assert.equal(run.state.baseGain,0.00025);
+ economy.draw(run);
+ assert.equal(run.state.meterMultiplier,1);
+});
