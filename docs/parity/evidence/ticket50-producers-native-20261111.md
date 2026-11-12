@@ -66,14 +66,17 @@ unchanged (§3).
    metrics 39, 42, 43, 44, 45, 46 share case `0x148318c43`;
    metrics 40 (SuccuCoinsSpent) and 41 (SessionsWonAtMaxDifficulty)
    jump straight to the post-switch code (no special handling). The
-   shared case calls an unidentified helper at `0x1482f4540` with
-   `(sessionStats=this+0x230, level=this+0x98, metric, &bool)` — no
-   public symbol exists at that address (nearest public symbol is
+   shared case calls the `0x1482f4540` getter — `GetSessionMetricValue`
+   (decoded 2026-11-12, see §7 item 2) — with
+   `(sessionStats=this+0x230, strokeComboLive=this+0x98, metric, &bool)`
+   — no public symbol exists at that address (nearest public symbol is
    `URoundManager::GetPurchaseCostForLevel` at `0x1482f4420`; the
    helper is a static/local function). Its bool result feeds a log
    line (metric name via `StaticEnum<EMetricType>() 0x1481e2a90` +
-   value, `BasicLog 0x140f252a0`). Its exact name and return meaning
-   are **not** established; it is called only for metrics 39/42–46.
+   value, `BasicLog 0x140f252a0`). The bool is the getter's success:
+   false for 9/15/20/21 and out-of-range metrics (none of which occur
+   for 39/42–46, so the log line always fires for these producers). It
+   is called only for metrics 39/42–46.
 3. **Challenge progress.** `TMultiMap<EMetricType, FName>::MultiFind`
    (`0x1482cce40`) on the multimap at `this+0x1e0` gives every challenge
    `FName` keyed by this metric. For each: `UDataTable::FindRow<FChallengeData>`
@@ -85,8 +88,8 @@ unchanged (§3).
    delegate at `this+0x28`.
 
 So a producer record fans out to (a) the session stat, (b) the
-39/42–46 special case (log + unidentified helper), and (c) every
-challenge tracking that metric.
+39/42–46 special case (log + the `0x1482f4540` getter, §7 item 2), and
+(c) every challenge tracking that metric.
 
 ## 3. `RecordSessionMetric` — how each value is applied
 
@@ -147,16 +150,21 @@ not the enum's. The struct is 0xc0 / 192 bytes per
 
 | function | address | semantics established |
 |---|---|---|
-| `ResetSessionMetric` | `0x14830a2a0` (496 bytes) | Reads the metric's current session value via the unidentified static helper `0x148311f70` (not in the public PDB); if the metric has no value, logs a warning (metric name) and returns. Otherwise calls `RefreshIncompleteSessionChallengeMetric` with the current value, logs (verbosity >= 6), and broadcasts the challenge-progress-update delegate (`this+0x28`). The actual zeroing of the session field is done by the helper/caller path, not by an explicit store visible in this body — do not describe it as "sets the field to 0" without the helper's name. |
-| `SubtractSessionMetric` | `0x148315720` (864 bytes) | Clamps the amount to >= 0 (`cmovs`); amount <= 0 logs a warning and returns. Calls the `0x1482f4540` helper with the session stats, `this+0x98`, and the metric; if it returns false, logs a warning and returns. Otherwise applies the delta `-amount` through `0x148311f70` (same helper as Reset) and logs. |
+| `ResetSessionMetric` | `0x14830a2a0` (496 bytes) | **SETTLED 2026-11-12 (decoded, see §7 item 3).** Calls the `0x148311f70` setter with `(&liveCombo, &liveEdgeStreak, &liveConsec, metric, value=0, &out)`; if the setter returns false, logs a warning (metric name via `StaticEnum<EMetricType>` + `BasicLog` `0x140f252a0`) and returns. Otherwise calls `RefreshIncompleteSessionChallengeMetric` with the **NEW zeroed value** (`*out` = 0 — this corrects the earlier "with the current value" reading), logs (verbosity >= 6), and broadcasts the challenge-progress-update delegate (`this+0x28`). The zeroing IS done by the setter (explicit store of the clamped value into the stats field and `*out`). |
+| `SubtractSessionMetric` | `0x148315720` (864 bytes) | **SETTLED 2026-11-12 (decoded, see §7 items 2–3).** Clamps the amount to >= 0 (`cmovs`); amount <= 0 logs a warning and returns. Calls the `0x1482f4540` getter with the session stats, `this+0x98`, and the metric; if it returns false, logs a warning and returns. Otherwise computes `newValue = current - amount` and calls the `0x148311f70` setter with that **absolute new value** (the setter clamps it at >= 0 — this corrects the earlier "applies the delta `-amount`" reading); if the setter returns false, logs a warning and returns. Then calls `RefreshIncompleteSessionChallengeMetric` with `*out` (the new value), logs (metric name + old + amount + new), and broadcasts the delegate (`this+0x28`). |
 | `RefreshIncompleteSessionChallengeMetric` | `0x148307760` (720 bytes) | `MultiFind` on the `this+0x1e0` multimap for the metric's challenge names; for each, `GetChallengeDataPtr` (`0x1482e71e0`); skips challenges whose `+0x68` byte is set (complete); otherwise updates the in-progress session challenge value for that challenge in the maps at `this+0xf0`/`+0x128`. (Body partially read — the exact progress-write arithmetic was not decoded line by line.) |
 | `CombineSessionStatsArray` | `0x1482da9c0` (472 lines) | `FSessionStats CombineSessionStatsArray(const TArray<FSessionStats>&, int)`. Zeroes a 192-byte output struct, then field-wise **adds** the additive metrics across every input struct (element stride 0xc0). The max/best fields are handled separately in the remainder of the function (not fully read). The int parameter's role was not established from the partial read — do not guess it. |
 | `GetLevelDataForLevel` | `0x1482f1610` | `const FLevelData* GetLevelDataForLevel(int Level) const`. Reads the Level Data Table pointer at `this+0x68`; returns null if null; otherwise iterates the table's rows and returns the row matching the level number. The row contents (the tier parameters) live in `DT_LevelData` (§6). |
 
 `UProgressionManager` member offsets used above: `+0x28` challenge-progress
 delegate, `+0x60` Challenge Data Table (`UDataTable*`), `+0x68` Level
-Data Table (`UDataTable*`), `+0x98` int (passed to the `0x1482f4540`
-helper — plausibly the current level), `+0x1e0`
+Data Table (`UDataTable*`), `+0x94` live ConsecutiveSuccubiSurvived,
+`+0x98` live StrokeCombo counter (established via `GetStatValueText`
+`0x1482f7cb0`, which reads `[rbx+0x98]` for metric 5's session path and
+passes it as the live combo — this corrects the earlier "plausibly the
+current level" reading), `+0x9c` live EdgeStreak (confirmed by
+Reset/Subtract passing `lea this+0x94 → r9`, `lea this+0x98 → rdx`,
+`lea this+0x9c → r8`), `+0x1e0`
 `TMultiMap<EMetricType, FName>` (metric → challenge names), `+0x230`
 `FSessionStats` (session metric fields).
 
@@ -171,6 +179,10 @@ helper — plausibly the current level), `+0x1e0`
   Baseline/Boss/Easy/Hard/Insane/Medium package names and the
   4-value difficulty references) is **not resolved by disassembly**.
   The `DifficultyTiers_DT` rows are the authority.
+  — SUPERSEDED 2026-11-11 by the data-tables note §6: the two scales are
+  independent axes (session difficulty is the Blueprint
+  `DifficultySelections_ENUM` 0/1/2; the 4-tier values belong to the
+  Tower/objective axis), so there is no mapping to resolve.
 - No native game-mode enum was found by name (survey: 412
   `GameInstance` symbol hits, all engine `UGameInstance` — no
   game-mode enum constructor surfaced). The mode distinction the
@@ -198,17 +210,57 @@ accessor reads each.
 
 ## 7. Still missing (exact)
 
-1. **Difficulty-tier mapping.** Needs the `DifficultyTiers_DT` row
-   contents (tier count, names, and the parameters per tier) — see §5.
-   Until those rows are read, do not map native Insane=3 to player
-   Insane=2 by assumption.
-2. **`0x1482f4540` helper.** Unnamed in the public PDB; called by
-   `UpdateMetricWithConditions` (metrics 39/42–46) and by
-   `SubtractSessionMetric`, with `(sessionStats, this+0x98, metric,
-   &bool)`. Its name and the meaning of its bool are not established.
-3. **`0x148311f70` helper.** Unnamed in the public PDB; shared by
-   `ResetSessionMetric` and `SubtractSessionMetric`. Its exact
-   signature and the zeroing step of Reset are not established.
+1. **Difficulty-tier mapping — SETTLED in the data-tables note §6
+   (2026-11-11).** There is no session-difficulty → native-tier mapping:
+   session difficulty is the 3-value Blueprint enum
+   `DifficultySelections_ENUM` (Easy/Normal/Insane 0/1/2), an independent
+   axis from the Tower/objective tiers. The "not resolved by
+   disassembly" reading in §5 is superseded — the settlement came from
+   the Blueprint side, not from the `DifficultyTiers_DT` rows.
+2. **`0x1482f4540` helper — SETTLED 2026-11-12 (decoded from the
+   v0.05.1 exe; jump table at `0x1482f4714`, 47 entries, bounds
+   `0x1482f4540`–`0x1482f47e0`).**
+   `bool GetSessionMetricValue(const FSessionStats* stats /*rcx*/, int32
+   strokeComboLive /*edx*/, EMetricType metric /*r8b*/, int32* out
+   /*r9*/)`. Returns false for metrics 9 (AvgStrokesPerEdge), 15
+   (TotalXPEarned), 20 (PerfectRounds), 21 (TimesLost) and for metric >
+   46. Metric 5 (StrokeCombo) → `*out = edx` (the live value), returns
+   true. All other metrics → `*out = stats->field`, returns true. All 47
+   table entries verified against the §3 field table (e.g. 0→+0x00,
+   12→+0x34, 13→+0x30, 16→+0x64, 17→+0x50, 18→+0x54, 40→+0x68,
+   41→+0xa8, 42→+0xac, 43→+0xb0, 44→+0xb4, 45→+0xb8, 46→+0xbc).
+   Callers: `UpdateMetricWithConditions` (`0x148318be0`, RVA
+   `0x8318c5d`), `SubtractSessionMetric` (RVA `0x8315808`), and
+   `UProgressionManager::GetStatValueText` (`0x1482f7cb0`, RVAs
+   `0x82f7e0a` and `0x82f7f4d` — a NEW caller, not in the earlier survey).
+   `GetStatValueText(EMetricType, bool bLifetime)` (944 bytes) reads the
+   session stats at `this+0x230` or lifetime stats at `this+0x2f0`
+   (`+0xc0`) when `bLifetime`; the session path passes `edx =
+   [this+0x98]`, the lifetime path passes `edx = 0` — which is what
+   proves `+0x98` is the live StrokeCombo counter. Player:
+   `economy.js getSessionMetricValue` (commit `edab506`, tested in
+   `tests/fanservice_producers.test.js`).
+3. **`0x148311f70` helper — SETTLED 2026-11-12 (decoded from the
+   v0.05.1 exe; jump table at `0x14831232c`, 47 entries, bounds
+   `0x148311f70`–`0x1483123f0`).**
+   `bool SetSessionMetricValue(FSessionStats* stats /*rcx*/, int32*
+   strokeComboLive /*rdx*/, int32* edgeStreakLive /*r8*/, int32*
+   consecSuccubiLive /*r9*/, EMetricType metric /*stack5*/, int32 value
+   /*stack6, clamped to >= 0 via cmovs*/, int32* out /*stack7*/)`.
+   Returns false for metrics 9/15/20/21 and metric > 46. Every case
+   sets the stats field to the (clamped) value AND `*out = value`,
+   returns true. Extra writes: metric 5 → `*rdx = value` (no stats
+   field); metric 17 (EdgeStreak, +0x50) → also `*r8 = value`; metric
+   18 (ConsecutiveSuccubiSurvived, +0x54) → also `*r9 = value`; metric
+   14 (SessionsWon, +0x30) → also bool `stats+0x2c = (value > 0)`;
+   metric 22 (LostToSuccubus, +0x38) → also bool `stats+0x2d =
+   (value > 0)`. Callers: ONLY `ResetSessionMetric` (RVA `0x830a2ec`)
+   and `SubtractSessionMetric` (RVA `0x83158e2`) — there is no combine
+   path through this helper. Player: `economy.js setSessionMetricValue`
+   / `resetSessionMetric` / `subtractSessionMetric` (commit `edab506`,
+   tested); the Refresh + broadcast steps ride the existing settlement
+   path (`settleSession` → `updateChallenges`), as for the six
+   producers.
 4. **`RefreshIncompleteSessionChallengeMetric` write arithmetic.**
    The loop structure and the skip-if-complete check (`+0x68` byte)
    are established; the exact progress-write arithmetic in the tail
@@ -248,24 +300,26 @@ test-first, in this order:
    - music-mode run won with R rounds → 42, max(R), only if R > 0.
    Each producer record also fans out to challenge progress (§2 phase
    3): look up challenges by metric id and update the ones whose
-   conditions pass. Do not add the §2 phase-2 special case (the
-   `0x1482f4540` helper) until §7 item 2 is identified.
-3. **Reset / subtract — mirror §4.** `resetSessionMetric(metric)`:
-   read the current value, refresh incomplete session challenges with
-   it, broadcast the progress update. `subtractSessionMetric(metric,
-   amount)`: clamp amount >= 0, return early (with the warning) if
-   amount is 0 or the helper refuses, otherwise apply `-amount`.
-   Both need the `0x148311f70` helper's semantics before the zeroing /
-   delta step can be implemented faithfully — record that gap in the
-   code, don't guess it.
+   conditions pass. The §2 phase-2 special case (the `0x1482f4540`
+   getter, §7 item 2) is implemented as `getSessionMetricValue`
+   (commit `edab506`); its bool is the getter's success, which is true
+   for every producer metric (39/42–46).
+3. **Reset / subtract — mirror §4 (SETTLED 2026-11-12, commit
+   `edab506`).** `resetSessionMetric(metric)` calls the §7-item-3 setter
+   with value 0 (false for 9/15/20/21 and out-of-range); the setter
+   zeroes the field and the live counterparts. `subtractSessionMetric
+   (metric, amount)`: clamp amount >= 0, return `{ok:false}` if amount
+   is 0 or the getter refuses, otherwise set the metric to
+   `max(current - amount, 0)` via the setter. Both ride the settlement
+   path for the Refresh + broadcast steps. No combine helper exists —
+   the setter's only callers are Reset and Subtract.
 4. **Combine — mirror §4.** `combineSessionStatsArray(statsArray)`:
    field-wise sum of the additive metrics; max-merge for the five max
    metrics (4/17/18/42/43); set-copy for 24. Leave the int parameter's
    role open until §7 item 5 is read.
-5. **Difficulty tiers — blocked on §7 item 1.** Do not change the
-   player's 3-tier scale until the `DifficultyTiers_DT` rows are read.
-   When they land, the mapping (and any 4th tier the player must add)
-   follows from the rows, not from this note.
+5. **Difficulty tiers — settled in the data-tables note §6.** There is
+   no session-difficulty → native-tier mapping; the player's 3-tier
+   scale is the Blueprint `DifficultySelections_ENUM`, unchanged.
 
 ### Acceptance criteria (#50, producers part)
 
@@ -273,11 +327,12 @@ test-first, in this order:
   §1, and the session stat is applied by the §3 mode (add / max / set /
   no-op) — verifiable by unit tests over the metric table.
 - Challenge progress fans out by metric id through the challenge table
-  (§2 phase 3); the phase-2 helper and the reset/subtract zeroing step
-  remain explicitly open (§7 items 2–3) and are not guessed.
-- The difficulty-tier mapping is decided by the `DifficultyTiers_DT`
-  rows, not by this note; until they are read, the player's 3-tier
-  scale is unchanged.
+  (§2 phase 3); the phase-2 helpers (§7 items 2–3) are decoded and
+  implemented as `getSessionMetricValue` / `setSessionMetricValue` /
+  `resetSessionMetric` / `subtractSessionMetric`, with the Refresh +
+  broadcast steps riding settlement.
+- The difficulty-tier mapping is decided by the data-tables note §6, not
+  by this note; the player's 3-tier scale is unchanged.
 
 ## 9. Disassembly artifacts
 

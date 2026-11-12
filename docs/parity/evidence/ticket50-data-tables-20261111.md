@@ -244,21 +244,80 @@ the two scales are independent axes. No mapping change in the player.**
   only from its Blueprint `exec` wrapper). No session-mode consumer.
 
 Still open (recorded, not guessed):
-- `SetCumMeterDifficultyModifier` (72 stmts): sets `BaseCumGain` per
-  difficulty but has a second multi-way switch inside; the six
-  `BaseCumGain` values seen (0.006667, 0.01, 0.004, 0.002857, 0.002,
-  0.001111) are not yet attributed to cases. Needs a per-case block walk.
-- `SetItemSpawnRatesBasedOnDifficulty` (94 stmts): per-case item spawn
-  chances not yet extracted.
-- `SetEdgingPaceModifier`: body not yet decoded.
-- `SetUserStrokeMultiplier`: a 5-case switch (values 1.0/2.0/3.0/4.0/8.0
-  into `UserStrokeCountMultiplier`) — not a difficulty switch; its
-  switched variable is not established here.
 - `DifficultySelectScreen_Widget` bytecode: Zen-only, not legacy-converted,
   so the button → enum-value assignment is inferred from the button /
   function / enum names, not parsed.
-- Producers-note §7 items 2–3 (`0x1482f4540` helper, `0x148311f70`
-  helper / reset zeroing) remain open as before.
+- Producers-note §7 items 4–5 (`RefreshIncompleteSessionChallengeMetric`
+  write arithmetic, `CombineSessionStatsArray` int parameter) remain open
+  as before.
+
+Settled 2026-11-12 (commits `b20890d`, `96ae5e3`, `3539be3`, `edab506`;
+tests in `tests/fanservice_difficulty.test.js` and
+`tests/fanservice_producers.test.js`; suite 387 pass):
+- `SetCumMeterDifficultyModifier` (72 stmts, per-case block walk with
+  exact `EX_Jump`/`EX_JumpIfNot` CodeOffsets resolved via the re-parsed
+  legacy `BP_GlobalManager.uasset` script): the outer switch is on
+  `GameModeSelection` (0=Classic, 1=Tower, 2=Playlist), NOT on difficulty.
+  Classic switches on `CurrentDifficulty` 0/1/2 → `CumMeterMultiplier`
+  8.0 / 1.0 / 0.5 and NEVER sets `BaseCumGain` (stays the CDO 0.00025).
+  Tower switches on the selected option's `DifficultyTier` 0–6 →
+  (`CumMeterMultiplier`, `BaseCumGain`): 0/1 → (10.0, 0.01), 2 → (8.5,
+  0.006667), 3 → (5.0, 0.004), 4 → (4.0, 0.002857), 5 → (3.0, 0.002),
+  6 → (2.0, 0.001111); out-of-range tier changes nothing. Playlist
+  returns without touching either value. Player: `economy.js`
+  `cumMeterDifficulty` / `towerCumMeterDifficulty`, Classic applied at
+  session start (`Economy.initialize`), Tower applied once on the first
+  Tower `select()` (native runs the setter once per GM lifetime at
+  BeginPlay reading the then-current `SelectedOption`; no per-round
+  caller exists), stored in `state.sessionMeterMultiplier` so `draw()`
+  restores it instead of 1 (native has no per-draw reset; the old
+  `draw()` reset clobbered a difficulty value every draw). Money Bandz ×
+  tier-gain interaction is NOT established (native handling of the
+  halving against a tier `BaseCumGain` was not decoded); the player's
+  `beat()`/`meter()` Money Bandz behavior is unchanged.
+- `SetItemSpawnRatesBasedOnDifficulty` (94 stmts): per `CurrentDifficulty`
+  0/1/2 → (CumIncrease, DecreaseHeat, Edge, Break, Slowdown, BonerPill,
+  SuccuShield): Easy (20, 40, 45, 35, 40, 75, 20), Normal (8, 25, 15, 15,
+  15, 50, 10), Insane (3, 10, 5, 5, 10, 35, 5). Player:
+  `economy.itemSpawnChances(difficulty)` (tested). Its ONLY consumer,
+  `RollAndGiveLootDrops` (102 stmts), is dead in this build — no Blueprint
+  caller, no delegate binding in the GM ubergraph, no `exec*` symbol in
+  the public PDB, name absent from the exe strings — so the player's
+  `Modifiers.rollLoot` (live V3/native-Roll weighted pick) is NOT
+  re-weighted. V1's mechanics, decoded for the record: per item, if
+  `Available < Max*ItemCount` (CDO caps 1/3/10/3/2/5/15 for
+  CumIncrease/DecreaseHeat/Edge/Slowdown/Break/BonerPill/SuccuShield), an
+  independent Roll Chance (0-100%) grants +1 — except the Slowdown roll
+  grants Break and the Break roll grants Slowdown (native copy-paste
+  swap, confirmed by exact statement offsets), and a shield grant is
+  [10,15,20,25,35] by `SuccubusShieldsUpgradeLevel` 0–4 (confirmed by
+  jump-target → statement-ip mapping). The live loot path is
+  `RollAndGiveLootDropsV3` (called by `Beat_Complete_Add_Lootbar_Reward`,
+  itself with no Blueprint caller) + native `RollLootDrop`.
+- `SetEdgingPaceModifier` (21 stmts): switches on the SAVE setting
+  `GameInstance.CurrentSave.EdgePacingMultiplierEnum` 0–4 →
+  `EdgePacingMultiplier` 1.0/2.0/3.0/4.0/8.0 (MultiplierEnum 1x/2x/3x/4x/
+  8x); out-of-range changes nothing. Corroborated by the
+  `state-rule-traces.json` traces (enums 0–5, 17.0 sentinel). Player:
+  `economy.multiplierEnumValue` + `Run` constructor mapping of
+  `edgePacingMultiplierEnum` onto `config.edgePacingMultiplier` (already
+  consumed by `cards.js:61`). The consumer ranges in `cards.js:61`
+  (stroke +.05–.08, interval −.03–.05, counts [3,50]/[3,60] in native
+  `DetermineEdgeStroke_SpeedCount`) are NOT the player's
+  (+.1–.25, −.01–.02, [15,60]) and were left untouched — they come from
+  a different native source (BP_EdgeManager), not from this setter.
+- `SetUserStrokeMultiplier` (21 stmts): switches on the SAVE setting
+  `GameInstance.CurrentSave.StrokeMultiplierEnum` 0–4 →
+  `UserStrokeCountMultiplier` 1.0/2.0/3.0/4.0/8.0 (same MultiplierEnum);
+  out-of-range changes nothing. Corroborated by the
+  `state-rule-traces.json` traces (enums 0–5 and 255). Player: same
+  `multiplierEnumValue`, mapped onto `config.userCountMultiplier`
+  (already consumed by `cards.js` `timing()`). The settings UI offers
+  both enums (`VideoSettingsMenuV2` `EdgePacingMultiplier` /
+  `StrokeCountMultiplier` combos, initialized from the save); both save
+  enums default to 0 (byte default) → 1.0.
+- Producers-note §7 items 2–3 (`0x1482f4540` / `0x148311f70` helpers)
+  settled — see that note §4/§7 and commit `edab506`.
 
 ### The earlier open assessment (superseded — kept for the record)
 
