@@ -143,6 +143,39 @@ test('ordinary CumEventOverride card is 25-50 strokes at 0.28-0.30 s from CumBea
  }
 });
 
+test('Spawn100PercentCumMeterOverrideEvent card is 75-100 strokes at 0.28-0.35 s from FastBeatPatterns with 1.5 s travel (byte 6 Cum)',()=>{
+ // Spawn100PercentCumMeterOverrideEvent (GM ubergraph entry 66033,
+ // v0.05.1): SpawnCustomCardEvent(CumCards, 75, 100, ..., byte 6, ...) —
+ // 75-100 strokes vs the override's 25-50 — plus random FastBeatPatterns,
+ // StartPatternWithMediaSync and PlaySpecialEventDialogue(4). The byte is
+ // the card-type byte (cf. byte(2) fast/taunt, byte(3) succubus/
+ // punishment): 6 is the Cum card. The player draws this card on
+ // release-window-opened (play.js draws 'cum' without override) and the
+ // 25-50 override card on later automatic draws while the window is open.
+ // Combo 250 is tier 2 (count x1.0) at difficulty 1, so the assigned
+ // strokes are the raw roll, not a multiplier-scaled one.
+ for(let seed=1;seed<40;seed++){
+  const run=session({seed});run.state.combo=250;
+  const flow=run.startCard('cum');
+  assert.equal(flow.card,6);assert.equal(flow.pool,'cum');
+  assert.equal(flow.travel,1.5);
+  assert(flow.assigned>=75&&flow.assigned<=100,`100 percent strokes ${flow.assigned}`);
+  assert(flow.interval>=.28&&flow.interval<=.35,`100 percent interval ${flow.interval}`);
+  assert(cardRules.patterns.fast.some(row=>row.length===flow.pattern.length&&row.every((v,i)=>v===flow.pattern[i]||v>=2&&flow.pattern[i]===2.5)),'100 percent pattern from fast bank');
+ }
+ // The same card is what the release window opens with: after the
+ // objective opens the window, a plain 'cum' draw is the 75-100 card and
+ // the next automatic draw is the 25-50 override card.
+ const run=session({seed:7});run.state.combo=250;run.state.meter=1;
+ const opened=run.advance(0).find(e=>e.type==='release-window-opened');
+ assert.equal(opened?.type,'release-window-opened');
+ const full=run.startCard('cum');
+ assert(full.assigned>=75&&full.assigned<=100,`window-open strokes ${full.assigned}`);
+ const next=run.startCard('cum',{override:true});
+ assert(next.assigned>=25&&next.assigned<=50,`override strokes ${next.assigned}`);
+ assert.equal(next.travel,1.75);
+});
+
 test('original DetermineCardV2 draws CumEventOverride while IsAllowedToCum or HasCame in modes 0 and 1, never in Playlist, Edge first',()=>{
  const run=session({mode:0});
  assert.equal(run.cumOverrideDue(),false);

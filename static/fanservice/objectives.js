@@ -84,7 +84,17 @@
   case 2:if(resetSetting)key='baselineStrokes';break;
   case 8:if(resetSetting)key='baselineSuccubi';break;
  }
- if(!key)return {reset:false,meter};state[key]=(state[key]+state.target)|0;return {reset:true,meter};
+ if(!key)return {reset:false,meter};state[key]=(state[key]+state.target)|0;
+ // Timer completion reads the GM clock (gmElapsed uses baselineGmSeconds),
+ // not the wall baseline: advance it in step — Set and Display Cum Window
+ // Timer, 'Timer Reset' case (GM ubergraph, v0.05.1) does
+ // Objective_TimeRequired_Seconds += Original Objective Time Required
+ // Seconds, i.e. another full target must elapse. Advancing the wall
+ // baseline alone left the objective complete, so the trigger re-fired on
+ // the next second instead of after another full target. States without a
+ // GM baseline (pre-clock saves) keep the wall baseline as their fallback.
+ if(state.objective===1&&Number.isFinite(state.baselineGmSeconds))state.baselineGmSeconds=(state.baselineGmSeconds+state.target)|0;
+ return {reset:true,meter};
  }
  class Runtime {
   constructor(settings={},player={},stats={}){this.settings=settings;this.gmSeconds=0;this.gmStopped=false;this.state=initialize(settings,player,stats);this.releaseDeadline=null;player.isAllowedToCum=[6,7].includes(this.state.objective);}

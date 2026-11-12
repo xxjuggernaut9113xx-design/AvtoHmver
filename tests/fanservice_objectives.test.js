@@ -166,6 +166,39 @@ test('release window opens only for the card types the original trigger accepts'
   assert.equal(open({p,s,r},101,{mode:0,cardType:0})[0].type,'release-window-opened','a failed gate retries on the next tick');
  }
 });
+test('GM objective clock: Timer reset advances the GM baseline so the window re-fires only after another full target',()=>{
+ // Set and Display Cum Window Timer (GM ubergraph, v0.05.1): the 'Timer
+ // Reset' case does Objective_TimeRequired_Seconds += Original Objective
+ // Time Required Seconds — the target grows by the original target while
+ // SessionLength keeps counting. The player's baseline model is the same
+ // requirement only if the reset advances baselineGmSeconds, the baseline
+ // the GM-clock completion reads; advancing the wall baseline alone leaves
+ // the objective complete and re-fires on the next second.
+ const p={sessionLength:0,hasCame:false,isAllowedToCum:false},s=stats();
+ const r=new O.Runtime({LastObjectiveIndex_Classic:1},p,s);
+ r.state.target=100;r.gmSeconds=100;
+ // Completion opens the window through the override path (Spawn100Percent
+ // + Start Cum Window Timer + flag), and the flag holds while it is open:
+ // a second completion does not re-fire (HasCumMeterOverideTriggered?).
+ assert.equal(r.tickSecond(p,s,0,100,{mode:0,cardType:0}).events[0].type,'release-window-opened');
+ assert.deepEqual(r.tickSecond(p,s,0,101,{mode:0,cardType:0}).events,[]);
+ // The 60 s window runs; expiry resets the Timer.
+ r.gmSeconds=160;
+ const expired=r.expireReleaseWindow(p,s,0,160,{mode:0});
+ assert.equal(expired.events[0].type,'objective-reset');
+ assert.equal(expired.events[0].notification,'Timer Reset');
+ assert.equal(r.state.baselineGmSeconds,100);
+ // One second past the reset target is not enough: another full target
+ // (gmSeconds 200) is required.
+ r.gmSeconds=160;assert.deepEqual(r.tickSecond(p,s,0,161,{mode:0,cardType:0}).events,[]);
+ r.gmSeconds=198;assert.deepEqual(r.tickSecond(p,s,0,199,{mode:0,cardType:0}).events,[]);
+ r.gmSeconds=199;assert.equal(r.tickSecond(p,s,0,200,{mode:0,cardType:0}).events[0].type,'release-window-opened');
+ // resetAfterMiss itself advances the GM baseline (and wraps int32 like
+ // the other baselines).
+ const state={active:true,objective:1,target:10,baselineDuration:20,baselineGmSeconds:20};
+ O.resetAfterMiss(state,true,.8);assert.equal(state.baselineGmSeconds,30);assert.equal(state.baselineDuration,30);
+ state.baselineGmSeconds=2147483647;state.target=1;O.resetAfterMiss(state,true,.8);assert.equal(state.baselineGmSeconds,-2147483648);
+});
 test('expired release windows name the reset objective the original names',()=>{
  // Set and Display Cum Window Timer (BP_GlobalManager ubergraph, v0.05.1):
  // each objective case notifies '<Objective> Reset' — 'Cum Meter Reset' (0),

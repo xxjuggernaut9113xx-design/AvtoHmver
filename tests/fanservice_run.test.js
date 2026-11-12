@@ -8,6 +8,31 @@ test('Classic objective opens the native release window and reset preserves sess
  assert.equal(run.advance(60)[0].type,'objective-reset');assert(!run.player.isAllowedToCum);
  assert.equal(run.objective.state.baselineStrokes,100);assert.equal(run.state.strokes,100);
 });
+test('GM clock: Classic Timer completion takes the override path and a missed window re-arms only after another full target',()=>{
+ // Determine And Trigger Cum Meter Override Event (GM ubergraph, v0.05.1):
+ // Timer completion enters the live trigger block from the 1 s format
+ // timer (stmts 2378-2380) and, IsCumRound?, takes Spawn100Percent +
+ // Start Cum Window Timer + the flag — never the direct session end or a
+ // round win. The expiry case ('Timer Reset') grows the target by the
+ // original target, so the next window needs another full 300 s.
+ const run=new Run(catalog,{settings:{LastObjectiveIndex_Classic:1,LastObjective_Timer:300}});
+ assert.equal(run.advance(300).filter(e=>e.type==='release-window-opened').length,1);
+ assert(run.player.isAllowedToCum);assert.equal(run.state.CumWindowsHit,1);
+ assert.equal(run.objective.releaseDeadline,360);
+ assert.equal(run.advance(60)[0].type,'objective-reset');
+ assert(!run.player.isAllowedToCum);
+ assert.equal(run.objective.state.baselineGmSeconds,300);
+ // The reset requests the next card; the trigger gate reads the current
+ // card, so model that ordinary draw (type 0) — without it the card is
+ // still the Cum card (6) the window opened with and the gate correctly
+ // holds the re-arm for the next card.
+ run.state.card=0;
+ // One second past expiry must not re-fire: the re-arm needs gmSeconds 600.
+ assert.deepEqual(run.advance(1),[]);
+ assert.equal(run.objective.gmSeconds,361);
+ assert(run.advance(239).some(e=>e.type==='release-window-opened'));
+ assert.equal(run.objective.gmSeconds,600);
+});
 test('GM clock: Devil guard holds Classic Timer progress until a Succubus card, wall clock keeps rewards time',()=>{
  // SetSessionDuration (GM ubergraph, v0.05.1): with 'Deal With The Devil'
  // active a second counts only on a Succubus card (3). The format tick's
