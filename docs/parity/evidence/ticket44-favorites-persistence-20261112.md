@@ -207,18 +207,42 @@ both contradict the native `ToggleFavorite` registry model the player's
 
 ## Open follow-ups (not this slice)
 
-- `FavoritesLikelihoodPercentage`: the save-game CDO default is 20
+- ~~`FavoritesLikelihoodPercentage`: the save-game CDO default is 20
   (`save-class-defaults.json`) while the GM CDO
   `FavoritesLikelyhoodPercent` is 10 (pinned, see the blueprint note).
   How (or whether) the saved 20 reaches the GM's roll threshold at
   startup — `InitializeFavoriteLikelihood` (UI_Manager) only READS the
   GM value — is unestablished. The player's threshold stays 10 (GM
-  CDO); do not persist the threshold in the favorites slice.
+  CDO); do not persist the threshold in the favorites slice.~~
+  SETTLED 2026-11-12 (see the blueprint note): the earlier "only
+  READS" line was wrong. `InitializeFavoriteLikelihood` (UI_Manager, 22
+  stmts, called from the UI_Manager ubergraph entry flow at stmt 2)
+  WRITES `GameInstance.CurrentSave.FavoritesLikelihoodPercentage` into
+  `GlobalManagerRef.FavoritesLikelyhoodPercent` (stmt 4) and then into
+  `GlobalManagerRef.MediaPlaybackManager.FavoritePercentage` (stmt 5)
+  at UI init — before any draw — and the FavoritesFrequencySlider
+  change handler keeps all three in sync (UI_Manager ubergraph stmts
+  669/675/679, each writing `FTrunc(sliderValue * 100)` to the save
+  value, the GM value, and the controller value). The effective
+  threshold in a default game is 20, and the player's default is now
+  20. The slider itself is not modeled in the player (no settings UI
+  for it).
 - The bridge from the restored Blueprint masters
   (`Master_Favorite_*`) into the native controller maps (+0x328/+0x3c8)
   at session start is not traced (presumably media registration via
   `CreateMasterDecks`); the player's `favorites.js` IS the controller
   equivalent, so restoring its `favoritesSource` registry is the
   faithful analogue, but the native-side handoff itself remains open.
+  NOTE (2026-11-12): checked `CreateMasterDecks` and
+  `Validate_PopulateSavedMedia` in the retained ASTs — neither calls
+  into the native controller (no `MediaPlaybackManager`,
+  `ToggleFavorite`, or `DrawNextCard` reference; the only
+  `MediaPlayback` hit in `BP_CardManager` is
+  `AddBlackListedMediaToArray`). Exact missing piece: a retained caller
+  that writes the restored Blueprint masters into
+  `UMediaPlaybackController` (+0x328/+0x3c8), or the native-side
+  registration entry that fills those maps — neither is in the retained
+  evidence. This is a note, not a player behavior: the player has no
+  native controller, and its restore is implemented and tested.
 - No Blueprint caller of `AddFavoriteCardToArray` / `AddFavoriteMedia`
   — which toggle path the live Favorite button takes is unconfirmed.

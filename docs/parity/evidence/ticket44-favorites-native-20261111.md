@@ -426,3 +426,27 @@ Work files (not committed): `~/workspace/rejoice-evidence/cockhero-itch/work/`
 `DrawNextCard.asm`, `RememberDrawnMedia.asm`, `MarkGlobalDrawCycleSeen.asm`,
 `RefreshGlobalDrawCycleIfComplete.asm`, plus the `disasm.py` tool in
 `~/workspace/rejoice-evidence/v0051-work/`.
+
+## 12. Follow-up: the +0x30 threshold provenance is SETTLED (2026-11-12)
+
+§9 item 4 is closed. `InitializeFavoriteLikelihood` (UI_Manager, 22 stmts,
+called from the UI_Manager ubergraph entry flow at stmt 2) writes
+`GameInstance.CurrentSave.FavoritesLikelihoodPercentage` into
+`GlobalManagerRef.FavoritesLikelyhoodPercent` (stmt 4) and then into
+`GlobalManagerRef.MediaPlaybackManager.FavoritePercentage` (stmt 5) at UI
+init — before any draw — and the FavoritesFrequencySlider change handler
+keeps all three in sync (UI_Manager ubergraph stmts 669/675/679, each
+writing `FTrunc(sliderValue * 100)` to the save value, the GM value, and
+the controller value). The save-game CDO default is 20
+(`save-class-defaults.json`, `BP_CHSaveGame_C`,
+`FavoritesLikelihoodPercentage = 20`), so the effective roll threshold in
+a default game is **20**, not the GM CDO 10 (which is only the pre-init
+default and never reaches a roll). `FavoritePercentage` is the single
+favorites-percentage property on `MediaPlaybackController` in all retained
+evidence, so it is the +0x30 threshold by elimination — the offset
+identity itself was not read from a property-offset table. The player's
+default threshold is now 20 (see `favorites.js` and
+`ticket44-favorites-blueprint-20261111.md`). The slider itself is not
+modeled in the player (no settings UI for it). §2/§7/§10's "default 10"
+lines above describe the GM CDO pre-init default only; read them as
+superseded by this section for the effective value.

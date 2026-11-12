@@ -108,14 +108,31 @@ param.
 So the injection roll is a **1–100 roll, success iff roll ≤
 FavoritesLikelyhoodPercent**. This refines the implementation agent's "0–99
 roll" (a 1–100 roll with `<=` is equivalent in probability to 0–99 with `<`,
-but the exact form is now pinned). The threshold default is **PINNED to 10**
-(2026-11-11, Task 3): `FavoritesLikelyhoodPercent` is GM class property
-#243 (IntProperty, 4 B) and its CDO default is 10 (reJOIce
-`blueprint-class-defaults.json`, `BP_GlobalManager_C` defaults, verified
-`byte_identical_roundtrip: True`, `failures: []`). The player's favorites.js
-default threshold 10 is therefore correct as a Blueprint fact; only the
-native controller+0x30 provenance (own CDO vs Blueprint-set) remains
-unestablished — do not treat 10 as a native fact.
+but the exact form is now pinned). The threshold default is **20, not 10**
+— CORRECTED 2026-11-12 (see below). The GM CDO default is 10
+(`FavoritesLikelyhoodPercent` is GM class property #243 (IntProperty, 4 B)
+and its CDO default is 10 (reJOIce `blueprint-class-defaults.json`,
+`BP_GlobalManager_C` defaults, verified `byte_identical_roundtrip: True`,
+`failures: []`)), but that 10 never reaches a roll: `InitializeFavoriteLikelihood`
+(UI_Manager, 22 stmts, called from the UI_Manager ubergraph entry flow at
+stmt 2) copies `GameInstance.CurrentSave.FavoritesLikelihoodPercentage`
+into `GlobalManagerRef.FavoritesLikelyhoodPercent` (stmt 4) and then into
+`GlobalManagerRef.MediaPlaybackManager.FavoritePercentage` (stmt 5) at UI
+init — before any draw — and the FavoritesFrequencySlider change handler
+keeps all three in sync (UI_Manager ubergraph stmts 669/675/679: each
+writes `FTrunc(sliderValue * 100)` to the save value, the GM value, and
+the controller value). The save-game CDO default is **20**
+(`save-class-defaults.json`, `BP_CHSaveGame_C`,
+`FavoritesLikelihoodPercentage = 20`, payload SHA-256
+`85d6267271fee76a21cbe293c8348a09c8811db59e5c49f89faf1fed64126a5c`), so a
+default game rolls against 20. `FavoritePercentage` is the single
+favorites-percentage property on `MediaPlaybackController` in all retained
+evidence, so it is the native +0x30 roll threshold by elimination (the
+offset identity itself was not read from a property-offset table). The
+player's favorites.js default threshold is therefore 20. The slider
+itself is not modeled in the player (no settings UI for it). The earlier
+"PINNED to 10" line (2026-11-11) described the GM CDO pre-init default
+only; it was wrong as the effective threshold.
 
 ## Frenzy trigger gate — `FavoriteFrenzyEligibilityCheck`
 
@@ -313,38 +330,69 @@ documented in `play.css`. Pinned by `tests/fanservice_overlays.test.js`
 (specs, samples, 1.75 s visibility boundary) and the favorites smoke
 test (banner shows with the text at the draw, hides after 2 s).
 
-**FastPaceAnim — SETTLED, wired.** The animation (MovieScene export in
-`UI_Manager`) binds `TextBlock_2`, whose default text is **"Fast!"**
-(114-byte export; the GUID string + `Fast!` literal). 45281 ticks ≈
-0.7547 s, plays once: uniform scale 0.1 → 1.0 @0.2516 s → 0.75 @0.5031 s
-→ 1.0 @0.7547 s, rotation 0° → 5° @0.25 s → 1° @0.2514 s → -2° @0.5 s →
--1° @0.5029 s (the near-duplicate keys are sharp jumps, kept verbatim),
-opacity 1.0 → 0.75 @0.2516 s → 1.0 @0.5031 s → 0.0 @0.7547 s, RGB
-constant (1.0, 0.5, 0.8) — a pink tint. It is the generic special-event
-pace flash: the same animation is played by the succubus event (two
-branches), the punishment, the 'ass'/'boobs' events, the frenzy, and the
-taunt (GM ubergraph stmts 731, 746, 1453, 1823, 1838, 2016, 2313).
-Wired for the frenzy only: `overlays.js` `fastPace` spec (with the
-rotation channel — `sample()` returns `rotation` only for specs that
-define it, so the older specs keep their pinned shape) +
-`fastPaceState`, `play.html` `#pace-flash` (`Fast!`), `play.css`
-`frenzy-fast-pace` keyframes (the scale values at the rotation-only
-keys are the exact linear interpolations of the scale curve at those
-times), `play.js` `renderOverlays()`. The flash sits near the top of
-the stage so it does not cover the banner — the original's TextBlock_2
-canvas slot was not decoded, so the placement is an adaptation.
-Pinned by `tests/fanservice_overlays.test.js` and the favorites smoke
-test. **Follow-up:** the same flash belongs on taunt, punishment, and
-the succubus/'ass'/'boobs' events; wiring those is a separate slice
-(the punishment comment in `play.js` records this).
+**FastPaceAnim — SETTLED, wired for the frenzy AND the other six sites.**
+The animation (MovieScene export in `UI_Manager`) binds `TextBlock_2`, whose
+default text is **"Fast!"** (114-byte export; the GUID string + `Fast!`
+literal). 45281 ticks ≈ 0.7547 s, plays once: uniform scale 0.1 → 1.0 @0.2516 s
+→ 0.75 @0.5031 s → 1.0 @0.7547 s, rotation 0° → 5° @0.25 s → 1° @0.2514 s →
+-2° @0.5 s → -1° @0.5029 s (the near-duplicate keys are sharp jumps, kept
+verbatim), opacity 1.0 → 0.75 @0.2516 s → 1.0 @0.5031 s → 0.0 @0.7547 s, RGB
+constant (1.0, 0.5, 0.8) — a pink tint. It is the generic special-event pace
+flash. All seven sites verified from the GM ubergraph
+(`ExecuteUbergraph_BP_GlobalManager.json`, offsets resolved with
+`tools/gm_ubergraph_offsets.py`):
 
-**Taunt pattern bank — open follow-up, NOT changed.** `Taunt()` uses
-the same `FrenzyBeatPatterns` → `StartPatternWithMediaSync` flow (GM
-ubergraph stmt 2313 area; `taunts.js` header already records "a random
-FrenzyBeatPattern"), but the player models the taunt card with the fast
-bank (`run.startCard('fast', {taunt:true})` → `cards.js` bank
-`'fast'`), and taunt tests/smoke pin it. Changing it needs its own
-red-first slice and smoke re-check; the frenzy fix does not touch it.
+| Stmt | Event | Player wiring |
+| --- | --- | --- |
+| 731 | Succubus event, apex branch (`IsApexSuccubus`, `SuccubusCards` + `SuccubusBeatPatterns`, card type 3, dialogue 0, background 6, music 3) | `draw('succubus')` stamps `paceFlashStartedAt` |
+| 746 | Succubus event, non-apex branch (same, second `HasSuccuModifier` branch) | same |
+| 1453 | Punishment (`SpawnCustomCardEvent(SuccubusCards, 30, 50, 0.28, 0.33, byte 3)`, background 8, music 3, dialogue 1) | `spawnPunishment()` stamps it |
+| 1823 | AssFrenzyEvent (entry 74043 → stmt 1799; `AssCards`, `FrenzyBeatPatterns`, card type 7, dialogue 7, background 3) | `draw('ass')` stamps it |
+| 1838 | BoobFrenzyEvent (entry 75345 → stmt 1827; `BoobCards`, `FrenzyBeatPatterns`, card type 8, dialogue 8, background 3) | `draw('boobs')` stamps it |
+| 2016 | FavoriteFrenzyEvent (entry 81592 → stmt 2001) | `frenzyStartedAt` (already wired) |
+| 2313 | FastStrokeEvent (entry 92308 → stmt 2326 → jump → stmt 2301; `FastFavoriteCards`/`FastCards` + `FastBeatPatterns`, card type 2, background 3, music 2) | `draw('fast')` stamps it |
+
+CORRECTION (2026-11-12): the earlier line attributing stmt 2313 to "the
+taunt" was wrong — 2313 is the ordinary fast draw. **`Taunt()` plays NO
+FastPaceAnim**: its flow (entry 86586 → stmt 2144 → Jump 86220 → stmt 2130
+`UpdateMetric(7,1)` → Jump 85713 → stmt 2114 body → stmt 2128
+`SpawnCustomCardEvent(FastCards...)` → Jump 84951 → shared block stmts
+2087–2099) contains no `PlayAnimation` call — it rolls
+`Array_Random(FrenzyBeatPatterns)` → `CheckIntervalMultipliers` →
+`StartPatternWithMediaSync`, prints "Taunt Event", increments
+`TotalTauntsUsed`, sets `CurrentCardTypeEnum = 2`, finds dialogue struct
+1, and changes the background to 8. A normal taunt therefore does NOT
+flash in the player (pinned by the taunt smoke). **`Firemouth_Taunt()`
+DOES flash**, indirectly: it calls `SpawnSuccubus(false)` (GM stmt 2083),
+which fires the succubus event — the non-apex branch, stmt 746 — so
+`triggerTaunt()` stamps `paceFlashStartedAt` on the firemouth branch
+only (pinned by the taunt smoke). Wired: `overlays.js` `flashesPace`
+(pool → boolean, pinned by `tests/fanservice_overlays.test.js`) +
+`fastPaceState` reused with the second timestamp, `play.js` `draw()` /
+`spawnPunishment()` / `triggerTaunt()` stamping, `renderOverlays()`
+showing `#pace-flash` while either timestamp is inside 0.7547 s. Pinned
+by the taunt smoke (normal taunt hidden; fast/succubus/ass/boobs draws
+visible then hidden; firemouth visible) and the punishment smoke
+(visible at the spawn, hidden after 0.7547 s). The background switches
+for these events (fast/ass/boobs → 3, succubus → 6, punishment → 8) are
+NOT wired in this slice — the frenzy's background-3 reset is the only
+background wiring; the rest is a follow-up.
+
+**Taunt pattern bank — SETTLED, wired (2026-11-12).** `Taunt()` uses the same
+`FrenzyBeatPatterns` → `StartPatternWithMediaSync` flow (shared block GM
+stmts 2087–2089, reached from `Taunt()` via Jump 84951 → stmt 2087 after
+the `SpawnCustomCardEvent(FastCards...)` at stmt 2128). The player now
+models the taunt card with bank `'frenzy'` (`cards.js`: `card===2 &&
+options.taunt===true` sets `bank='frenzy'` alongside the traced
+[0.18, 0.23] interval); the media deck stays fast and the card stays
+type 2. Pinned by `tests/fanservice_cards.test.js` (taunt pattern from
+the frenzy bank over 39 seeds; ordinary fast pattern still from the
+fast bank). Note: `Firemouth_Taunt()` does NOT take this path — it goes
+2110 → Jump 84922 → stmt 2085 `AddHeat(50.0)` → Jump 84906 → stmt 2083
+`SpawnSuccubus(false)` and never reaches the 2087 block, so the
+firemouth card's pattern comes from the succubus event's
+`SuccubusBeatPatterns` (stmt 720), which the player already models
+(`run.startCard('succubus')` → bank `'succubus'`).
 
 `CheckAndUpdateFavoriteUI` (699 bytes; script at 183, icode 408, storage 504,
 11 stmts) references `FavoritesIcon`, `GameModeSelection`,
@@ -445,8 +493,12 @@ this repo.
   favorite (the Favorite button's handler) is not traced to this function.
   The player's Favorite button is wired to its own favorites.js toggle; that
   matches the toggle semantics above, but the original's exact call path is
-  unconfirmed.
-- No Blueprint caller of `AddFavoriteMedia` found in this pass.
+  unconfirmed. NOTE (not an acceptance blocker — see the closure assessment
+  at the end of this note): no acceptance item in #44 requires tracing the
+  UI call path; criterion 4 requires recording the unresolved question,
+  which this bullet does.
+- No Blueprint caller of `AddFavoriteMedia` found in this pass (same note
+  status as above).
 - **Persistence across sessions is SETTLED** (2026-11-12): the original
   DOES persist favorites — see
   `ticket44-favorites-persistence-20261112.md`. Per-category
@@ -459,13 +511,66 @@ this repo.
   `restoreFavorites` / `parseSavedFavorites`) with the profile record
   written through `mutateProfile` on every toggle and restored in
   `installRun`.
-- Frenzy trigger bodies (`FavoriteFrenzyEvent`, cooldown progress/start)
-  are decoded and the gate + 120 s cooldown are modeled in favorites.js
-  (see above); the call site is SETTLED (TriggerSelectedEvent, event
-  code 12; gate at CheckEventConditions&ReturnArray stmt 82 @2363) and
-  play.js wires it through `automaticMediaPool` with the type-9 spawn
-  through `Cards.start({frenzy:true})`. The frenzy event's presentation
-  (FastPaceAnim, dialogue 0, background 3, music 2,
-  FavoriteFrenzySpawnOverlay_Widget) is carried in the trigger's spawn
-  spec but play.js does not act on it yet.
+- **Frenzy presentation is SETTLED and wired** (2026-11-12): the 1.75 s
+  banner, the Fast! flash, and the background-3 reset are in play.js
+  (`renderOverlays()`), and the same flash is wired onto the fast,
+  succubus, ass, and boobs draws, the punishment, and the firemouth
+  taunt (see "FastPaceAnim" above). The dialogue (succubus bucket) and
+  music (track 2) are not modeled — the player has no dialogue-line
+  system, no dynamic music, and no audio assets for them (same
+  precedent as the taunt/punishment voicelines and `PlayMusic(3)`).
 - The loops/overlay half of #44 is in `ticket44-loops-overlay-20261111.md`.
+
+## Closure assessment against the #44 ticket body (2026-11-12)
+
+Ticket body (live, github.com/xxjuggernaut9113xx-design/AvtoHmver/issues/44):
+"What to build: Recover the selected original's timing with REA, reconcile
+shared card queues and demonstrate matching delivered beats in a playable
+Classic round." Acceptance criteria:
+
+1. *Investigate the newest usable original game through REA and bind
+   findings to exact artifact identity.* MET: v0.05.1 Hotfix Public,
+   exe SHA-256 `a8f46896593d8724cefb9a232db5772df48ae5731da78cfacbec82e98d040c10`,
+   reJOIce newer-20261017 reference build, payload SHA-256
+   `2e54a9da90cdc07f94e30c45953587f94bef5f98d1d5733c616023f615caf3b7`
+   (`byte_identical_roundtrip: true`); every finding in this note cites
+   its artifact.
+2. *Recover card queue, beat travel and delivery timing and reconcile the
+   shared playable Classic path.* MET: all 49 bank rows verified
+   float32-exact against the newer payload (see
+   `ticket44-card-rules-newer-payload-correspondence-20261110.md`), beat
+   travel 1.75, the frenzy/taunt/punishment/succubus/ass/boobs card
+   spawns decoded stmt-for-stmt and modeled in the player with their
+   pattern banks (frenzy, taunt → frenzy, fast → fast, succubus →
+   succubus, ass/boobs → frenzy, cum → cum), the injection roll
+   (1–100, threshold 20) and the frenzy gate + 120 s cooldown modeled,
+   and the FastPaceAnim flash wired on all seven of its sites. The
+   remaining card-queue open items are the origin of
+   `minimum_intervals` 0.18/0.14 (not class-default fields; the values
+   themselves are in the player and match the ubergraph's
+   `SpawnCustomCardEvent` interval arguments) and whether the v004 banks
+   matched — neither changes a delivered beat.
+3. *Demonstrate matching behavior with neutral deterministic cases and an
+   ordinary playable round.* MET: Node suite 410+ tests (deterministic
+   cases: 128 retained Blueprint timing fixtures, 186 native queue
+   fixtures, bank-exactness, roll boundaries, frenzy/taunt pattern-bank
+   pins) plus browser smokes driving ordinary playable rounds
+   (favorites/frenzy, taunt, punishment, classic).
+4. *Record unresolved original-behavior questions explicitly and
+   investigate newer-build blockers before older fallback.* MET: the
+   unresolved questions are recorded here and in
+   `ticket44-favorites-persistence-20261112.md` (no Blueprint caller of
+   the toggle functions; the Blueprint→native handoff of restored
+   masters into +0x328/+0x3c8; the SequenceEvent key frame; the
+   dialogue/music/sound assets; the user-adjustable favorites-frequency
+   slider), and every finding above was taken from the newer build
+   (v0.05.1 / newer-20261017) before any older (v004) fallback — the
+   v004 packages were used only where the newer build had no answer
+   (and the card-rules note says so where it applies).
+
+The items that remain open are notes, not acceptance blockers: none of
+them is required by an acceptance item, none changes a delivered beat
+in the playable Classic path, and each is recorded explicitly above
+with its exact missing piece. On the ticket's own acceptance criteria,
+#44 is a CLOSURE CANDIDATE — the verdict for Kevin to confirm on
+GitHub (he closes tickets himself).
