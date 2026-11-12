@@ -115,8 +115,62 @@ END:
     `clamp(max(end − now, 0)/(end − start), 0, 1)`, 0 when no entry
     contains now), `GetCumWithinRemainingSeconds` (0x1482e9870:
     `max(end − now, 0)` for the containing entry, else −1.0).
-    The exact CumIn/CumWithin text format strings were not recovered
-    from the binary; the player's countdown wording is its own.
+  - **Exact CumIn/CumWithin text format strings: RECOVERED (2026-11-11).**
+    `GetText` in each countdown widget calls the native
+    `UMusicModeManager` getter (`GetCumInText` / `GetCumWithinText`,
+    imports from class `MusicModeManager` in the cooked packages) and
+    converts the returned FString with `Conv_StringToText` — the format
+    lives in the native getter, not in Blueprint. Disassembled from the
+    hash-verified v0.05.1 exe (SHA-256 a8f46896…) with objdump; all
+    format strings read back as UTF-16 from the exe's .rdata:
+    - `GetCumInText` (0x1482e8f40): `""` when `+0x570 < 0` or
+      `(start − now) <= 0`, else `FString::PrintfImpl("CUM IN: %d SEC",
+      n)` (format at 0x14d20bf40). `PrintfImpl` is confirmed in the PDB
+      public symbols (`?PrintfImpl@FString@@CA?AV1@PEB_WZZ`, 0x140d170d0).
+    - `GetCumWithinText` (0x1482e99b0): `""` unless the internal gate
+      holds (`+0x2f0 != 0`, `+0x4e9 != 0`, `+0x4eb == 0`, `+0x4f0 > 0`,
+      `+0x4f0 >= +0x4ec`) and a `+0x238` history entry contains now and
+      `(end − now) > 0`, else `FString::PrintfImpl("CUM WITHIN: %d
+      SEC", n)` (format at 0x14d20bf60). The gate's internal flags have
+      no player-observable counterpart; the player's containing-window
+      condition is the observable equivalent.
+    - The `%d` in both is `floor(remaining + 0.75)`: both getters
+      compute it as `cvtsd2si(-0.5 − 2r)`, arithmetic shift right 1,
+      negate, clamp at 0, with the −0.5 double at 0x14bf8d1d8
+      (read back as −0.5). Verified equal to `floor(r + 0.75)` on a
+      200k random sweep (0 mismatches) and on the boundary values
+      (30.1 → 30, 30.24 → 30, 30.25 → 31, 0.24 → 0, 0.25 → 1).
+    - Duration helper 0x1482dfe90 (same `floor(r + 0.75)` total
+      seconds, then `'%d:%02d:%02d'` when hours > 0 else `'%02d:%02d'`;
+      verified `(hours, minutes, seconds) = (n//3600, (n%3600)//60,
+      n%60)` on 20005 values, 0 mismatches): used by
+      `GetCumWindowWarningText` (0x1482e95d0: `""` when `+0x570 < 0`,
+      else `"CUM WINDOW IN %s"` while `(start − now) > 0`,
+      `"CUM WINDOW OPEN: %s"` while `(end − now) > 0`, formats at
+      0x14d20bef0 / 0x14d20bf18), by `GetCumWindowCountdownString`
+      (0x1482e8fe0: `"CUM NOW: %s"`, `"CUE %d/%d IN: %s"` /
+      `"CUE %d/%d OPEN: %s"`, `"FINAL CUE IN: %s"` /
+      `"FINAL CUE OPEN: %s"` — formats at 0x14d20be88 / 0x14d20be30 /
+      0x14d20be48 / 0x14d20be68 / 0x14d20bea0 / 0x14d20bec8, selected by
+      whether the containing entry is the only/last one), and by
+      `GetBreakDisableWarningText` (0x1482e6ed0: `""` when `+0x5a8 <
+      0`, `"BREAKS DISABLED IN %s"` while `(disable − now) > 0`,
+      `"BREAKS DISABLED"` once the disable is in effect, formats at
+      0x14d20bf88 / 0x14d20bfb8).
+    - Implemented in the player (2026-11-11): `overlays.js` adds
+      `displaySeconds` / `durationText` / `cumInText` / `cumWithinText`
+      / `breakDisableText` / `mapWindowWarningTexts`, and `play.js`
+      `renderOverlays` shows the exact text on the countdown overlay
+      (`CUM IN: N SEC` / `CUM WITHIN: N SEC` /
+      `BREAKS DISABLED IN MM:SS`). The existing `seconds` fields keep
+      their raw-float meaning (pinned by earlier tests); the text
+      functions compute the display value. Not wired (no player
+      surface): `CUM WINDOW IN/OPEN`, `CUM NOW` / `CUE n/m` (no
+      retained Blueprint caller for `GetCumWindowCountdownString`),
+      and `BREAKS DISABLED` as a persistent state (the player tracks
+      `state.breakSectionDisabled` but has no text slot for the
+      in-effect disable state; the countdown overlay only renders
+      while a warning is active).
   - Tick case 8 (DisableBreak) RESETS the latch: `+0x580 = −1.0`
     (disables the progress getter until re-latched) and
     `+0x588 = 0.0` (clears the announced-start latch so the next
@@ -326,8 +380,12 @@ the 25–50 override card while the window is open.
   `cumWithinWarning` / `breakDisableWarning` / `mapWindowWarnings` and
   `renderOverlays` shows them on the countdown overlay in music mode
   (the objective countdown never runs there). The exact CumIn/CumWithin
-  text format strings were not recovered from the binary; the player's
-  countdown wording is its own.
+  / BreakDisable text format strings are recovered (see the
+  `+0x580`/`+0x588` settlement above) and implemented in `overlays.js`
+  (`cumInText` / `cumWithinText` / `breakDisableText` /
+  `mapWindowWarningTexts`, `play.js` renders them); the player's
+  countdown wording is now the original's (`CUM IN: N SEC` /
+  `CUM WITHIN: N SEC` / `BREAKS DISABLED IN MM:SS`).
 - Decoded and modeled in the player (2026-11-11): the objective-0
   card-type gate (∉ {5,6,3} non-Frenzy, == 3 Frenzy — live block
   governs); the Timer objective's path to the trigger block (1 s

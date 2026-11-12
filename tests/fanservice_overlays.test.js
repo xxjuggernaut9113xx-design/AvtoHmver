@@ -128,3 +128,74 @@ test('mapWindowWarnings picks the next cum window and disable_break from beatmap
  assert.deepEqual(at110.cumIn,{active:false,seconds:-1,progress:0});
  assert.deepEqual(at110.breakDisable,{active:false,seconds:-1,progress:0});
 });
+test('displaySeconds matches the GetCumInText/GetCumWithinText disassembly exactly',()=>{
+ // Both native getters (0x1482e8f40 / 0x1482e99b0, v0.05.1 exe a8f46896)
+ // compute the %d from the double remaining r as: cvtsd2si(-0.5 - 2r),
+ // arithmetic shift right 1, negate, clamp at 0 (constant -0.5 at
+ // 0x14bf8d1d8). That equals floor(r + 0.75): verified 0 mismatches on a
+ // 200k random sweep against the literal integer computation below.
+ const literal=r=>{const t=Math.trunc(-0.5-2*r);return Math.max(0,-Math.floor(t/2));};
+ for(let r=0;r<4000;r+=0.25)assert.equal(overlays.displaySeconds(r),literal(r),`remaining ${r}`);
+ let seed=12345;const next=()=>{seed=(Math.imul(seed,1103515245)+12345)>>>0;return seed/4294967296*4000;};
+ for(let i=0;i<5000;i++){const r=next();assert.equal(overlays.displaySeconds(r),literal(r),`remaining ${r}`);}
+ assert.equal(overlays.displaySeconds(30.1),30);
+ assert.equal(overlays.displaySeconds(30.24),30);
+ assert.equal(overlays.displaySeconds(30.25),31);
+ assert.equal(overlays.displaySeconds(0.24),0);
+ assert.equal(overlays.displaySeconds(0.25),1);
+ assert.equal(overlays.displaySeconds(59.99),60);
+});
+test('durationText pins the native seconds-to-MM:SS/H:MM:SS helper',()=>{
+ // Duration helper 0x1482dfe90: total seconds n (same floor(r+0.75)
+ // rounding), '%d:%02d:%02d' when hours > 0, '%02d:%02d' otherwise.
+ assert.equal(overlays.durationText(5), '00:05');
+ assert.equal(overlays.durationText(61), '01:01');
+ assert.equal(overlays.durationText(3599.24), '59:59');
+ assert.equal(overlays.durationText(3600), '1:00:00');
+ assert.equal(overlays.durationText(3661), '1:01:01');
+ assert.equal(overlays.durationText(90061), '25:01:01');
+});
+test('cumInText renders the exact GetCumInText format string',()=>{
+ // GetCumInText 0x1482e8f40: '' when +0x570 < 0 or remaining <= 0, else
+ // FString::PrintfImpl('CUM IN: %d SEC', displaySeconds(remaining)).
+ assert.equal(overlays.cumInText({now:0,windowStart:-1}),'');
+ assert.equal(overlays.cumInText({now:60,windowStart:60}),'');
+ assert.equal(overlays.cumInText({now:61,windowStart:60}),'');
+ assert.equal(overlays.cumInText({now:30,windowStart:60}),'CUM IN: 30 SEC');
+ assert.equal(overlays.cumInText({now:29.9,windowStart:60}),'CUM IN: 30 SEC');
+ assert.equal(overlays.cumInText({now:29.75,windowStart:60}),'CUM IN: 31 SEC');
+ assert.equal(overlays.cumInText({now:0,windowStart:0.24}),'CUM IN: 0 SEC');
+});
+test('cumWithinText renders the exact GetCumWithinText format string',()=>{
+ // GetCumWithinText 0x1482e99b0: '' outside the containing history entry,
+ // else FString::PrintfImpl('CUM WITHIN: %d SEC', displaySeconds(end-now)).
+ assert.equal(overlays.cumWithinText({now:0,windowStart:60,windowEnd:90}),'');
+ assert.equal(overlays.cumWithinText({now:91,windowStart:60,windowEnd:90}),'');
+ assert.equal(overlays.cumWithinText({now:60,windowStart:60,windowEnd:90}),'CUM WITHIN: 30 SEC');
+ assert.equal(overlays.cumWithinText({now:75,windowStart:60,windowEnd:90}),'CUM WITHIN: 15 SEC');
+ assert.equal(overlays.cumWithinText({now:90,windowStart:60,windowEnd:90}),'CUM WITHIN: 0 SEC');
+ assert.equal(overlays.cumWithinText({now:59.75,windowStart:60,windowEnd:90}),'');
+});
+test('breakDisableText renders the exact GetBreakDisableWarningText strings',()=>{
+ // GetBreakDisableWarningText 0x1482e6ed0: '' when +0x5a8 < 0,
+ // 'BREAKS DISABLED IN %s' (duration helper) while remaining > 0,
+ // 'BREAKS DISABLED' once the disable is in effect.
+ assert.equal(overlays.breakDisableText({now:0,disableTime:-1}),'');
+ assert.equal(overlays.breakDisableText({now:10,disableTime:20}),'BREAKS DISABLED IN 00:10');
+ assert.equal(overlays.breakDisableText({now:19,disableTime:20}),'BREAKS DISABLED IN 00:01');
+ assert.equal(overlays.breakDisableText({now:20,disableTime:20}),'BREAKS DISABLED');
+ assert.equal(overlays.breakDisableText({now:25,disableTime:20}),'BREAKS DISABLED');
+});
+test('mapWindowWarningTexts picks the exact text for each beatmap warning',()=>{
+ const events=[
+  {time:10,type:'cum_event',value:'start'},{time:25,type:'cum_event',value:'end'},
+  {time:40,type:'disable_break',value:'start'},{time:50,type:'disable_break',value:'end'},
+  {time:70,type:'cum_event',value:'start'},{time:100,type:'cum_event',value:'end'}];
+ // (The break-disable text has no lead in the native getter — it reads
+ // 'BREAKS DISABLED IN 00:40' at now 0 even though the warning only becomes
+ // active within 10 s; play.js shows a text only when its warning is active.)
+ assert.deepEqual(overlays.mapWindowWarningTexts({now:0,events}),{cumIn:'CUM IN: 10 SEC',cumWithin:'',breakDisable:'BREAKS DISABLED IN 00:40'});
+ assert.deepEqual(overlays.mapWindowWarningTexts({now:15,events}),{cumIn:'',cumWithin:'CUM WITHIN: 10 SEC',breakDisable:'BREAKS DISABLED IN 00:25'});
+ assert.deepEqual(overlays.mapWindowWarningTexts({now:35,events}),{cumIn:'CUM IN: 35 SEC',cumWithin:'',breakDisable:'BREAKS DISABLED IN 00:05'});
+ assert.deepEqual(overlays.mapWindowWarningTexts({now:110,events}),{cumIn:'',cumWithin:'',breakDisable:''});
+});

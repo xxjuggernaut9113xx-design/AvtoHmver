@@ -61,8 +61,9 @@
  }
  // Map-window warnings (UMusicModeManager, v0.05.1 — see
  // docs/parity/evidence/ticket51-queue-consumer-20261111.md). The countdown
- // text wording is the player's own: the original's exact format strings
- // were not recovered from the binary.
+ // text is the original's exact wording, recovered from the native getters
+ // (GetCumInText / GetCumWithinText / GetBreakDisableWarningText) — see the
+ // exact-text functions below.
  //
  // - Warning leads (constructor 0x1482ce640, verified in the v0.05.1 exe):
  //   +0x60 = 30.0 s for the cum window, +0x68 = 10.0 s for break-disable.
@@ -120,6 +121,61 @@
   const {windowStart,windowEnd,disableTime}=nextMapWindow(events,now);
   return {cumIn:cumInWarning({now,windowStart}),cumWithin:cumWithinWarning({now,windowStart,windowEnd}),breakDisable:breakDisableWarning({now,disableTime})};
  }
- const api={tickRate,specs,durationMs,sample,countdownSample,overlayState,CUM_WARNING_LEAD_SECONDS,BREAK_DISABLE_WARNING_LEAD_SECONDS,cumInWarning,cumWithinWarning,breakDisableWarning,nextMapWindow,mapWindowWarnings};
+ // Exact warning text (UMusicModeManager native getters, v0.05.1 exe
+ // a8f46896 — see docs/parity/evidence/ticket51-queue-consumer-20261111.md).
+ // The widget bindings are GetText -> GetCumInText / GetCumWithinText
+ // (CumInXSecWidgetOverlay / CumWithinXSecWidgetOverlay, cooked packages);
+ // both getters are native UMusicModeManager methods returning FString.
+ //
+ // - GetCumInText 0x1482e8f40: '' when +0x570 < 0 or (start - now) <= 0,
+ //   else FString::PrintfImpl('CUM IN: %d SEC', n).
+ // - GetCumWithinText 0x1482e99b0: '' unless the internal gate holds
+ //   (+0x2f0 != 0, +0x4e9 != 0, +0x4eb == 0, +0x4f0 > 0, +0x4f0 >= +0x4ec)
+ //   and a +0x238 history entry contains now and (end - now) > 0, else
+ //   FString::PrintfImpl('CUM WITHIN: %d SEC', n). The gate's internal
+ //   flags have no player-observable counterpart, so the player's
+ //   containing-window condition is the observable equivalent.
+ // - GetBreakDisableWarningText 0x1482e6ed0: '' when +0x5a8 < 0;
+ //   'BREAKS DISABLED IN %s' while (disable - now) > 0; 'BREAKS DISABLED'
+ //   once the disable is in effect. The %s is the duration helper below.
+ // - The %d in both cum getters is floor(remaining + 0.75): both getters
+ //   compute it as cvtsd2si(-0.5 - 2r), arithmetic shift right 1, negate,
+ //   clamp at 0, with the -0.5 double at 0x14bf8d1d8. Verified equal to
+ //   floor(r + 0.75) on a 200k random sweep (0 mismatches).
+ // - Duration helper 0x1482dfe90: same floor(r + 0.75) total seconds, then
+ //   '%d:%02d:%02d' (H:MM:SS) when hours > 0, '%02d:%02d' (MM:SS) otherwise.
+ //   Also used by GetCumWindowWarningText ('CUM WINDOW IN %s' /
+ //   'CUM WINDOW OPEN: %s', 0x1482e95d0) and GetCumWindowCountdownString
+ //   ('CUM NOW: %s' / 'CUE %d/%d IN/OPEN: %s' / 'FINAL CUE IN/OPEN: %s',
+ //   0x1482e8fe0) — those getters have no retained Blueprint caller and no
+ //   player surface, so they are recorded, not wired.
+ function displaySeconds(remaining){return Math.max(0,Math.floor(remaining+0.75));}
+ function durationText(remaining){
+  const total=displaySeconds(remaining);
+  const hours=Math.floor(total/3600),minutes=Math.floor((total%3600)/60),seconds=total%60;
+  const mm=String(minutes).padStart(2,'0'),ss=String(seconds).padStart(2,'0');
+  return hours>0?`${hours}:${mm}:${ss}`:`${mm}:${ss}`;
+ }
+ function cumInText({now,windowStart}={}){
+  if(!Number.isFinite(now)||!Number.isFinite(windowStart))return '';
+  if(windowStart<0||windowStart-now<=0)return '';
+  return `CUM IN: ${displaySeconds(windowStart-now)} SEC`;
+ }
+ function cumWithinText({now,windowStart,windowEnd}={}){
+  if(![now,windowStart,windowEnd].every(Number.isFinite))return '';
+  if(!(windowStart>=0&&windowEnd>=windowStart&&now>=windowStart&&now<=windowEnd))return '';
+  return `CUM WITHIN: ${displaySeconds(windowEnd-now)} SEC`;
+ }
+ function breakDisableText({now,disableTime}={}){
+  if(!Number.isFinite(now)||!Number.isFinite(disableTime))return '';
+  if(disableTime<0)return '';
+  const remaining=disableTime-now;
+  return remaining>0?`BREAKS DISABLED IN ${durationText(remaining)}`:'BREAKS DISABLED';
+ }
+ function mapWindowWarningTexts({now,events}={}){
+  const {windowStart,windowEnd,disableTime}=nextMapWindow(events,now);
+  return {cumIn:cumInText({now,windowStart}),cumWithin:cumWithinText({now,windowStart,windowEnd}),breakDisable:breakDisableText({now,disableTime})};
+ }
+ const api={tickRate,specs,durationMs,sample,countdownSample,overlayState,CUM_WARNING_LEAD_SECONDS,BREAK_DISABLE_WARNING_LEAD_SECONDS,cumInWarning,cumWithinWarning,breakDisableWarning,nextMapWindow,mapWindowWarnings,displaySeconds,durationText,cumInText,cumWithinText,breakDisableText,mapWindowWarningTexts};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.FanserviceOverlays=api;
 })(globalThis);

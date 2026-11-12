@@ -127,7 +127,14 @@ On Construct:
 - `GetPercent` calls `GetCumWindowWarningProgress` (CumInXSec) /
   `GetCumWithinProgress` (CumWithinXSec).
 - `GetText` calls `GetCumInText` (CumInXSec) / `GetCumWithinText`
-  (CumWithinXSec).
+  (CumWithinXSec). Both are native `UMusicModeManager` methods
+  (imports from class `MusicModeManager` in the cooked packages), not
+  Blueprint functions — the exact format strings are recovered from
+  the v0.05.1 exe in
+  `docs/parity/evidence/ticket51-queue-consumer-20261111.md`
+  (`CUM IN: %d SEC` / `CUM WITHIN: %d SEC`, `%d` =
+  `floor(remaining + 0.75)`) and implemented in `overlays.js`
+  (`cumInText` / `cumWithinText`).
 
 ## What this settles for #44
 
