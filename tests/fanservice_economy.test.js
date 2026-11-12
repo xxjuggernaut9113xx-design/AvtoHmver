@@ -112,6 +112,35 @@ test('Hot Hands returns its notification when it applies, and none otherwise',()
  const widget=session({modifiers:['Hot Hands']});widget.state.heat=50;
  assert.equal(economy.itemUsed(widget,4,'Defensive'),null);assert.equal(widget.state.heat,50);
 });
+test('Heat Spell returns its notification when it applies, and combines with Hot Hands in original order',()=>{
+ // ApplyHeatSpellEffect (reJOIce functions/BP_GlobalManager, retained AST):
+ // CreateNotificationBox("Heat Spell", "Defensive Item Used\r\nHeat has
+ // been reduced by 10%", ...) fires whenever the effect's condition holds —
+ // the same branches that get the -10 (ActivateItem stmts 30, 42, 53, 74,
+ // 91, 102). The player renders it on the single status line as "Title:
+ // body" (the Punishment / Hot Hands precedent), collapsing the body's line
+ // break to a space. The box fires even when the heat is already at the
+ // floor, so the notification is tied to the condition, not to the heat
+ // change. When both Heat Spell and Hot Hands apply, ActivateItem calls
+ // Heat Spell first in every branch (Heat Spell stmt < Hot Hands stmt), so
+ // the player joins them in that order with ' · ' — a player rendering
+ // decision for the single status line, keeping the string|null contract.
+ const note='Heat Spell: Defensive Item Used Heat has been reduced by 10%';
+ const hot='Hot Hands Modifier: Item usage adds heat. +10% Heat Added';
+ for(const type of [1,3,6,7]){const run=session();run.ownedModifiers=[4];run.state.heat=50;assert.equal(economy.itemUsed(run,type,'Defensive'),note);assert.equal(run.state.heat,40);}
+ for(const mode of [0,1]){const run=session({mode});run.ownedModifiers=[4];run.state.heat=50;assert.equal(economy.itemUsed(run,4,'Defensive'),note);assert.equal(run.state.heat,40);}
+ const playlist=session({mode:2});playlist.ownedModifiers=[4];playlist.state.heat=50;
+ assert.equal(economy.itemUsed(playlist,4,'Defensive'),null);assert.equal(playlist.state.heat,50);
+ for(const [type,classification] of [[10,'Defensive'],[13,'Defensive'],[5,'Offensive'],[9,'Offensive'],[11,'Offensive'],[12,'Offensive']]){const run=session();run.ownedModifiers=[4];run.state.heat=50;assert.equal(economy.itemUsed(run,type,classification),null);assert.equal(run.state.heat,50);}
+ const floor=session();floor.ownedModifiers=[4];floor.state.heat=0;
+ assert.equal(economy.itemUsed(floor,3,'Defensive'),note);assert.equal(floor.state.heat,0);
+ const both=session({modifiers:['Hot Hands']});both.ownedModifiers=[4,0];both.state.heat=74;
+ assert.equal(economy.itemUsed(both,3,'Defensive'),note+' · '+hot);assert.equal(both.state.heat,74);
+ const hotOnly=session({mode:2,modifiers:['Hot Hands']});hotOnly.ownedModifiers=[4];hotOnly.state.heat=50;
+ assert.equal(economy.itemUsed(hotOnly,4,'Defensive'),hot);assert.equal(hotOnly.state.heat,60);
+ const spellOnly=session({modifiers:['Hot Hands']});spellOnly.ownedModifiers=[4];spellOnly.state.heat=50;
+ assert.equal(economy.itemUsed(spellOnly,1,'Defensive'),note);assert.equal(spellOnly.state.heat,40);
+});
 test('active time metrics and run currency stop outside playing phases',()=>{
  const run=session();run.state.heat=70;run.advance(.6);run.advance(.6);assert.equal(run.state.TimeAtHighHeat,1);run.advance(1.9);assert.equal(run.state.TimeAtHighHeat,3);run.phase='shop';const before=run.export();run.advance(60);run.beat();assert.deepEqual(run.export(),before);
 });

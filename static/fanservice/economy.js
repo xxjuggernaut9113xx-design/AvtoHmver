@@ -93,7 +93,8 @@
   // Rope (10) and Combo Cruncher (13) never call it, and UseEscapeRopeItem's
   // ubergraph flow (entry 71540) only creates a widget, re-enables items and
   // calls SlowStrokeEvent, so the -10 is by type, not by classification.
-  if(([0,1,3,6,7].includes(type)||(type===4&&run.config.mode!==2))&&has(run,4))s.heat=clamp(s.heat-10,0,100);
+  const heatSpellApplies=([0,1,3,6,7].includes(type)||(type===4&&run.config.mode!==2))&&has(run,4);
+  if(heatSpellApplies)s.heat=clamp(s.heat-10,0,100);
   // Original ActivateItem calls DetermineShouldHotHandsModifierApply for Break only on its Playlist (mode 2) branch.
   // That function shows CreateNotificationBox("Hot Hands Modifier",
   // "Item usage adds heat.\r\n+10% Heat Added", ...) before AddHeat(10.0,
@@ -101,11 +102,18 @@
   // (the Punishment precedent), collapsing the body's line break to a space.
   // The box fires even when the heat is already capped, so the notification
   // is tied to the same condition as the +10, not to the heat change.
-  // Returns the notification text when Hot Hands applies, else null.
-  // (Heat Spell's notification is the same gap and stays unmodeled.)
-  let notification=null;
-  if(type!==1&&!(type===4&&run.config.mode!==2)&&s.modifiers.includes('Hot Hands')){s.heat=clamp(s.heat+10,0,heatCap(run));notification='Hot Hands Modifier: Item usage adds heat. +10% Heat Added';}
-  return notification;
+  // Heat Spell shows its own box on the same terms: ApplyHeatSpellEffect
+  // (retained AST) calls CreateNotificationBox("Heat Spell", "Defensive
+  // Item Used\r\nHeat has been reduced by 10%", ...) whenever the effect's
+  // condition holds — even when the heat is already at the floor. When both
+  // apply, ActivateItem calls Heat Spell first in every branch, so the
+  // player joins them in that order with ' · ' — a player rendering
+  // decision for the single status line, keeping the string|null return
+  // contract. Returns the notification text when either applies, else null.
+  const notes=[];
+  if(heatSpellApplies)notes.push('Heat Spell: Defensive Item Used Heat has been reduced by 10%');
+  if(type!==1&&!(type===4&&run.config.mode!==2)&&s.modifiers.includes('Hot Hands')){s.heat=clamp(s.heat+10,0,heatCap(run));notes.push('Hot Hands Modifier: Item usage adds heat. +10% Heat Added');}
+  return notes.length?notes.join(' · '):null;
  }
  function recycler(run){return has(run,17)&&fraction(run)<.25;}
  function advance(run,seconds){
