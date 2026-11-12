@@ -324,10 +324,29 @@ function automaticMediaPool(){
  if(shield)shield.charges=gate.shieldCharges;
  state.shieldBlockCount=gate.shieldBlockCount;state.shieldToggled=gate.shieldToggled;
  const pools={0:'slow',1:'medium',2:'fast',5:'succubus',7:'ass',8:'boobs',12:'slow'};
- const rows=specialEvents.rows.filter(row=>{
+ // The eligible set is the native CheckEventConditions&ReturnArray
+ // (media_selection.eligibleSpecialEvents): speed rows always, Succubus /
+ // frenzy / favorite through their caller gates, Temptation and Store
+ // through theirs. Temptation (4) and Store (11) have no media pool, so
+ // the deck filter below drops them — their native trigger paths spawn
+ // TemptationEventWidget / StoreWidget instead of drawing a media card,
+ // and those widget flows are not modeled yet (see
+ // docs/parity/evidence/ticket51-event-dispatcher-20261112.md). Mercy
+ // (6) is never in the set: the native switch discards its check result.
+ // totalDraws is draws-so-far + 1: the native increments TotalDrawCount
+ // before the check, the player increments it in Economy.draw after the
+ // selection. The cooldown / shop counters are not modeled yet and read
+ // the native initial state (not on cooldown, zero) until they are.
+ const eligible=FanserviceMediaSelection.eligibleSpecialEvents(specialEvents.rows,{
+  heat:state.heat,totalDraws:(state.totalDraws??0)+1,coins:state.coins,mode:run.config.mode,
+  temptationOnCooldown:state.temptationOnCooldown??false,storeOnCooldown:state.storeOnCooldown??false,
+  timeSinceLastShop:state.timeSinceLastShop??0,storeChanceMultiplier:state.storeChanceMultiplier??0,
+  succubusEligible:gate.eligible,
+  assFrenzyEligible:run.config.settings['IsBrainMelterEnabled?']===true&&heatCategory===0,
+  boobFrenzyEligible:run.config.settings['IsBrainMelterEnabled?']===true&&heatCategory===0,
+  favoriteFrenzyEligible:!!(favorites&&favorites.isFavoriteFrenzyEligible(state.seconds))});
+ const rows=eligible.filter(row=>{
   const pool=pools[row.eventCode];if(!pool||!decks[pool]?.length)return false;
-  if(row.eventCode===5)return gate.eligible;
-  if(row.eventCode===7||row.eventCode===8)return run.config.settings['IsBrainMelterEnabled?']===true&&heatCategory===0;
   // Favorite Frenzy (TriggerSelectedEvent, BP_DrawManager stmt 62 @2142,
   // event code 12; gated at filter time by CheckEventConditions&ReturnArray
   // stmt 82 @2363 via FavoriteFrenzyEligibilityCheck): the gate counts the
@@ -335,7 +354,6 @@ function automaticMediaPool(){
   // itself draws from the slow deck as a type-9 card (see draw()) — the
   // MEDIA deck is slow, but the card's beat pattern comes from
   // FrenzyBeatPatterns (cards.js bank 'frenzy'), not the slow bank.
-  if(row.eventCode===12)return favorites&&favorites.isFavoriteFrenzyEligible(state.seconds);
   return true;
  });
  const selected=FanserviceMediaSelection.weightedEvents(rows,{heat:state.heat,comboTier:rules.comboTier(state.combo)},run.random.fraction());
