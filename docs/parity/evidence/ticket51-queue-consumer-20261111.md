@@ -328,8 +328,47 @@ timer: `SetSessionDurationEvent` is bound at GM ubergraph stmt 586
 looping=True)`; the Timer completion check (stmts 2378–2380:
 `SessionLength >= Objective_TimeRequired_Seconds` →
 `PopExecutionFlowIfNot` → Jump @92333, the SuccuFrenzy check) enters
-the trigger block. Prejac (objective 6) has an analogous check at stmts
-2381–2384 (jump target @94068 not yet dumped).
+the trigger block.
+
+**Prejac path: SETTLED (2026-11-11, jump target @94068 dumped).**
+The Prejac check is stmts 2381–2384 (`CurrentSessionObjective == 6`,
+then `SessionLength >= Objective_PrejacTimeRequired_Seconds` →
+`JumpIfNot @94068`). The offset model resolves 94068 → stmt 2389, and
+the cooked v0.05.1 package parsed with the repo's fixed parser
+(`tools/evidence/kismet2.py`, `uasset.py`) confirms it directly
+(ubergraph icode 99921, 2569 stmts): stmt 2384 @93999 `JumpIfNot
+@94068`, stmt 2389 @94068 `UIManager.UpdateObjectiveUIPrejacTimerDisplay`.
+The two branches:
+- **Not yet complete** (jump taken, stmts 2389–2395): update the Prejac
+  timer display, then `ManuallyUpdateObjectiveProgressBar((PrejacTimeRequired
+  − SessionLength) / PrejacTimeRequired)` — a per-second UI update only.
+  (The player shows elapsed seconds in the stats line but no
+  Prejac-specific remaining countdown or progress bar — a presentation
+  gap shared with the Timer display update at stmts 2376–2377, not a
+  completion behavior.)
+- **Complete** (fall-through, stmts 2385–2388): `K2_ClearAndInvalidateTimerHandle(FormatSessionDurationTextHandle)`,
+  `K2_ClearAndInvalidateTimerHandle(SetSessionDurationHandle)`,
+  `EndSession()`, `PopExecutionFlow`. So Prejac completion ends the
+  session directly — it does NOT enter the trigger block (no
+  `Spawn100Percent`, no `Start Cum Window Timer`, no 60 s release
+  window, no notification, no `UpdateMetric`). `EndSession` itself
+  (10 stmts, reJOIce `EndSession.json`): `BeatSpawnerManagerCPP.PauseSequence()`,
+  create the session-end widget + `AddToViewport(0)`, settle session
+  stats (`BrokenComboArray` / `EdgeStreak` / `CurrentComboCount`),
+  clear one more timer, return. It writes no `HasCame?`, no win metric.
+- Player alignment: the player already models exactly this outcome —
+  `objectives.js` `tick()` returns `'premature-cum'` (Classic) /
+  `'round-failed'` (Tower) on Prejac expiry, and `run.js` ends the
+  session as a loss (`phase='complete'`, `won=false`) / fails the round.
+  No code change from this dump. The only delta is internal: the
+  player's `'premature-cum'` event also sets `hasCame=true`, which the
+  original's completion path does not — but that flag has no observable
+  consequence after `phase='complete'` (no settlement input reads it;
+  overlay/edge gates are phase-gated), so no new event type was
+  introduced for it. Cadence note: the original checks once per second
+  (the 1 s session timer, integer `SessionLength`); the player checks
+  per advance on float elapsed time, so expiry fires at the same
+  threshold with sub-second granularity difference.
 
 **`IsCumRound?`: SETTLED with a caveat.** GM ubergraph stmt 657 (@28287)
 sets `GameInstance.IsCumRound? = True` during session init. NO False

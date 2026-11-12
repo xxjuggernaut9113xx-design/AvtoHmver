@@ -56,6 +56,11 @@ test('Prejac tick expires at deadline while explicit confirmation at deadline wi
  const p=player(),s=stats(),r=new O.Runtime({LastObjectiveIndex_Classic:4,LastObjective_Prejac:30},p,s);
  assert.equal(p.isAllowedToCum,true);p.sessionLength=50;
  assert.equal(r.resolveClimax(p)[0].type,'successful-cum');assert.equal(r.tick(p,s,0,30)[0].type,'premature-cum');
+ // GM ubergraph @94068 dump (2026-11-11): Prejac completion (stmts
+ // 2385-2388) clears both 1 s timers and calls EndSession — it does NOT
+ // enter the trigger block, so no release window opens and no
+ // Spawn100Percent / Start Cum Window Timer runs.
+ assert.equal(r.releaseDeadline,null);
  p.sessionLength=51;assert.equal(r.resolveClimax(p)[0].type,'premature-cum');
  p.hasCame=true;assert.deepEqual(r.tick(p,s,1,31),[]);assert.deepEqual(r.resolveClimax(p),[]);
 });
