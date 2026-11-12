@@ -41,6 +41,26 @@
  // - The FavoriteFrenzy cooldown (120 s, Blueprint) and the frenzy gate
  //   ARE modeled here (isFavoriteFrenzyEligible /
  //   startFavoriteFrenzyCooldown / triggerFavoriteFrenzy — see below).
+ // - Persistence across sessions (ticket44-favorites-persistence-20261112):
+ //   the original DOES persist favorites — the five per-category
+ //   Saved_*_FavoriteCards arrays (full CHPackMediaEntry structs,
+ //   bIsFavorite at +0x41) plus AllFavoritedCards_Array on
+ //   BP_CHSaveGame_C, written by SaveGameToSlot on EVERY toggle
+ //   (AddFavoriteCardToArray syncs master -> save array and calls
+ //   GameInstance.SaveAllData() immediately, both paths, all five
+ //   categories) and restored at startup by
+ //   Validate&PopulateSavedMedia via UCHPackManager::ValidateMediaEntries
+ //   (keep iff filename length > 1 and IFileManager::FileExists). The
+ //   derived FavoriteFrenzy deck is NOT stored; it is rebuilt from the
+ //   restored registry. The player mirrors this: serializeFavorites /
+ //   restoreFavorites persist the favorited set as {filename, home
+ //   category} pairs (the per-category split is recoverable from the home
+ //   category), play.js writes them to the game profile on every toggle
+ //   and restores them in installRun, dropping entries whose file is no
+ //   longer in the pack. The Medium-add ([card]-only save) and Succubus
+ //   (normal-deck) wiring quirks of AddFavoriteCardToArray are decoded
+ //   but NOT copied — no caller of that function was found and both
+ //   contradict the native ToggleFavorite registry model mirrored here.
  //   The frenzy event's presentation (FastPaceAnim, dialogue 0, background
  //   3, music 2, FavoriteFrenzySpawnOverlay_Widget) is carried in the
  //   trigger's spawn spec and play.js acts on the wireable parts (draw():
@@ -51,9 +71,7 @@
  //   event code 12, gated at filter time by
  //   BP_GlobalManager CheckEventConditions&ReturnArray stmt 82 @2363 via
  //   FavoriteFrenzyEligibilityCheck); play.js wires it through
- //   automaticMediaPool. The registry is session state; the original
- //   persists bIsFavorite on the saved entry, the player does not persist
- //   favorites yet.
+ //   automaticMediaPool.
  const categories=Object.freeze({slow:0,medium:1,fast:2,succubus:3,event:4,edge:5,cum:6,ass:7,boobs:8,favorite:9});
  const FRENZY_MIN_CARDS=3,FRENZY_COOLDOWN_SECONDS=120;
  const poolNames=['slow','medium','fast','succubus','cum','ass','boobs'];
@@ -134,6 +152,67 @@
    }
    this.rebuildFavoriteFrenzyCategory();this.rebuildGlobalDrawCycleUniverse();
    return {...entry,isFavorite:!!found&&this.isFavorite(entry)};
+  }
+  // Persistence across sessions (ticket44-favorites-persistence-20261112):
+  // the original persists the five per-category Saved_*_FavoriteCards
+  // arrays and restores them at startup via ValidateMediaEntries (keep
+  // iff the file still exists); the derived FavoriteFrenzy deck is NOT
+  // stored. The persisted form here is the favorited set as {filename,
+  // home category} pairs — the home category is the favoritesSource map
+  // KEY (the per-category split is recoverable from it), not the entry's
+  // own category field (they differ for 4/5/7/8, which dispatch to Fast).
+  static parseSavedFavorites(value){
+   let entries=null;
+   if(Array.isArray(value))entries=value;
+   else if(value!==null&&typeof value==='object'){
+    if(value.version!==undefined&&value.version!==1)return [];
+    if(!Array.isArray(value.entries))return [];
+    entries=value.entries;
+   }else return [];
+   const out=[];
+   for(const item of entries){
+    if(!item||typeof item!=='object')continue;
+    if(typeof item.filename!=='string'||!item.filename)continue;
+    if(item.category===undefined)out.push({filename:item.filename});
+    else if(Number.isSafeInteger(item.category)&&item.category>=0&&item.category<=9)out.push({filename:item.filename,category:item.category});
+   }
+   return out;
+  }
+  serializeFavorites(){
+   const out=[];
+   for(const [home,array] of this.favoritesSource.entries()){
+    if(home===9)continue;
+    for(const entry of array)out.push({filename:filenameOf(entry),category:home});
+   }
+   out.sort((a,b)=>a.filename.toLowerCase()<b.filename.toLowerCase()?-1:a.filename.toLowerCase()>b.filename.toLowerCase()?1:0);
+   return out;
+  }
+  restoreFavorites(list){
+   // ValidateMediaEntries analogue: keep a saved entry only if its file
+   // is still registered in this session's media; drop the rest.
+   const items=Array.isArray(list)?list:[];
+   let restored=0,dropped=0;
+   if(!this.ready)return {restored:0,dropped:items.length};
+   for(const item of items){
+    const filename=filenameOf(item);
+    if(!filename){dropped++;continue;}
+    if(this.isFavorite(item)){restored++;continue;}
+    let found=null,foundCategory=null;
+    for(const [category,array] of this.master.entries()){
+     if(category===9)continue;
+     const match=this.findByFilename(array,filename);
+     if(match){found=match;foundCategory=category;break;}
+    }
+    if(!found){dropped++;continue;}
+    const home=favoriteHomeCategory(Number.isSafeInteger(item?.category)&&item.category>=0&&item.category<=9?item.category:foundCategory);
+    const copy={...found,isFavorite:true};
+    this.arrayFor(this.favoritesSource,home).push(copy);
+    this.arrayFor(this.remainingFavorites,home).push({...copy});
+    this.removeByFilename(this.master.get(foundCategory),filename);
+    restored++;
+   }
+   this.rebuildFavoriteFrenzyCategory();this.rebuildGlobalDrawCycleUniverse();
+   return {restored,dropped};
   }
   rebuildFavoriteFrenzyCategory(){
    const deck=[],seenKeys=new Set();

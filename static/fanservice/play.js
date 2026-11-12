@@ -194,6 +194,11 @@ function renderFavorite(){favoriteButton.hidden=!started||finished||!!music;favo
 function toggleFavorite(){
  if(!started||paused||finished||!currentMedia||music||!favorites)return;
  const result=favorites.toggleFavorite(currentMedia);
+ // Write-through persistence (ticket44-favorites-persistence-20261112):
+ // the original syncs the master registry into the save array and calls
+ // GameInstance.SaveAllData() on EVERY toggle, both paths. The player
+ // writes the favorited set into the game profile on every toggle.
+ persistFavorites().catch(error=>status('Favorites could not be saved: '+error.message));
  // Native ToggleFavorite moves the entry out of the master pool only; the
  // remaining-deck copy lingers until that deck exhausts and refills from
  // master. Unfavorite restores it to the master and remaining decks.
@@ -260,7 +265,23 @@ function makeRun(){
  const settings={...(profile.mobile_settings||{}),LastObjectiveIndex_Classic:Number(objectiveSelect.value),LootBarEnabled:lootChoice.checked,'IsBrainMelterEnabled?':frenzyChoice.checked};if(spec.saveKey)settings[spec.saveKey]=target;
  return new FanserviceRun.Run(catalog,{mode,rounds:Number(roundsInput.value),settings,difficulty:Number($('difficulty').value),cardRules,lootEnabled:lootChoice.checked,maxBreaks:catalog.music_upgrades[1]['Value_L'+Math.max(1,Math.min(5,profile.mobile_music_upgrades?.[1]||1))],seed:run?.config.seed??crypto.getRandomValues(new Int32Array(1))[0],hotbar:run?.inventory.hotbarItems||profile.mobile_loadout,modifiers:profile.progression?.enabled_modifiers||[]});
 }
-function installRun(value){window.FanserviceVoice.stop();vibration.cancel();cancelFinishHold();run=value;state=run.state;decks=rules.mediaPools(media,FanserviceModifiers.options(state.modifiers));remaining={};favorites=new FanserviceFavorites.Favorites({random:run.random});favorites.register(media);}
+function installRun(value){window.FanserviceVoice.stop();vibration.cancel();cancelFinishHold();run=value;state=run.state;decks=rules.mediaPools(media,FanserviceModifiers.options(state.modifiers));remaining={};favorites=new FanserviceFavorites.Favorites({random:run.random});favorites.register(media);favorites.restoreFavorites(loadSavedFavorites());}
+// Favorites persistence (ticket44-favorites-persistence-20261112): the
+// persisted form is the favorited set as {filename, home category} pairs
+// (the analogue of the original's per-category Saved_*_FavoriteCards
+// arrays); the derived FavoriteFrenzy deck is rebuilt from the restored
+// registry, never stored. A profile without a favorites record (written
+// before persistence existed) loads as empty.
+function loadSavedFavorites(){
+ let stored=null;
+ try{stored=JSON.parse(localStorage.getItem(profileKey)||'null');}catch{}
+ return FanserviceFavorites.Favorites.parseSavedFavorites(stored?.favorites??profile?.favorites);
+}
+async function persistFavorites(){
+ if(!favorites)return;
+ const record={version:1,entries:favorites.serializeFavorites()};
+ await mutateProfile(current=>({...current,favorites:record}));
+}
 function pauseVisualMedia(){$('video').pause();$('background-video').pause();}
 function cancelMediaGesture(){
  mediaPress=null;mediaKey=null;

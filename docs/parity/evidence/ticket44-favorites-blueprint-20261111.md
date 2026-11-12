@@ -42,10 +42,15 @@ N=6→Cum (5774). **N=4 (Event), N=5 (Edging), N=7 (AssFrenzy), N=8
 read; likely those four switch cases share the Fast pin in the Blueprint (or
 are unhandled and fall through to Fast).
 
-The function also references the five SaveGame arrays
+The function also writes the five SaveGame arrays
 (`Saved_Cum/Fast/Medium/Slow/Succubus_FavoriteCards`, owner BP_CHSaveGame_C
-import −6) in Let assignments, but the toggle itself operates on the master +
-draw-pool arrays, not the saved arrays.
+import −6) in Let assignments on BOTH the add and the remove path — and
+calls `GameInstance.SaveAllData()` immediately after each write — so the
+toggle persists the moment it happens. See
+`ticket44-favorites-persistence-20261112.md` for the full settled
+persistence story (write-through save, validated restore at startup,
+and the Medium-add / Succubus wiring quirks, which are NOT copied into
+the player).
 
 ## `CumFavoriteCards` EXISTS on the Blueprint side
 
@@ -442,6 +447,18 @@ this repo.
   matches the toggle semantics above, but the original's exact call path is
   unconfirmed.
 - No Blueprint caller of `AddFavoriteMedia` found in this pass.
+- **Persistence across sessions is SETTLED** (2026-11-12): the original
+  DOES persist favorites — see
+  `ticket44-favorites-persistence-20261112.md`. Per-category
+  `Saved_*_FavoriteCards` arrays + `AllFavoritedCards_Array` on
+  `BP_CHSaveGame_C`, written by `SaveGameToSlot` on every toggle,
+  restored at startup by `Validate&PopulateSavedMedia` via
+  `UCHPackManager::ValidateMediaEntries` (keep iff filename length > 1
+  and the file exists). The derived FavoriteFrenzy deck is not stored.
+  The player implements this in `favorites.js` (`serializeFavorites` /
+  `restoreFavorites` / `parseSavedFavorites`) with the profile record
+  written through `mutateProfile` on every toggle and restored in
+  `installRun`.
 - Frenzy trigger bodies (`FavoriteFrenzyEvent`, cooldown progress/start)
   are decoded and the gate + 120 s cooldown are modeled in favorites.js
   (see above); the call site is SETTLED (TriggerSelectedEvent, event

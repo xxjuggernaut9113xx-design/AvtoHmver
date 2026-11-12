@@ -195,3 +195,79 @@ test('Event/Edging/AssFrenzy/BoobFrenzy favorites dispatch to the Fast registry'
  assert.equal(favorites.master.get(7).some(e=>e.filename==='ass.png'&&!e.isFavorite),true,'Unfavoriting restores the entry to its own category master');
  assert.equal(favorites.favoritesSource.get(2).some(e=>e.filename==='ass.png'),false);
 });
+
+// Persistence across sessions (ticket44-favorites-persistence-20261112):
+// the original writes the five Saved_*_FavoriteCards arrays on every
+// toggle (SaveAllData immediately) and restores them at startup through
+// ValidateMediaEntries (keep iff the file still exists). The player
+// persists the favorited set as {filename, home category} pairs and
+// rebuilds the derived FavoriteFrenzy deck from the restored registry.
+test('serialize/restore round-trip survives a fresh session with the derived deck intact',()=>{
+ const first=setup();first.toggleFavorite(entry('a.png',0));first.toggleFavorite(entry('c.png',2));first.toggleFavorite(entry('b.png',1));
+ const saved=first.serializeFavorites();
+ assert.equal(saved.length,3);
+ const second=setup();const result=second.restoreFavorites(saved);
+ assert.deepEqual(result,{restored:3,dropped:0});
+ assert.equal(second.isFavorite(entry('a.png',0)),true);
+ assert.equal(second.isFavorite(entry('c.png',2)),true);
+ assert.equal(second.isFavorite(entry('b.png',1)),true);
+ assert.equal(second.getFavoriteFrenzyCardCount(),3);
+ assert.equal(second.master.get(9).length,3);
+ assert.equal(second.master.get(0).some(e=>e.filename==='a.png'),false);
+});
+test('serialize records the home category key, not the entry category field',()=>{
+ const favorites=new Favorites({random:stubRandom([.5])});
+ favorites.register([entry('ass.png',7)]);
+ favorites.toggleFavorite(entry('ass.png',7));
+ // Event/Edging/AssFrenzy/BoobFrenzy dispatch to the Fast block (home 2).
+ assert.deepEqual(favorites.serializeFavorites(),[{filename:'ass.png',category:2}]);
+});
+test('restore drops saved entries whose file is no longer in the pack',()=>{
+ const first=setup();first.toggleFavorite(entry('a.png',0));first.toggleFavorite(entry('d.png',0));
+ const saved=first.serializeFavorites();
+ const second=new Favorites({random:stubRandom([.5])});
+ second.register([entry('a.png',0),entry('b.png',1)]);
+ const result=second.restoreFavorites([...saved,{filename:'gone.png',category:1}]);
+ assert.deepEqual(result,{restored:1,dropped:2});
+ assert.equal(second.isFavorite(entry('a.png',0)),true);
+ assert.equal(second.isFavorite(entry('d.png',0)),false);
+ assert.equal(second.getFavoriteFrenzyCardCount(),1);
+});
+test('restore is idempotent and never duplicates a favorite',()=>{
+ const first=setup();first.toggleFavorite(entry('a.png',0));
+ const saved=first.serializeFavorites();
+ const second=setup();second.restoreFavorites(saved);
+ const again=second.restoreFavorites(saved);
+ assert.deepEqual(again,{restored:1,dropped:0});
+ assert.equal(second.favoritesSource.get(0).filter(e=>e.filename==='a.png').length,1);
+ assert.equal(second.getFavoriteFrenzyCardCount(),1);
+});
+test('restore honors the saved home category',()=>{
+ const favorites=new Favorites({random:stubRandom([.5])});
+ favorites.register([entry('ass.png',7),entry('slow.png',0)]);
+ const result=favorites.restoreFavorites([{filename:'ass.png',category:2}]);
+ assert.deepEqual(result,{restored:1,dropped:0});
+ assert.equal(favorites.favoritesSource.get(2).some(e=>e.filename==='ass.png'),true);
+ assert.equal(favorites.favoritesSource.get(7)?.some(e=>e.filename==='ass.png')||false,false);
+ assert.equal(favorites.master.get(7).some(e=>e.filename==='ass.png'),false);
+ assert.equal(favorites.getFavoriteFrenzyCardCount(),1);
+});
+test('restore of an empty or missing list is a no-op',()=>{
+ const favorites=setup();
+ for(const value of [[],null,undefined]){
+  assert.deepEqual(favorites.restoreFavorites(value),{restored:0,dropped:0});
+ }
+ assert.equal(favorites.getFavoriteFrenzyCardCount(),0);
+});
+test('parseSavedFavorites accepts the versioned record and tolerates pre-persistence profiles',()=>{
+ assert.deepEqual(Favorites.parseSavedFavorites(undefined),[]);
+ assert.deepEqual(Favorites.parseSavedFavorites(null),[]);
+ assert.deepEqual(Favorites.parseSavedFavorites({}),[]);
+ assert.deepEqual(Favorites.parseSavedFavorites({version:1}),[]);
+ assert.deepEqual(Favorites.parseSavedFavorites({version:2,entries:[{filename:'a.png',category:0}]}),[]);
+ assert.deepEqual(Favorites.parseSavedFavorites({version:1,entries:[{filename:'a.png',category:0},{filename:'b.png',category:1}]}),[{filename:'a.png',category:0},{filename:'b.png',category:1}]);
+ // Malformed entries are skipped, valid ones survive; extra fields ignored.
+ assert.deepEqual(Favorites.parseSavedFavorites({version:1,entries:[{filename:'',category:0},{filename:'a.png',category:'slow'},{filename:'b.png',category:1,extra:true},null,'a.png']}),[{filename:'b.png',category:1}]);
+ // A bare array (no version wrapper) is accepted leniently.
+ assert.deepEqual(Favorites.parseSavedFavorites([{filename:'a.png',category:0}]),[{filename:'a.png',category:0}]);
+});

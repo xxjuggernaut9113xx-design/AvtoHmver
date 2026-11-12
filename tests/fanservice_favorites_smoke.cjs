@@ -21,6 +21,10 @@ const root=path.resolve(__dirname,'../static/fanservice');let origin;const fixtu
   const context=await browser.newContext({viewport:{width:390,height:844},...(process.env.FANSERVICE_BROWSER_ENGINE==='webkit'?{deviceScaleFactor:3,isMobile:true,hasTouch:true}:{})}),page=await context.newPage(),errors=[];
   page.on('pageerror',error=>errors.push(error.message));
   await page.addInitScript(id=>{
+   // Seed only once: a reload must keep the persisted profile (including
+   // favorites written by the toggles below), not re-seed a
+   // pre-persistence profile over it.
+   if(localStorage.getItem('fanservice-profile-v1:'+id))return;
    const progression={level:1,xp:0,total_xp:0,coins:0,sessions:0,wins:0,completed_sessions:[],challenge_progress:{},lifetime_metrics:{},unlocked_modifiers:[],enabled_modifiers:[]};
    localStorage.setItem('fanservice-profile-v1:'+id,JSON.stringify({version:1,unlock_points:0,mobile_loadout:[1],progression,packs:[{id:'custom:'+id,library_id:id,device_id:'fixture',name:'Neutral favorites fixture',owned:true,enabled:true,selection:{ids:[1,2,3,4,5,6],rules:[],local_ids:[]}}]}));
   },fixture);
@@ -81,6 +85,20 @@ const root=path.resolve(__dirname,'../static/fanservice');let origin;const fixtu
    await page.clock.fastForward(2000);
    assert.equal(await page.evaluate(()=>document.querySelector('#frenzy-overlay').hidden),true,'The frenzy banner must hide after 1.75 s');
    assert.equal(await page.evaluate(()=>document.querySelector('#pace-flash').hidden),true,'The Fast! flash must hide after 0.7547 s');
+   // Persistence across sessions (ticket44-favorites-persistence-20261112):
+   // the three favorites must survive a reload: each toggle writes them
+   // to the game profile, and installRun restores them on the fresh
+   // session (the same six fixture files are still present, so nothing
+   // is dropped) with the derived FavoriteFrenzy deck rebuilt.
+   const favorited=await page.evaluate(()=>favorites.serializeFavorites().map(entry=>entry.filename));
+   assert.equal(favorited.length,3,'Three favorites must be recorded before the reload');
+   await page.waitForFunction(()=>{const profile=JSON.parse(localStorage.getItem('fanservice-profile-v1:favorites-hotbar')||'null');return profile?.favorites?.entries?.length===3;});
+   await page.reload();
+   await page.waitForFunction(()=>!document.querySelector('#start').disabled);
+   assert.equal(await page.evaluate(()=>favorites.getFavoriteFrenzyCardCount()),3,'The derived FavoriteFrenzy deck must be rebuilt from the restored favorites after reload');
+   for(const filename of favorited){
+    assert.equal(await page.evaluate(name=>favorites.isFavorite({filename:name}),filename),true,`The favorite ${filename} must survive the reload`);
+   }
    assert.deepEqual(errors,[],'No page errors');
    reports.push('favorites smoke: PASS');
   }catch(error){reports.push('favorites smoke: FAIL '+error.message);throw error;}
