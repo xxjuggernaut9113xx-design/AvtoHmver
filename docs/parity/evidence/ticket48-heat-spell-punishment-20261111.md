@@ -533,6 +533,42 @@ player counterpart for the IncreaseCumChance button/action, and the
 entry above; the shared widget tail after stmt 209 jumps to stmt 51,
 whose tier switch is on `IncreaseCumChanceUpgradeLevel`).
 
+#### Re-verification (2026-11-12) — prior finding holds, no faithful mechanic
+
+Re-checked from the primary sources rather than the note above:
+
+- `RollPunishmentChance` re-read (`functions/BP_GlobalManager/
+  RollPunishmentChance.json`): rate is `(TotalTauntsUsed / 5, integer
+  division) * 20` percent, from
+  `PlayerVariablesStruct.LegacyStats.TotalTauntsUsed`, rolled via "Roll
+  Chance (0-100%)". The roll itself is fully understood; only its
+  trigger is missing.
+- `UseCumChanceItem` re-read (`functions/ModularInventoryHotbar_Widget/
+  UseCumChanceItem.json`): 3 statements, a pure thunk to hotbar entry
+  9606 — no effect body of its own. There is no "increase cum chance"
+  effect to wire the roll to; the miss-path effect lives in the shared
+  widget tail's tier switch on `IncreaseCumChanceUpgradeLevel`, whose
+  per-tier effects are not decoded.
+- The game's own item data (`static/fanservice/data/modes.json`, 11
+  items) contains **no CumChance item**; the player's type map
+  (`items.js`: 1, 3, 4, 5, 6, 7, 9, 10, 11, 12, 13) covers exactly
+  those 11. Type 0 cannot appear in the catalog, so no item use can
+  carry the roll.
+- The player has no "cum chance" variable or mechanic at all: the cum
+  meter fills deterministically from strokes/edges/objectives, and
+  climax is decided by the trigger/window logic, never by a chance roll.
+  Nothing exists for a CumChance effect to increase.
+- The roll cannot be re-homed onto an existing action: the other four
+  roll sites are each tied to their own action (Edge button, DecreaseHeat,
+  Slowdown, Break tail — all wired). Attaching this roll to e.g. taunt
+  use would invent a punishment trigger the original does not have.
+
+Conclusion: the type-0 roll stays blocked. The four wired sites cover
+every punishment roll the player has an action for; the fifth site has
+no action, no item, and no mechanic in the player. Do not wire it
+without a decoded `IncreaseCumChance` effect and a player counterpart
+for the button — both are missing, and inventing either is out of scope.
+
 ### `DetermineShouldHotHandsModifierApply` internals — surveyed, no correction
 
 The function is fully retained
