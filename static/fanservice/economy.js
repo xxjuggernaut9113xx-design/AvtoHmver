@@ -195,16 +195,65 @@
   if(mode==='set'){s[field]=value;return true;}
   s[field]=add(s[field],value);return true;
  }
+ // Native metric get/set helpers (v0.05.1, unnamed in the public PDB — see
+ // docs/parity/evidence/ticket50-producers-native-20261111.md §7 items
+ // 2-3): 0x1482f4540 GetSessionMetricValue(stats, strokeComboLive, metric,
+ // out) and 0x148311f70 SetSessionMetricValue(stats, strokeComboLive,
+ // edgeStreakLive, consecSuccubiLive, metric, value, out), both 47-entry
+ // jump tables over EMetricType 0-46. Both return false for metrics 9
+ // (AvgStrokesPerEdge), 15 (TotalXPEarned), 20 (PerfectRounds), 21
+ // (TimesLost) and for metric > 46 — those have no writable session field
+ // (derived values / handled by another system). Metric 5 (StrokeCombo)
+ // reads/writes the LIVE combo counter only (UProgressionManager+0x98,
+ // the player's state.combo); there is no session field for it. The setter
+ // clamps the value at >= 0 before the switch, sets the field AND *out to
+ // the clamped value, and additionally writes the live counterparts for 17
+ // (EdgeStreak: edge.js e.streak) and 18 (ConsecutiveSuccubiSurvived: the
+ // field itself is the live counter, cards.js:86-87), and the won/lost
+ // bools for 14 (SessionsWon -> state.won) and 22 (LostToSuccubus ->
+ // state.lostToSuccubus, created here — the player had no such field).
+ // ResetSessionMetric (0x14830a2a0) and SubtractSessionMetric (0x148315720)
+ // are the setter's ONLY callers (no combine path exists): reset sets the
+ // metric to 0, subtract sets it to max(current - amount, 0) after
+ // rejecting amount <= 0. Both then call RefreshIncompleteSessionChallenge-
+ // Metric with the NEW value and broadcast the challenge-progress delegate;
+ // in the player that fan-out rides the existing settlement path
+ // (progression.settleSession -> updateChallenges), exactly as for the six
+ // producers above, so reset/subtract return the value result here and do
+ // not fan out immediately. All four helpers return {ok, value}: value is
+ // the read / newly-set value on success, undefined on failure.
+ const sessionMetricNoField=new Set([9,15,20,21]);
+ function getSessionMetricValue(run,metricId){
+  if(!Number.isInteger(metricId)||metricId<0||metricId>46||sessionMetricNoField.has(metricId))return {ok:false};
+  if(metricId===5)return {ok:true,value:run.state.combo||0};
+  return {ok:true,value:run.state[metricIds[metricId]]||0};
+ }
+ function setSessionMetricValue(run,metricId,value){
+  if(!Number.isInteger(metricId)||metricId<0||metricId>46||sessionMetricNoField.has(metricId)||!Number.isFinite(value))return {ok:false};
+  const s=run.state,clamped=Math.max(0,Math.trunc(value));
+  if(metricId===5){s.combo=clamped;return {ok:true,value:clamped};}
+  s[metricIds[metricId]]=clamped;
+  if(metricId===17&&s.edge)s.edge.streak=clamped;
+  if(metricId===14)s.won=clamped>0;
+  if(metricId===22)s.lostToSuccubus=clamped>0;
+  return {ok:true,value:clamped};
+ }
+ function resetSessionMetric(run,metricId){return setSessionMetricValue(run,metricId,0);}
+ function subtractSessionMetric(run,metricId,amount){
+  if(!Number.isSafeInteger(amount)||amount<=0)return {ok:false};
+  const current=getSessionMetricValue(run,metricId);
+  if(!current.ok)return {ok:false};
+  return setSessionMetricValue(run,metricId,current.value-amount);
+ }
  // The six settled producers (§1): each wraps UpdateMetricWithConditions
  // with a constant metric id, a value of 1 (or the rounds won), and a
  // zeroed conditions struct (no conditions). Challenge fan-out (§2 phase
  // 3) flows through the existing settlement path: the producer records
  // into run state, sessionMetrics copies the field by name, and
- // updateChallenges fans out by metric id. The §2 phase-2 helper
- // (0x1482f4540, unnamed in the public PDB) is NOT implemented — its name
- // and bool meaning are unestablished. Reset / subtract / combine need
- // the 0x148311f70 helper's semantics (and, for combine, the int
- // parameter's role) — recorded open, not guessed.
+ // updateChallenges fans out by metric id. The §2 phase-2 helpers
+ // (0x1482f4540 getter, 0x148311f70 setter) are implemented above as
+ // getSessionMetricValue / setSessionMetricValue, with reset/subtract
+ // mirroring ResetSessionMetric / SubtractSessionMetric.
  function recordComboCruncherUsed(run){return applySessionMetric(run,39,1);}
  function recordMusicBreakUsed(run){return applySessionMetric(run,44,1);}
  function recordBountyCollectionFailure(run){return applySessionMetric(run,46,1);}
@@ -218,6 +267,6 @@
  // which is why 30/31/35 looked unresolved).
  const metricIds={0:'Strokes',1:'Edges',2:'SuccubiDefeated',3:'EnemiesDefeated',4:'MaxCombo',5:'StrokeCombo',6:'MissedCumWindows',7:'TimesTaunted',8:'ItemsUsed',9:'AvgStrokesPerEdge',10:'DrawsAtMaxHeat',11:'EarlyClimax',12:'SessionDuration',13:'SessionsCompleted',14:'SessionsWon',15:'TotalXPEarned',16:'MoneySpent',17:'EdgeStreak',18:'ConsecutiveSuccubiSurvived',19:'CumWindowsHit',20:'PerfectRounds',21:'TimesLost',22:'LostToSuccubus',23:'TimeAtHighHeat',24:'PercentAtHighHeat',25:'GamesWithSexToy',26:'PerfectEdges',27:'BonerPillsUsed',28:'AcceptedTemptation',29:'CameDuringTaunt',30:'DefensiveItemsUsed',31:'OffensiveItemsUsed',32:'DeclinedTemptation',33:'BountiesCollected',34:'LootRushesUsed',35:'EscapeRopesUsed',36:'MilkingCount',37:'SuccuSlayerSessionsWon',38:'EdgeSessionsWon',39:'ComboCrunchersUsed',40:'SuccuCoinsSpent',41:'SessionsWonAtMaxDifficulty',42:'BestMusicModeWinRounds',43:'BestTowerWinRounds',44:'MusicBreaksUsed',45:'DisabledBreakSectionFailures',46:'BountyCollectionFailures'};
  const shopIds=[0,1,2,3,4,5,6,7,9,10,11,12,13,16,17,18,19,20,21];
- const api={catalog,shopIds,initialize,has,fraction,heatCap,addHeat,addSuccuCoins,purchase,addBeatCoins,loot,beat,draw,succubusDefeated,itemUsed,recycler,advance,sourceLedger,metricIds,sessionMetricModes,applySessionMetric,cumMeterDifficulty,towerCumMeterDifficulty,itemSpawnChances,multiplierEnumValue,recordComboCruncherUsed,recordMusicBreakUsed,recordBountyCollectionFailure,recordDisabledBreakSectionFailure,recordTowerWinRounds,recordMusicModeWinRounds};
+ const api={catalog,shopIds,initialize,has,fraction,heatCap,addHeat,addSuccuCoins,purchase,addBeatCoins,loot,beat,draw,succubusDefeated,itemUsed,recycler,advance,sourceLedger,metricIds,sessionMetricModes,applySessionMetric,cumMeterDifficulty,towerCumMeterDifficulty,itemSpawnChances,multiplierEnumValue,getSessionMetricValue,setSessionMetricValue,resetSessionMetric,subtractSessionMetric,recordComboCruncherUsed,recordMusicBreakUsed,recordBountyCollectionFailure,recordDisabledBreakSectionFailure,recordTowerWinRounds,recordMusicModeWinRounds};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.FanserviceEconomy=api;
 })(globalThis);

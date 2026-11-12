@@ -59,6 +59,59 @@ test('applySessionMetric sets 24 and no-ops 5/9/15/20/21',()=>{
  assert.equal(economy.applySessionMetric(r,99,1),false);
 });
 
+// #50 native metric helpers (v0.05.1, unnamed in the public PDB):
+// 0x1482f4540 GetSessionMetricValue and 0x148311f70 SetSessionMetricValue,
+// both 47-entry jump tables over EMetricType 0-46. Both return false for
+// 9/15/20/21 and out-of-range ids. Metric 5 reads/writes the live combo
+// counter (state.combo), not a session field; the setter clamps at >= 0
+// and writes the live counterparts for 17 (edge.streak), 18 (the field
+// itself) and the won/lost bools for 14/22.
+test('getSessionMetricValue reads session fields and the live combo',()=>{
+ const r=run({Strokes:5,MaxCombo:9,combo:7,StrokeCombo:4,EdgeStreak:3});
+ assert.deepEqual(economy.getSessionMetricValue(r,0),{ok:true,value:5});
+ assert.deepEqual(economy.getSessionMetricValue(r,4),{ok:true,value:9});
+ assert.deepEqual(economy.getSessionMetricValue(r,17),{ok:true,value:3});
+ // Metric 5 is the LIVE combo (7), not the StrokeCombo field (4).
+ assert.deepEqual(economy.getSessionMetricValue(r,5),{ok:true,value:7});
+ assert.deepEqual(economy.getSessionMetricValue(r,12),{ok:true,value:0});
+ for(const id of [9,15,20,21,47,-1,1.5])assert.deepEqual(economy.getSessionMetricValue(r,id),{ok:false},`get ${id}`);
+});
+test('setSessionMetricValue sets fields, clamps at 0, and writes live counterparts',()=>{
+ const r=run({Strokes:5,combo:7,EdgeStreak:2,edge:{streak:2},SessionsWon:0,won:false,LostToSuccubus:0});
+ assert.deepEqual(economy.setSessionMetricValue(r,0,9),{ok:true,value:9});assert.equal(r.state.Strokes,9);
+ assert.deepEqual(economy.setSessionMetricValue(r,0,-4),{ok:true,value:0});assert.equal(r.state.Strokes,0);
+ assert.deepEqual(economy.setSessionMetricValue(r,0,3.7),{ok:true,value:3});assert.equal(r.state.Strokes,3);
+ assert.deepEqual(economy.setSessionMetricValue(r,5,11),{ok:true,value:11});assert.equal(r.state.combo,11);assert.equal(r.state.StrokeCombo,undefined);
+ assert.deepEqual(economy.setSessionMetricValue(r,17,6),{ok:true,value:6});assert.equal(r.state.EdgeStreak,6);assert.equal(r.state.edge.streak,6);
+ assert.deepEqual(economy.setSessionMetricValue(r,18,4),{ok:true,value:4});assert.equal(r.state.ConsecutiveSuccubiSurvived,4);
+ assert.deepEqual(economy.setSessionMetricValue(r,14,2),{ok:true,value:2});assert.equal(r.state.SessionsWon,2);assert.equal(r.state.won,true);
+ assert.deepEqual(economy.setSessionMetricValue(r,14,0),{ok:true,value:0});assert.equal(r.state.won,false);
+ assert.deepEqual(economy.setSessionMetricValue(r,22,1),{ok:true,value:1});assert.equal(r.state.LostToSuccubus,1);assert.equal(r.state.lostToSuccubus,true);
+ assert.deepEqual(economy.setSessionMetricValue(r,22,0),{ok:true,value:0});assert.equal(r.state.lostToSuccubus,false);
+ for(const id of [9,15,20,21,47,-1])assert.deepEqual(economy.setSessionMetricValue(r,id,7),{ok:false},`set ${id}`);
+ assert.deepEqual(economy.setSessionMetricValue(r,0,NaN),{ok:false});
+ assert.deepEqual(economy.setSessionMetricValue(r,0,Infinity),{ok:false});
+ // Metric 17 with no live edge state still sets the field.
+ const noEdge=run({EdgeStreak:1});
+ assert.deepEqual(economy.setSessionMetricValue(noEdge,17,5),{ok:true,value:5});assert.equal(noEdge.state.EdgeStreak,5);
+});
+test('resetSessionMetric zeroes and subtractSessionMetric sets max(current-amount,0)',()=>{
+ const r=run({Strokes:10,combo:4,MusicBreaksUsed:2});
+ assert.deepEqual(economy.resetSessionMetric(r,0),{ok:true,value:0});assert.equal(r.state.Strokes,0);
+ assert.deepEqual(economy.resetSessionMetric(r,5),{ok:true,value:0});assert.equal(r.state.combo,0);
+ assert.deepEqual(economy.resetSessionMetric(r,9),{ok:false});
+ assert.deepEqual(economy.resetSessionMetric(r,47),{ok:false});
+ assert.deepEqual(economy.subtractSessionMetric(r,44,1),{ok:true,value:1});assert.equal(r.state.MusicBreaksUsed,1);
+ assert.deepEqual(economy.subtractSessionMetric(r,44,5),{ok:true,value:0});assert.equal(r.state.MusicBreaksUsed,0);
+ assert.deepEqual(economy.subtractSessionMetric(r,44,0),{ok:false});
+ assert.deepEqual(economy.subtractSessionMetric(r,44,-2),{ok:false});
+ assert.deepEqual(economy.subtractSessionMetric(r,9,1),{ok:false});
+ assert.deepEqual(economy.subtractSessionMetric(r,47,1),{ok:false});
+ // Subtract from the live combo (metric 5) via the getter.
+ const c=run({combo:6});
+ assert.deepEqual(economy.subtractSessionMetric(c,5,2),{ok:true,value:4});assert.equal(c.state.combo,4);
+});
+
 test('the six producers record the exact metric, value and guard',()=>{
  const r=run();
  economy.recordComboCruncherUsed(r);economy.recordComboCruncherUsed(r);
