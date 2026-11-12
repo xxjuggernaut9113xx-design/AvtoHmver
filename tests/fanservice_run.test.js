@@ -8,6 +8,61 @@ test('Classic objective opens the native release window and reset preserves sess
  assert.equal(run.advance(60)[0].type,'objective-reset');assert(!run.player.isAllowedToCum);
  assert.equal(run.objective.state.baselineStrokes,100);assert.equal(run.state.strokes,100);
 });
+test('GM clock: Devil guard holds Classic Timer progress until a Succubus card, wall clock keeps rewards time',()=>{
+ // SetSessionDuration (GM ubergraph, v0.05.1): with 'Deal With The Devil'
+ // active a second counts only on a Succubus card (3). The format tick's
+ // Timer check still runs on a guarded-out second, so a banked completion
+ // opens on the next ordinary card without counting.
+ const run=new Run(catalog,{settings:{LastObjectiveIndex_Classic:1,LastObjective_Timer:300},modifiers:['Deal With The Devil']});
+ run.advance(299);
+ assert.equal(run.objective.gmSeconds,0);assert.equal(run.player.sessionLength,299);
+ run.state.card=3;run.advance(1);
+ assert.equal(run.objective.gmSeconds,1);
+ run.state.card=0;run.advance(299);
+ assert.equal(run.objective.gmSeconds,1);assert.equal(run.player.sessionLength,599);
+ run.state.card=3;run.advance(299);
+ assert.equal(run.objective.gmSeconds,300);assert.equal(run.objective.releaseDeadline,null);
+ run.state.card=0;run.advance(1);
+ assert.equal(run.objective.gmSeconds,300);assert.equal(run.objective.releaseDeadline,959);
+ assert.equal(run.player.sessionLength,899);assert.equal(run.effectiveStats().seconds,899);
+});
+test('GM clock: Prejac expiry through run.advance stops the clock and ends the session',()=>{
+ const run=new Run(catalog,{settings:{LastObjectiveIndex_Classic:4,LastObjective_Prejac:30}});
+ run.advance(29);
+ assert.equal(run.objective.gmSeconds,29);assert.equal(run.phase,'playing');
+ assert.equal(run.advance(1)[0].type,'premature-cum');
+ assert.equal(run.phase,'complete');assert.equal(run.state.won,false);
+ assert.equal(run.objective.gmSeconds,30);assert.equal(run.objective.gmStopped,true);
+ assert.equal(run.player.sessionLength,30);
+ run.advance(1);assert.equal(run.objective.gmSeconds,30);assert.equal(run.state.seconds,30);
+});
+test('GM clock survives export/restore and All or Nothing zeroes it for Timer',()=>{
+ const run=new Run(catalog,{settings:{LastObjectiveIndex_Classic:1,LastObjective_Timer:300}});
+ run.advance(100);
+ assert.equal(run.objective.gmSeconds,100);
+ const restored=Run.restore(catalog,run.export());
+ assert.equal(restored.objective.gmSeconds,100);assert.equal(restored.objective.gmStopped,false);
+ assert.deepEqual(restored.export(),run.export());
+ // ApplyAllOrNothingModifierEffects_IfToggled (GM, v0.05.1) zeroes
+ // SessionLength for objective 1; the player zeroes the GM clock and its
+ // baseline with it, so the Timer restarts from zero.
+ restored.resetObjective();
+ assert.equal(restored.objective.gmSeconds,0);assert.equal(restored.objective.state.baselineGmSeconds,0);
+ assert.equal(restored.effectiveStats().sessionLength,0);
+ // Saves from before the clock restore to the wall clock as the fallback.
+ const legacy=run.export();delete legacy.objective.gmSeconds;delete legacy.objective.gmStopped;
+ const old=Run.restore(catalog,legacy);
+ assert.equal(old.objective.gmSeconds,100);assert.equal(old.objective.gmStopped,false);
+});
+test('GM clock: TimeAtHighHeat counts only Devil-counted seconds',()=>{
+ // SetSessionDuration updates the high-heat metrics only on a counted
+ // second while Heat Level >= 70; a Devil-guarded second counts neither.
+ const run=new Run(catalog,{modifiers:['Deal With The Devil']});
+ run.state.heat=70;
+ run.advance(2);assert.equal(run.state.TimeAtHighHeat||0,0);
+ run.state.card=3;run.advance(2);assert.equal(run.state.TimeAtHighHeat,2);
+ run.state.card=0;run.advance(2);assert.equal(run.state.TimeAtHighHeat,2);
+});
 test('Tower full lifecycle grants native rewards once and persists inventory, draft and random cursor',()=>{
  const run=new Run(catalog,{mode:1,rounds:3,seed:319});
  for(let round=1;round<=3;round++){

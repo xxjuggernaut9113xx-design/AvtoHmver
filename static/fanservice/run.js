@@ -33,7 +33,14 @@
    }
   }
   effectiveStats(){return SessionMetrics.effective(this.state,this.player);}
-  resetObjective(){SessionMetrics.resetObjective(this);this.player.sessionLength=this.effectiveStats().sessionLength;}
+  resetObjective(){
+   SessionMetrics.resetObjective(this);this.player.sessionLength=this.effectiveStats().sessionLength;
+   // All-or-Nothing zeroes the GM-side SessionLength for a Timer
+   // objective (ApplyAllOrNothingModifierEffects_IfToggled, GM v0.05.1);
+   // zero the clock and its baseline with it so the Timer restarts from 0.
+   const objective=this.roundObjective||this.objective.state;
+   if(objective?.objective===1){this.objective.gmSeconds=0;objective.baselineGmSeconds=0;}
+  }
   objectiveStats(){const s=this.effectiveStats();return {strokes:s.strokes,edges:s.edges,succubiDefeated:s.succubi,milkingCount:s.milkingCount,cumWindowsHit:s.CumWindowsHit||0,missedCumWindows:s.MissedCumWindows||0};}
   context(){return {mode:this.config.mode,phase:this.tower&&!this.tower.endless&&this.tower.round>=this.tower.rounds?'bossRound':this.phase,state:this.roundObjective,playing:this.phase==='playing',cardType:this.state.card,modifiers:this.state.modifiers};}
   select(index){
@@ -46,17 +53,33 @@
    // construction, so the first select() (round 0 -> 1) is that moment;
    // later rounds never re-apply it (no per-round caller exists).
    if(first){const table=Economy.towerCumMeterDifficulty(selected.tier);if(table){this.state.meterMultiplier=table.meterMultiplier;this.state.baseGain=table.baseGain;this.state.sessionMeterMultiplier=table.meterMultiplier;}}
-   this.roundStart=copy(this.state);this.roundObjective={active:true,objective:selected.objective,target:selected.parameter,...Objectives.baselines(this.player,this.objectiveStats())};
+   this.roundStart=copy(this.state);this.roundObjective={active:true,objective:selected.objective,target:selected.parameter,...Objectives.baselines(this.player,this.objectiveStats(),this.objective.gmSeconds)};
    this.state.meter=0;this.state.modifiers=[...selected.modifiers];this.player.hasCame=false;this.player.isAllowedToCum=[6,7].includes(selected.objective);this.objective.releaseDeadline=null;this.phase='playing';return selected;
   }
   advance(seconds){
    if(this.phase!=='playing'||this.state.finished||!Number.isFinite(seconds)||seconds<0)return [];
+   const prevSeconds=this.state.seconds,heatBefore=this.state.heat;
+   const wholeSeconds=Math.floor(prevSeconds+seconds)-Math.floor(prevSeconds);
    Economy.advance(this,seconds);this.state.seconds+=seconds;this.player.sessionLength=this.effectiveStats().sessionLength;
    const edge=Edge.advance(this),cards=Cards.advance(this);
    const stats=this.objectiveStats(),context=this.context();
+   // GM-side objective clock: one tick per whole session second crossed
+   // (SetSessionDuration + Format Session Duration Text, both 1 s
+   // looping in the original). The beat path (objective.tick below) never
+   // completes Timer or Prejac; only this seconds path does.
+   let counted=0;const clockEvents=[];
+   for(let i=0;i<wholeSeconds;i++){
+    const tick=this.objective.tickSecond(this.player,stats,this.state.meter,this.state.seconds,context);
+    counted+=tick.counted;clockEvents.push(...tick.events);
+    if(tick.events.some(e=>['successful-cum','premature-cum','round-complete','round-failed'].includes(e.type)))break;
+   }
+   // TimeAtHighHeat is a SetSessionDuration update: it counts only a
+   // GM-counted second while Heat Level >= 70 (heat read at the start of
+   // the advance, as the economy tick already did).
+   if(counted>0&&heatBefore>=70)this.state.TimeAtHighHeat=((this.state.TimeAtHighHeat||0)+counted)|0;
    const expired=this.objective.expireReleaseWindow(this.player,stats,this.state.meter,this.state.seconds,context);
    this.state.meter=expired.meter;
-   const events=expired.events.length?expired.events:this.objective.tick(this.player,stats,this.state.meter,this.state.seconds,context);
+   const events=expired.events.length?expired.events:[...clockEvents,...this.objective.tick(this.player,stats,this.state.meter,this.state.seconds,context)];
    this.state.CumWindowsHit=stats.cumWindowsHit;this.state.MissedCumWindows=stats.missedCumWindows;
    return [...edge,...cards,...this.applyEvents(events)];
   }
@@ -100,7 +123,7 @@
    this.state.milkingCount=((this.state.milkingCount||0)+1)|0;
    return [{type:'tribute-recorded'},...this.advance(0)];
   }
-  climax(){if(this.phase!=='playing'||this.state.finished)return [];if((this.roundObjective||this.objective.state)?.objective===7)return this.tribute();return this.applyEvents(this.objective.resolveClimax(this.player,this.context()));}
+  climax(){if(this.phase!=='playing'||this.state.finished)return [];if((this.roundObjective||this.objective.state)?.objective===7)return this.tribute();return this.applyEvents(this.objective.resolveClimax(this.player,this.context(),this.objective.gmSeconds));}
   applyEvents(events){
    for(const event of events){
     if(event.type==='release-window-opened'){Edge.cancel(this);this.state.card=6;}
@@ -135,13 +158,18 @@
   continue(){if(!this.tower||!['shop','round-complete'].includes(this.phase))throw Error('Complete the current round first.');this.tower.continue();this.phase='selection';return this.tower.options;}
   export(){
    const tower=this.tower?copy({rounds:this.tower.rounds,endless:this.tower.endless,round:this.tower.round,history:this.tower.history,recent:this.tower.recent,completed:this.tower.completed,failed:this.tower.failed,phase:this.tower.phase,options:this.tower.options,selected:this.tower.selected,seed:this.tower.random.seed}):null;
-   return copy({version:1,config:this.config,state:this.state,player:this.player,phase:this.phase,inventory:this.inventory.export(),ownedModifiers:this.ownedModifiers,redeemedRounds:this.redeemedRounds,randomSeed:this.random.seed,tower,shopEvery:this.shopEvery,roundStart:this.roundStart,roundObjective:this.roundObjective,edgeCheckpoint:this.edgeCheckpoint,interrupted:this.interrupted,returnEdge:this.returnEdge,objective:{settings:this.objective.settings,state:this.objective.state,releaseDeadline:this.objective.releaseDeadline}});
+   return copy({version:1,config:this.config,state:this.state,player:this.player,phase:this.phase,inventory:this.inventory.export(),ownedModifiers:this.ownedModifiers,redeemedRounds:this.redeemedRounds,randomSeed:this.random.seed,tower,shopEvery:this.shopEvery,roundStart:this.roundStart,roundObjective:this.roundObjective,edgeCheckpoint:this.edgeCheckpoint,interrupted:this.interrupted,returnEdge:this.returnEdge,objective:{settings:this.objective.settings,state:this.objective.state,releaseDeadline:this.objective.releaseDeadline,gmSeconds:this.objective.gmSeconds,gmStopped:this.objective.gmStopped}});
   }
   static restore(catalog,saved){
    if(saved?.version!==1||!saved.config||!saved.state||!saved.player||!Array.isArray(saved.inventory?.ownedItems))throw Error('Saved mobile session is invalid or unsupported.');
    const run=Object.create(Run.prototype);Object.assign(run,copy(saved));run.catalog=catalog;
    run.inventory=new Inventory.Inventory(saved.inventory);run.inventory.catalog=Items.catalog(catalog);run.random=new Tower.Random(saved.randomSeed);
    run.objective=Object.assign(Object.create(Objectives.Runtime.prototype),copy(saved.objective));
+   // Saves from before the GM clock carry no reading; fall back to the
+   // wall clock (the two agree whenever the Devil guard never held a
+   // second back and Prejac never stopped the clock).
+   if(!Number.isFinite(run.objective.gmSeconds))run.objective.gmSeconds=Math.floor(run.player.sessionLength??0);
+   if(typeof run.objective.gmStopped!=='boolean')run.objective.gmStopped=false;
    if(saved.tower){run.tower=Object.assign(Object.create(Tower.Tower.prototype),copy(saved.tower),{catalog,inventory:run.inventory,ownedModifiers:run.ownedModifiers,rewardRules:Inventory,random:new Tower.Random(saved.tower.seed)});}
    return run;
   }

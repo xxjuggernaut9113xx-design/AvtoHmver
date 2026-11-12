@@ -52,14 +52,66 @@ test('release window carries the original 60 s CumWindowTime and notification te
  assert.equal(event.notification,'60s Release Window\nFinish to Win');
  assert.equal(r.releaseDeadline,160);
 });
+test('GM objective clock: Devil guard holds Timer seconds unless the current card is Succubus (3)',()=>{
+ // SetSessionDuration (GM ubergraph, v0.05.1, cooked package): the 1 s
+ // duration tick counts SessionLength + 1 always, EXCEPT when
+ // 'Deal with the Devil' is active and CurrentCardTypeEnum != 3.
+ const p={sessionLength:0,hasCame:false,isAllowedToCum:false},s=stats();
+ const r=new O.Runtime({LastObjectiveIndex_Classic:1},p,s);
+ r.state.target=10;r.gmSeconds=9;
+ const devil={modifiers:['Deal With The Devil'],cardType:2};
+ assert.deepEqual(r.tickSecond(p,s,0,9,devil),{events:[],counted:0});
+ assert.equal(r.gmSeconds,9);
+ // Devil + Succubus card (3): the second counts (guard passes), but the
+ // trigger gate blocks the window for a Succubus card outside Frenzy, so
+ // the objective stays complete for the next tick to retry.
+ assert.deepEqual(r.tickSecond(p,s,0,9,{modifiers:['Deal With The Devil'],cardType:3}),{events:[],counted:1});
+ assert.equal(r.gmSeconds,10);
+ // Without the modifier the same card counts and the gate passes.
+ assert.deepEqual(r.tickSecond(p,s,0,10,{modifiers:[],cardType:2}),{events:[{type:'release-window-opened',seconds:60,card:'CumEventOverride',notification:'60s Release Window\nFinish to Win'}],counted:1});
+ assert.equal(r.gmSeconds,11);
+ assert.equal(O.gmSecondCounts({modifiers:['Deal With The Devil'],cardType:3}),true);
+ assert.equal(O.gmSecondCounts({modifiers:['Deal With The Devil'],cardType:5}),false);
+ assert.equal(O.gmSecondCounts({modifiers:[],cardType:5}),true);
+});
+test('GM objective clock: Timer completes only on the seconds path, never on beat advance',()=>{
+ // The trigger function has no Timer case (GM ubergraph, v0.05.1): Timer
+ // completion reaches the trigger block only via the 1 s format timer
+ // (stmts 2378-2380). The wall clock alone must not complete it.
+ const p={sessionLength:0,hasCame:false,isAllowedToCum:false},s=stats();
+ const r=new O.Runtime({LastObjectiveIndex_Classic:1},p,s);
+ r.state.target=10;r.gmSeconds=10;
+ // The wall clock races ahead of the GM clock; it must not complete the
+ // Timer on its own.
+ p.sessionLength=100;
+ assert.deepEqual(r.tick(p,s,0,100),[]);
+ assert.equal(r.tickSecond(p,s,0,100).events[0].type,'release-window-opened');
+});
+test('GM objective clock: Prejac expiry stops the clock and ends the session without a release window',()=>{
+ // Format-timer Prejac branch (GM ubergraph stmts 2381-2388, v0.05.1):
+ // completion clears both 1 s timer handles and calls EndSession() — no
+ // trigger block, no 60 s window. The stopped clock counts no more seconds.
+ const p={sessionLength:0,hasCame:false,isAllowedToCum:false},s=stats();
+ const r=new O.Runtime({LastObjectiveIndex_Classic:4,LastObjective_Prejac:30},p,s);
+ r.gmSeconds=29;
+ const fired=r.tickSecond(p,s,0,30);
+ assert.equal(fired.counted,1);assert.equal(r.gmSeconds,30);
+ assert.equal(fired.events[0].type,'premature-cum');
+ assert.equal(r.gmStopped,true);assert.equal(r.releaseDeadline,null);
+ assert.deepEqual(r.tickSecond(p,s,0,31),{events:[],counted:0});
+ assert.equal(r.gmSeconds,30);
+});
 test('Prejac tick expires at deadline while explicit confirmation at deadline wins',()=>{
  const p=player(),s=stats(),r=new O.Runtime({LastObjectiveIndex_Classic:4,LastObjective_Prejac:30},p,s);
  assert.equal(p.isAllowedToCum,true);p.sessionLength=50;
- assert.equal(r.resolveClimax(p)[0].type,'successful-cum');assert.equal(r.tick(p,s,0,30)[0].type,'premature-cum');
- // GM ubergraph @94068 dump (2026-11-11): Prejac completion (stmts
- // 2385-2388) clears both 1 s timers and calls EndSession — it does NOT
- // enter the trigger block, so no release window opens and no
- // Spawn100Percent / Start Cum Window Timer runs.
+ assert.equal(r.resolveClimax(p)[0].type,'successful-cum');
+ // Prejac expiry is a seconds-path check on the GM clock (GM ubergraph
+ // @94068 dump, 2026-11-11): completion (stmts 2385-2388) clears both 1 s
+ // timers and calls EndSession — it does NOT enter the trigger block, so no
+ // release window opens and no Spawn100Percent / Start Cum Window Timer runs.
+ r.gmSeconds=49;const fired=r.tickSecond(p,s,0,30);
+ assert.equal(fired.events[0].type,'premature-cum');assert.equal(fired.counted,1);assert.equal(r.gmSeconds,50);
+ assert.equal(r.gmStopped,true);
  assert.equal(r.releaseDeadline,null);
  p.sessionLength=51;assert.equal(r.resolveClimax(p)[0].type,'premature-cum');
  p.hasCame=true;assert.deepEqual(r.tick(p,s,1,31),[]);assert.deepEqual(r.resolveClimax(p),[]);
@@ -75,7 +127,8 @@ test('Tower normal rounds complete directly, boss rounds release, Prejac fails, 
  assert.equal(r.tick(p,s,0,0,{mode:1,phase:'playing',state})[0].type,'round-complete');
  assert.equal(r.tick(p,s,0,0,{mode:1,phase:'bossRound',state})[0].type,'release-window-opened');
  assert.equal(r.expireReleaseWindow(p,s,0,60,{mode:1,phase:'bossRound',state}).events[0].type,'objective-reset');assert.equal(state.baselineStrokes,21);
- state.objective=6;state.target=30;p.sessionLength=50;assert.equal(r.tick(p,s,0,0,{mode:1,phase:'playing',state})[0].type,'round-failed');
+ state.objective=6;state.target=30;p.sessionLength=50;r.gmSeconds=49;
+ assert.equal(r.tickSecond(p,s,0,0,{mode:1,phase:'playing',state}).events[0].type,'round-failed');
  p.sessionLength=51;assert.deepEqual(r.resolveClimax(p,{mode:1,phase:'playing',state}),[]);
  assert.deepEqual(r.tick(p,s,1,0,{mode:2}),[]);assert.deepEqual(r.tick(p,s,1,0,{mode:1,phase:'shop',state}),[]);
 });
@@ -94,20 +147,23 @@ test('release window opens only for the card types the original trigger accepts'
  // Succubus card (3). The dead trigger function has no frenzy type check;
  // the live block governs. A failed gate leaves the objective complete so
  // the next tick retries instead of losing the window.
- const complete=(i)=>{const p=player(),s=stats(),r=new O.Runtime({LastObjectiveIndex_Classic:i},p,s);r.state.target=10;p.sessionLength=30;for(const k of Object.keys(s))s[k]=30;return {p,s,r};};
+ const complete=(i)=>{const p=player(),s=stats(),r=new O.Runtime({LastObjectiveIndex_Classic:i},p,s);r.state.target=10;p.sessionLength=30;r.gmSeconds=30;for(const k of Object.keys(s))s[k]=30;return {p,s,r};};
+ // Timer (1) completes on the GM-side seconds path, the others on beat
+ // advance; both run the same trigger gate once complete.
+ const open=({p,s,r},now,ctx)=>r.state.objective===1?r.tickSecond(p,s,1,now,ctx).events:r.tick(p,s,1,now,ctx);
  for(let i=0;i<O.specs.length;i++){
   const objective=O.specs[i].objective;if(![0,1,2,3,8].includes(objective))continue;
   for(const cardType of [0,1,2,3,5,6,7,8]){
    const {p,s,r}=complete(i);
-   assert.equal(r.tick(p,s,1,100,{mode:0,cardType}).some(e=>e.type==='release-window-opened'),![3,5,6].includes(cardType),`objective ${objective} card ${cardType} without Frenzy`);
+   assert.equal(open({p,s,r},100,{mode:0,cardType}).some(e=>e.type==='release-window-opened'),![3,5,6].includes(cardType),`objective ${objective} card ${cardType} without Frenzy`);
   }
   for(const cardType of [0,3,5,6]){
    const {p,s,r}=complete(i);
-   assert.equal(r.tick(p,s,1,100,{mode:0,cardType,modifiers:['Succufrenzy']}).some(e=>e.type==='release-window-opened'),cardType===3,`objective ${objective} card ${cardType} with Frenzy`);
+   assert.equal(open({p,s,r},100,{mode:0,cardType,modifiers:['Succufrenzy']}).some(e=>e.type==='release-window-opened'),cardType===3,`objective ${objective} card ${cardType} with Frenzy`);
   }
   const {p,s,r}=complete(i);
-  assert.deepEqual(r.tick(p,s,1,100,{mode:0,cardType:6}),[]);
-  assert.equal(r.tick(p,s,1,101,{mode:0,cardType:0})[0].type,'release-window-opened','a failed gate retries on the next tick');
+  assert.deepEqual(open({p,s,r},100,{mode:0,cardType:6}),[]);
+  assert.equal(open({p,s,r},101,{mode:0,cardType:0})[0].type,'release-window-opened','a failed gate retries on the next tick');
  }
 });
 test('expired release windows name the reset objective the original names',()=>{
@@ -118,8 +174,9 @@ test('expired release windows name the reset objective the original names',()=>{
  for(let i=0;i<O.specs.length;i++){
   const objective=O.specs[i].objective;if(!(objective in expected))continue;
   const p=player(),s=stats(),r=new O.Runtime({LastObjectiveIndex_Classic:i},p,s);
-  r.state.target=10;p.sessionLength=30;for(const k of Object.keys(s))s[k]=30;
-  assert.equal(r.tick(p,s,1,100,{mode:0,cardType:0})[0].type,'release-window-opened');
+  r.state.target=10;p.sessionLength=30;r.gmSeconds=30;for(const k of Object.keys(s))s[k]=30;
+  const opened=r.state.objective===1?r.tickSecond(p,s,1,100,{mode:0,cardType:0}).events:r.tick(p,s,1,100,{mode:0,cardType:0});
+  assert.equal(opened[0].type,'release-window-opened');
   const expired=r.expireReleaseWindow(p,s,1,160,{mode:0});
   assert.equal(expired.events[0].type,'objective-reset');
   assert.equal(expired.events[0].notification,expected[objective],`objective ${objective}`);

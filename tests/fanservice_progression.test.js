@@ -7,6 +7,19 @@ test('all 70 native challenge rows normalize without losing source fields',()=>{
  for(const d of defs){assert.ok(d.name);assert.ok(['Session','Lifetime'].includes(d.scope));assert.equal(d.requirements.length,d.Requirements.length);for(const r of d.requirements){assert.equal(typeof r.TargetValue,'number');assert.ok(r.MetricType.startsWith('EMetricType::'));}for(const r of d.rewards)assert.ok(r.RewardType.startsWith('ECHRewardType::'));}
  assert.equal(defs[0].name,'Rookie Edger');assert.equal(defs[0].Requirements[0],contract.DT_Challenges[0].Requirements[0]);
 });
+test('PercentAtHighHeat uses the GM clock and truncates, with a wall-clock fallback',()=>{
+ // SetSessionDuration (GM, v0.05.1) sets metric 24 with FTrunc of
+ // TimeAtHighHeat / SessionLength * 100 in f64 — both the numerator and
+ // the denominator are GM-clock quantities, so the player passes its GM
+ // seconds (gmSessionLength) to sessionMetrics. Without one, the old
+ // wall-clock computation is preserved.
+ const metric=(stats,key)=>progression.sessionMetrics(stats)[key]||0;
+ assert.equal(metric({seconds:60,gmSessionLength:50,TimeAtHighHeat:30},'PercentAtHighHeat'),60);
+ assert.equal(metric({seconds:60,gmSessionLength:9,TimeAtHighHeat:7},'PercentAtHighHeat'),77);
+ assert.equal(metric({seconds:60,gmSessionLength:0,TimeAtHighHeat:7},'PercentAtHighHeat'),0);
+ assert.equal(metric({seconds:60,TimeAtHighHeat:30},'PercentAtHighHeat'),50);
+ assert.equal(progression.sessionMetrics({seconds:60,gmSessionLength:50,TimeAtHighHeat:30}).gmSessionLength,undefined);
+});
 test('native requirement comparison, progress and condition semantics',()=>{
  for(const [comparison,a,b,expected] of [['GreaterOrEqual',2,2,true],['Greater',2,2,false],['LessOrEqual',2,2,true],['Less',2,2,false],['Equal',2,2,true],['Unknown',2,2,false]])assert.equal(progression.requirementMet({ComparisonType:'EComparisonType::'+comparison,CurrentValue:a,TargetValue:b}),expected);
  assert.equal(progression.requirementProgress({TargetValue:0,ComparisonType:'Unknown'}),1);assert.equal(progression.requirementProgress({TargetValue:4,CurrentValue:1,ComparisonType:'Less'}),.75);

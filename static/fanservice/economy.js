@@ -176,7 +176,10 @@
  function recycler(run){return has(run,17)&&fraction(run)<.25;}
  function advance(run,seconds){
   const s=run.state,e=initialize(run);e.exorcistRemaining=Math.max(0,e.exorcistRemaining-seconds);
-  const ticks=Math.floor(s.seconds+seconds)-Math.floor(s.seconds);if(ticks>0&&s.heat>=70)s.TimeAtHighHeat=add(s.TimeAtHighHeat,ticks);
+  // TimeAtHighHeat is updated by Run.advance, not here: SetSessionDuration
+  // (GM, v0.05.1) updates it only on a GM-counted second while Heat Level
+  // >= 70, so the Devil guard holds it back too, and only the GM clock
+  // in Run knows how many of the crossed seconds counted.
   if(has(run,19)){e.tycoonElapsed+=seconds;const reward=Math.trunc(e.tycoonElapsed/60);if(reward>0){addSuccuCoins(run,reward);e.tycoonElapsed-=60*reward;}}
  }
  // Native RecordSessionMetric jump table (0x1483070c0, v0.05.1 — see
