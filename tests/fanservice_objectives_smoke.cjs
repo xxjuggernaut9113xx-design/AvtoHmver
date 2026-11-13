@@ -73,15 +73,16 @@ const cases=[
      const quantum=10000;
      for(let elapsed=0;elapsed<7200000;elapsed+=quantum){
       await page.clock.fastForward(quantum);
-      progress=await page.evaluate(()=>({eligible:run.player.isAllowedToCum||state.meter>=1||run.phase==='complete',phase:run.phase,edgePhase:state.edge?.phase||'idle',seconds:state.seconds,strokes:state.strokes,edges:state.edges,succubi:state.succubi,meter:state.meter,flow:state.cardFlow&&{started:state.cardFlow.started,assigned:state.cardFlow.assigned,completed:state.cardFlow.completed,ended:state.cardFlow.ended}}));
+      progress=await page.evaluate(()=>({eligible:run.player.isAllowedToCum||run.phase==='complete',phase:run.phase,edgePhase:state.edge?.phase||'idle',seconds:state.seconds,strokes:state.strokes,edges:state.edges,succubi:state.succubi,meter:state.meter,flow:state.cardFlow&&{started:state.cardFlow.started,assigned:state.cardFlow.assigned,completed:state.cardFlow.completed,ended:state.cardFlow.ended}}));
       reached=progress.eligible;
-      if(testCase.edge&&progress.edges===1&&await page.evaluate(()=>state.edge?.phase==='rest')){
-       await page.getByRole('button',{name:'Continue / G',exact:true}).click();
+      // Keep the normal card flow moving when the objective clock reaches
+      // its target during an Edge sequence. The original completion gate
+      // deliberately rejects Edge cards, so finish the current sequence,
+      // take Mercy, and let the normal next card provide an eligible gate.
+      if(progress.edgePhase==='sequence'&&progress.flow?.ended){
        await page.getByRole('button',{name:'Edge / E',exact:true}).click();
-      }
-      if(checkpointReloaded&&progress.edgePhase==='rest'&&progress.edges<4){
-       await page.getByRole('button',{name:'Continue / G',exact:true}).click();
-       await page.getByRole('button',{name:'Edge / E',exact:true}).click();
+      }else if(progress.edgePhase==='mercy'){
+       await page.getByRole('button',{name:'Accept Mercy',exact:true}).click();
       }
       if(reached)break;
      }
