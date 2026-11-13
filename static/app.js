@@ -3351,6 +3351,9 @@ function onVideoPause() {
 
 function detachVideoListeners() {
   if (ss.videoEl) {
+    // A pending end boundary belongs to this exact video. Replacing the
+    // slide explicitly must discard it so Resume cannot skip the new item.
+    avtoPlaybackClock.forget(ss.videoEl);
     ss.videoEl.removeEventListener('ended', onVideoEnded);
     ss.videoEl.removeEventListener('timeupdate', onVideoTimeUpdate);
     ss.videoEl.removeEventListener('play', onVideoPlay);
