@@ -1,13 +1,16 @@
 """Build the tagged documentation portal from canonical repository files."""
 
 import argparse
+import html
 import json
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
 from urllib.parse import quote, unquote, urlsplit
+from html.parser import HTMLParser
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -21,8 +24,19 @@ PAGES = {
     'Build and test': 'docs/fanservice/BUILD_WORKFLOW.md',
     'Architecture': 'docs/adr/0005-combined-fanservice-release-gate.md',
     'Packaging and linked archives': 'docs/linked-packages.md',
+    'Build this documentation portal': 'docs/documentation-portal.md',
 }
 LINK = re.compile(r'(\]\()(<[^>]+>|[^\s)]+)')
+OUTPUT_MARKER = '.avtohmver-docs-output'
+
+
+class Hrefs(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.values = set()
+
+    def handle_starttag(self, tag, attrs):
+        self.values.update(value for name, value in attrs if name == 'href' and value is not None)
 
 
 def stage(source, destination, tag):
@@ -45,12 +59,64 @@ def stage(source, destination, tag):
     destination.write_text(LINK.sub(resolve, (ROOT / source).read_text(encoding='utf-8-sig')), encoding='utf-8')
 
 
+def verify_site(site_dir, tag):
+    home = site_dir / 'index.html'
+    if not home.is_file():
+        raise RuntimeError(f'MkDocs did not generate the homepage: {home}')
+    html = home.read_text(encoding='utf-8')
+    if f'Built from tag: <code>{html_escape(tag)}</code>' not in html:
+        raise RuntimeError(f'The generated homepage does not identify tag {tag!r}')
+
+    release_url = f'{REPOSITORY}/releases/tag/{quote(tag, safe="")}'
+    hrefs = Hrefs()
+    for page in site_dir.rglob('*.html'):
+        hrefs.feed(page.read_text(encoding='utf-8'))
+    has_release_link = release_url in hrefs.values
+    if has_release_link != tag.startswith('v'):
+        expected = 'present' if tag.startswith('v') else 'absent'
+        raise RuntimeError(f'Release download link should be {expected} for tag {tag!r}')
+
+    for source in PAGES.values():
+        page = 'overview' if source == 'README.md' else Path(source).with_suffix('').as_posix()
+        output = site_dir / page / 'index.html'
+        if not output.is_file():
+            raise RuntimeError(f'Missing curated navigation page: {output}')
+
+
+def html_escape(value):
+    return html.escape(value, quote=False)
+
+
+def publish_site(built_site, destination):
+    marker = destination / OUTPUT_MARKER
+    if destination.exists():
+        if not destination.is_dir():
+            raise RuntimeError(f'--site-dir exists and is not a directory: {destination}')
+        if marker.is_file() and marker.read_text(encoding='utf-8') == 'AvtoHmver generated documentation site\n':
+            for child in destination.iterdir():
+                if child.is_dir():
+                    shutil.rmtree(child)
+                else:
+                    child.unlink()
+        elif any(destination.iterdir()):
+            raise RuntimeError(f'Refusing to replace non-empty --site-dir without {OUTPUT_MARKER}: {destination}')
+    else:
+        destination.mkdir(parents=True)
+    shutil.copytree(built_site, destination, dirs_exist_ok=True)
+    marker.write_text('AvtoHmver generated documentation site\n', encoding='utf-8')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--tag', required=True)
     parser.add_argument('--site-dir', type=Path, default=ROOT / 'site')
     args = parser.parse_args()
     subprocess.run(['git', 'check-ref-format', f'refs/tags/{args.tag}'], cwd=ROOT, check=True)
+    site_dir = args.site_dir.resolve()
+    if not site_dir.is_relative_to(ROOT) or site_dir == ROOT:
+        parser.error('--site-dir must be a directory beneath the repository root')
+    if '.git' in site_dir.relative_to(ROOT).parts:
+        parser.error('--site-dir cannot be inside Git metadata')
     with tempfile.TemporaryDirectory(prefix='avtohmver-docs-') as temporary:
         work = Path(temporary)
         docs = work / 'docs'
@@ -72,8 +138,11 @@ def main():
                                            for title, path in PAGES.items()]],
         }
         (work / 'mkdocs.yml').write_text(json.dumps(config), encoding='utf-8')
+        built_site = work / 'site'
         subprocess.run([sys.executable, '-m', 'mkdocs', 'build', '--strict', '-f',
-                        str(work / 'mkdocs.yml'), '-d', str(args.site_dir.resolve())], check=True)
+                        str(work / 'mkdocs.yml'), '-d', str(built_site)], check=True)
+        verify_site(built_site, args.tag)
+        publish_site(built_site, site_dir)
 
 
 if __name__ == '__main__':
