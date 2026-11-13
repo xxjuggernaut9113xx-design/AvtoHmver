@@ -240,7 +240,7 @@ async fn spawn_primary_set(
         let listener = TcpListener::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, requested_port)))
             .await
             .with_context(|| {
-                format!("binding AvtoHmver LAN wildcard on 0.0.0.0:{requested_port}")
+                format!("binding AvtoHmver LAN listener on 0.0.0.0:{requested_port}; another process may already own this port. Stop that process or choose a different Server port")
             })?;
         let port = listener
             .local_addr()
@@ -252,7 +252,7 @@ async fn spawn_primary_set(
     }
     let ipv4_listener = TcpListener::bind(SocketAddr::from((Ipv4Addr::LOCALHOST, requested_port)))
         .await
-        .with_context(|| format!("binding AvtoHmver on 127.0.0.1:{requested_port}"))?;
+        .with_context(|| format!("binding AvtoHmver loopback listener on 127.0.0.1:{requested_port}; another process may already own this port. Stop that process or choose a different Server port"))?;
     let port = ipv4_listener
         .local_addr()
         .context("reading AvtoHmver loopback listener address")?
