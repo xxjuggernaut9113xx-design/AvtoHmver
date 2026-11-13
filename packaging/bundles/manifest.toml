@@ -27,8 +27,8 @@ license = "GPL-3.0-or-later (gyan.dev essentials build)"
 homepage = "https://ffmpeg.org"
 
 [mpv]
-version = "20260927-git-a1bf4b6559"
-url = "https://github.com/shinchiro/mpv-winbuild-cmake/releases/download/20260927/mpv-x86_64-20260927-git-a1bf4b6559.7z"
+version = "20261111-git-bcde6b93cc"
+url = "https://github.com/shinchiro/mpv-winbuild-cmake/releases/download/20261111/mpv-x86_64-20261111-git-bcde6b93cc.7z"
 kind = "7z"
 # Preserve the dynamic dependency closure as well as the player binary.
 # `libmpv-2.dll` is supplied by [mpv-dev] below; the remaining DLLs keep
@@ -39,8 +39,8 @@ license = "GPL-2.0-or-later"
 homepage = "https://mpv.io"
 
 [mpv-dev]
-version = "20260927-git-a1bf4b6559"
-url = "https://github.com/shinchiro/mpv-winbuild-cmake/releases/download/20260927/mpv-dev-x86_64-20260927-git-a1bf4b6559.7z"
+version = "20261111-git-bcde6b93cc"
+url = "https://github.com/shinchiro/mpv-winbuild-cmake/releases/download/20261111/mpv-dev-x86_64-20261111-git-bcde6b93cc.7z"
 kind = "7z"
 # libmpv and its dynamic dependencies for the native software renderer.
 # Staging all DLLs avoids leaving an install that loads libmpv but fails on
