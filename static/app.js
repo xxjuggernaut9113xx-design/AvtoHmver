@@ -3326,7 +3326,7 @@ function onVideoTimeUpdate() {
 }
 
 function onVideoEnded() {
-  if (ss.playing) advanceSlide();
+  avtoPlaybackClock.end(ss.videoEl, () => { if (ss.playing) advanceSlide(); });
 }
 
 function onVideoPlay() {
@@ -3343,6 +3343,9 @@ function onVideoPause() {
   // onVideoEnded checks that very flag. Net effect: videos never actually
   // advanced the slideshow, silently, on every single completion.
   if (ss.videoEl && ss.videoEl.ended) return;
+  // The shared Pause boundary holds the slideshow's running intent. The
+  // media pause is temporary and Resume will restart this video.
+  if (avtoPlaybackClock.paused) return;
   if (ss.playing) { ss.playing = false; updateSlideshowUI(); }
 }
 
@@ -3364,11 +3367,11 @@ function startImageTimer() {
     fill.style.transition = `width ${ss.speed}ms linear`;
     fill.style.width = '100%';
   });
-  ss.timer = setTimeout(advanceSlide, ss.speed);
+  ss.timer = avtoPlaybackClock.timeout(advanceSlide, ss.speed);
 }
 
 function clearAdvanceTimer() {
-  if (ss.timer) { clearTimeout(ss.timer); ss.timer = null; }
+  if (ss.timer) { avtoPlaybackClock.cancel(ss.timer); ss.timer = null; }
 }
 
 function resetProgressBar() {

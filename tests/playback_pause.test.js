@@ -99,6 +99,21 @@ test('EOF during Pause remains pending, and explicit replacement cancels the old
   assert.equal(advances, 1);
 });
 
+test('Slideshow video completion is held by shared Pause and advances once on Resume', () => {
+  const {clock} = fixture();
+  const source = fs.readFileSync('static/app.js', 'utf8');
+  const start = source.indexOf('function onVideoEnded()');
+  const end = source.indexOf('\nfunction onVideoPlay()', start);
+  const context = vm.createContext({avtoPlaybackClock: clock, ss: {videoEl: {isConnected: true}, playing: true}, advances: 0,
+    advanceSlide() {context.advances++;}});
+  vm.runInContext(source.slice(start, end) + '\nthis.onVideoEnded = onVideoEnded;', context);
+  clock.setPaused(true);
+  context.onVideoEnded();
+  assert.equal(context.advances, 0);
+  clock.setPaused(false);
+  assert.equal(context.advances, 1);
+});
+
 test('Resume only restarts running or requested media and never restarts detached media', async () => {
   const {clock, video, listeners} = fixture();
   const running = video(), manuallyPaused = video(true), removed = video();
