@@ -83,6 +83,14 @@ test('SoundCloud uses documented volume and millisecond seek units and removes a
   await f.clock.play(controller); f.clock.setPaused(true); assert.equal(widget.pauses, 1);
   f.clock.setPaused(false); assert.equal(widget.plays, 2);
   widget.events.error(); assert.match(f.reports[0], /unavailable/);
+  // The configured player keeps its explicit Play control after provider loss.
+  // Replaying through the shared clock lets a recovered provider report PLAY
+  // and resume participating in shared Pause.
+  await f.clock.play(controller);
+  assert.equal(widget.plays, 3);
+  assert.equal(controller.isRunning(), true);
+  f.clock.setPaused(true); assert.equal(widget.pauses, 2);
+  f.clock.setPaused(false); assert.equal(widget.plays, 4);
   controller.dispose(); assert.equal(Object.keys(widget.events).length, 0);
 });
 
