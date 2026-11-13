@@ -1087,6 +1087,7 @@ mod tests {
         let media = avtohmver::config::env_var("CURATOR_LIVE_RENDERER_MEDIA")
             .expect("set CURATOR_LIVE_RENDERER_MEDIA to a disposable video");
         let replacement_media = avtohmver::config::env_var("CURATOR_LIVE_RENDERER_MEDIA_ALTERNATE")
+            .ok()
             .unwrap_or_else(|| media.clone());
         let received = Arc::new(AtomicUsize::new(0));
         let dimensions = Arc::new(AtomicUsize::new(0));
