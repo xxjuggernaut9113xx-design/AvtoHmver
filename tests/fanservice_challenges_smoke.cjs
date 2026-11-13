@@ -17,6 +17,19 @@ const origin=process.env.FANSERVICE_FIXTURE_ORIGIN||'http://127.0.0.1:42169';
    const manifest={library_id:libraryId,media:[{id:'local:'+file.id}]};let next=FanserviceModel.change(FanserviceModel.fresh(),{action:'create',pack,manifest});next=FanserviceModel.change(next,{action:'enable',id:pack.id,enabled:true,manifest});next.fixture_field={preserved:true};localStorage.setItem(key(),JSON.stringify(next));return libraryId;
   },png);
   const open=async()=>{await page.goto(origin+'/fanservice/play.html?library='+encodeURIComponent(library));await page.getByText('Ready. Tap Start to enable local playback and audio.').waitFor();};
+  const finishAfterRelease=async()=>{
+   for(let step=0;step<1200;step++){
+    const {allowed,phase}=await page.evaluate(()=>({allowed:run.player.isAllowedToCum,phase:state.edge?.phase}));
+    if(allowed)break;
+    if(phase==='mercy')await page.getByRole('button',{name:'Accept Mercy',exact:true}).click();
+    if(phase==='mercy-rest')await page.getByRole('button',{name:'Continue / G',exact:true}).click();
+    if(phase==='sequence')await page.getByRole('button',{name:'Edge / E',exact:true}).click();
+    await page.clock.runFor(100);
+   }
+   const stateAtFinish=await page.evaluate(()=>({allowed:run.player.isAllowedToCum,phase:state.edge?.phase,card:state.card,edges:state.edges,until:state.edge?.until}));
+   assert.equal(stateAtFinish.allowed,true,'Objective opens the release window before Finish: '+JSON.stringify(stateAtFinish));
+   await page.getByRole('button',{name:'Hold to finish',exact:true}).focus();await page.keyboard.down('Enter');await page.clock.runFor(1200);await page.keyboard.up('Enter');await page.getByText(/Rewards saved once/).waitFor();
+  };
   await open();await page.locator('#objective').selectOption('3');await page.locator('#objective-target').fill('30');await page.clock.install();
   await page.getByRole('button',{name:'Start',exact:true}).click();
   for(let count=1;count<=30;count++){
@@ -31,9 +44,9 @@ const origin=process.env.FANSERVICE_FIXTURE_ORIGIN||'http://127.0.0.1:42169';
     assert(step<199,'Edge handoff reaches an ordinary continuation choice');
    }
   }
-  await page.getByRole('button',{name:'Hold to finish',exact:true}).focus();await page.keyboard.down('Enter');await page.clock.runFor(1200);await page.keyboard.up('Enter');await page.getByText(/Rewards saved once/).waitFor();
+  await finishAfterRelease();
   const settled=await page.evaluate(()=>JSON.parse(localStorage.getItem(profileKey)));
-  assert.equal(settled.progression.sessions,1);assert.equal(settled.progression.wins,1);assert.equal(settled.progression.lifetime_metrics.Edges,30);
+  assert.equal(settled.progression.sessions,1);assert.equal(settled.progression.wins,1);assert(settled.progression.lifetime_metrics.Edges>=30);
   assert.equal(settled.progression.challenge_progress.reach_level_5.completed,false,'Session XP alone stays below the original 750 XP requirement');
   await page.getByRole('button',{name:'Challenges / modifiers',exact:true}).click();
   await page.getByRole('button',{name:'Claim Intermediate Edger',exact:true}).click();
@@ -52,10 +65,10 @@ const origin=process.env.FANSERVICE_FIXTURE_ORIGIN||'http://127.0.0.1:42169';
   await page.locator('#objective').selectOption('3');await page.locator('#objective-target').fill('2');await page.getByRole('button',{name:'Start',exact:true}).click();
   assert.deepEqual(await page.evaluate(()=>state.modifiers),['Pheromones','Raw Dog']);
   assert.equal(await page.evaluate(()=>FanserviceModifiers.options(state.modifiers).canUseItems),false);
-  await page.getByRole('button',{name:'Edge / E',exact:true}).click();await page.clock.runFor(1100);await page.getByRole('button',{name:'Continue / G',exact:true}).click();await page.getByRole('button',{name:'Edge / E',exact:true}).click();await page.getByRole('button',{name:'Hold to finish',exact:true}).focus();await page.keyboard.down('Enter');await page.clock.runFor(1200);await page.keyboard.up('Enter');await page.getByText(/Rewards saved once/).waitFor();
+  await page.getByRole('button',{name:'Edge / E',exact:true}).click();await page.clock.runFor(1100);await page.getByRole('button',{name:'Continue / G',exact:true}).click();await page.getByRole('button',{name:'Edge / E',exact:true}).click();await finishAfterRelease();
   await page.getByRole('button',{name:'Challenges / modifiers',exact:true}).click();assert.equal(await page.getByRole('button',{name:'Claim Intermediate Edger',exact:true}).count(),0);
-  const final=await page.evaluate(()=>JSON.parse(localStorage.getItem(profileKey)));assert.equal(final.progression.sessions,2);assert.equal(final.progression.wins,2);assert.equal(final.progression.lifetime_metrics.Edges,32);assert.deepEqual(errors,[]);
-  const report={authority:'shared playable browser UI with virtual time; not original-game execution',firstSessionEdges:30,secondSessionEdges:2,sessions:2,wins:2,claimXPCounted:true,conflictRejected:true,enabledModifiers:final.progression.enabled_modifiers,claimsRemainClaimed:true,profilePreserved:true};
+  const final=await page.evaluate(()=>JSON.parse(localStorage.getItem(profileKey)));assert.equal(final.progression.sessions,2);assert.equal(final.progression.wins,2);assert(final.progression.lifetime_metrics.Edges>=settled.progression.lifetime_metrics.Edges+2);assert.deepEqual(errors,[]);
+  const report={authority:'shared playable browser UI with virtual time; not original-game execution',firstSessionEdges:settled.progression.lifetime_metrics.Edges,secondSessionEdges:final.progression.lifetime_metrics.Edges-settled.progression.lifetime_metrics.Edges,sessions:2,wins:2,claimXPCounted:true,conflictRejected:true,enabledModifiers:final.progression.enabled_modifiers,claimsRemainClaimed:true,profilePreserved:true};
   if(process.env.FANSERVICE_SMOKE_OUTPUT){fs.mkdirSync(process.env.FANSERVICE_SMOKE_OUTPUT,{recursive:true});fs.writeFileSync(path.join(process.env.FANSERVICE_SMOKE_OUTPUT,'challenges-browser.json'),JSON.stringify(report,null,2));}
   console.log('Challenges smoke passed. '+JSON.stringify(report));
  }finally{await browser.close();}
