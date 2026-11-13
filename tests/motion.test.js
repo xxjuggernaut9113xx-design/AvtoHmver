@@ -12,13 +12,14 @@ function fixture(reduced = false) {
     MutationObserver: class {constructor(callback) {observe = callback;} observe() {}},
   });
   const animations = [];
-  const element = {nodeType: 1, hidden: false, matches: () => true,
-    getAnimations: () => animations.filter(animation => !animation.cancelled),
+  const unrelated = {cancelled: false, cancel() {this.cancelled = true;}};
+  const element = {nodeType: 1, hidden: false, matches: selector => selector.includes('.feed-review-card'),
+    children: [], getAnimations: () => [...animations.filter(animation => !animation.cancelled), unrelated],
     animate(frames, options) {
       const animation = {frames, options, finished: new Promise(() => {}), cancel() {this.cancelled = true;}};
       animations.push(animation); return animation;
     }};
-  return {preference, listeners, animations, element, observe};
+  return {preference, listeners, animations, unrelated, element, observe};
 }
 
 test('reveal motion is interrupted immediately by Pause and reduced motion changes', () => {
@@ -27,6 +28,7 @@ test('reveal motion is interrupted immediately by Pause and reduced motion chang
   assert.equal(f.animations.length, 1);
   f.observe([{type: 'attributes', target: f.element}]);
   assert.equal(f.animations[0].cancelled, true);
+  assert.equal(f.unrelated.cancelled, false, 'reveals leave unrelated CSS animations intact');
   f.listeners['avto-playback-pause']();
   assert.equal(f.animations[1].cancelled, true);
   f.observe([{type: 'attributes', target: f.element}]);
@@ -35,6 +37,25 @@ test('reveal motion is interrupted immediately by Pause and reduced motion chang
   f.observe([{type: 'attributes', target: f.element}]);
   assert.equal(f.animations.length, 3);
 });
+
+test('hiding or removing a revealed subtree cancels its motion immediately', () => {
+  const f = fixture();
+  const child = {...f.element, hidden: false, children: []};
+  f.element.children.push(child);
+  f.observe([{type: 'childList', target: f.element, addedNodes: [child]}]);
+  assert.equal(f.animations.length, 1);
+  f.element.hidden = true;
+  f.observe([{type: 'attributes', target: f.element}]);
+  assert.equal(f.animations[0].cancelled, true);
+
+  f.element.hidden = false;
+  f.observe([{type: 'attributes', target: f.element}]);
+  assert.equal(f.animations.length, 2);
+  f.observe([{type: 'childList', target: documentBody(), removedNodes: [f.element]}]);
+  assert.equal(f.animations[1].cancelled, true);
+});
+
+function documentBody() { return {nodeType: 1, matches: () => false, children: []}; }
 
 test('reduced motion skips arrivals and hidden elements never delay teardown', () => {
   const f = fixture(true);
