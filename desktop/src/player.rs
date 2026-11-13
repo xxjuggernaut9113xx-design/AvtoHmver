@@ -1086,6 +1086,8 @@ mod tests {
         let _environment = LIBMPV_ENV.lock().unwrap();
         let media = avtohmver::config::env_var("CURATOR_LIVE_RENDERER_MEDIA")
             .expect("set CURATOR_LIVE_RENDERER_MEDIA to a disposable video");
+        let replacement_media = avtohmver::config::env_var("CURATOR_LIVE_RENDERER_MEDIA_ALTERNATE")
+            .unwrap_or_else(|| media.clone());
         let received = Arc::new(AtomicUsize::new(0));
         let dimensions = Arc::new(AtomicUsize::new(0));
         let mut player = NativePlayer::default();
@@ -1114,9 +1116,13 @@ mod tests {
         );
         // Replace the active file repeatedly before it finishes loading. The
         // final generation must still decode and the worker must stay alive.
-        for _ in 0..8 {
+        for index in 0..8 {
             let status = player.apply(PlayerCommand::Load {
-                source: media.clone(),
+                source: if index % 2 == 0 {
+                    replacement_media.clone()
+                } else {
+                    media.clone()
+                },
                 volume: 25.0,
                 speed: 1.0,
                 looping: false,
@@ -1139,6 +1145,73 @@ mod tests {
             "libmpv loaded no frame from the disposable video; statuses: {status_messages:?}"
         );
         assert_ne!(dimensions.load(Ordering::SeqCst), 0);
+
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while player.status().loading && Instant::now() < deadline {
+            player.drain_events();
+            thread::sleep(Duration::from_millis(20));
+        }
+        assert!(!player.status().loading, "{:?}", player.status());
+
+        player.apply(PlayerCommand::SetPaused(true));
+        player.apply(PlayerCommand::Seek(1.25));
+        player.apply(PlayerCommand::SetSpeed(1.0));
+        player.apply(PlayerCommand::SetVolume(37.0));
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            player.drain_events();
+            let status = player.status();
+            assert!(!status.failed, "{status:?}");
+            if status.paused
+                && (status.position_secs - 1.25).abs() < 0.2
+                && (status.speed - 1.0).abs() < 0.05
+                && (status.volume - 37.0).abs() < 0.5
+            {
+                break;
+            }
+            assert!(Instant::now() < deadline, "{status:?}");
+            thread::sleep(Duration::from_millis(20));
+        }
+
+        player.apply(PlayerCommand::SetPaused(false));
+        let mut initial_position = player.status().position_secs;
+        let deadline = Instant::now() + Duration::from_secs(3);
+        while player.status().position_secs < initial_position + 0.12 {
+            player.drain_events();
+            assert!(Instant::now() < deadline, "{:?}", player.status());
+            thread::sleep(Duration::from_millis(20));
+        }
+        initial_position = player.status().position_secs;
+        let initial_sample = Instant::now();
+        while initial_sample.elapsed() < Duration::from_millis(400) {
+            player.drain_events();
+            thread::sleep(Duration::from_millis(20));
+        }
+        let one_x_advance = player.status().position_secs - initial_position;
+        player.apply(PlayerCommand::SetSpeed(2.0));
+        let two_x_start = player.status().position_secs;
+        let two_x_sample = Instant::now();
+        while two_x_sample.elapsed() < Duration::from_millis(400) {
+            player.drain_events();
+            thread::sleep(Duration::from_millis(20));
+        }
+        let two_x_advance = player.status().position_secs - two_x_start;
+        assert!(
+            one_x_advance > 0.0
+                && two_x_advance > one_x_advance * 1.35
+                && two_x_advance < one_x_advance * 3.5,
+            "position advances should show materially faster 2x playback: 1x={one_x_advance:.3}s, 2x={two_x_advance:.3}s; {:?}",
+            player.status()
+        );
         player.apply(PlayerCommand::Shutdown);
+
+        // Confirm volume and speed settings against libmpv's own properties.
+        let mut probe = MpvInstance::create().expect("verified libmpv should initialize");
+        probe.set_property("speed", "2.0").unwrap();
+        probe.set_property("volume", "37.0").unwrap();
+        let speed = probe.property("speed").unwrap().parse::<f64>().unwrap();
+        let volume = probe.property("volume").unwrap().parse::<f64>().unwrap();
+        assert!((speed - 2.0).abs() < 0.05);
+        assert!((volume - 37.0).abs() < 0.5);
     }
 }
