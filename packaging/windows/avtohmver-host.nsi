@@ -44,20 +44,23 @@ OutFile "${OUTPUT_FILE}"
 
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_DIRECTORY
+!insertmacro MUI_PAGE_COMPONENTS
 !insertmacro MUI_PAGE_INSTFILES
 !insertmacro MUI_UNPAGE_CONFIRM
 !insertmacro MUI_UNPAGE_INSTFILES
 !insertmacro MUI_LANGUAGE "English"
 
 Section "AvtoHmver Host" SecHost
+  SectionIn RO
   Delete "$SMPROGRAMS\Curator\Curator Host.lnk"
   Delete "$DESKTOP\Curator Host.lnk"
+  Delete "$SMPROGRAMS\AvtoHmver\AvtoHmver Host.lnk"
   RMDir "$SMPROGRAMS\Curator"
   SetOutPath "$INSTDIR"
   File "${AVTOHMVER_STAGE}\AvtoHmver.exe"
   ReadRegStr $0 HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "Curator"
   ${If} $0 != ""
-    WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "AvtoHmver" '"$INSTDIR\AvtoHmver.exe" --background'
+    WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "AvtoHmver" "$\"$INSTDIR\AvtoHmver.exe$\" --background"
     DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "Curator"
   ${EndIf}
   File "${AVTOHMVER_STAGE}\icon.ico"
@@ -70,7 +73,8 @@ Section "AvtoHmver Host" SecHost
   WriteUninstaller "$INSTDIR\Uninstall AvtoHmver Host.exe"
 
   CreateDirectory "$SMPROGRAMS\AvtoHmver"
-  CreateShortcut "$SMPROGRAMS\AvtoHmver\AvtoHmver Host.lnk" "$INSTDIR\AvtoHmver.exe" "" "$INSTDIR\icon.ico"
+  CreateShortcut "$SMPROGRAMS\AvtoHmver\AvtoHmver Library.lnk" "$INSTDIR\AvtoHmver.exe" "" "$INSTDIR\icon.ico"
+  CreateShortcut "$SMPROGRAMS\AvtoHmver\AvtoHmver Game Launcher.lnk" "$INSTDIR\AvtoHmver.exe" "--game-launcher" "$INSTDIR\icon.ico"
 
   WriteRegStr ${HOST_REGROOT} "Software\Microsoft\Windows\CurrentVersion\Uninstall\AvtoHmverHost-${HOST_SCOPE}" \
     "DisplayName" "AvtoHmver Host"
@@ -88,9 +92,21 @@ Section "AvtoHmver Host" SecHost
     "NoRepair" 1
 SectionEnd
 
+; Startup stays opt-in and starts the Host hidden so its built-in Server is
+; available in the tray. The optional section is unchecked by default.
+Section /o "Start AvtoHmver with Windows" SecStartup
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "AvtoHmver" "$\"$INSTDIR\AvtoHmver.exe$\" --background"
+SectionEnd
+
 Section "Uninstall"
   Delete "$SMPROGRAMS\AvtoHmver\AvtoHmver Host.lnk"
+  Delete "$SMPROGRAMS\AvtoHmver\AvtoHmver Library.lnk"
+  Delete "$SMPROGRAMS\AvtoHmver\AvtoHmver Game Launcher.lnk"
   RMDir "$SMPROGRAMS\AvtoHmver"
+  ReadRegStr $0 HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "AvtoHmver"
+  ${If} $0 == "$\"$INSTDIR\AvtoHmver.exe$\" --background"
+    DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "AvtoHmver"
+  ${EndIf}
   DeleteRegKey ${HOST_REGROOT} "Software\Microsoft\Windows\CurrentVersion\Uninstall\AvtoHmverHost-${HOST_SCOPE}"
   ; App files only. The library, config, and preferences under the data
   ; directory are user data and are deliberately left behind.
