@@ -38,6 +38,7 @@ const explorer = {
   layout: localStorage.getItem('curator-library-layout') || 'grid',
   sourceCollapsed: new Set(),
   activityTimer: null,
+  mediaSnapshot: null,
   goon: null,
   sizeBackfillRequest: false,
 };
@@ -408,6 +409,7 @@ async function explorerLoadView() {
 loadView = explorerLoadView;
 
 switchView = function explorerSwitchView(view) {
+  explorer.mediaSnapshot = null;
   explorer.active = 'media';
   state.explorerSection = 'media';
   if (view.type === 'creator') explorer.nav = 'creators';
@@ -448,14 +450,51 @@ function mediaNavigation(section) {
   clearExplorerSelection(); updateNavigation(); return explorerLoadView();
 }
 
+function suspendMediaView() {
+  if (explorer.active !== 'media' || explorer.mediaSnapshot) return;
+  explorer.mediaSnapshot = {
+    nav: explorer.nav,
+    location: explorerEl('#explorer-location')?.textContent || 'All Media',
+    scrollTop: explorerEl('#grid')?.scrollTop || 0,
+    selected: [...explorer.selected],
+    selectionAnchor: explorer.selectionAnchor,
+  };
+}
+
+function restoreMediaView() {
+  const snapshot = explorer.mediaSnapshot;
+  if (!snapshot) return false;
+  explorer.mediaSnapshot = null;
+  stopActivityPolling();
+  explorer.active = 'media';
+  state.explorerSection = 'media';
+  explorer.nav = snapshot.nav;
+  updateExplorerLocation(snapshot.location);
+  updateNavigation();
+  explorer.selected.clear();
+  snapshot.selected.forEach((id) => explorer.selected.add(id));
+  explorer.selectionAnchor = snapshot.selectionAnchor;
+  setExplorerVisible(true);
+  updateBulkUI();
+  const grid = explorerEl('#grid');
+  if (grid) grid.scrollTop = snapshot.scrollTop;
+  return true;
+}
+
 function navigateTo(section) {
-  if (['all', 'images', 'clips', 'videos', 'recent'].includes(section)) return mediaNavigation(section);
+  if (['all', 'images', 'clips', 'videos', 'recent'].includes(section)) {
+    if (section === 'all' && explorer.active !== 'media' && restoreMediaView()) return;
+    explorer.mediaSnapshot = null;
+    return mediaNavigation(section);
+  }
   if (section === 'review') {
+    explorer.mediaSnapshot = null;
     explorer.active = 'media'; state.explorerSection = 'media'; explorer.nav = 'review';
     state.view = { type: 'all' }; state.typeFilter = 'all'; state.ratingStatus = 'needs_review';
     updateExplorerLocation('Review Queue'); const rating = explorerEl('#explorer-rating-status'); if (rating) rating.value = 'needs_review';
     updateNavigation(); return explorerLoadView();
   }
+  suspendMediaView();
   explorer.active = section; state.explorerSection = section; explorer.nav = section;
   clearExplorerSelection(); updateNavigation();
   updateExplorerLocation(({ search: 'Search', sources: 'Sources', creators: 'Creators', groups: 'Groups', tags: 'Tags', ratings: 'Ratings', downloads: 'Downloads' })[section] || 'Library');
