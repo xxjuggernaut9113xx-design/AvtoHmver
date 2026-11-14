@@ -26,24 +26,39 @@ const root=path.resolve(__dirname,'../static/fanservice');let origin;const fixtu
   try{
    await page.goto(origin+'/fanservice/play.html?library='+fixture);
    await page.waitForFunction(()=>!document.querySelector('#start').disabled);
+   const edgeButton=page.getByRole('button',{name:'Edge / E',exact:true});
+   const snap=()=>page.evaluate(()=>({card:state.card,edges:state.edges,phase:state.edge?.phase,punishment:state.cardFlow?.punishment,pool:state.cardFlow?.pool,interval:state.cardFlow?.interval,assigned:state.cardFlow?.assigned,canUseItems:state.canUseItems,status:document.querySelector('#status').textContent,background:document.querySelector('#session-background').dataset.backgroundPreset,countMultiplier:FanserviceRules.drawMultipliers(FanserviceRules.comboTier(state.combo),1,1).count}));
    await page.locator('#mode').selectOption('0');await page.locator('#objective').selectOption('1');
    await page.clock.install();await page.getByRole('button',{name:'Start',exact:true}).click();
    await page.clock.runFor(2000);
    const running=await page.evaluate(()=>({seconds:state.seconds,strokes:state.strokes,card:state.card}));
    assert(running.seconds>0&&running.strokes>0,'Normal controls must advance gameplay time and deliver strokes before the Edge cases');
+   async function until(predicate,label){for(let n=0;n<3000;n++){if(await page.evaluate(predicate))return;await page.clock.runFor(50);}throw Error('Timed out: '+label);}
+   // Rejected hotbar action + checkpoint restore: the visible Edge control
+   // must not fire while the session is paused, and reload must preserve the
+   // live session before the player can use Edge again.
+   await page.locator('#stage').click({position:{x:195,y:400}});
+   await page.waitForFunction(()=>document.querySelector('#pause-menu').open&&document.body.dataset.sessionState==='paused');
+   assert.equal(await edgeButton.isDisabled(),true,'Edge must be unavailable while paused');
+   const paused=await snap();assert.equal(paused.edges,0);assert.equal(paused.card, running.card);
+   await page.reload();await page.waitForFunction(()=>!document.querySelector('#start').disabled);
+   await page.getByRole('button',{name:'Start',exact:true}).click();await page.clock.runFor(2000);
+   const resumed=await snap();assert.equal(resumed.edges,0,'Rejected paused Edge use must not record an Edge');
+   assert.equal(await page.evaluate(()=>!!run.returnEdge),true,'Resuming after pagehide must enter the required Return Edge flow');
+   assert.equal(resumed.card,5,'The interruption contract requires an Edge card before the saved task can resume');
+   await until(()=>state.cardFlow?.assigned>0&&state.cardFlow.completed/state.cardFlow.assigned>=.85,'restored Return Edge progress');
+   await edgeButton.click();assert.equal((await snap()).edges,1,'The restored Return Edge must record through the real Edge control');
+   await until(()=>!run.returnEdge,'Return Edge completion');
    await page.evaluate(()=>{if([3,5,6].includes(state.card))draw('slow',{force:true});});
    assert.notEqual(await page.evaluate(()=>state.card),5,'The session must not start on an edge card');
    // Deterministic trigger rate: (25/5)*20 = 100%.
    await page.evaluate(()=>{run.state.TotalTauntsUsed=25;});
-   const edgeButton=page.getByRole('button',{name:'Edge / E',exact:true});
-   async function until(predicate,label){for(let n=0;n<3000;n++){if(await page.evaluate(predicate))return;await page.clock.runFor(50);}throw Error('Timed out: '+label);}
-   const snap=()=>page.evaluate(()=>({card:state.card,edges:state.edges,phase:state.edge?.phase,punishment:state.cardFlow?.punishment,pool:state.cardFlow?.pool,interval:state.cardFlow?.interval,assigned:state.cardFlow?.assigned,canUseItems:state.canUseItems,status:document.querySelector('#status').textContent,background:document.querySelector('#session-background').dataset.backgroundPreset,countMultiplier:FanserviceRules.drawMultipliers(FanserviceRules.comboTier(state.combo),1,1).count}));
    // Guard case (hotbar stmt 28-31): the direct Edge — current card is not an
    // edge card (byte 5) — never rolls, even at a 100% rate.
    assert.equal(await edgeButton.isEnabled(),true,'Edge must be usable during normal gameplay');
    await edgeButton.click();
    const guard=await snap();
-   assert.equal(guard.edges,1,'The direct Edge must start an edge');
+   assert.equal(guard.edges,2,'The direct Edge must start an edge after the restored Return Edge');
    assert.notEqual(guard.card,3,'The direct Edge must not spawn a punishment card');
    assert.equal(guard.punishment,false,'The direct Edge must not stamp a punishment card');
    // Drive the guard edge to its edge card: rest, then Continue / G.
@@ -66,7 +81,7 @@ const root=path.resolve(__dirname,'../static/fanservice');let origin;const fixtu
    assert.equal(punished.canUseItems,false,'Items must be locked during the punishment event');
    assert(punished.status.includes('Punishment'),'The Punishment notification must be shown');
    assert.equal(punished.background,'taunt','The background must switch to 8 (tauntbackground) during the punishment event');
-   assert.equal(punished.edges,1,'The punished Edge must not record: TriggerEdgeV2 never runs');
+   assert.equal(punished.edges,2,'The punished Edge must not record: TriggerEdgeV2 never runs');
    assert.equal(punished.phase,'sequence','The edge must stay in its sequence phase: it never started');
    // Wait for the punishment card to complete, then draw fresh. (No
    // generation change is expected here: the edge is still active, so the
@@ -81,14 +96,14 @@ const root=path.resolve(__dirname,'../static/fanservice');let origin;const fixtu
    await page.evaluate(()=>{run.state.TotalTauntsUsed=0;});
    await edgeButton.click();
    const second=await snap();
-   assert.equal(second.edges,2,'The direct Edge after the punishment must start the next edge');
+   assert.equal(second.edges,3,'The direct Edge after the punishment must start the next edge');
    assert.equal(second.punishment,false,'The direct Edge after the punishment must not stamp a punishment card');
    await until(()=>['rest','mercy'].includes(state.edge.phase),'Second Edge handoff');
    await page.getByRole('button',{name:'Continue / G',exact:true}).click();
    assert.equal((await snap()).card,5,'Continue must start the second edge card');
    await edgeButton.click();
    const recorded=await snap();
-   assert.equal(recorded.edges,3,'The missed Edge must record on the edge card');
+   assert.equal(recorded.edges,4,'The missed Edge must record on the edge card');
    assert.notEqual(recorded.card,3,'The missed Edge must not spawn a punishment card');
    assert.equal(recorded.punishment,false,'The missed Edge must not stamp a punishment card');
    assert.deepEqual(errors,[]);

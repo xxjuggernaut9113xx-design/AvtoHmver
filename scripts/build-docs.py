@@ -127,15 +127,16 @@ def main():
                 f'Built from tag: `{args.tag}`.\n\n'
                 'Installation, operation, and contributor guidance for AvtoHmver. '
                 'The Server browser interface and API require a running self-hosted Server.\n')
-        if args.tag.startswith('v'):
-            home += f'\n[Release downloads]({REPOSITORY}/releases/tag/{quote(args.tag, safe="")})\n'
         (docs / 'index.md').write_text(home, encoding='utf-8')
+        nav = [{'Home': 'index.md'}, *[{title: 'overview.md' if path == 'README.md' else path}
+                                       for title, path in PAGES.items()]]
+        if args.tag.startswith('v'):
+            nav.append({'Release downloads': f'{REPOSITORY}/releases/tag/{quote(args.tag, safe="")}'})
         config = {
             'site_name': f'AvtoHmver documentation ({args.tag})',
             'theme': {'name': 'material'},
             'validation': {'links': {'anchors': 'warn', 'not_found': 'warn'}},
-            'nav': [{'Home': 'index.md'}, *[{title: 'overview.md' if path == 'README.md' else path}
-                                           for title, path in PAGES.items()]],
+            'nav': nav,
         }
         (work / 'mkdocs.yml').write_text(json.dumps(config), encoding='utf-8')
         built_site = work / 'site'
