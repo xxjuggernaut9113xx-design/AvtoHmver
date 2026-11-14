@@ -5,7 +5,7 @@ import {lua,lauxlib,lualib,to_luastring,to_jsstring} from 'fengari';
 
 test('main-menu entry survives native reparenting and resets the browser document click sequence',()=>{
  const source=readFileSync(new URL('../runtime-v005/Scripts/main.lua',import.meta.url),'utf8');
- const placement=source.slice(source.indexOf('local function placeEntry('),source.indexOf('local profileChanged'));
+ const placement=source.slice(source.indexOf('local function entryDocumentURL('),source.indexOf('local profileChanged'));
  const polling=source.slice(source.indexOf('local function pollEntry('),source.indexOf('local function pollPanel('));
  const suite=`
 local function valid(o) return o and o.alive end
@@ -13,6 +13,8 @@ local function text(v) return v end
 local function log() end
 local entryReady,entryDeadline,entryLastLoad,lastClick=true,0,0,14
 local entryToken='123-456'
+local entryHTML='ENTRY_TOKEN'
+local entryURL
 local browser=nil
 local title='FANSERVICE_ENTRY_READY:'..entryToken
 local listAdds,canvasAdds,loads,opens,closes=0,0,0,0,0
@@ -33,7 +35,7 @@ local owner={alive=true,WidgetTree={RootWidget=root}}
 local entry={alive=true,urlInitial='data:initial'}
 function entry:RemoveFromParent() end
 function entry:ExecuteJavascript(v) label=v end
-function entry:LoadURL(url,post,response) assert(url==self.urlInitial and post=='' and response==false);loads=loads+1;title='FANSERVICE_ENTRY_READY:'..entryToken end
+function entry:LoadURL(url,post,response) assert(url==entryURL and post=='' and response==false);loads=loads+1;title='FANSERVICE_ENTRY_READY:'..entryToken end
 function entry:GetTitle() return title end
 local openPanel,closePanel
 `+placement+`

@@ -50,11 +50,15 @@ end
 local generation, epoch, signature = 0, nil, nil
 local base = tostring(os.time()) .. '-' .. tostring(math.random(1, 2147483647))
 local owner, entry, browser, entryToken, lastClick, lastRequest
-local entryHTML, entryReady, entryDeadline, entryLastLoad, panelDeadline, panelLastLoad
-local initialCanvasPending
+local entryHTML, entryURL, entryReady, entryDeadline, entryLastLoad, panelDeadline, panelLastLoad
+local initialCanvasPending, initialNavigationRetried
 local lastFailure, lastGate
 local failedMenu
 local menuList
+local function entryDocumentURL()
+    local html = entryHTML:gsub('ENTRY_TOKEN', entryToken)
+    return 'data:text/html;charset=utf-8,' .. html:gsub('.', function(c) return string.format('%%%02X', c:byte()) end)
+end
 local function placeEntry(inPanel)
     assert(valid(entry) and valid(owner), 'Fanservice menu entry is unavailable.')
     entry:RemoveFromParent()
@@ -75,7 +79,9 @@ local function placeEntry(inPanel)
     end
     lastClick = 0
     entryReady, entryDeadline, entryLastLoad = false, os.time() + 30, os.time()
-    entry:LoadURL(text(entry.urlInitial), '', false)
+    entryToken = entryToken .. '-1'
+    entryURL = entryDocumentURL()
+    entry:LoadURL(entryURL, '', false)
 end
 local profileChanged = false
 local broker = Companion.new({directory=directory, quote=quote})
@@ -99,8 +105,8 @@ local function detach(reason)
     closePanel(reason)
     if valid(entry) then entry:RemoveFromParent() end
     entry, owner, entryToken, lastClick, menuList = nil, nil, nil, 0, nil
-    entryHTML, entryReady, entryDeadline, entryLastLoad = nil, nil, nil, nil
-    initialCanvasPending = nil
+    entryHTML, entryURL, entryReady, entryDeadline, entryLastLoad = nil, nil, nil, nil, nil
+    initialCanvasPending, initialNavigationRetried = nil, nil
 end
 local function context()
     local instance = FindFirstOf('BP_CHGameInstance_C')
@@ -164,9 +170,10 @@ local function attach(menu)
     assert(valid(menuList) and menuList:GetClass():GetFullName() == 'Class /Script/UMG.VerticalBox', 'Original main-menu list is not a supported vertical box.')
     entryToken = epoch .. '-' .. tostring(menu:GetAddress())
     entryHTML = '<!doctype html><title>FANSERVICE_ENTRY_READY:' .. entryToken .. '</title><meta name="viewport" content="width=device-width"><style>*{box-sizing:border-box}html,body{width:100%;height:100%;overflow:hidden}body{margin:0;background:#000;color:#fff}button{width:100%;height:100%;background:#000;color:#fff;border:0;border-radius:0;font:900 36px "Arial Black",Arial,sans-serif;letter-spacing:2px;text-transform:uppercase;cursor:pointer}button:hover{background:#fff;color:#000}button:focus-visible{outline:3px solid #59cfff;outline-offset:-4px}</style><button>Fanservice</button><script>let n=0;document.querySelector("button").onclick=()=>{document.title="FANSERVICE_ENTRY:' .. entryToken .. ':"+(++n)};</script>'
-    local initialURL = 'data:text/html;charset=utf-8,' .. entryHTML:gsub('.', function(c) return string.format('%%%02X', c:byte()) end)
-    entry = widget(menu, {anchors={Minimum={X=1,Y=0},Maximum={X=1,Y=0}},margin={Left=-365,Top=35,Right=335,Bottom=66}}, 220, initialURL)
-    initialCanvasPending = true
+    entryHTML = entryHTML:gsub(entryToken:gsub('%-', '%%-'), 'ENTRY_TOKEN')
+    entryURL = entryDocumentURL()
+    entry = widget(menu, {anchors={Minimum={X=1,Y=0},Maximum={X=1,Y=0}},margin={Left=-365,Top=35,Right=335,Bottom=66}}, 220, entryURL)
+    initialCanvasPending, initialNavigationRetried = true, false
     entryReady, entryDeadline, entryLastLoad = false, os.time() + 30, os.time()
     log('Fanservice entry is loading after age-screen dismissal.')
 end
@@ -195,8 +202,12 @@ local function pollEntry()
             log('Independent entry document handshake verified.')
         else
             assert(os.time() <= entryDeadline, 'Native entry document did not become ready.')
-            if not initialCanvasPending and os.time() - entryLastLoad >= 3 then
-                entryLastLoad = os.time(); entry:LoadURL(text(entry.urlInitial), '', false)
+            if os.time() - entryLastLoad >= 3 and (not initialCanvasPending or not initialNavigationRetried) then
+                if initialCanvasPending then
+                    initialNavigationRetried = true
+                    log('Retrying the initial Fanservice entry navigation in its original slot.')
+                end
+                entryLastLoad = os.time(); entry:LoadURL(entryURL, '', false)
             end
             return
         end

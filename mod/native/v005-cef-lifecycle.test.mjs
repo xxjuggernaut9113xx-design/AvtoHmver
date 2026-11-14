@@ -25,17 +25,19 @@ test('native browser readiness fails closed when its helper is missing, incompat
  }
 });
 
-test('a new native browser completes its first document before reparenting or reload',()=>{
+test('the first native document can retry navigation in place before reparenting',()=>{
  const source=readFileSync(new URL('../runtime-v005/Scripts/main.lua',import.meta.url),'utf8');
- const placement=source.slice(source.indexOf('local function placeEntry('),source.indexOf('local profileChanged'));
+ const placement=source.slice(source.indexOf('local function entryDocumentURL('),source.indexOf('local profileChanged'));
  const attach=source.slice(source.indexOf('local function attach('),source.indexOf('local function openPanel('));
  const polling=source.slice(source.indexOf('local function pollEntry('),source.indexOf('local function pollPanel('));
  const suite=`
 local function valid(o) return o and o.alive end
 local function text(v) return v end
 local function log() end
-local owner,entry,menuList,entryToken,lastClick,entryHTML,entryReady,entryDeadline,entryLastLoad
-local initialCanvasPending
+local owner,entry,menuList,entryToken,lastClick,entryHTML,entryURL,entryReady,entryDeadline,entryLastLoad
+local initialCanvasPending,initialNavigationRetried
+local now=0
+os.time=function() return now end
 local epoch='123-456'
 local browser=nil
 local nativeDocumentReady=false
@@ -59,7 +61,7 @@ local function widget(_,_,_,url)
   removals=removals+1
  end
  function result:LoadURL()
-  assert(nativeDocumentReady,'native document was reloaded before initialization')
+  assert(nativeDocumentReady or (now>=3 and removals==0),'native document was reloaded before its retry window')
   loads=loads+1
  end
  function result:GetTitle() return title end
@@ -71,10 +73,19 @@ attach(menu)
 assert(removals==0 and loads==0 and listAdds==0)
 pollEntry()
 assert(removals==0 and loads==0 and listAdds==0)
+now=3
+pollEntry()
+assert(removals==0 and loads==1 and listAdds==0)
+now=7
+pollEntry()
+assert(removals==0 and loads==1 and listAdds==0)
 nativeDocumentReady=true
 title='FANSERVICE_ENTRY_READY:'..entryToken
 pollEntry()
-assert(removals==1 and loads==1 and listAdds==1 and not entryReady)
+assert(removals==1 and loads==2 and listAdds==1 and not entryReady)
+pollEntry()
+assert(not entryReady)
+title='FANSERVICE_ENTRY_READY:'..entryToken
 pollEntry()
 assert(entryReady and label:find('Fanservice'))
 `;
