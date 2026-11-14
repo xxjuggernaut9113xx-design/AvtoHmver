@@ -3,13 +3,12 @@ async function run(buildId){
  const {sealConnection}=await import('../mod/native/sealed-test.mjs');
  const {nativeBuildConfig}=await import('../mod/native/game-identity.mjs');
  const {NativeCompanionHost}=await import('../mod/native/host.mjs'),origin=process.env.FANSERVICE_FIXTURE_ORIGIN||'http://127.0.0.1:42169',base=await fs.mkdtemp(path.join(os.tmpdir(),'native-server-smoke-'));
- let pulse;
  try{
   const caps=await(await fetch(origin+'/api/fanservice/v1/capabilities')).json(),runtime=path.join(base,'runtime'),game=path.join(base,'game'),packs=path.join(game,nativeBuildConfig(buildId).packDirectory);await fs.mkdir(runtime);await fs.mkdir(packs,{recursive:true});await fs.writeFile(path.join(runtime,'server-origin.txt'),origin);
   const state={protocol:1,build_id:buildId,slot:'SyntheticSlotA',user_index:0,save_address:'1',store_address:'2',generation:1,epoch:'123-1',updated_at:Math.floor(Date.now()/1000),native_catalog:{unlock_points:4,packs:[{id:'fanservice-smoke-123',owned:true,enabled:true}]}};
-  const heartbeat=async()=>{state.updated_at=Math.floor(Date.now()/1000);await fs.writeFile(path.join(runtime,'.fanservice-companion.state'),JSON.stringify(state));};await heartbeat();pulse=setInterval(()=>heartbeat().catch(()=>{}),500);
+  const heartbeat=()=>fs.writeFile(path.join(runtime,'.fanservice-companion.state'),JSON.stringify(state));await heartbeat();
   await fs.writeFile(path.join(packs,'.fanservice-receipts.json'),JSON.stringify({version:1,packs:{'custom:smoke':{custom_id:'custom:smoke',build_id:state.build_id,filename:'fanservice-smoke-123.chpack',sha256:'b'.repeat(64)}}}));
-  const host=await new NativeCompanionHost({verifyBuild:false,runtimeDir:runtime,gameRoot:game,storeRoot:path.join(base,'data'),buildId}).initialize();let sequence=0;
+  const host=await new NativeCompanionHost({verifyBuild:false,runtimeDir:runtime,gameRoot:game,storeRoot:path.join(base,'data'),buildId,now:()=>state.updated_at}).initialize();let sequence=0;
   const raw=(action,payload={})=>host.handle({action,payload,nonce:'123-1-'+(++sequence),generation:state.generation,epoch:state.epoch});
   const call=async(action,payload={})=>raw(action,action==='syncconfigure'?await sealConnection(await raw('synchandshake'),payload):payload);
   const definition={id:'custom:smoke',name:'Neutral Server fixture',description:'API acceptance only',library_id:caps.library_id,unlock_cost:1,selection:{ids:[],rules:[{}]}};
@@ -18,7 +17,7 @@ async function run(buildId){
   const saved=await call('companionread');assert.equal(Object.keys(saved.snapshots).length,1);const offline=await call('musicprepare',{pack_id:definition.id});const command=await fs.readFile(path.join(runtime,'.fanservice-music-command.'+offline.command_nonce),'utf8'),location=decodeURIComponent(command.split('\n')[4]);assert.ok(location.startsWith('file:///'));assert.ok(JSON.parse(command.split('\n').slice(6).join('\n')).beats.length>0);
   await call('snapshotdelete',{pack_id:definition.id});const retained=await fs.stat(new URL(location));assert.ok(retained.size>0,'Pinned audio must survive explicit snapshot removal');await call('sessionrelease',{session_id:offline.session_id});await assert.rejects(fs.stat(new URL(location)),{code:'ENOENT'});
   const connection={id:'native-'+randomUUID(),key:'a'.repeat(64),revision:0};await call('syncconfigure',connection);const before=await call('companionread');await call('syncupload',{expected_revision:before.revision});
-  state.slot='SyntheticSlotB';state.generation++;await heartbeat();await call('syncconfigure',connection);const preview=await call('syncpreview');assert.equal(preview.packs.length,1);await call('syncapply',{preview_token:preview.preview_token,expected_revision:preview.local_revision});const downloaded=await call('companionread');assert.deepEqual(downloaded.packs,[definition]);assert.equal(downloaded.unlock_points,undefined);assert.equal(downloaded.progression,undefined);
+  state.slot='SyntheticSlotB';state.generation++;await heartbeat();await call('syncconfigure',connection);const preview=await call('syncpreview');assert.equal(preview.packs.length,1);await call('syncapply',{preview_token:preview.preview_token,expected_revision:preview.local_revision,choices:{[definition.id]:'remote'}});const downloaded=await call('companionread');assert.deepEqual(downloaded.packs,[definition]);assert.equal(downloaded.unlock_points,undefined);assert.equal(downloaded.progression,undefined);
   const {chromium}=require(process.env.FANSERVICE_PLAYWRIGHT_MODULE||'./browser/node_modules/playwright');
   const browser=await chromium.launch({headless:true,...(process.env.FANSERVICE_BROWSER_EXECUTABLE?{executablePath:process.env.FANSERVICE_BROWSER_EXECUTABLE}:{})});
   try{
@@ -35,6 +34,6 @@ async function run(buildId){
    }finally{clearInterval(routing);while(busy)await new Promise(resolve=>setTimeout(resolve,5));}
   }finally{await browser.close();}
   console.log(buildId+': native companion / real Server passed: media + native AAC snapshot, ownership denial, pinned removal/release, two-profile sync with no native wallet import. Browser controls and sealed WebCrypto sync passed without a key in page titles. Synthetic native heartbeat; no original-game UI or playback claimed.');
- }finally{clearInterval(pulse);await fs.rm(base,{recursive:true,force:true});}
+ }finally{await fs.rm(base,{recursive:true,force:true});}
 }
 (async()=>{for(const buildId of ['v004-exclusive-c645757d','v0051-hotfix-public-a8f46896'])await run(buildId);})().catch(error=>{console.error(error);process.exitCode=1;});

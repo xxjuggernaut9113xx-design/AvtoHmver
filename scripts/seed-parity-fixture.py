@@ -106,6 +106,20 @@ def main():
         output.writeframes(frames)
     connection.execute("INSERT INTO music_tracks(id,title,format,bytes) VALUES(1,'Parity 120 BPM click track','wav',?)", (track.stat().st_size,))
     connection.commit()
+    recording_url = origin + "/api/fanservice/v1/music/1"
+    with urllib.request.urlopen(recording_url, timeout=10) as response:
+        recording = json.load(response)
+    beatmap = {
+        "recording_id": recording["recording_id"], "duration": recording["duration"],
+        "bpm": 120, "offset": 0, "confirmed": True,
+        "beats": [{"time": index / 2, "type": "stroke"} for index in range(48)],
+        "events": [],
+    }
+    request = urllib.request.Request(recording_url + "/beatmap", data=json.dumps(beatmap).encode(),
+                                     headers={"Content-Type": "application/json"}, method="PUT")
+    with urllib.request.urlopen(request, timeout=10) as response:
+        if not json.load(response).get("confirmed"):
+            raise RuntimeError("Server did not confirm the generated fixture beatmap")
     request = urllib.request.Request(origin + "/api/goon/playlists", data=json.dumps({"name": "Parity local music", "provider": "local", "source_url": None, "tracks": [1]}).encode(), headers={"Content-Type": "application/json"})
     with urllib.request.urlopen(request, timeout=10) as response:
         playlist = json.load(response)
