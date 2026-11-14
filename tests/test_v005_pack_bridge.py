@@ -15,11 +15,15 @@ bridge = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(bridge)
 
 
-def make_pack(path, *, extra=None, missing=False, payload=b'synthetic media bytes'):
-    manifest = dict(name='Synthetic native pack', description='', unlock_cost=7,
+def make_pack(path, *, extra=None, missing=False, payload=b'synthetic media bytes',
+              name='Synthetic native pack', unlock_cost=7, preview=None):
+    manifest = dict(name=name, description='', unlock_cost=unlock_cost,
                     image_count=1, video_count=0, total_media=1,
                     media=[dict(file='0_slow.png', type='image')])
     with zipfile.ZipFile(path, 'w', zipfile.ZIP_DEFLATED) as archive:
+        if preview is not None:
+            manifest['preview'] = 'preview.png'
+            archive.writestr('preview.png', preview)
         archive.writestr('manifest.json', json.dumps(manifest))
         if not missing:
             archive.writestr('media/0_slow.png', payload)
@@ -359,16 +363,22 @@ class PackBridgeTests(unittest.TestCase):
             cache = packs.parent / 'Extracted/native-cache/media.png'
             cache.parent.mkdir(parents=True)
             cache.write_bytes(b'keep cache')
-            make_pack(source, payload=b'updated media')
+            make_pack(source, name='Renamed native pack', unlock_cost=13,
+                      payload=b'updated media', preview=b'updated cover')
             second = bridge.install(root, source, first['custom_id'])
             self.assertEqual(first['archive'], second['archive'])
             self.assertEqual(first['custom_id'], second['custom_id'])
+            self.assertEqual((first['unlock_cost'], second['unlock_cost']), (7, 13))
+            self.assertEqual(second['name'], 'Renamed native pack')
             self.assertNotEqual(first['sha256'], second['sha256'])
             self.assertEqual(Path(second['archive']).read_bytes(), source.read_bytes())
+            self.assertEqual(save.read_bytes(), b'native ownership')
             ledger = json.loads((packs / '.fanservice-receipts.json').read_text())
             self.assertEqual(ledger['packs'][first['custom_id']]['sha256'], second['sha256'])
+            self.assertEqual(bridge.list_installed(root)[0]['unlock_cost'], 13)
             bridge.uninstall(root, first['custom_id'])
             self.assertFalse(Path(first['archive']).exists())
+            self.assertTrue(source.is_file())
             self.assertEqual(external.read_bytes(), b'external archive')
             self.assertEqual(save.read_bytes(), b'native ownership')
             self.assertEqual(cache.read_bytes(), b'keep cache')
