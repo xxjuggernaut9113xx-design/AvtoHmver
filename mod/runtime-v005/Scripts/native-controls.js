@@ -119,7 +119,7 @@ html.fanservice-game{color-scheme:dark;--panel:#090909;--accent:#fff;background:
    for(let offset=0;offset<bytes.length;offset+=24576)await request('definitionschunk',{upload_token:started.upload_token,offset,chunk:btoa(String.fromCharCode(...bytes.subarray(offset,offset+24576)))});
    await request('definitionscommit',{upload_token:started.upload_token});
   }
-  await refresh();show('Pack drafts saved. Use the pack bridge to add their media, then purchase and enable them in original Unlocks.');
+  await refresh();show('Pack drafts saved for this game profile. Export the pack, close the game, and install the archive with the pack bridge. Reopen the game and use original Unlocks to enable a free pack or buy a priced pack.');
  });
  button('Deliver soundtrack to Playlist',async()=>{
   const id=trackId();if(!current)await refresh();sameServer();show('Preparing music for the original Playlist.');
