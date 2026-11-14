@@ -51,6 +51,7 @@ local generation, epoch, signature = 0, nil, nil
 local base = tostring(os.time()) .. '-' .. tostring(math.random(1, 2147483647))
 local owner, entry, browser, entryToken, lastClick, lastRequest
 local entryHTML, entryReady, entryDeadline, entryLastLoad, panelDeadline, panelLastLoad
+local initialCanvasPending
 local lastFailure, lastGate
 local failedMenu
 local menuList
@@ -91,7 +92,7 @@ local function closePanel(reason)
         browser:RemoveFromParent()
     end
     browser, lastRequest, panelDeadline, panelLastLoad = nil, 0, nil, nil
-    if valid(entry) and valid(owner) and valid(menuList) then placeEntry(false) end
+    if valid(entry) and valid(owner) and valid(menuList) and not initialCanvasPending then placeEntry(false) end
     renew()
 end
 local function detach(reason)
@@ -99,6 +100,7 @@ local function detach(reason)
     if valid(entry) then entry:RemoveFromParent() end
     entry, owner, entryToken, lastClick, menuList = nil, nil, nil, 0, nil
     entryHTML, entryReady, entryDeadline, entryLastLoad = nil, nil, nil, nil
+    initialCanvasPending = nil
 end
 local function context()
     local instance = FindFirstOf('BP_CHGameInstance_C')
@@ -164,9 +166,9 @@ local function attach(menu)
     entryHTML = '<!doctype html><title>FANSERVICE_ENTRY_READY:' .. entryToken .. '</title><meta name="viewport" content="width=device-width"><style>*{box-sizing:border-box}html,body{width:100%;height:100%;overflow:hidden}body{margin:0;background:#000;color:#fff}button{width:100%;height:100%;background:#000;color:#fff;border:0;border-radius:0;font:900 36px "Arial Black",Arial,sans-serif;letter-spacing:2px;text-transform:uppercase;cursor:pointer}button:hover{background:#fff;color:#000}button:focus-visible{outline:3px solid #59cfff;outline-offset:-4px}</style><button>Fanservice</button><script>let n=0;document.querySelector("button").onclick=()=>{document.title="FANSERVICE_ENTRY:' .. entryToken .. ':"+(++n)};</script>'
     local initialURL = 'data:text/html;charset=utf-8,' .. entryHTML:gsub('.', function(c) return string.format('%%%02X', c:byte()) end)
     entry = widget(menu, {anchors={Minimum={X=1,Y=0},Maximum={X=1,Y=0}},margin={Left=-365,Top=35,Right=335,Bottom=66}}, 220, initialURL)
-    placeEntry(false)
+    initialCanvasPending = true
     entryReady, entryDeadline, entryLastLoad = false, os.time() + 30, os.time()
-    log('Fanservice entry joined the original main-menu list after age-screen dismissal.')
+    log('Fanservice entry is loading after age-screen dismissal.')
 end
 local function openPanel()
     assert(owner and Guard.evaluate(owner), 'Original main menu is no longer available.')
@@ -182,12 +184,18 @@ local function pollEntry()
     local title = text(entry:GetTitle())
     if not entryReady then
         if title == 'FANSERVICE_ENTRY_READY:' .. entryToken then
+            if initialCanvasPending then
+                initialCanvasPending = false
+                placeEntry(false)
+                log('Fanservice entry joined the original main-menu list.')
+                return
+            end
             entryReady = true
             entry:ExecuteJavascript('document.querySelector("button").textContent="' .. (browser and 'Back' or 'Fanservice') .. '"')
             log('Independent entry document handshake verified.')
         else
             assert(os.time() <= entryDeadline, 'Native entry document did not become ready.')
-            if os.time() - entryLastLoad >= 3 then
+            if not initialCanvasPending and os.time() - entryLastLoad >= 3 then
                 entryLastLoad = os.time(); entry:LoadURL(text(entry.urlInitial), '', false)
             end
             return
