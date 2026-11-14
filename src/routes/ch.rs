@@ -148,6 +148,11 @@ pub async fn get_playlist(
                 .collect()
         })
         .unwrap_or_default();
+    let stored_tags = if require_tags.is_empty() && exclude_tags.is_empty() {
+        Vec::new()
+    } else {
+        crate::services::library::tag_catalog(&conn).map_err(db_err)?
+    };
 
     let min_rating = q.min_rating.unwrap_or(0);
 
@@ -156,7 +161,12 @@ pub async fn get_playlist(
     for (tags, exclude) in [(&require_tags, false), (&exclude_tags, true)] {
         for tag in tags {
             let predicate =
-                crate::routes::media::tag_predicate(tag, &group_effective_tags, &mut params);
+                crate::routes::media::tag_predicate(
+                    tag,
+                    &group_effective_tags,
+                    &stored_tags,
+                    &mut params,
+                );
             filters.push_str(&format!(
                 " AND {}{predicate}",
                 if exclude { "NOT " } else { "" }

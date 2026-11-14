@@ -161,6 +161,20 @@ pub async fn list(state: &AppState, q: MediaQuery) -> Result<MediaPage, LibraryE
 
     // Get group effective tags — read from cache or rebuild
     let group_effective_tags = effective_tags(state).await?;
+    let needs_tag_catalog = q
+        .tag
+        .as_deref()
+        .is_some_and(|tag| !tag.trim().is_empty())
+        || [&q.tags, &q.any_tags, &q.exclude_tags]
+            .into_iter()
+            .flatten()
+            .any(|raw| raw.split(',').any(|tag| !tag.trim().is_empty()));
+    let stored_tags = if needs_tag_catalog {
+        let conn = state.pool.get().map_err(db_err)?;
+        tag_catalog(&conn).map_err(db_err)?
+    } else {
+        Vec::new()
+    };
 
     let mut params: Vec<rusqlite::types::Value> = Vec::new();
     let scope_sql = if let Some(sid) = q.source_id {
@@ -313,6 +327,7 @@ pub async fn list(state: &AppState, q: MediaQuery) -> Result<MediaPage, LibraryE
         extra.push_str(&tag_predicate(
             tag.trim().to_lowercase().as_str(),
             &group_effective_tags,
+            &stored_tags,
             &mut params,
         ));
     }
@@ -327,7 +342,14 @@ pub async fn list(state: &AppState, q: MediaQuery) -> Result<MediaPage, LibraryE
             .split(',')
             .map(str::trim)
             .filter(|t| !t.is_empty())
-            .map(|t| tag_predicate(&t.to_lowercase(), &group_effective_tags, &mut params))
+            .map(|t| {
+                tag_predicate(
+                    &t.to_lowercase(),
+                    &group_effective_tags,
+                    &stored_tags,
+                    &mut params,
+                )
+            })
             .collect();
         if !predicates.is_empty() {
             extra.push_str(&format!(
@@ -513,13 +535,23 @@ pub async fn effective_tags(
 pub fn tag_predicate(
     tag: &str,
     groups: &HashMap<i64, HashSet<String>>,
+    stored_tags: &[(i64, String)],
     params: &mut Vec<rusqlite::types::Value>,
 ) -> String {
-    params.push(tag.to_string().into());
+    let ids = stored_tags
+        .iter()
+        .filter(|(_, stored)| stored.to_lowercase() == tag)
+        .map(|(id, _)| *id)
+        .collect::<Vec<_>>();
+    params.push(
+        serde_json::to_string(&ids)
+            .unwrap_or_else(|_| "[]".into())
+            .into(),
+    );
     let t = params.len();
     let ids: Vec<i64> = groups
         .iter()
-        .filter(|(_, tags)| tags.contains(tag))
+        .filter(|(_, tags)| tags.iter().any(|stored| stored.to_lowercase() == tag))
         .map(|(id, _)| *id)
         .collect();
     params.push(
@@ -528,7 +560,17 @@ pub fn tag_predicate(
             .into(),
     );
     let g = params.len();
-    format!("(EXISTS(SELECT 1 FROM media_tags mt JOIN tags t ON t.id=mt.tag_id WHERE mt.media_id=m.id AND t.name=?{t}) OR s.group_id IN (SELECT value FROM json_each(?{g})))")
+    format!("(EXISTS(SELECT 1 FROM media_tags mt WHERE mt.media_id=m.id AND mt.tag_id IN (SELECT value FROM json_each(?{t}))) OR s.group_id IN (SELECT value FROM json_each(?{g})))")
+}
+
+pub fn tag_catalog(
+    conn: &rusqlite::Connection,
+) -> rusqlite::Result<Vec<(i64, String)>> {
+    let mut statement = conn.prepare("SELECT id, name FROM tags")?;
+    let tags = statement
+        .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+        .collect();
+    tags
 }
 
 fn sql_value(value: rusqlite::types::ValueRef<'_>) -> Value {
@@ -633,9 +675,10 @@ mod tests {
              INSERT INTO media(id,source_id,filepath,filename,type,added_at)
              VALUES(151,1,'direct','direct.jpg','image','2026'),
                    (152,2,'inherited','inherited.jpg','image','2026');
-             INSERT INTO tags(id,name,added_at) VALUES(1,'Parity % tag','2026');
-             INSERT INTO media_tags(media_id,tag_id) VALUES(151,1);
-             INSERT INTO group_tags(group_id,tag_id) VALUES(1,1);",
+             INSERT INTO tags(id,name,added_at) VALUES
+               (1,'Parity % tag','2026'),(2,'Café Δelta','2026');
+             INSERT INTO media_tags(media_id,tag_id) VALUES(151,1),(151,2);
+             INSERT INTO group_tags(group_id,tag_id) VALUES(1,1),(1,2);",
             )
             .unwrap();
         let (status, first) = http_list(&state, "/api/media?search=%25%20tag&limit=1").await;
@@ -650,6 +693,20 @@ mod tests {
         assert_eq!(second["media"][0]["id"], 152);
         let (_, by_host) = http_list(&state, "/api/media?search=parity.example.test").await;
         assert_eq!(by_host["media"][0]["id"], 152);
+        for encoded_tag in ["parity%20%25%20tag", "CAF%C3%89%20%CE%94ELTA"] {
+            let (status, by_case_insensitive_tag) =
+                http_list(&state, &format!("/api/media?tag={encoded_tag}")).await;
+            assert_eq!(status, 200);
+            assert_eq!(
+                by_case_insensitive_tag["media"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|item| item["id"].as_i64().unwrap())
+                    .collect::<Vec<_>>(),
+                vec![151, 152]
+            );
+        }
     }
 
     #[tokio::test]
