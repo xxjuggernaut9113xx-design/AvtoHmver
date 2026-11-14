@@ -82,6 +82,7 @@ enum WorkerEvent {
         generation: u64,
         position_secs: Option<f64>,
         duration_secs: Option<f64>,
+        speed: Option<f64>,
         paused: Option<bool>,
     },
     Error(u64, String),
@@ -379,6 +380,7 @@ impl NativePlayer {
                         generation,
                         position_secs,
                         duration_secs,
+                        speed,
                         paused,
                     }) if generation == self.generation => {
                         if let Some(position_secs) = position_secs {
@@ -391,6 +393,9 @@ impl NativePlayer {
                             self.status.duration_secs = self
                                 .clip_range
                                 .map_or(duration_secs, |(start, end)| end - start);
+                        }
+                        if let Some(speed) = speed {
+                            self.status.speed = speed;
                         }
                         if let Some(paused) = paused {
                             self.status.paused = paused;
@@ -575,6 +580,10 @@ fn player_worker(
                 .property("duration")
                 .ok()
                 .and_then(|value| value.parse::<f64>().ok());
+            let speed = instance
+                .property("speed")
+                .ok()
+                .and_then(|value| value.parse::<f64>().ok());
             let paused = instance
                 .property("pause")
                 .ok()
@@ -583,11 +592,16 @@ fn player_worker(
                     "no" | "false" | "0" => Some(false),
                     _ => None,
                 });
-            if position_secs.is_some() || duration_secs.is_some() || paused.is_some() {
+            if position_secs.is_some()
+                || duration_secs.is_some()
+                || speed.is_some()
+                || paused.is_some()
+            {
                 let _ = statuses.try_send(WorkerEvent::Progress {
                     generation,
                     position_secs,
                     duration_secs,
+                    speed,
                     paused,
                 });
             }
@@ -1049,6 +1063,7 @@ mod tests {
                 generation: 2,
                 position_secs: Some(4.0),
                 duration_secs: Some(10.0),
+                speed: Some(1.0),
                 paused: Some(false),
             })
             .unwrap();
@@ -1174,33 +1189,45 @@ mod tests {
             thread::sleep(Duration::from_millis(20));
         }
 
-        player.apply(PlayerCommand::SetPaused(false));
-        let mut initial_position = player.status().position_secs;
-        let deadline = Instant::now() + Duration::from_secs(3);
-        while player.status().position_secs < initial_position + 0.12 {
-            player.drain_events();
-            assert!(Instant::now() < deadline, "{:?}", player.status());
-            thread::sleep(Duration::from_millis(20));
-        }
-        initial_position = player.status().position_secs;
-        let initial_sample = Instant::now();
-        while initial_sample.elapsed() < Duration::from_millis(400) {
-            player.drain_events();
-            thread::sleep(Duration::from_millis(20));
-        }
-        let one_x_advance = player.status().position_secs - initial_position;
-        player.apply(PlayerCommand::SetSpeed(2.0));
-        let two_x_start = player.status().position_secs;
-        let two_x_sample = Instant::now();
-        while two_x_sample.elapsed() < Duration::from_millis(400) {
-            player.drain_events();
-            thread::sleep(Duration::from_millis(20));
-        }
-        let two_x_advance = player.status().position_secs - two_x_start;
+        let sample_speed = |player: &mut NativePlayer, speed: f64| {
+            // Confirm seek, pause and speed against properties polled from the
+            // worker before timing. NativePlayer updates its local command
+            // state synchronously, which can otherwise make this check race
+            // ahead of libmpv on a short clip.
+            player.apply(PlayerCommand::SetPaused(true));
+            player.apply(PlayerCommand::Seek(0.25));
+            player.apply(PlayerCommand::SetSpeed(speed));
+            let deadline = Instant::now() + Duration::from_secs(5);
+            loop {
+                player.drain_events();
+                let status = player.status();
+                assert!(!status.failed, "{status:?}");
+                if status.paused
+                    && (status.position_secs - 0.25).abs() < 0.2
+                    && (status.speed - speed).abs() < 0.05
+                {
+                    break;
+                }
+                assert!(Instant::now() < deadline, "{status:?}");
+                thread::sleep(Duration::from_millis(20));
+            }
+            player.apply(PlayerCommand::SetPaused(false));
+            let start_position = player.status().position_secs;
+            let started = Instant::now();
+            while started.elapsed() < Duration::from_millis(1200) {
+                player.drain_events();
+                thread::sleep(Duration::from_millis(20));
+            }
+            let advance = player.status().position_secs - start_position;
+            player.apply(PlayerCommand::SetPaused(true));
+            advance
+        };
+        let one_x_advance = sample_speed(&mut player, 1.0);
+        let two_x_advance = sample_speed(&mut player, 2.0);
         assert!(
             one_x_advance > 0.0
-                && two_x_advance > one_x_advance * 1.35
-                && two_x_advance < one_x_advance * 3.5,
+                && two_x_advance > one_x_advance * 1.5
+                && two_x_advance < one_x_advance * 2.5,
             "position advances should show materially faster 2x playback: 1x={one_x_advance:.3}s, 2x={two_x_advance:.3}s; {:?}",
             player.status()
         );

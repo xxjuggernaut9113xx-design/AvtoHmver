@@ -213,3 +213,135 @@ impl MusicPlayer {
         snapshot
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+    use std::time::{Duration, Instant};
+
+    fn write_neutral_wav(path: &std::path::Path) {
+        const RATE: u32 = 22_050;
+        const SECONDS: u32 = 8;
+        let sample_count = RATE * SECONDS;
+        let data_len = sample_count * 2;
+        let mut file = std::fs::File::create(path).unwrap();
+        file.write_all(b"RIFF").unwrap();
+        file.write_all(&(36 + data_len).to_le_bytes()).unwrap();
+        file.write_all(b"WAVEfmt ").unwrap();
+        file.write_all(&16_u32.to_le_bytes()).unwrap();
+        file.write_all(&1_u16.to_le_bytes()).unwrap();
+        file.write_all(&1_u16.to_le_bytes()).unwrap();
+        file.write_all(&RATE.to_le_bytes()).unwrap();
+        file.write_all(&(RATE * 2).to_le_bytes()).unwrap();
+        file.write_all(&2_u16.to_le_bytes()).unwrap();
+        file.write_all(&16_u16.to_le_bytes()).unwrap();
+        file.write_all(b"data").unwrap();
+        file.write_all(&data_len.to_le_bytes()).unwrap();
+        for index in 0..sample_count {
+            let phase = (index * 440) % RATE;
+            let sample: i16 = if phase < RATE / 2 { 1_000 } else { -1_000 };
+            file.write_all(&sample.to_le_bytes()).unwrap();
+        }
+        file.flush().unwrap();
+    }
+
+    fn wait_for_snapshot(
+        player: &MusicPlayer,
+        label: &str,
+        mut ready: impl FnMut(&PlaybackSnapshot) -> bool,
+    ) -> PlaybackSnapshot {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            let snapshot = player.snapshot();
+            if ready(&snapshot) {
+                return snapshot;
+            }
+            assert!(
+                Instant::now() < deadline,
+                "timed out waiting for {label}: active={}, position={}, revision={}",
+                snapshot.active,
+                snapshot.position,
+                snapshot.revision
+            );
+            std::thread::sleep(Duration::from_millis(20));
+        }
+    }
+
+    #[test]
+    #[ignore = "requires CURATOR_LIBMPV_PATH set to a staged libmpv DLL"]
+    fn live_music_player_clock_pause_failure_and_retry() {
+        let libmpv = std::env::var_os("CURATOR_LIBMPV_PATH")
+            .expect("set CURATOR_LIBMPV_PATH to the staged libmpv DLL");
+        assert!(std::path::Path::new(&libmpv).is_file());
+
+        let directory = tempfile::tempdir().unwrap();
+        let track = directory.path().join("neutral.wav");
+        let missing = directory.path().join("missing.wav");
+        write_neutral_wav(&track);
+
+        let player = MusicPlayer::new();
+        player.send(Command::Load(
+            vec![track.to_string_lossy().into_owned()],
+            0.0,
+        ));
+        let first = wait_for_snapshot(&player, "initial audio clock", |snapshot| {
+            snapshot.active && snapshot.position >= 0.25
+        });
+        assert_eq!(first.path, track_key(&track.to_string_lossy()));
+
+        player.suspend(true);
+        std::thread::sleep(Duration::from_millis(300));
+        let paused_at = player.snapshot();
+        assert!(paused_at.paused && paused_at.active);
+        std::thread::sleep(Duration::from_millis(250));
+        let paused_after = player.snapshot();
+        assert!(
+            (paused_after.position - paused_at.position).abs() <= 0.08,
+            "music advanced while paused: {} -> {}",
+            paused_at.position,
+            paused_after.position
+        );
+
+        player.suspend(false);
+        let resumed = wait_for_snapshot(&player, "audio clock after Resume", |snapshot| {
+            snapshot.active && snapshot.position >= paused_after.position + 0.15
+        });
+        assert_eq!(resumed.revision, first.revision);
+
+        player.send(Command::Load(
+            vec![missing.to_string_lossy().into_owned()],
+            0.0,
+        ));
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let error = loop {
+            if let Some(error) = player.error() {
+                break error;
+            }
+            assert!(
+                Instant::now() < deadline,
+                "timed out waiting for the failed track error"
+            );
+            std::thread::sleep(Duration::from_millis(20));
+        };
+        assert!(
+            error.contains("Music decoding failed"),
+            "unexpected mpv error: {error}"
+        );
+        let failed = wait_for_snapshot(&player, "failed track state", |snapshot| {
+            !snapshot.active && snapshot.path == track_key(&missing.to_string_lossy())
+        });
+        assert!(failed.revision > resumed.revision);
+
+        player.send(Command::Load(
+            vec![track.to_string_lossy().into_owned()],
+            0.0,
+        ));
+        let recovered = wait_for_snapshot(&player, "explicit music retry", |snapshot| {
+            snapshot.active && snapshot.position >= 0.25 && snapshot.revision > failed.revision
+        });
+        assert_eq!(recovered.path, first.path);
+
+        player.send(Command::Stop);
+    }
+}
