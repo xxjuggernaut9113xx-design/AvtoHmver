@@ -556,6 +556,48 @@ mod tests {
         assert_eq!(grid.passed(0.26), 1);
         assert_eq!(grid.passed(0.76), 2);
     }
+
+    #[test]
+    fn music_map_recovers_from_local_connector_loss_without_catch_up_cues() {
+        let map = MusicBeatMap::new("sample.wav", 120.0, 0.0, vec![]).unwrap();
+        let snapshot = |position, revision, active| PlaybackSnapshot {
+            revision,
+            position,
+            paused: false,
+            active,
+            path: crate::music::track_key("sample.wav"),
+        };
+        let mut clock = MusicBeatClock::default();
+
+        assert_eq!(
+            clock.update(&map, &snapshot(0.25, 1, true), "session", true),
+            Some(false)
+        );
+        assert_eq!(
+            clock.update(&map, &snapshot(0.51, 1, true), "session", true),
+            Some(true)
+        );
+        assert_eq!(
+            clock.update(&map, &snapshot(0.51, 1, false), "session", true),
+            Some(false)
+        );
+
+        // A reloaded track has a new revision and may have advanced while the
+        // connector was unavailable. Re-anchor at its current audio position;
+        // never emit the missed beats as a burst.
+        assert_eq!(
+            clock.update(&map, &snapshot(5.01, 2, true), "session", true),
+            Some(false)
+        );
+        assert_eq!(
+            clock.update(&map, &snapshot(5.25, 2, true), "session", true),
+            Some(false)
+        );
+        assert_eq!(
+            clock.update(&map, &snapshot(5.51, 2, true), "session", true),
+            Some(true)
+        );
+    }
     use avtohmver::session::{GameConfig, SessionCommand, SessionEngine};
 
     #[test]
