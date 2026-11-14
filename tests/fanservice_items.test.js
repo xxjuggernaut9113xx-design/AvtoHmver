@@ -67,6 +67,11 @@ test('Playlist Break never rolls punishment (ActivateItem stmts 62-71)',()=>{
  assert.equal(items.use(inv,4,state,deps).ok,true);
  assert.equal(rolled,false);assert.equal(state.combo,0);assert.equal(inv.state(4).charges,0);
 });
+test('All or Nothing resets objective on Playlist Break only (ActivateItem stmts 62-75)',()=>{
+ const make=(mode)=>{const inv=charged(4),state={combo:20,coins:125,cumMeter:.4};let resets=0;const result=items.use(inv,4,state,{context:{mode,allOrNothing:true,objectiveType:0,breakDuration:10},hooks:{beginBreak:()=>true,resetObjective:()=>{resets++;state.cumMeter=0;}}});return {result,state,resets};};
+ const playlist=make(2);assert.equal(playlist.result.ok,true);assert.equal(playlist.state.coins,0);assert.equal(playlist.state.cumMeter,0);assert.equal(playlist.resets,1);
+ const classic=make(0);assert.equal(classic.result.ok,true);assert.equal(classic.state.coins,125);assert(Math.abs(classic.state.cumMeter-.41)<1e-9);assert.equal(classic.resets,0);
+});
 test('Break without a punishment hook still applies the effect',()=>{
  const inv=charged(4,1),state={combo:20};
  assert.equal(items.use(inv,4,state,{context:{punishmentEnabled:true},hooks:{beginBreak:()=>true}}).ok,true);
