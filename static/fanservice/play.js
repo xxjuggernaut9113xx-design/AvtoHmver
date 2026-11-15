@@ -521,6 +521,7 @@ function event(e,{replay=false}={}){
  else if(e.type==='text')$('caption').textContent=e.value;
  else if(e.type==='dialogue')window.FanserviceVoice.say(e.value,text=>$('caption').textContent=text,text=>$('voice-status').textContent=text);
  else if(e.type==='cum_event'){
+  if(run.player.hasCame||!['start','end'].includes(e.value))return;
   const opened=e.value==='start';
   run.player.isAllowedToCum=opened;
   if(opened)timelinePool('cum',replay);

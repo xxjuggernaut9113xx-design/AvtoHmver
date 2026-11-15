@@ -25,6 +25,18 @@ const manifest={protocol:1,library_id:'music-fixture',track_id:1,recording_id:'s
   });
   await page.goto(origin+'/fanservice/play.html?library=music-fixture&track=1');
   await page.waitForFunction(()=>!document.querySelector('#start').disabled);
+  const guardedWindow=await page.evaluate(()=>{
+   const player=run.player,priorStatus=document.querySelector('#status').textContent;
+   player.hasCame=true;player.isAllowedToCum=false;
+   event({type:'cum_event',value:'start'});
+   const reopened=player.isAllowedToCum;
+   player.isAllowedToCum=true;
+   event({type:'cum_event',value:'end'});
+   const closed=!player.isAllowedToCum;
+   player.hasCame=false;player.isAllowedToCum=false;
+   return {reopened,closed,notice:document.querySelector('#status').textContent!==priorStatus};
+  });
+  assert.deepEqual(guardedWindow,{reopened:false,closed:false,notice:false});
   await page.locator('#start').click();await page.waitForTimeout(350);
   const lead=await page.evaluate(()=>({remaining:musicLeadIn,strokes:state.strokes,seconds:state.seconds,position:audio.currentTime}));assert.ok(lead.remaining>1);assert.equal(lead.strokes,0);assert.equal(lead.seconds,0);assert.equal(lead.position,0);
   await page.locator('#stage').click();const pausedLead=await page.evaluate(()=>musicLeadIn);await page.waitForTimeout(300);assert.equal(await page.evaluate(()=>musicLeadIn),pausedLead);
