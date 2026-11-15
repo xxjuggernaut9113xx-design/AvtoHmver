@@ -696,7 +696,9 @@ async function end(won){
   const objective=(run.roundObjective||run.objective.state)?.objective;
   await mutateProfile(current=>{const next=FanserviceProgression.settleSession(FanserviceProgression.startSession(current,contract),{...run.effectiveStats(),gmSessionLength:run.objective.gmSeconds,mode:run.config.mode,difficulty:run.config.difficulty,objective},sessionId,contract);next.mobile_settings={...next.mobile_settings,...run.config.settings};next.mobile_loadout=[...run.inventory.hotbarItems];return next;});
   finished=true;await releasePins();localStorage.removeItem(checkpointKey);
-  $('summary').textContent=`${won?'Session completed':'Session ended'}\n${profile.progression.last_settlement.xp} XP · ${state.coins} coins · ${profile.progression.last_settlement.unlock_points} UP\nLevel ${profile.progression.level} · ${profile.progression.xp} XP toward next level\nRewards saved once. Pack ownership was retained.`;
+  const settlement=profile.progression.last_settlement;
+  const levelPoints=settlement.level_events.reduce((total,event)=>total+event.unlock_points,0);
+  $('summary').textContent=`${won?'Session completed':'Session ended'}\n${settlement.xp} XP · ${state.coins} coins · ${settlement.unlock_points+levelPoints} UP\nLevel ${profile.progression.level} · ${profile.progression.xp} XP toward next level\nRewards saved once. Pack ownership was retained.`;
   renderItemControls();status('Session saved. Return to the library to resolve live pack contents again.');for(const id of ['start','pause','tap','draw','finish','end'])$(id).disabled=true;renderTower();
  }catch(error){state.finished=false;status('Rewards could not be saved: '+error.message);checkpoint(true);}
  finally{settling=false;updateScreenWake();renderSessionShell();}
