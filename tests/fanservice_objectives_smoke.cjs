@@ -117,6 +117,12 @@ const cases=[
      assert.equal(result.progression.challenge_progress.public_safety.requirements[0].CurrentValue,1);
     }
     assert.equal(result.progression.sessions,1);assert.equal(result.progression.wins,1);assert.equal(result.progression.completed_sessions.length,1);assert.deepEqual(errors,[]);
+    if(testCase.objective===1){
+     const settlement=await page.evaluate(()=>{const saved=JSON.parse(localStorage.getItem(profileKey));return {wallet:saved.unlock_points,reward:saved.progression.last_settlement};});
+     assert(settlement.reward.level_events.some(event=>event.unlock_points>0),'Timer settlement includes a level-up UP reward');
+     assert(settlement.wallet>settlement.reward.unlock_points,'Wallet includes UP earned from level-ups');
+     assert.match(await page.locator('#summary').textContent(),new RegExp(` · ${settlement.wallet} UP\\n`),'The visible UP matches the increase from the fixture’s zero balance');
+    }
     let repeatAttempt={sessions:1,wins:1};
     if(testCase.checkpointReload){
      assert(await page.locator('#finish').isDisabled(),'Completed session disables another finish action');
