@@ -60,6 +60,14 @@ test('Host and Viewer installers require the media runtime needed by native play
   assert.match(read('packaging/windows/avtohmver-server.nsi'), /File "\$\{AVTOHMVER_STAGE\}\\LICENSE"/);
 });
 
+test('Windows Host installer exposes and removes the separate Library and Game Launcher entries', () => {
+  const host = read('packaging/windows/avtohmver-host.nsi');
+  assert.match(host, /CreateShortcut "\$SMPROGRAMS\\AvtoHmver\\AvtoHmver Library\.lnk" "\$INSTDIR\\AvtoHmver\.exe" ""/);
+  assert.match(host, /CreateShortcut "\$SMPROGRAMS\\AvtoHmver\\AvtoHmver Game Launcher\.lnk" "\$INSTDIR\\AvtoHmver\.exe" "--game-launcher"/);
+  assert.match(host, /Delete "\$SMPROGRAMS\\AvtoHmver\\AvtoHmver Library\.lnk"/);
+  assert.match(host, /Delete "\$SMPROGRAMS\\AvtoHmver\\AvtoHmver Game Launcher\.lnk"/);
+});
+
 test('Linux scope packages carry appropriate service definitions', () => {
   const systemd = read('packaging/linux/avtohmver-server.service');
   const userSystemd = read('packaging/linux/avtohmver-server-user.service');
