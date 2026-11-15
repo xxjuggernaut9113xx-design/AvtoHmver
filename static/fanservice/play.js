@@ -520,7 +520,12 @@ function event(e,{replay=false}={}){
  if(e.type==='media_change')timelinePool(e.value,replay);else if(e.type==='cycle_media')draw();
  else if(e.type==='text')$('caption').textContent=e.value;
  else if(e.type==='dialogue')window.FanserviceVoice.say(e.value,text=>$('caption').textContent=text,text=>$('voice-status').textContent=text);
- else if(e.type==='cum_event'){run.player.isAllowedToCum=e.value==='start';if(e.value==='start')timelinePool('cum',replay);}
+ else if(e.type==='cum_event'){
+  const opened=e.value==='start';
+  run.player.isAllowedToCum=opened;
+  if(opened)timelinePool('cum',replay);
+  if(!replay)status(opened?"Cum Now! You have a limited time to finish. Don't miss your chance!":'Cum Window Closed. Your chance to finish has passed. Back to stroking!');
+ }
  else if(e.type==='disable_break')state.breakSectionDisabled=e.value==='start';
  else if(e.type==='restore_break')state.breakSectionDisabled=false;
  else if(e.type==='grant_break'&&!replay)run.inventory.grant(4,1,itemContext());
