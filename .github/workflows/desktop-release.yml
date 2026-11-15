@@ -182,6 +182,9 @@ jobs:
       - name: Build Server installers
         shell: pwsh
         run: ./packaging/windows/build-server-installers.ps1 -ServerBinary binaries/server/avtohmver-server.exe -OutputDirectory installers
+      - name: Install, upgrade, uninstall Server, and preserve data
+        shell: pwsh
+        run: ./packaging/windows/smoke-server-installer.ps1 -InstallerDirectory installers
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
