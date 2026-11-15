@@ -43,6 +43,16 @@ const cases=[
     await page.clock.install();
     await page.getByRole('button',{name:'Start',exact:true}).click();
     console.log('Started Classic objective smoke: '+testCase.name);
+    if([1,6].includes(testCase.objective)){
+     const progressBar=page.getByRole('progressbar',{name:'Objective progress'});
+     await progressBar.waitFor();
+     await page.clock.fastForward(5000);
+     const hud=await page.evaluate(()=>({value:document.querySelector('#objective-progress').value,countdown:document.querySelector('#objective-countdown').textContent,elapsed:run.objective.gmSeconds-run.objective.state.baselineGmSeconds}));
+     assert(hud.elapsed>0&&hud.elapsed<testCase.target);
+     const remaining=testCase.target-hud.elapsed;
+     assert.equal(hud.value,(testCase.objective===1?hud.elapsed:remaining)/testCase.target);
+     assert.equal(hud.countdown,testCase.objective===6?`${remaining} Sec Left`:'');
+    }
     let checkpointReloaded=false,checkpointReload=null,afterCompletedReload={sessions:1,wins:1,checkpoint:null};
     if(testCase.checkpointReload){
      await page.clock.fastForward(5000);
@@ -91,6 +101,7 @@ const cases=[
      if(testCase.name==='Succu Slayer')assert((await page.evaluate(()=>state.succubi))>=5,'Five normal Succubus card queues are completed');
      if(testCase.name==='Strokes')assert((await page.evaluate(()=>state.strokes))>=100,'Delivered card beats meet the selected stroke target');
      if(testCase.name==='Timer (seconds)')assert((await page.evaluate(()=>state.seconds))>=300,'Playable time meets the selected timer target');
+     if(testCase.objective===1)assert.match(await page.locator('#objective-countdown').textContent(),/^\d+ Sec Left$/);
      if(testCase.name==='Cum meter')assert((await page.evaluate(()=>state.meter))>=1,'Delivered card beats fill the meter');
      await page.getByRole('button',{name:'Hold to finish',exact:true}).focus();
      await page.keyboard.down('Enter');await page.clock.runFor(1200);await page.keyboard.up('Enter');
