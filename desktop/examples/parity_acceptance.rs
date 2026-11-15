@@ -20,9 +20,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         b"AvtoHmver disposable acceptance fixture\n",
     )?;
     let config = root.join("config");
+    let preferences = root.join("preferences");
     std::fs::create_dir_all(&config)?;
+    std::fs::create_dir_all(&preferences)?;
     std::env::set_var("AVTOHMVER_CONFIG_DIR", &config);
     std::env::set_var("AVTOHMVER_DATA_DIR", root.join("data"));
+    // Native queue/preferences state must stay inside this marked fixture;
+    // otherwise Host falls back to the user's installed Curator profile.
+    std::env::set_var("AVTOHMVER_NATIVE_PREFS_DIR", &preferences);
     let server_only = std::env::args().any(|argument| argument == "--server");
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(2)
