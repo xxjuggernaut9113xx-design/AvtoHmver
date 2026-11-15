@@ -63,6 +63,13 @@
   return !(context.modifiers||[]).includes('Deal With The Devil')||context.cardType===3;
  }
  function gmElapsed(state,gmSeconds){return gmSeconds-(state.baselineGmSeconds??state.baselineDuration??0);}
+ function clockDisplay(state,gmSeconds,releaseDeadline,now){
+  if(!state.active||![1,6].includes(state.objective)||state.target<=0)return null;
+  const elapsed=clamp(gmElapsed(state,gmSeconds),0,state.target);
+  if(state.objective===6){const remaining=state.target-elapsed;return {progress:remaining/state.target,countdown:`${remaining} Sec Left`};}
+  const countdown=releaseDeadline===null?'':`${Math.max(0,Math.floor(releaseDeadline-now))} Sec Left`;
+  return {progress:elapsed/state.target,countdown};
+ }
  function getSelectedIndex(settings={}){const v=settings.LastObjectiveIndex_Classic??0;return Number.isFinite(v)?round(clamp(v,0,specs.length-1)):0;}
  function getSavedTarget(settings={},index){const s=specs[index];if(!s)return 0;if(s.objective===0)return 1;const v=settings[s.saveKey]??s.defaultTarget;return Number.isFinite(v)?round(clamp(v,s.min,s.max)):s.defaultTarget;}
  function baselines(player={},stats={},gmSeconds){return {baselineDuration:player.sessionLength??0,baselineStrokes:stats.strokes??0,baselineEdges:stats.edges??0,baselineSuccubi:stats.succubiDefeated??0,baselineMilking:stats.milkingCount??0,baselineGmSeconds:gmSeconds??player.sessionLength??0};}
@@ -229,6 +236,6 @@
    return {meter:result.meter,events:result.reset?[{type:'objective-reset',overlay:'CumWindowClosedOverlay_Widget',notification:RESET_NOTIFICATIONS[state.objective]||'Release window closed. Objective reset.',requestNextCard:true}]:[{type:tower?'round-complete':'successful-cum'}]};
   }
  }
- const api={specs,getSelectedIndex,getSavedTarget,baselines,initialize,isComplete,isPrejacExpired,resetAfterMiss,gmSecondCounts,Runtime};
+ const api={specs,getSelectedIndex,getSavedTarget,baselines,initialize,isComplete,isPrejacExpired,resetAfterMiss,gmSecondCounts,clockDisplay,Runtime};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.FanserviceObjectives=api;
 })(globalThis);

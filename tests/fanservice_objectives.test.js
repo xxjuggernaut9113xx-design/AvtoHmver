@@ -1,5 +1,14 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const O=require('../static/fanservice/objectives');
+test('Classic objective display uses GM elapsed time and native countdown direction',()=>{
+ const timer={active:true,objective:1,target:20,baselineGmSeconds:10};
+ assert.deepEqual(O.clockDisplay(timer,15,null,100),{progress:.25,countdown:''});
+ assert.deepEqual(O.clockDisplay(timer,36,120,104.5),{progress:1,countdown:'15 Sec Left'});
+ const prejac={...timer,objective:6};
+ assert.deepEqual(O.clockDisplay(prejac,15,null,100),{progress:.75,countdown:'15 Sec Left'});
+ assert.deepEqual(O.clockDisplay(prejac,35,null,100),{progress:0,countdown:'0 Sec Left'});
+ assert.equal(O.clockDisplay({...timer,objective:2},15,null,100),null);
+});
 const player=()=>({sessionLength:20,hasCame:false,isAllowedToCum:false});
 const stats=()=>({strokes:20,edges:20,milkingCount:20,succubiDefeated:20});
 test('Classic source selections retain enum, slider, range and finite save semantics',()=>{

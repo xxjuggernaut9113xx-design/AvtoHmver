@@ -137,10 +137,14 @@ function vibrationDeadlines(){
  return deadlines;
 }
 const towerPanel=element('section'),objectiveStatus=element('p');towerPanel.id='tower-draft';objectiveStatus.id='objective-status';objectiveStatus.setAttribute('role','status');
+const objectiveProgress=element('progress'),objectiveCountdown=element('span');
+objectiveProgress.id='objective-progress';objectiveProgress.max=1;objectiveProgress.setAttribute('aria-label','Objective progress');
+objectiveProgress.hidden=true;
+objectiveCountdown.id='objective-countdown';
 const inventoryDialog=element('dialog'),inventoryBody=element('div'),inventoryTitle=element('h2','Inventory and loadout');inventoryDialog.id='inventory-dialog';inventoryDialog.append(inventoryTitle,inventoryBody,action('Close inventory',()=>inventoryDialog.close()));
 const challengeDialog=element('dialog'),challengeBody=element('div');challengeDialog.id='challenge-dialog';challengeDialog.append(element('h2','Challenges and modifiers'),challengeBody,action('Close challenges',()=>challengeDialog.close()));
 const inventoryAction=action('Inventory / loadout',()=>{renderInventory();inventoryDialog.showModal();}),challengeAction=action('Challenges / modifiers',()=>{renderChallenges();challengeDialog.showModal();});
-document.body.append(inventoryDialog,challengeDialog);$('status').after(towerPanel,objectiveStatus);$('controls').append(inventoryAction,challengeAction);
+document.body.append(inventoryDialog,challengeDialog);$('status').after(towerPanel,objectiveStatus,objectiveProgress,objectiveCountdown);$('controls').append(inventoryAction,challengeAction);
 const holdingHand=element('select'),holdingLabel=element('label','Holding hand');
 const holdingPreference='fanservice-holding-hand',itemControls=$('item-controls');
 for(const [value,label] of [['left','Left hand'],['right','Right hand']]){
@@ -562,7 +566,11 @@ function render(){
  const session=run.effectiveStats();$('meter').value=Math.min(state.meter,1);$('stats').textContent=`${session.strokes} beats · combo ${state.combo} (${rules.comboTier(state.combo)}) · ${state.coins} coins · ${state.succuCoins} SuccuCoins · heat ${state.heat.toFixed(1)} · ${Math.floor(session.seconds)} seconds${run.config.lootEnabled?` · loot ${Math.floor(Math.max(0,state.lootBar)*100)}%`:''}`;
  $('meter-value').textContent=`Cum meter ${(Math.max(0,Math.min(state.meter,1))*100).toFixed(2)}%`;
  const objective=run.roundObjective||run.objective.state,spec=FanserviceObjectives.specs.find(s=>s.objective===objective.objective);
- objectiveStatus.textContent=(run.tower?`Tower ${run.phase}. `:'')+(spec?`${spec.title}: ${objective.target}. `:'')+(run.objective.releaseDeadline===null?'':`Release window: ${Math.max(0,Math.ceil(run.objective.releaseDeadline-state.seconds))} seconds.`)+(state.seconds<breakUntil?` Break: ${Math.ceil(breakUntil-state.seconds)} seconds.`:'');
+ const classicClock=run.config.mode===0?FanserviceObjectives.clockDisplay(objective,run.objective.gmSeconds,run.objective.releaseDeadline,state.seconds):null;
+ objectiveStatus.textContent=(run.tower?`Tower ${run.phase}. `:'')+(spec?`${spec.title}: ${objective.target}. `:'')+(run.objective.releaseDeadline===null||objective.objective===1&&classicClock?'':`Release window: ${Math.max(0,Math.ceil(run.objective.releaseDeadline-state.seconds))} seconds.`)+(state.seconds<breakUntil?` Break: ${Math.ceil(breakUntil-state.seconds)} seconds.`:'');
+ objectiveProgress.hidden=classicClock?.progress==null;
+ if(classicClock?.progress!=null)objectiveProgress.value=classicClock.progress;
+ objectiveCountdown.textContent=classicClock?.countdown||'';
  finishButton.textContent=objective.objective===7?'Hold to record tribute':'Hold to finish';finishButton.disabled=!canFinish();
  finishButton.setAttribute('aria-label',finishButton.textContent);
  $('controls').dataset.finishReady=String(!finishButton.disabled);
