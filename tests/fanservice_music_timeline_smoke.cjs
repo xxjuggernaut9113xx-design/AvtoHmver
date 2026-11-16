@@ -37,6 +37,27 @@ const manifest={protocol:1,library_id:'music-fixture',track_id:1,recording_id:'s
    return {reopened,closed,notice:document.querySelector('#status').textContent!==priorStatus};
   });
   assert.deepEqual(guardedWindow,{reopened:false,closed:false,notice:false});
+  await page.emulateMedia({reducedMotion:'reduce'});
+  const replayCue=await page.evaluate(()=>{
+   const meter=document.querySelector('#meter'),priorStatus=document.querySelector('#status').textContent;
+   const read=()=>{const original=document.body.dataset.sessionState;document.body.dataset.sessionState='playing';const cue={phase:meter.dataset.musicRelease,color:getComputedStyle(meter).outlineColor,animation:getComputedStyle(meter).animationName};document.body.dataset.sessionState=original;return cue;};
+   const opened={type:'cum_event',value:'start'},closed={type:'cum_event',value:'end'};
+   reconcileTimeline([opened]);render();const open=read();
+   reconcileTimeline([opened,closed]);render();const close=read();
+   reconcileTimeline([]);render();
+   return {open,close,cleared:meter.dataset.musicRelease,notice:document.querySelector('#status').textContent!==priorStatus};
+  });
+  assert.deepEqual(replayCue,{open:{phase:'open',color:'rgb(141, 248, 159)',animation:'none'},close:{phase:'closed',color:'rgb(255, 120, 120)',animation:'none'},cleared:'',notice:false});
+  await page.emulateMedia({reducedMotion:'no-preference'});
+  const cueAnimations=await page.evaluate(()=>{
+   const meter=document.querySelector('#meter'),original=document.body.dataset.sessionState;
+   reconcileTimeline([{type:'cum_event',value:'start'}]);render();
+   document.body.dataset.sessionState='playing';const playing=getComputedStyle(meter).animationName;
+   document.body.dataset.sessionState='paused';const paused=getComputedStyle(meter).animationName;
+   document.body.dataset.sessionState=original;reconcileTimeline([]);render();
+   return {playing,paused};
+  });
+  assert.deepEqual(cueAnimations,{playing:'music-release-pulse',paused:'none'});
   await page.locator('#start').click();await page.waitForTimeout(350);
   const lead=await page.evaluate(()=>({remaining:musicLeadIn,strokes:state.strokes,seconds:state.seconds,position:audio.currentTime}));assert.ok(lead.remaining>1);assert.equal(lead.strokes,0);assert.equal(lead.seconds,0);assert.equal(lead.position,0);
   await page.locator('#stage').click();const pausedLead=await page.evaluate(()=>musicLeadIn);await page.waitForTimeout(300);assert.equal(await page.evaluate(()=>musicLeadIn),pausedLead);

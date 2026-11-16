@@ -91,6 +91,13 @@ main { padding-left: max(12px, var(--safe-left)); padding-right: max(12px, var(-
 #hud-bottom { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 0 max(10px, var(--safe-right)) max(8px, var(--safe-bottom)) max(10px, var(--safe-left)); text-align: center; text-shadow: 0 1px 6px #000, 0 1px 12px #000; }
 #caption, #voice-status, #media-status, #status { max-width: min(92vw, 700px); margin: 0; padding: 2px 6px; color: #f3f8fa; font-size: clamp(13px, 1.8vw, 18px); line-height: 1.1; overflow-wrap: anywhere; }
 #caption:empty, #voice-status:empty, #media-status:empty, #status:empty { display: none; }
+#meter[data-music-release="open"] { --music-release-color: #8df89f; }
+#meter[data-music-release="closed"] { --music-release-color: #ff7878; }
+#meter:is([data-music-release="open"], [data-music-release="closed"]) { outline: 2px solid var(--music-release-color); outline-offset: 2px; }
+@media (prefers-reduced-motion: no-preference) {
+  body[data-session-state="playing"] #meter:is([data-music-release="open"], [data-music-release="closed"]) { animation: music-release-pulse 1.5s ease-in-out infinite; }
+}
+@keyframes music-release-pulse { 50% { outline-color: transparent; } }
 #meter { width: min(85%, 600px); height: 8px; margin: 3px 0; accent-color: #b0e4c0; }
 #beats { position: relative; width: min(100%, 740px); height: 32px; flex-shrink: 0; overflow: hidden; border: 1px solid #ffffff70; border-radius: 20px; background: linear-gradient(90deg, #0a122039, #3a79664d 50%, #0a122039); box-shadow: 0 1px 8px #0008; }
 #center { position: absolute; left: 50%; height: 100%; width: 3px; background: #fff; box-shadow: 0 0 8px #fff; }

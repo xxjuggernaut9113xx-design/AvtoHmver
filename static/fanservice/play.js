@@ -524,6 +524,7 @@ function event(e,{replay=false}={}){
   if(run.player.hasCame||!['start','end'].includes(e.value))return;
   const opened=e.value==='start';
   run.player.isAllowedToCum=opened;
+  state.musicReleaseCue=opened?'open':'closed';
   if(opened)timelinePool('cum',replay);
   if(!replay)status(opened?"Cum Now! You have a limited time to finish. Don't miss your chance!":'Cum Window Closed. Your chance to finish has passed. Back to stroking!');
  }
@@ -535,6 +536,7 @@ function event(e,{replay=false}={}){
 }
 function reconcileTimeline(events){
  $('caption').textContent='';$('voice-status').textContent='';FanserviceBackground.apply($('session-background'),'normalbeatbackground',$('background-status'));state.breakSectionDisabled=false;run.player.isAllowedToCum=false;
+ delete state.musicReleaseCue;
  timelinePool('slow',true);
  for(const entry of events)event(entry,{replay:true});
 }
@@ -566,6 +568,7 @@ function renderTower(){
 function render(){
  updateScreenWake();
  if(!state)return;
+ $('meter').dataset.musicRelease=music&&!run.player.hasCame&&!state.finished?state.musicReleaseCue||'':'';
  renderSessionShell();
  renderBeatLane();
  renderItemControls();
