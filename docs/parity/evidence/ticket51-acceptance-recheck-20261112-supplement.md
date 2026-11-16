@@ -82,6 +82,14 @@ code against the current evidence.
 
 ## Test runs
 
+2026-11-15 browser follow-up: the music timeline smoke passed in headless
+Edge after adding the original release notices (`0d4b8391`), guarding against
+late release events after Finish (`9d40ce04`), and adding the HUD release cues
+(`39daa212`). It verifies ordered live notices, no notice on timeline replay,
+steady colors under reduced motion, no pulse while paused, and one settlement
+at natural completion. It uses a generated recording and intercepted library
+responses. The Temptation and Store widget behavior remains outside this run.
+
 - `node --test tests/*.test.js` (with the `python`→`python3` shim):
   **424 pass / 0 fail** (baseline 418 at HEAD `85a486c`; +6 new
   dispatcher tests).
